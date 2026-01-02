@@ -1,0 +1,36 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "ORR Pilot Zone",
+    "description": "Outer Ring Road corridor pilot area for City Intelligence Engine Phase-1",
+    "wards": 12,
+    "ward_list": [
+      "Marathahalli",
+      "Bellandur",
+      "Whitefield",
+      "Brookefield",
+      "Kadubeesanahalli",
+      "Devarabisanahalli",
+      "Doddanekkundi",
+      "Varthur",
+      "Kundalahalli",
+      "ITPL",
+      "Hoodi",
+      "Mahadevapura"
+    ],
+    "created": "2024-12-18",
+    "version": "2.1"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [77.6200, 12.9300],
+        [77.7500, 12.9300],
+        [77.7500, 13.0300],
+        [77.6200, 13.0300],
+        [77.6200, 12.9300]
+      ]
+    ]
+  }
+}

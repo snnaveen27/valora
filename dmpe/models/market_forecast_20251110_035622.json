@@ -1,0 +1,51 @@
+{
+  "Bangalore_residential_apartment_sale": {
+    "current_avg_price": 23377236.472664494,
+    "forecast_1yr": 45386784.09331246,
+    "forecast_3yr": null,
+    "trend_direction": "increasing",
+    "monthly_growth_rate": 1825403.4293075223
+  },
+  "Bangalore_commercial_land_sale": {
+    "current_avg_price": 88511763.04049844,
+    "forecast_1yr": 332039536.8293708,
+    "forecast_3yr": null,
+    "trend_direction": "increasing",
+    "monthly_growth_rate": 17668713.3447154
+  },
+  "Bangalore_commercial_shop_rent": {
+    "current_avg_price": 290341.85892116185,
+    "forecast_1yr": 1283709.254133648,
+    "forecast_3yr": null,
+    "trend_direction": "increasing",
+    "monthly_growth_rate": 77241.59916518474
+  },
+  "Bangalore_residential_apartment_rent": {
+    "current_avg_price": 85417.67278481013,
+    "forecast_1yr": 333188.62882287224,
+    "forecast_3yr": null,
+    "trend_direction": "increasing",
+    "monthly_growth_rate": 19968.48142524561
+  },
+  "Bangalore_residential_house_rent": {
+    "current_avg_price": 145686.59582726832,
+    "forecast_1yr": 600497.6215886204,
+    "forecast_3yr": null,
+    "trend_direction": "increasing",
+    "monthly_growth_rate": 38539.37529094331
+  },
+  "Bangalore_residential_house_sale": {
+    "current_avg_price": 34061139.50952381,
+    "forecast_1yr": 12815545.123907458,
+    "forecast_3yr": null,
+    "trend_direction": "decreasing",
+    "monthly_growth_rate": -1369666.1409871387
+  },
+  "Bangalore_residential_plot_sale": {
+    "current_avg_price": 16075943.63554217,
+    "forecast_1yr": 55281256.989700414,
+    "forecast_3yr": null,
+    "trend_direction": "increasing",
+    "monthly_growth_rate": 2797625.958697809
+  }
+}

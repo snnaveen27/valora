@@ -1,0 +1,9 @@
+pandas==2.1.2
+geopandas==0.14.0
+shapely==2.0.1
+sqlalchemy==2.0.19
+psycopg2-binary==2.9.7
+tqdm==4.65.0
+python-dotenv==1.0.0
+fiona==1.9.4
+pyproj==3.6.0

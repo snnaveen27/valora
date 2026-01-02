@@ -1,0 +1,77 @@
+/* Custom styles for responsive layout */
+.map-container {
+  flex: 1;
+  min-width: 0; /* Allows the container to shrink below content size */
+  transition: all 0.3s ease-in-out;
+  height: 100vh;
+  position: relative;
+}
+
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #1a1a1a;
+  border-left: 1px solid rgba(107, 33, 168, 0.4);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+.chat-panel.minimized {
+  transform: translateX(100%);
+  width: 0 !important;
+  min-width: 0 !important;
+  border: none;
+}
+
+.chat-panel.maximized {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 80% !important;
+  max-width: 1200px;
+  z-index: 1000;
+}
+
+.resize-handle {
+  width: 6px;
+  height: 100%;
+  background: transparent;
+  cursor: col-resize;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resize-handle:hover {
+  background: rgba(168, 85, 247, 0.3);
+}
+
+.resize-handle:active {
+  background: rgba(168, 85, 247, 0.5);
+}
+
+/* Smooth transitions for panel resizing */
+.panel-resizing {
+  transition: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chat-panel:not(.maximized) {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 90% !important;
+    transform: translateX(0);
+    z-index: 1000;
+  }
+  
+  .resize-handle {
+    display: none;
+  }
+}
