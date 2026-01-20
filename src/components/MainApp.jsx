@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import OnlineOSMMap from '../spatial/OnlineOSMMap'
 import AnalysisPanel from './AnalysisPanel'
 import ChatPanel from './ChatPanel'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -14,6 +14,30 @@ export default function MainApp() {
   const [analysisWidth, setAnalysisWidth] = useState('narrow') // narrow or wide
   const [chatWidth, setChatWidth] = useState('narrow') // narrow or wide
   const [credits, setCredits] = useState(null)
+
+  // Font size persistence
+  const [analysisFontSize, setAnalysisFontSize] = useState(() => {
+    return parseInt(localStorage.getItem('valora_analysis_font_size')) || 100
+  })
+  const [chatFontSize, setChatFontSize] = useState(() => {
+    return parseInt(localStorage.getItem('valora_chat_font_size')) || 100
+  })
+
+  useEffect(() => {
+    localStorage.setItem('valora_analysis_font_size', analysisFontSize)
+  }, [analysisFontSize])
+
+  useEffect(() => {
+    localStorage.setItem('valora_chat_font_size', chatFontSize)
+  }, [chatFontSize])
+
+  const adjustAnalysisFontSize = (delta) => {
+    setAnalysisFontSize(prev => Math.min(150, Math.max(75, prev + delta)))
+  }
+
+  const adjustChatFontSize = (delta) => {
+    setChatFontSize(prev => Math.min(150, Math.max(75, prev + delta)))
+  }
 
   useEffect(() => {
     const fetchCredits = async () => {
@@ -117,16 +141,51 @@ export default function MainApp() {
           {isAnalysisOpen ? (
             <>
               <div className="p-2 border-b border-slate-700 flex items-center justify-between shrink-0">
-                <span className="text-white font-medium text-sm">Insights & Analysis</span>
                 <div className="flex gap-1">
+                  {['insights', 'docs', 'notes'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`px-2 py-1 rounded text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                        activeTab === tab ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                      }`}
+                    >
+                      {tab === 'insights' && <TrendingUp className="w-3 h-3" />}
+                      {tab === 'docs' && <FileText className="w-3 h-3" />}
+                      {tab === 'notes' && <StickyNote className="w-3 h-3" />}
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1 ml-2">
+                  <div className="flex items-center gap-0.5 bg-slate-700/50 rounded px-1 mr-1">
+                    <button 
+                      onClick={() => adjustAnalysisFontSize(-5)}
+                      className="p-1 text-slate-400 hover:text-white transition rounded"
+                      title="Decrease font size"
+                    >
+                      <span className="text-xs font-bold">-</span>
+                    </button>
+                    <span className="text-[10px] text-slate-500 font-bold min-w-[24px] text-center">{analysisFontSize}%</span>
+                    <button 
+                      onClick={() => adjustAnalysisFontSize(5)}
+                      className="p-1 text-slate-400 hover:text-white transition rounded"
+                      title="Increase font size"
+                    >
+                      <span className="text-xs font-bold">+</span>
+                    </button>
+                  </div>
                   <button 
                     onClick={toggleAnalysisWidth} 
-                    className="p-1 text-slate-400 hover:text-white transition"
+                    className="p-1 text-slate-500 hover:text-white transition rounded hover:bg-slate-700"
                     title={analysisWidth === 'narrow' ? 'Expand' : 'Shrink'}
                   >
                     {analysisWidth === 'narrow' ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
                   </button>
-                  <button onClick={() => setIsAnalysisOpen(false)} className="p-1 text-slate-400 hover:text-white transition">
+                  <button 
+                    onClick={() => setIsAnalysisOpen(false)} 
+                    className="p-1 text-slate-500 hover:text-white transition rounded hover:bg-slate-700"
+                  >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -137,6 +196,7 @@ export default function MainApp() {
                   setAgentData={setAgentData}
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
+                  fontSize={analysisFontSize}
                 />
               </div>
             </>
@@ -164,9 +224,9 @@ export default function MainApp() {
           className="h-full bg-slate-800 border-l border-slate-700 flex flex-col transition-all duration-300 shrink-0"
           style={{
             width: isChatOpen 
-              ? (chatWidth === 'wide' ? 'calc(50% - 160px)' : 'calc(33% - 107px)')
+              ? (chatWidth === 'wide' ? 'calc(40% - 128px)' : 'calc(25% - 80px)')
               : '32px',
-            minWidth: isChatOpen ? '300px' : '0px'
+            minWidth: isChatOpen ? '280px' : '0px'
           }}
         >
           {isChatOpen ? (
@@ -177,6 +237,23 @@ export default function MainApp() {
                   AI Assistant
                 </span>
                 <div className="flex gap-1">
+                  <div className="flex items-center gap-0.5 bg-slate-700/50 rounded px-1 mr-1">
+                    <button 
+                      onClick={() => adjustChatFontSize(-5)}
+                      className="p-1 text-slate-400 hover:text-white transition rounded"
+                      title="Decrease font size"
+                    >
+                      <span className="text-xs font-bold">-</span>
+                    </button>
+                    <span className="text-[10px] text-slate-500 font-bold min-w-[24px] text-center">{chatFontSize}%</span>
+                    <button 
+                      onClick={() => adjustChatFontSize(5)}
+                      className="p-1 text-slate-400 hover:text-white transition rounded"
+                      title="Increase font size"
+                    >
+                      <span className="text-xs font-bold">+</span>
+                    </button>
+                  </div>
                   <button 
                     onClick={toggleChatWidth} 
                     className="p-1 text-slate-400 hover:text-white transition"
@@ -190,7 +267,11 @@ export default function MainApp() {
                 </div>
               </div>
               <div className="flex-1 overflow-hidden">
-                <ChatPanel agentData={agentData} setAgentData={setAgentData} />
+                <ChatPanel 
+                  agentData={agentData} 
+                  setAgentData={setAgentData} 
+                  fontSize={chatFontSize}
+                />
               </div>
             </>
           ) : (

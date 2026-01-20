@@ -40,6 +40,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const placeMarkerRef = useRef(null)
   const rotationIntervalRef = useRef(null)
   const rotationTargetRef = useRef(null)
+  const placesDataSourceRef = useRef(null)
   const [isLoading, setIsLoading] = useState(true)
   const [is3DMode, setIs3DMode] = useState(true)
   const [heading, setHeading] = useState(0)
@@ -52,6 +53,138 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const [canGoBack, setCanGoBack] = useState(false)
   const [mapboxApiKey, setMapboxApiKey] = useState(null)
   const [useMapbox, setUseMapbox] = useState(false)
+  
+  // Layer visibility toggles with persistence
+  const [showBuildings, setShowBuildings] = useState(() => {
+    return localStorage.getItem('valora_show_buildings') !== 'false'
+  })
+  const [showPlaces, setShowPlaces] = useState(() => {
+    return localStorage.getItem('valora_show_places') !== 'false'
+  })
+  const [showTransport, setShowTransport] = useState(() => {
+    return localStorage.getItem('valora_show_transport') !== 'false'
+  })
+  const [layersPanelOpen, setLayersPanelOpen] = useState(false)
+
+  // Persist layer preferences
+  useEffect(() => {
+    localStorage.setItem('valora_show_buildings', showBuildings)
+  }, [showBuildings])
+  
+  useEffect(() => {
+    localStorage.setItem('valora_show_places', showPlaces)
+  }, [showPlaces])
+  
+  useEffect(() => {
+    localStorage.setItem('valora_show_transport', showTransport)
+  }, [showTransport])
+
+  const applyPlaceLabelStyle = (entity, subtype) => {
+    if (!entity) return
+    const name = entity?.properties?.name?.getValue?.() || entity?.name
+    if (!name) return
+
+    const kind = String(subtype || '').toLowerCase()
+    let fontPx = 12
+    let maxDistance = 35000
+
+    if (kind === 'city') {
+      fontPx = 18
+      maxDistance = 250000
+    } else if (kind === 'town') {
+      fontPx = 16
+      maxDistance = 180000
+    } else if (kind === 'county') {
+      fontPx = 16
+      maxDistance = 350000
+    } else if (kind === 'suburb') {
+      fontPx = 14
+      maxDistance = 70000
+    } else if (kind === 'neighbourhood' || kind === 'quarter') {
+      fontPx = 12
+      maxDistance = 30000
+    } else if (kind === 'village') {
+      fontPx = 13
+      maxDistance = 90000
+    }
+
+    const label = new Cesium.LabelGraphics({
+      text: name,
+      font: `600 ${fontPx}px Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
+      fillColor: Cesium.Color.WHITE,
+      outlineColor: Cesium.Color.fromCssColorString('#0b1220'),
+      outlineWidth: 4,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      showBackground: true,
+      backgroundColor: Cesium.Color.fromCssColorString('#0b1220').withAlpha(0.45),
+      backgroundPadding: new Cesium.Cartesian2(8, 4),
+      pixelOffset: new Cesium.Cartesian2(0, -12),
+      horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, maxDistance),
+      scaleByDistance: new Cesium.NearFarScalar(1500.0, 1.0, maxDistance, 0.6),
+      translucencyByDistance: new Cesium.NearFarScalar(800.0, 1.0, maxDistance, 0.0),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY
+    })
+
+    entity.label = label
+  }
+
+  const ensurePlacesLabelsLoaded = async () => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    if (placesDataSourceRef.current) return
+
+    try {
+      const ds = await Cesium.GeoJsonDataSource.load('/data/osm_extracted/places.geojson', {
+        clampToGround: true
+      })
+
+      ds.name = 'valora-places-labels'
+      placesDataSourceRef.current = ds
+      viewer.dataSources.add(ds)
+
+      const entities = ds.entities.values
+      for (const e of entities) {
+        const subtype = e?.properties?.subtype?.getValue?.() || e?.properties?.place?.getValue?.()
+        applyPlaceLabelStyle(e, subtype)
+      }
+    } catch (err) {
+      console.warn('Failed to load places labels:', err)
+    }
+  }
+
+  // Toggle layer visibility (no reload)
+  const toggleBuildingsLayer = () => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    
+    const newState = !showBuildings
+    setShowBuildings(newState)
+    
+    // Toggle all building entities
+    Object.values(tileEntitiesRef.current).forEach(entities => {
+      entities.forEach(e => {
+        if (e && e.polygon) e.show = newState
+      })
+    })
+  }
+
+  const togglePlacesLayer = () => {
+    // Place labels disabled - AI handles labels in cinematic mode
+    // const viewer = viewerRef.current
+    // if (!viewer || viewer.isDestroyed()) return
+    // if (!placesDataSourceRef.current) return
+    // 
+    // const newState = !showPlaces
+    // setShowPlaces(newState)
+    // placesDataSourceRef.current.show = newState
+  }
+
+  const toggleTransportLayer = () => {
+    setShowTransport(prev => !prev)
+    // Transport layer implementation pending
+  }
 
   // Fetch Mapbox API key on mount
   useEffect(() => {
@@ -91,10 +224,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     const isAnalyzing = agentData?.buildingAnalysisLoading || agentData?.locationAnalysisLoading
 
     if (isAnalyzing && !rotationIntervalRef.current && rotationTargetRef.current) {
-      // Start 360° orbit rotation around target at close distance (150m)
+      // Start 360° orbit rotation around target at medium distance (250m)
       console.log('🎥 Starting 360° camera orbit')
       const target = rotationTargetRef.current
-      const orbitDistance = 150 // Fixed close distance for street-level view
+      const orbitDistance = 250 // Medium distance for better building view
       const pitch = Cesium.Math.toRadians(-45) // 45° downward angle
       
       // Stop rotation on any user input (mouse/touch/wheel)
@@ -110,11 +243,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       
       rotationIntervalRef.current = setInterval(() => {
         if (viewer && !viewer.isDestroyed() && target) {
-          // Orbit around target by rotating heading (slower: 0.3° per frame)
+          // Orbit around target by rotating heading (slower: 0.2° per frame for smoother look)
           viewer.camera.lookAt(
             target,
             new Cesium.HeadingPitchRange(
-              viewer.camera.heading + Cesium.Math.toRadians(0.3),
+              viewer.camera.heading + Cesium.Math.toRadians(0.2),
               pitch,
               orbitDistance
             )
@@ -131,10 +264,37 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     }
   }, [agentData?.buildingAnalysisLoading, agentData?.locationAnalysisLoading])
 
-  // Toggle between OSM and Mapbox
+  // Apply layer visibility on load
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    
+    // Apply buildings visibility
+    Object.values(tileEntitiesRef.current).forEach(entities => {
+      entities.forEach(e => {
+        if (e && e.polygon) e.show = showBuildings
+      })
+    })
+  }, [showBuildings])
+
+  // Place labels disabled - AI handles labels
+  // useEffect(() => {
+  //   if (placesDataSourceRef.current) {
+  //     placesDataSourceRef.current.show = showPlaces
+  //   }
+  // }, [showPlaces])
+
+  // Toggle between OSM and Mapbox (preserves camera view)
   const toggleTileProvider = () => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed() || !mapboxApiKey) return
+    
+    // Save current camera state BEFORE any changes
+    const camera = viewer.camera
+    const savedPosition = Cesium.Cartesian3.clone(camera.position)
+    const savedHeading = camera.heading
+    const savedPitch = camera.pitch
+    const savedRoll = camera.roll
     
     const newMode = !useMapbox
     setUseMapbox(newMode)
@@ -158,6 +318,16 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       })
       viewer.imageryLayers.addImageryProvider(osmProvider)
     }
+    
+    // Restore camera position immediately (no animation)
+    viewer.camera.setView({
+      destination: savedPosition,
+      orientation: {
+        heading: savedHeading,
+        pitch: savedPitch,
+        roll: savedRoll
+      }
+    })
   }
 
   const flyToArea = (areaKey, height = 1200) => {
@@ -413,12 +583,12 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     }
 
     // Aggressive LOD: only load tiles near camera based on height
-    let loadRadius = 0.005 // ~500m default
-    if (cameraHeight < 500) loadRadius = 0.002      // 200m when very close
-    else if (cameraHeight < 1000) loadRadius = 0.004  // 400m
-    else if (cameraHeight < 2000) loadRadius = 0.006  // 600m
-    else if (cameraHeight < 5000) loadRadius = 0.01   // 1km
-    else loadRadius = 0.015  // 1.5km when far
+    let loadRadius = 0.01 // ~1km default
+    if (cameraHeight < 500) loadRadius = 0.004      // 400m when very close
+    else if (cameraHeight < 1000) loadRadius = 0.008  // 800m
+    else if (cameraHeight < 2000) loadRadius = 0.012  // 1.2km
+    else if (cameraHeight < 5000) loadRadius = 0.02   // 2km
+    else loadRadius = 0.03  // 3km when far
 
     // Load only tiles within radius of camera center (not entire viewport)
     const bbox = {
@@ -726,6 +896,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           }
         })
 
+        // Place labels disabled - AI will handle labels in cinematic storyboard
+        // await ensurePlacesLabelsLoaded()
+
         // Track camera changes
         viewer.camera.changed.addEventListener(updateHeading)
         
@@ -900,7 +1073,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
             const lat = buildingData.coordinates.lat
             const lng = buildingData.coordinates.lng
             const height = buildingData.height || 10
-            const orbitDistance = 150
+            const orbitDistance = 300
             const orbitPitch = Cesium.Math.toRadians(-45)
             
             // Target is center of building
@@ -967,7 +1140,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
               // Target is ground level at clicked location
               const target = Cesium.Cartesian3.fromDegrees(clickLng, clickLat, 0)
               rotationTargetRef.current = target
-              const orbitDistance = 150
+              const orbitDistance = 300
               const orbitPitch = Cesium.Math.toRadians(-45)
               
               // Fly to orbit position using lookAt
@@ -1097,7 +1270,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         }
       }
     }
-  }, [mapboxApiKey, useMapbox])
+  }, [mapboxApiKey])
 
   // Hide Cesium logo
   useEffect(() => {
@@ -1198,30 +1371,118 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           </button>
         </div>
 
-        {/* OSM/Mapbox Toggle */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden">
+        {/* Layers Panel */}
+        <div className="relative bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden">
           <button
-            onClick={toggleTileProvider}
-            disabled={!mapboxApiKey}
+            onClick={() => setLayersPanelOpen(!layersPanelOpen)}
             className={`w-9 h-9 flex items-center justify-center transition-colors ${
-              !mapboxApiKey 
-                ? 'bg-gray-50 cursor-not-allowed opacity-60' 
-                : useMapbox 
-                  ? 'bg-blue-50 hover:bg-blue-100' 
-                  : 'bg-green-50 hover:bg-green-100'
+              layersPanelOpen ? 'bg-blue-50' : 'hover:bg-gray-50'
             }`}
-            title={!mapboxApiKey ? 'Mapbox key not configured' : useMapbox ? 'Mapbox (click for OSM)' : 'OSM (click for Mapbox)'}
+            title="Layers"
           >
-            {useMapbox ? (
-              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-            )}
+            <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
           </button>
+          
+          {/* Layers Dropdown */}
+          {layersPanelOpen && (
+            <div className="absolute right-0 top-full mt-2 w-56 bg-white/98 backdrop-blur-sm rounded-lg shadow-xl border border-gray-200/50 overflow-hidden z-50">
+              <div className="p-2 border-b border-gray-100">
+                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide px-2">Map Layers</h3>
+              </div>
+              
+              {/* Buildings Toggle */}
+              <button
+                onClick={toggleBuildingsLayer}
+                className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-50"
+              >
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <span className="text-sm font-medium text-gray-700">3D Buildings</span>
+                </div>
+                <div className={`w-9 h-5 rounded-full transition-colors ${
+                  showBuildings ? 'bg-blue-500' : 'bg-gray-300'
+                }`}>
+                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform mt-0.5 ${
+                    showBuildings ? 'ml-4' : 'ml-0.5'
+                  }`} />
+                </div>
+              </button>
+              
+              {/* Places Labels Toggle */}
+              <button
+                onClick={togglePlacesLayer}
+                className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-50"
+              >
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="text-sm font-medium text-gray-700">Place Labels</span>
+                </div>
+                <div className={`w-9 h-5 rounded-full transition-colors ${
+                  showPlaces ? 'bg-blue-500' : 'bg-gray-300'
+                }`}>
+                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform mt-0.5 ${
+                    showPlaces ? 'ml-4' : 'ml-0.5'
+                  }`} />
+                </div>
+              </button>
+              
+              {/* Transport Toggle (future) */}
+              <button
+                onClick={toggleTransportLayer}
+                className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                  </svg>
+                  <span className="text-sm font-medium text-gray-700">Transport</span>
+                </div>
+                <div className={`w-9 h-5 rounded-full transition-colors ${
+                  showTransport ? 'bg-blue-500' : 'bg-gray-300'
+                }`}>
+                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform mt-0.5 ${
+                    showTransport ? 'ml-4' : 'ml-0.5'
+                  }`} />
+                </div>
+              </button>
+              
+              {/* Base Map Selection */}
+              <div className="p-2 pt-3">
+                <p className="text-xs font-bold text-gray-700 uppercase tracking-wide px-2 mb-2">Base Map</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => useMapbox && mapboxApiKey && toggleTileProvider()}
+                    disabled={!mapboxApiKey}
+                    className={`px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                      !useMapbox
+                        ? 'bg-green-500 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    } ${!mapboxApiKey ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    OSM
+                  </button>
+                  <button
+                    onClick={() => !useMapbox && mapboxApiKey && toggleTileProvider()}
+                    disabled={!mapboxApiKey}
+                    className={`px-3 py-2 rounded-md text-xs font-medium transition-all ${
+                      useMapbox
+                        ? 'bg-blue-500 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    } ${!mapboxApiKey ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    Mapbox
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

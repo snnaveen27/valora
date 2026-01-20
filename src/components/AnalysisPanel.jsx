@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-export default function AnalysisPanel({ agentData, setAgentData, activeTab, setActiveTab }) {
+export default function AnalysisPanel({ agentData, setAgentData, activeTab, setActiveTab, fontSize = 100 }) {
   const [notes, setNotes] = useState([])
   const [currentNote, setCurrentNote] = useState({ title: '', content: '' })
   const [viewportAnalysis, setViewportAnalysis] = useState(null)
@@ -53,74 +53,50 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Tabs */}
-      <div className="p-2 border-b border-slate-700 flex gap-1 overflow-x-auto shrink-0">
-        {['insights', 'docs', 'notes'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-2 py-1 rounded text-xs font-medium transition whitespace-nowrap flex items-center gap-1 ${
-              activeTab === tab ? 'bg-blue-500 text-white' : 'text-slate-400 hover:bg-slate-700'
-            }`}
-          >
-            {tab === 'insights' && <TrendingUp className="w-3 h-3" />}
-            {tab === 'docs' && <FileText className="w-3 h-3" />}
-            {tab === 'notes' && <StickyNote className="w-3 h-3" />}
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
-
+    <div className="flex flex-col h-full overflow-hidden" style={{ zoom: `${fontSize}%` }}>
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-2">
         {activeTab === 'insights' && (
-          <div className="space-y-3">
-            <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-3">
-              <h3 className="text-white font-semibold text-sm flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-blue-400" />
-                City Insights
-              </h3>
-              <p className="text-slate-400 text-xs mt-1">Combined analysis and market intelligence</p>
-            </div>
+          <div className="space-y-1.5">
 
-            {/* Simulation Results Section */}
+            {/* Simulation Results Section - Professional & Dense */}
             {agentData?.simulation && (
-              <div className="bg-orange-600/10 border border-orange-500/30 rounded-lg p-3 space-y-2 animate-in fade-in slide-in-from-bottom-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-orange-400 font-semibold text-xs flex items-center gap-2">
-                    <Zap className="w-3 h-3" /> Urban Simulation
-                  </h4>
-                  <span className="text-[10px] text-orange-500/70 font-medium px-1.5 py-0.5 bg-orange-500/10 rounded">Live Scenario</span>
+              <div className="bg-orange-600/5 border border-orange-500/20 rounded-lg p-2.5 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-orange-400" />
+                    <span className="text-orange-400 font-bold text-xs uppercase tracking-tight">Urban Simulation</span>
+                  </div>
+                  <span className="text-[9px] text-orange-500 font-black px-1.5 py-0.5 bg-orange-500/10 rounded uppercase tracking-widest">Live</span>
                 </div>
                 
-                <p className="text-white text-xs font-medium">{agentData.simulation.scenario?.description}</p>
+                <p className="text-white text-[11px] font-bold leading-tight mb-2.5">{agentData.simulation.scenario?.description}</p>
                 
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <div className="bg-slate-800/60 rounded p-2 border border-orange-500/10">
-                    <p className="text-slate-400 text-[10px]">Accessibility</p>
-                    <p className={`font-bold text-sm ${agentData.simulation.impacts?.accessibility_change > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between border-b border-orange-500/10 pb-1">
+                    <span className="text-slate-400">Accessibility</span>
+                    <span className={`font-black ${agentData.simulation.impacts?.accessibility_change > 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {agentData.simulation.impacts?.accessibility_change > 0 ? '+' : ''}{agentData.simulation.impacts?.accessibility_change}%
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/60 rounded p-2 border border-orange-500/10">
-                    <p className="text-slate-400 text-[10px]">Property Value</p>
-                    <p className={`font-bold text-sm ${agentData.simulation.impacts?.property_value_impact > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className="flex items-center justify-between border-b border-orange-500/10 pb-1">
+                    <span className="text-slate-400">Value Impact</span>
+                    <span className={`font-black ${agentData.simulation.impacts?.property_value_impact > 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {agentData.simulation.impacts?.property_value_impact > 0 ? '+' : ''}{agentData.simulation.impacts?.property_value_impact}%
-                    </p>
+                    </span>
                   </div>
-                  <div className="bg-slate-800/60 rounded p-2 border border-orange-500/10">
-                    <p className="text-slate-400 text-[10px]">Dev Pressure</p>
-                    <p className="text-orange-400 font-bold text-sm">{agentData.simulation.impacts?.development_pressure}/100</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Dev Pressure</span>
+                    <span className="text-orange-400 font-black">{agentData.simulation.impacts?.development_pressure}<span className="text-slate-600 font-normal text-[9px]">/100</span></span>
                   </div>
-                  <div className="bg-slate-800/60 rounded p-2 border border-orange-500/10">
-                    <p className="text-slate-400 text-[10px]">Confidence</p>
-                    <p className="text-blue-400 font-bold text-sm">{Math.round(agentData.simulation.impacts?.confidence * 100)}%</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Confidence</span>
+                    <span className="text-blue-400 font-black">{Math.round(agentData.simulation.impacts?.confidence * 100)}%</span>
                   </div>
                 </div>
 
                 {agentData.simulation.impacts?.reasoning && (
-                  <div className="mt-2 text-[10px] text-slate-300 leading-relaxed italic border-l-2 border-orange-500/30 pl-2">
+                  <div className="mt-2.5 text-[10px] text-slate-400 leading-relaxed italic border-l-2 border-orange-500/20 pl-2">
                     {agentData.simulation.impacts.reasoning}
                   </div>
                 )}
@@ -129,7 +105,7 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
 
             {/* Digital Twin State Section */}
             {agentData?.digitalTwinState && (
-              <div className="bg-indigo-600/10 border border-indigo-500/30 rounded-lg p-3 space-y-2">
+              <div className="bg-indigo-600/10 border border-indigo-500/30 rounded-lg p-2 space-y-1.5">
                 <h4 className="text-indigo-400 font-semibold text-xs flex items-center gap-2">
                   <Layers className="w-3 h-3" /> Digital Twin State
                 </h4>
@@ -159,7 +135,7 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
 
             {/* AI Agent Reasoning Section */}
             {agentData?.dashboard?.ai_analysis && (
-              <div className="bg-blue-600/10 border border-blue-500/30 rounded-lg p-3">
+              <div className="bg-blue-600/10 border border-blue-500/30 rounded-lg p-2">
                 <h4 className="text-blue-400 font-semibold text-xs mb-2 flex items-center gap-2">
                   <Sparkles className="w-3 h-3" /> Valora AI Analysis
                 </h4>
@@ -171,28 +147,29 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
               </div>
             )}
 
-            {/* Market Overview Section (Formerly Market Tab) */}
+            {/* Market Overview - Dense & Professional */}
             {agentData?.dashboard?.market && (
-              <div className="bg-slate-800/60 rounded-lg p-3 border border-blue-500/20">
-                <h4 className="text-blue-400 font-semibold text-xs mb-2 flex items-center gap-2">
-                  <BarChart2 className="w-3 h-3" /> Market Overview
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-slate-700/50 rounded p-2">
-                    <p className="text-slate-400 text-[10px]">Avg Price/sqft</p>
-                    <p className="text-white font-semibold text-sm">{agentData.dashboard.market.avgPricePerSqft || '—'}</p>
+              <div className="bg-slate-800/40 rounded-lg p-2.5 border border-blue-500/20">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <BarChart2 className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="text-blue-400 font-bold text-xs uppercase tracking-tight">Market Overview</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between border-b border-slate-700/30 pb-1">
+                    <span className="text-slate-400">Avg Price/sqft</span>
+                    <span className="text-white font-bold">{agentData.dashboard.market.avgPricePerSqft || '—'}</span>
                   </div>
-                  <div className="bg-slate-700/50 rounded p-2">
-                    <p className="text-slate-400 text-[10px]">1Y Growth</p>
-                    <p className="text-green-400 font-semibold text-sm">{agentData.dashboard.market.growth1y || '—'}</p>
+                  <div className="flex items-center justify-between border-b border-slate-700/30 pb-1">
+                    <span className="text-slate-400">1Y Growth</span>
+                    <span className="text-green-400 font-bold">{agentData.dashboard.market.growth1y || '—'}</span>
                   </div>
-                  <div className="bg-slate-700/50 rounded p-2">
-                    <p className="text-slate-400 text-[10px]">Active Listings</p>
-                    <p className="text-white font-semibold text-sm">{agentData.dashboard.market.activeListings || '—'}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Active Listings</span>
+                    <span className="text-white font-bold">{agentData.dashboard.market.activeListings || '—'}</span>
                   </div>
-                  <div className="bg-slate-700/50 rounded p-2">
-                    <p className="text-slate-400 text-[10px]">Demand Index</p>
-                    <p className="text-blue-400 font-semibold text-sm">{agentData.dashboard.market.demandIndex || '—'}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Demand Index</span>
+                    <span className="text-blue-400 font-bold">{agentData.dashboard.market.demandIndex || '—'}</span>
                   </div>
                 </div>
               </div>
@@ -200,7 +177,7 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
 
             {/* Current View Analysis - Shows info about where user is looking */}
             {(viewportAnalysis || viewportLoading) && !agentData?.selectedBuilding && (
-              <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-lg p-3">
+              <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-lg p-2">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-cyan-400 font-semibold text-xs flex items-center gap-2">
                     <Eye className="w-3 h-3" /> Current View
@@ -217,7 +194,7 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
                 {viewportAnalysis?.spatial && (
                   <div className="grid grid-cols-2 gap-2 mb-2">
                     <div className="bg-slate-800/60 rounded p-2">
-                      <p className="text-slate-400 text-[10px]">POIs (1km)</p>
+                      <p className="text-slate-400 text-[10px]">POIs (2km)</p>
                       <p className="text-white font-semibold text-sm">{viewportAnalysis.spatial.poi_count}</p>
                     </div>
                     <div className="bg-slate-800/60 rounded p-2">
@@ -279,24 +256,26 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
               </div>
             )}
 
-            {/* Map Stats */}
-            <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/50">
+            {/* Map Stats - Compact */}
+            <div className="bg-slate-800/40 rounded-lg p-1.5 border border-slate-700/50">
               <div className="flex items-center justify-between">
-                <span className="text-slate-400 text-xs">Loaded Buildings</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400 text-[9px]">Loaded Buildings</span>
+                  <span className="text-white font-bold text-sm">
+                    {agentData?.buildingsCount ? agentData.buildingsCount.toLocaleString() : '0'}
+                  </span>
+                </div>
                 {agentData?.loadingBuildings && (
-                  <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-2.5 h-2.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
                 )}
               </div>
-              <p className="text-white font-bold text-lg mt-1">
-                {agentData?.buildingsCount ? agentData.buildingsCount.toLocaleString() : '0'}
-              </p>
               {agentData?.loadingBuildings && (
-                <p className="text-blue-400 text-xs mt-1">Analysing area...</p>
+                <p className="text-blue-400 text-[9px] mt-0.5">Analysing area...</p>
               )}
             </div>
 
             {agentData?.dashboard?.title && (
-              <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+              <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/50">
                 <h4 className="text-white font-semibold text-sm mb-2">{agentData.dashboard.title}</h4>
                 {Array.isArray(agentData.dashboard.cards) && agentData.dashboard.cards.length > 0 && (
                   <div className="grid grid-cols-2 gap-2">
@@ -339,7 +318,7 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
 
             {/* Location Analysis Loading State */}
             {agentData?.locationAnalysisLoading && (
-              <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/40 rounded-lg p-4">
+              <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/40 rounded-lg p-2">
                 <div className="flex items-center gap-3">
                   <div className="w-6 h-6 border-2 border-green-400 border-t-transparent rounded-full animate-spin"></div>
                   <div>
@@ -352,7 +331,7 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
 
             {/* Location Analysis Results (for any clicked coordinate) */}
             {agentData?.locationAnalysis && !agentData?.selectedBuilding && (
-              <div className="bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/30 rounded-lg p-3 space-y-3">
+              <div className="bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/30 rounded-lg p-2 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <h4 className="text-green-400 font-semibold text-xs flex items-center gap-2">
                     <MapPin className="w-3 h-3" /> Location Analysis
@@ -483,7 +462,7 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
 
             {/* Building Analysis Loading State */}
             {agentData?.buildingAnalysisLoading && (
-              <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/40 rounded-lg p-4">
+              <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/40 rounded-lg p-2">
                 <div className="flex items-center gap-3">
                   <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
                   <div>
@@ -495,15 +474,32 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
             )}
 
             {/* Rich Building Analysis */}
-            {agentData?.buildingAnalysis && !agentData?.buildingAnalysisLoading && (
-              <div className="space-y-3">
-                {/* Header with PDF Download */}
-                <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/40 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-white font-semibold text-sm flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-blue-400" />
-                      Building Analysis
-                    </h4>
+            {agentData?.buildingAnalysis && (
+              <div className="space-y-1.5">
+                <div className="bg-slate-800/40 rounded-lg p-2 border border-cyan-500/30">
+                <div className="flex items-center justify-between mb-1.5">
+                  <h4 className="text-cyan-400 font-bold text-[11px] flex items-center gap-1.5 uppercase tracking-tight">
+                    <Building2 className="w-3.5 h-3.5" /> Rich Building Analysis
+                  </h4>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        const building = agentData.buildingAnalysis?.building
+                        if (building?.lat && building?.lng) {
+                          window.dispatchEvent(new CustomEvent('valora-map-command', {
+                            detail: {
+                              action: 'center',
+                              coordinates: [building.lat, building.lng],
+                              zoom: 19
+                            }
+                          }))
+                        }
+                      }}
+                      className="px-1.5 py-0.5 bg-cyan-500/20 hover:bg-cyan-500/40 border border-cyan-500/50 rounded text-cyan-400 text-[9px] font-medium flex items-center gap-1 transition"
+                      title="Center map on this building"
+                    >
+                      <Navigation className="w-2.5 h-2.5" />
+                    </button>
                     <button
                       onClick={() => {
                         const analysis = agentData.buildingAnalysis
@@ -555,141 +551,187 @@ Report generated by Valora AI - City Intelligence Platform
                         a.click()
                         URL.revokeObjectURL(url)
                       }}
-                      className="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/50 rounded text-blue-400 text-[10px] font-medium flex items-center gap-1 transition"
+                      className="px-1.5 py-0.5 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/50 rounded text-blue-400 text-[9px] font-medium flex items-center gap-1 transition"
+                      title="Export analysis report"
                     >
-                      <Download className="w-3 h-3" /> Export
+                      <Download className="w-2.5 h-2.5" /> Export
                     </button>
                   </div>
+                </div>
                   
-                  {/* Building Basic Info */}
-                  <div className="grid grid-cols-4 gap-1.5 text-center">
-                    <div className="bg-slate-800/60 rounded p-1.5">
-                      <p className="text-slate-400 text-[9px]">Height</p>
-                      <p className="text-white font-semibold text-xs">{agentData.buildingAnalysis.building?.height || '?'}m</p>
+                  {/* Building Name */}
+                  {agentData.buildingAnalysis.building?.name && (
+                    <div className="text-white font-semibold text-sm mb-1">
+                      {agentData.buildingAnalysis.building.name}
                     </div>
-                    <div className="bg-slate-800/60 rounded p-1.5">
-                      <p className="text-slate-400 text-[9px]">Floors</p>
-                      <p className="text-white font-semibold text-xs">{agentData.buildingAnalysis.building?.levels || '?'}</p>
+                  )}
+                  
+                  {/* Building Address/Location */}
+                  {(agentData.buildingAnalysis.building?.address || agentData.buildingAnalysis.building?.locality) && (
+                    <div className="text-slate-400 text-[10px] mb-1.5 flex items-center gap-1">
+                      <span>📍</span>
+                      <span>{agentData.buildingAnalysis.building?.address || agentData.buildingAnalysis.building?.locality}</span>
                     </div>
-                    <div className="bg-slate-800/60 rounded p-1.5">
-                      <p className="text-slate-400 text-[9px]">Type</p>
-                      <p className="text-cyan-400 font-medium text-[10px] capitalize truncate">{agentData.buildingAnalysis.building?.type || '?'}</p>
+                  )}
+                  
+                  {/* Building Info - Single Dense Row */}
+                  <div className="flex items-center gap-2 text-[10px] flex-wrap">
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-700/30 rounded">
+                      <span className="text-slate-500">H:</span>
+                      <span className="text-white font-bold">{agentData.buildingAnalysis.building?.height || '?'}m</span>
                     </div>
-                    <div className="bg-slate-800/60 rounded p-1.5">
-                      <p className="text-slate-400 text-[9px]">Area</p>
-                      <p className="text-white font-medium text-[10px]">{agentData.buildingAnalysis.building?.area ? `${agentData.buildingAnalysis.building.area}m²` : '?'}</p>
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-700/30 rounded">
+                      <span className="text-slate-500">F:</span>
+                      <span className="text-white font-bold">{agentData.buildingAnalysis.building?.levels || '?'}</span>
+                    </div>
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-cyan-500/10 rounded">
+                      <span className="text-cyan-400 font-bold capitalize">{agentData.buildingAnalysis.building?.type || '?'}</span>
+                    </div>
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-700/30 rounded">
+                      <span className="text-slate-500">A:</span>
+                      <span className="text-white font-bold">{agentData.buildingAnalysis.building?.area || '?'}m²</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Area Importance Score */}
+                {/* Area Importance - Ultra Compact with Mini Charts */}
                 {agentData.buildingAnalysis.area_importance && (
-                  <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <h5 className="text-white font-medium text-xs flex items-center gap-1.5">
-                        <Star className="w-3 h-3 text-yellow-400" /> Area Importance
-                      </h5>
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                        agentData.buildingAnalysis.area_importance.grade === 'A+' ? 'bg-green-500/30 text-green-400' :
-                        agentData.buildingAnalysis.area_importance.grade === 'A' ? 'bg-blue-500/30 text-blue-400' :
-                        agentData.buildingAnalysis.area_importance.grade === 'B+' ? 'bg-cyan-500/30 text-cyan-400' :
-                        'bg-yellow-500/30 text-yellow-400'
-                      }`}>
-                        {agentData.buildingAnalysis.area_importance.grade}
-                      </span>
+                  <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Star className="w-3 h-3 text-yellow-400" />
+                        <span className="text-white font-bold text-[10px]">Area Importance</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
+                          agentData.buildingAnalysis.area_importance.grade === 'A+' ? 'bg-green-500/20 text-green-400' :
+                          agentData.buildingAnalysis.area_importance.grade === 'A' ? 'bg-blue-500/20 text-blue-400' :
+                          agentData.buildingAnalysis.area_importance.grade === 'B+' ? 'bg-cyan-500/20 text-cyan-400' :
+                          'bg-yellow-500/20 text-yellow-400'
+                        }`}>
+                          {agentData.buildingAnalysis.area_importance.grade}
+                        </span>
+                      </div>
+                      <span className="text-white font-black text-sm">{agentData.buildingAnalysis.area_importance.score}<span className="text-slate-500 text-[9px] font-normal">/100</span></span>
                     </div>
-                    <div className="mb-2">
-                      <div className="flex justify-between text-[10px] mb-1">
-                        <span className="text-slate-400">Overall Score</span>
-                        <span className="text-white font-medium">{agentData.buildingAnalysis.area_importance.score}/100</span>
-                      </div>
-                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-blue-500 to-green-400 rounded-full transition-all"
-                          style={{ width: `${agentData.buildingAnalysis.area_importance.score}%` }}
-                        />
-                      </div>
+                    {/* Score Bar with Gradient */}
+                    <div className="h-1 bg-slate-700/50 rounded-full overflow-hidden mb-2">
+                      <div className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-green-400 rounded-full" style={{ width: `${agentData.buildingAnalysis.area_importance.score}%` }} />
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <p className="text-slate-400 text-[9px]">Accessibility</p>
-                        <p className="text-white font-semibold text-xs">{agentData.buildingAnalysis.area_importance.factors?.accessibility || 0}/100</p>
+                    {/* Factors as Mini Bar Charts - Single Row */}
+                    <div className="flex items-center gap-3 text-[9px]">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-slate-500">Access</span>
+                          <span className="text-white font-bold">{agentData.buildingAnalysis.area_importance.factors?.accessibility || 0}</span>
+                        </div>
+                        <div className="h-1 bg-slate-700/50 rounded-full overflow-hidden">
+                          <div className="h-full bg-green-500 rounded-full" style={{ width: `${agentData.buildingAnalysis.area_importance.factors?.accessibility || 0}%` }} />
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-slate-400 text-[9px]">Walkability</p>
-                        <p className="text-white font-semibold text-xs">{agentData.buildingAnalysis.area_importance.factors?.walkability || 0}/100</p>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-slate-500">Walk</span>
+                          <span className="text-white font-bold">{agentData.buildingAnalysis.area_importance.factors?.walkability || 0}</span>
+                        </div>
+                        <div className="h-1 bg-slate-700/50 rounded-full overflow-hidden">
+                          <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${agentData.buildingAnalysis.area_importance.factors?.walkability || 0}%` }} />
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-slate-400 text-[9px]">Amenity Density</p>
-                        <p className="text-white font-semibold text-xs">{agentData.buildingAnalysis.area_importance.factors?.amenity_density || 0}/km²</p>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-slate-500">Amenity</span>
+                          <span className="text-white font-bold">{Math.min(100, Math.round((agentData.buildingAnalysis.area_importance.factors?.amenity_density || 0) / 2))}</span>
+                        </div>
+                        <div className="h-1 bg-slate-700/50 rounded-full overflow-hidden">
+                          <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(100, (agentData.buildingAnalysis.area_importance.factors?.amenity_density || 0) / 2)}%` }} />
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Valuation */}
+                {/* Valuation - Compact with Range Visualization */}
                 {agentData.buildingAnalysis.valuation && (
-                  <div className="bg-slate-800/40 rounded-lg p-3 border border-green-500/30">
-                    <h5 className="text-green-400 font-medium text-xs flex items-center gap-1.5 mb-2">
-                      <Wallet className="w-3 h-3" /> Valuation Estimate
-                    </h5>
-                    <div className="text-center mb-2">
-                      <p className="text-green-400 font-bold text-xl">
-                        ₹{(agentData.buildingAnalysis.valuation.estimated_price / 100000).toFixed(1)}L
-                      </p>
-                      <p className="text-slate-400 text-[10px]">
-                        ₹{agentData.buildingAnalysis.valuation.price_per_sqft?.toLocaleString()}/sqft • {(agentData.buildingAnalysis.valuation.confidence * 100).toFixed(0)}% confidence
-                      </p>
-                    </div>
-                    <div className="bg-slate-700/40 rounded p-2">
-                      <p className="text-slate-400 text-[9px] mb-1">Price Range</p>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-300">₹{(agentData.buildingAnalysis.valuation.price_range?.low / 100000).toFixed(1)}L</span>
-                        <span className="text-slate-500">—</span>
-                        <span className="text-slate-300">₹{(agentData.buildingAnalysis.valuation.price_range?.high / 100000).toFixed(1)}L</span>
+                  <div className="bg-slate-800/40 rounded-lg p-2 border border-green-500/30">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Wallet className="w-3 h-3 text-green-400" />
+                        <span className="text-green-400 font-bold text-[10px] uppercase">Valuation</span>
+                        <span className="text-slate-500 text-[8px] flex items-center gap-0.5">
+                          <CheckCircle className="w-2 h-2" />{(agentData.buildingAnalysis.valuation.confidence * 100).toFixed(0)}%
+                        </span>
                       </div>
+                      <span className="text-green-400 font-black text-xl">₹{(agentData.buildingAnalysis.valuation.estimated_price / 100000).toFixed(1)}L</span>
+                    </div>
+                    {/* Price Range Visual Bar */}
+                    <div className="relative h-4 bg-slate-700/30 rounded-full overflow-hidden mb-1">
+                      <div className="absolute inset-y-0 bg-gradient-to-r from-slate-600 via-green-500/50 to-slate-600 rounded-full" 
+                        style={{ 
+                          left: '10%', 
+                          right: '10%'
+                        }} 
+                      />
+                      <div className="absolute inset-y-0 w-0.5 bg-green-400" style={{ left: '50%' }} />
+                      <div className="absolute inset-0 flex items-center justify-between px-2 text-[8px]">
+                        <span className="text-slate-400 font-medium">₹{(agentData.buildingAnalysis.valuation.price_range?.low / 100000).toFixed(0)}L</span>
+                        <span className="text-slate-400 font-medium">₹{(agentData.buildingAnalysis.valuation.price_range?.high / 100000).toFixed(0)}L</span>
+                      </div>
+                    </div>
+                    <div className="text-center text-slate-500 text-[9px]">
+                      ₹{agentData.buildingAnalysis.valuation.price_per_sqft?.toLocaleString()}/sqft
                     </div>
                   </div>
                 )}
 
-                {/* Market Stats */}
+                {/* Market Stats - Single Row with Spark Chart */}
                 {agentData.buildingAnalysis.market && (
-                  <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                    <h5 className="text-blue-400 font-medium text-xs flex items-center gap-1.5 mb-2">
-                      <TrendingUp className="w-3 h-3" /> Market Trends (1.5km)
-                    </h5>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-slate-700/40 rounded p-2">
-                        <p className="text-slate-400 text-[9px]">Avg Price/sqft</p>
-                        <p className="text-white font-semibold text-sm">₹{agentData.buildingAnalysis.market.avg_price_per_sqft?.toLocaleString()}</p>
+                  <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <TrendingUp className="w-3 h-3 text-blue-400" />
+                        <span className="text-blue-400 font-bold text-[10px] uppercase">Market (2km)</span>
                       </div>
-                      <div className="bg-slate-700/40 rounded p-2">
-                        <p className="text-slate-400 text-[9px]">1Y Growth</p>
-                        <p className="text-green-400 font-semibold text-sm">+{agentData.buildingAnalysis.market.growth_1y}%</p>
+                      {/* Mini Spark Line Chart */}
+                      <svg width="50" height="16" className="text-green-400">
+                        <polyline
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          points="0,14 8,12 16,10 24,8 32,6 40,4 50,2"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex items-center gap-2 text-[9px]">
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-700/30 rounded">
+                        <span className="text-slate-500">₹</span>
+                        <span className="text-white font-bold">{agentData.buildingAnalysis.market.avg_price_per_sqft?.toLocaleString()}</span>
+                        <span className="text-slate-500">/sqft</span>
                       </div>
-                      <div className="bg-slate-700/40 rounded p-2">
-                        <p className="text-slate-400 text-[9px]">Properties</p>
-                        <p className="text-white font-semibold text-sm">{agentData.buildingAnalysis.market.total_properties}</p>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-500/10 rounded">
+                        <span className="text-green-400 font-black">+{agentData.buildingAnalysis.market.growth_1y}%</span>
                       </div>
-                      <div className="bg-slate-700/40 rounded p-2">
-                        <p className="text-slate-400 text-[9px]">Demand</p>
-                        <p className={`font-semibold text-sm ${
-                          agentData.buildingAnalysis.market.demand_index === 'High' ? 'text-green-400' :
-                          agentData.buildingAnalysis.market.demand_index === 'Medium' ? 'text-yellow-400' :
-                          'text-red-400'
-                        }`}>{agentData.buildingAnalysis.market.demand_index}</p>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-700/30 rounded">
+                        <span className="text-white font-bold">{agentData.buildingAnalysis.market.total_properties}</span>
+                        <span className="text-slate-500">props</span>
+                      </div>
+                      <div className={`px-1.5 py-0.5 rounded font-black text-[8px] uppercase ${
+                        agentData.buildingAnalysis.market.demand_index === 'High' ? 'bg-green-500/20 text-green-400' :
+                        agentData.buildingAnalysis.market.demand_index === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                        'bg-red-500/20 text-red-400'
+                      }`}>
+                        {agentData.buildingAnalysis.market.demand_index}
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* AI Analysis */}
+                {/* AI Analysis - Professional Section */}
                 {agentData.buildingAnalysis.ai_analysis && (
-                  <div className="bg-purple-600/10 border border-purple-500/30 rounded-lg p-3">
-                    <h5 className="text-purple-400 font-semibold text-xs mb-2 flex items-center gap-1.5">
-                      <Sparkles className="w-3 h-3" /> AI Investment Analysis
-                    </h5>
-                    <div className="text-slate-200 text-xs leading-relaxed prose prose-invert prose-sm max-w-none">
+                  <div className="bg-purple-600/5 border border-purple-500/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      <span className="text-purple-400 font-bold text-xs uppercase tracking-tight">AI Investment Analysis</span>
+                    </div>
+                    <div className="text-slate-300 text-[11px] leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:text-xs prose-headings:my-1">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {agentData.buildingAnalysis.ai_analysis}
                       </ReactMarkdown>
@@ -697,16 +739,17 @@ Report generated by Valora AI - City Intelligence Platform
                   </div>
                 )}
 
-                {/* Recommendations */}
+                {/* Highlights - Tighter list */}
                 {agentData.buildingAnalysis.recommendations?.length > 0 && (
-                  <div className="bg-slate-800/40 rounded-lg p-2 border border-slate-700/50">
-                    <h5 className="text-white font-medium text-xs flex items-center gap-1.5 mb-1.5">
-                      <CheckCircle className="w-3 h-3 text-green-400" /> Key Highlights
-                    </h5>
-                    <div className="space-y-1">
+                  <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                      <span className="text-white font-bold text-xs uppercase tracking-tight">Key Highlights</span>
+                    </div>
+                    <div className="space-y-1.5">
                       {agentData.buildingAnalysis.recommendations.map((rec, idx) => (
-                        <div key={idx} className="flex items-center gap-1.5 text-[10px] text-slate-300">
-                          <span className="w-1 h-1 bg-green-400 rounded-full"></span>
+                        <div key={idx} className="flex items-start gap-2 text-[11px] text-slate-300 leading-tight">
+                          <div className="w-1 h-1 bg-green-500 rounded-full mt-1.5 shrink-0"></div>
                           {rec}
                         </div>
                       ))}
@@ -718,7 +761,7 @@ Report generated by Valora AI - City Intelligence Platform
 
             {/* Fallback: Selected Building (no analysis yet) */}
             {agentData?.selectedBuilding && !agentData?.buildingAnalysis && !agentData?.buildingAnalysisLoading && (
-              <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/40 rounded-lg p-3">
+              <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/40 rounded-lg p-2">
                 <h4 className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-blue-400" />
                   🏢 Building Selected
@@ -816,7 +859,7 @@ Report generated by Valora AI - City Intelligence Platform
         )}
 
         {activeTab === 'docs' && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <h3 className="text-white font-semibold text-sm">Documents</h3>
             <p className="text-slate-400 text-xs">Upload documents for analysis</p>
             <label className="cursor-pointer px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-xs flex items-center gap-1 w-fit">
@@ -827,7 +870,7 @@ Report generated by Valora AI - City Intelligence Platform
         )}
 
         {activeTab === 'notes' && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <h3 className="text-white font-semibold text-sm">Notes</h3>
             <input
               type="text"

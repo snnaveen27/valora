@@ -11,11 +11,31 @@ const AUTO_NAV_CONFIDENCE = 70
 
 // Check if message is a navigation request and extract place
 function detectNavigationIntent(message) {
-  // Navigation patterns
+  const msg = message.toLowerCase()
+  
+  // Exclude property/analysis/search queries - these should go to AI
+  const excludePatterns = [
+    /propert(y|ies)/i,
+    /listing/i,
+    /top\s+\d+/i,
+    /best/i,
+    /recommend/i,
+    /analysis|analyze/i,
+    /compare/i,
+    /price|valuation/i,
+    /investment/i
+  ]
+  
+  for (const pattern of excludePatterns) {
+    if (pattern.test(msg)) {
+      return { isNavigation: false, placeName: null }
+    }
+  }
+  
+  // Navigation patterns - simple place navigation only
   const navPatterns = [
-    /^(?:show\s+me|go\s+to|take\s+me\s+to|navigate\s+to|fly\s+to|zoom\s+to|show)\s+(.+)/i,
-    /^(?:let'?s?\s+(?:go|see|check|visit))\s+(.+)/i,
-    /^(?:where\s+is|find|search\s+for|locate)\s+(.+)/i,
+    /^(?:go\s+to|take\s+me\s+to|navigate\s+to|fly\s+to|zoom\s+to)\s+([a-z\s]+)$/i,
+    /^(?:where\s+is|locate)\s+([a-z\s]+)$/i,
   ]
   
   for (const pattern of navPatterns) {
@@ -29,7 +49,7 @@ function detectNavigationIntent(message) {
   return { isNavigation: false, placeName: null }
 }
 
-export default function ChatPanel({ agentData, setAgentData }) {
+export default function ChatPanel({ agentData, setAgentData, fontSize = 100 }) {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: '# Welcome to Valora AI\n\nI\'m your GIS assistant for Bangalore.\n\n## What you can do\n- **Navigate** to any location (neighborhoods, landmarks, metro/bus stops)\n- **Analyze** buildings (click on the map)\n- **Explore** POIs, transport, and amenities\n- **Get** area insights from real OSM + terrain data\n\n## Try\n- "Show me Tin Factory"\n- "Show me Airport"\n- "Show me Hebbal"\n- Click any building, then ask: "Tell me about this area"\n\nTip: If a search has multiple matches, I\'ll show you options to choose from.' }
   ])
@@ -252,7 +272,7 @@ export default function ChatPanel({ agentData, setAgentData }) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ zoom: `${fontSize}%` }}>
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {messages.map((msg, i) => (

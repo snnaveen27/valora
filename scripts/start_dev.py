@@ -20,17 +20,30 @@ def start_backend():
     print("Starting Valora AI Backend (FastAPI)...")
     
     # Start backend in a new process
+    python_exe = sys.executable or "python"
+    uvicorn_cmd = [
+        python_exe,
+        "-m",
+        "uvicorn",
+        "server:app",
+        "--app-dir",
+        str(backend_dir),
+        "--port",
+        "8000",
+        "--reload",
+    ]
+
     if sys.platform == "win32":
         # Windows
         backend_process = subprocess.Popen(
-            ["python", "-m", "uvicorn", "server:app", "--port", "8000", "--reload"],
+            uvicorn_cmd,
             cwd=str(backend_dir),
             creationflags=subprocess.CREATE_NEW_CONSOLE
         )
     else:
         # Unix/Linux/Mac
         backend_process = subprocess.Popen(
-            ["python", "-m", "uvicorn", "server:app", "--port", "8000", "--reload"],
+            uvicorn_cmd,
             cwd=str(backend_dir)
         )
     
