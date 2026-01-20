@@ -23,14 +23,15 @@ try:
     PINECONE_AVAILABLE = True
 except ImportError:
     PINECONE_AVAILABLE = False
-    print("⚠️  Pinecone not installed. RAG features will be limited.")
+    print("[WARNING]  Pinecone not installed. RAG features will be limited.")
 
 try:
     from sentence_transformers import SentenceTransformer
     EMBEDDINGS_AVAILABLE = True
-except ImportError:
+except (ImportError, Exception) as e:
     EMBEDDINGS_AVAILABLE = False
-    print("⚠️  sentence-transformers not installed. Using fallback embeddings.")
+    SentenceTransformer = None
+    print(f"[WARNING] sentence-transformers not available: {type(e).__name__}")
 
 
 @dataclass
@@ -66,9 +67,9 @@ class RAGService:
             try:
                 # Use a lightweight but effective model
                 self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-                print("✅ Loaded embedding model: all-MiniLM-L6-v2")
+                print("[OK] Loaded embedding model: all-MiniLM-L6-v2")
             except Exception as e:
-                print(f"⚠️  Failed to load embedding model: {e}")
+                print(f"[WARNING]  Failed to load embedding model: {e}")
                 self.embedding_model = None
         else:
             self.embedding_model = None
@@ -76,12 +77,12 @@ class RAGService:
     def _init_pinecone(self):
         """Initialize Pinecone client and index."""
         if not PINECONE_AVAILABLE:
-            print("⚠️  Pinecone not available. Using local fallback.")
+            print("[WARNING]  Pinecone not available. Using local fallback.")
             return
         
         api_key = os.getenv("PINECONE_API_KEY")
         if not api_key:
-            print("⚠️  PINECONE_API_KEY not set. RAG disabled.")
+            print("[WARNING]  PINECONE_API_KEY not set. RAG disabled.")
             return
         
         try:
@@ -91,7 +92,7 @@ class RAGService:
             existing_indexes = [idx.name for idx in self.pc.list_indexes()]
             
             if self.index_name not in existing_indexes:
-                print(f"📦 Creating Pinecone index: {self.index_name}")
+                print(f"[INFO] Creating Pinecone index: {self.index_name}")
                 self.pc.create_index(
                     name=self.index_name,
                     dimension=self.dimension,
@@ -101,14 +102,14 @@ class RAGService:
                         region="us-east-1"
                     )
                 )
-                print(f"✅ Created Pinecone index: {self.index_name}")
+                print(f"[OK] Created Pinecone index: {self.index_name}")
             
             self.index = self.pc.Index(self.index_name)
             stats = self.index.describe_index_stats()
-            print(f"✅ Connected to Pinecone index: {self.index_name} ({stats.total_vector_count} vectors)")
+            print(f"[OK] Connected to Pinecone index: {self.index_name} ({stats.total_vector_count} vectors)")
             
         except Exception as e:
-            print(f"❌ Pinecone initialization failed: {e}")
+            print(f"[ERROR] Pinecone initialization failed: {e}")
             self.pc = None
             self.index = None
     
@@ -133,7 +134,7 @@ class RAGService:
     def upsert_vectors(self, vectors: List[Dict[str, Any]], namespace: str = ""):
         """Upsert vectors to Pinecone."""
         if self.index is None:
-            print("⚠️  Pinecone index not available. Skipping upsert.")
+            print("[WARNING]  Pinecone index not available. Skipping upsert.")
             return False
         
         try:
@@ -144,7 +145,7 @@ class RAGService:
                 self.index.upsert(vectors=batch, namespace=namespace)
             return True
         except Exception as e:
-            print(f"❌ Upsert failed: {e}")
+            print(f"[ERROR] Upsert failed: {e}")
             return False
     
     def search(
@@ -185,7 +186,7 @@ class RAGService:
             return search_results
             
         except Exception as e:
-            print(f"❌ Search failed: {e}")
+            print(f"[ERROR] Search failed: {e}")
             return []
     
     def delete_all(self, namespace: str = ""):
@@ -195,19 +196,19 @@ class RAGService:
         
         try:
             self.index.delete(delete_all=True, namespace=namespace)
-            print(f"✅ Deleted all vectors in namespace: {namespace or 'default'}")
+            print(f"[OK] Deleted all vectors in namespace: {namespace or 'default'}")
             return True
         except Exception as e:
-            print(f"❌ Delete failed: {e}")
+            print(f"[ERROR] Delete failed: {e}")
             return False
     
     def index_properties(self, properties_dir: Path) -> int:
         """Index all property listings."""
         if self.index is None:
-            print("⚠️  Pinecone not available. Skipping property indexing.")
+            print("[WARNING]  Pinecone not available. Skipping property indexing.")
             return 0
         
-        print("📦 Indexing properties...")
+        print("[INFO] Indexing properties...")
         vectors = []
         count = 0
         
@@ -290,13 +291,13 @@ class RAGService:
                         print(f"  Indexed {count} properties...")
                         
             except Exception as e:
-                print(f"⚠️  Error indexing {json_file.name}: {e}")
+                print(f"[WARNING]  Error indexing {json_file.name}: {e}")
         
         # Upsert remaining vectors
         if vectors:
             self.upsert_vectors(vectors, namespace="properties")
         
-        print(f"✅ Indexed {count} properties")
+        print(f"[OK] Indexed {count} properties")
         return count
     
     def index_pois(self, osm_dir: Path) -> int:
@@ -304,11 +305,11 @@ class RAGService:
         if self.index is None:
             return 0
         
-        print("📦 Indexing POIs...")
+        print("[INFO] Indexing POIs...")
         pois_file = osm_dir / "pois.geojson"
         
         if not pois_file.exists():
-            print(f"⚠️  POIs file not found: {pois_file}")
+            print(f"[WARNING]  POIs file not found: {pois_file}")
             return 0
         
         vectors = []
@@ -365,12 +366,12 @@ class RAGService:
                     print(f"  Indexed {count} POIs...")
                     
         except Exception as e:
-            print(f"❌ Error indexing POIs: {e}")
+            print(f"[ERROR] Error indexing POIs: {e}")
         
         if vectors:
             self.upsert_vectors(vectors, namespace="pois")
         
-        print(f"✅ Indexed {count} POIs")
+        print(f"[OK] Indexed {count} POIs")
         return count
     
     def index_places(self, osm_dir: Path) -> int:
@@ -378,11 +379,11 @@ class RAGService:
         if self.index is None:
             return 0
         
-        print("📦 Indexing places...")
+        print("[INFO] Indexing places...")
         places_file = osm_dir / "places.geojson"
         
         if not places_file.exists():
-            print(f"⚠️  Places file not found: {places_file}")
+            print(f"[WARNING]  Places file not found: {places_file}")
             return 0
         
         vectors = []
@@ -432,12 +433,12 @@ class RAGService:
                     vectors = []
                     
         except Exception as e:
-            print(f"❌ Error indexing places: {e}")
+            print(f"[ERROR] Error indexing places: {e}")
         
         if vectors:
             self.upsert_vectors(vectors, namespace="places")
         
-        print(f"✅ Indexed {count} places")
+        print(f"[OK] Indexed {count} places")
         return count
     
     def index_transport(self, osm_dir: Path) -> int:
@@ -445,11 +446,11 @@ class RAGService:
         if self.index is None:
             return 0
         
-        print("📦 Indexing transport...")
+        print("[INFO] Indexing transport...")
         transport_file = osm_dir / "transport.geojson"
         
         if not transport_file.exists():
-            print(f"⚠️  Transport file not found: {transport_file}")
+            print(f"[WARNING]  Transport file not found: {transport_file}")
             return 0
         
         vectors = []
@@ -499,12 +500,12 @@ class RAGService:
                     vectors = []
                     
         except Exception as e:
-            print(f"❌ Error indexing transport: {e}")
+            print(f"[ERROR] Error indexing transport: {e}")
         
         if vectors:
             self.upsert_vectors(vectors, namespace="transport")
         
-        print(f"✅ Indexed {count} transport stops")
+        print(f"[OK] Indexed {count} transport stops")
         return count
     
     def index_all(self, properties_dir: Path, osm_dir: Path, force_reindex: bool = False) -> Dict[str, int]:
@@ -524,7 +525,7 @@ class RAGService:
         }
         
         total = sum(results.values())
-        print(f"✅ Total indexed: {total} vectors")
+        print(f"[OK] Total indexed: {total} vectors")
         return results
     
     def semantic_search(

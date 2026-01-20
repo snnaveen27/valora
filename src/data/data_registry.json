@@ -208,7 +208,6 @@
     "terrain_analysis": "/api/terrain/analysis",
     "terrain_stats": "/api/terrain/stats",
     "tiles_viewport": "/api/tiles/viewport",
-    "mappls_proxy": "/api/mappls/tiles/{z}/{x}/{y}.png",
     "config": "/api/config",
     "chat": "/api/chat"
   }

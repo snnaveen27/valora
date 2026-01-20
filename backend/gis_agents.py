@@ -11,6 +11,12 @@ from dataclasses import dataclass, field, asdict
 from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 
+# Import StateChange for digital twin updates
+try:
+    from digital_twin import StateChange
+except ImportError:
+    StateChange = None
+
 
 def _parse_posted_date(value: Any) -> Optional[datetime]:
     """Parse posted_date string to datetime."""
@@ -109,6 +115,7 @@ class Intent(Enum):
     VALUATION = "valuation"         # "What's the price?", "Estimate value"
     TERRAIN = "terrain"             # "Elevation?", "Is it flood-prone?"
     COMPARISON = "comparison"       # "Compare X and Y"
+    SIMULATE = "simulate"           # "What if we add a metro station here?"
     GENERAL = "general"             # General questions, greetings
 
 
@@ -154,6 +161,9 @@ class AgentFacts:
     building_type: Optional[str] = None
     building_area: Optional[float] = None
     estimated_value: Optional[float] = None
+    
+    # Simulation facts
+    simulation_results: Optional[Dict[str, Any]] = None
     
     # RAG context
     rag_context: Optional[str] = None
@@ -333,6 +343,11 @@ class IntentRouter:
         r'\b(compare|vs|versus|better|difference between)\b',
     ]
     
+    SIMULATE_PATTERNS = [
+        r'\b(simulate|what if|proposed|scenario|impact of)\b',
+        r'\b(add|new|build|construct)\s+(metro|highway|road|park|school|hospital|station)\b',
+    ]
+    
     BUILDING_PATTERNS = [
         r'\b(this building|selected building|building details)\b',
         r'\b(what is this|tell me about this|analyze this)\s+(building|structure)\b',
@@ -348,6 +363,10 @@ class IntentRouter:
         for pattern in cls.NAVIGATE_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.NAVIGATE
+        
+        for pattern in cls.SIMULATE_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.SIMULATE
         
         for pattern in cls.COMPARISON_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
@@ -419,6 +438,7 @@ class GISAgentOrchestrator:
         valuation_model=None,
         rag_service=None,
         area_analyzer=None,
+        digital_twin=None,
     ):
         self.geocoder = geocoder
         self.spatial_service = spatial_service
@@ -427,19 +447,21 @@ class GISAgentOrchestrator:
         self.valuation_model = valuation_model
         self.rag_service = rag_service
         self.area_analyzer = area_analyzer
+        self.digital_twin = digital_twin
     
     def gather_facts(
         self,
         query: str,
         context: Dict[str, Any],
         intent: Intent = None,
-    ) -> Tuple[AgentFacts, Intent, List[Dict[str, Any]]]:
+    ) -> Tuple[AgentFacts, Intent, List[Dict[str, Any]], Optional[Dict[str, Any]]]:
         """
         Gather grounded facts from all relevant agents.
-        Returns (facts, detected_intent, ui_actions).
+        Returns (facts, detected_intent, ui_actions, digital_twin_state).
         """
         facts = AgentFacts()
         ui_actions = []
+        digital_twin_state = None
         
         # Extract context
         selected_building = context.get('selectedBuilding')
@@ -487,24 +509,56 @@ class GISAgentOrchestrator:
         facts.lng = lng
         facts.location_name = location_name
         
+        # Sync Digital Twin if location is known
+        if lat and lng and self.digital_twin:
+            try:
+                # Initialize or update digital twin for this location
+                if not self.digital_twin.get_state() or \
+                   self.digital_twin._haversine_distance(lat, lng, self.digital_twin.city_state.location['lat'], self.digital_twin.city_state.location['lng']) > 5000:
+                    self.digital_twin.initialize_state(lat, lng, radius_m=2000)
+                
+                self.digital_twin.sync_with_real_data(
+                    self.spatial_service,
+                    self.property_service,
+                    self.terrain_service
+                )
+                digital_twin_state = asdict(self.digital_twin.get_state())
+            except Exception as e:
+                print(f"Digital Twin sync error: {e}")
+
         # Gather spatial facts
         if lat and lng and self.spatial_service:
             try:
                 summary = self.spatial_service.get_summary(lat, lng, radius_m=1000)
-                facts.poi_count = summary.by_category.get('poi', 0)
-                facts.transport_count = summary.by_category.get('transport', 0)
-                facts.accessibility_score = int(summary.accessibility_score)
-                facts.walkability_score = int(summary.walkability_score)
-                facts.amenity_density = summary.amenity_density
-                
-                # Nearest features
-                if summary.nearest:
-                    if summary.nearest.get('transport'):
-                        t = summary.nearest['transport']
-                        facts.nearest_metro = {
-                            "name": t.name if hasattr(t, 'name') else t.get('name', ''),
-                            "distance_m": int(t.distance_m if hasattr(t, 'distance_m') else t.get('distance_m', 0)),
-                        }
+                # handle both dict and object types
+                if isinstance(summary, dict):
+                    facts.poi_count = summary.get('by_category', {}).get('poi', 0)
+                    facts.transport_count = summary.get('by_category', {}).get('transport', 0)
+                    facts.accessibility_score = int(summary.get('accessibility_score', 0))
+                    facts.walkability_score = int(summary.get('walkability_score', 0))
+                    facts.amenity_density = summary.get('amenity_density', 0)
+                    
+                    if summary.get('nearest'):
+                        if summary['nearest'].get('transport'):
+                            t = summary['nearest']['transport']
+                            facts.nearest_metro = {
+                                "name": t.get('name', ''),
+                                "distance_m": int(t.get('distance_m', 0)),
+                            }
+                else:
+                    facts.poi_count = summary.by_category.get('poi', 0)
+                    facts.transport_count = summary.by_category.get('transport', 0)
+                    facts.accessibility_score = int(summary.accessibility_score)
+                    facts.walkability_score = int(summary.walkability_score)
+                    facts.amenity_density = summary.amenity_density
+                    
+                    if summary.nearest:
+                        if summary.nearest.get('transport'):
+                            t = summary.nearest['transport']
+                            facts.nearest_metro = {
+                                "name": t.name if hasattr(t, 'name') else t.get('name', ''),
+                                "distance_m": int(t.distance_m if hasattr(t, 'distance_m') else t.get('distance_m', 0)),
+                            }
             except Exception as e:
                 print(f"Spatial agent error: {e}")
         
@@ -524,8 +578,8 @@ class GISAgentOrchestrator:
             try:
                 terrain = self.terrain_service.get_terrain_analysis(lat, lng)
                 if terrain:
-                    facts.elevation_m = terrain.get('elevation')
-                    facts.slope_deg = terrain.get('slope')
+                    facts.elevation_m = terrain.get('elevation_mean')
+                    facts.slope_deg = terrain.get('slope_mean')
                     facts.terrain_suitability = terrain.get('suitability_score')
                     facts.flood_risk = terrain.get('flood_risk', 'unknown')
             except Exception as e:
@@ -591,14 +645,74 @@ class GISAgentOrchestrator:
             except Exception as e:
                 print(f"RAG agent error: {e}")
         
+        # Simulation facts
+        if intent == Intent.SIMULATE and lat and lng:
+            try:
+                # Basic context for simulation
+                sim_context = {
+                    'spatial': facts.poi_count,
+                    'transport': {
+                        'metro_count': (facts.nearest_metro.get('distance_m', 9999) < 1000) if facts.nearest_metro else False,
+                        'bus_count': facts.transport_count or 0
+                    }
+                }
+                
+                # Determine simulation type from query
+                sim_type = 'infrastructure'
+                query_l = query.lower()
+                if 'metro' in query_l: sim_type = 'metro_station'
+                elif 'highway' in query_l or 'road' in query_l: sim_type = 'highway'
+                elif 'zoning' in query_l or 'far' in query_l: sim_type = 'zoning_change'
+                
+                from simulation_engine import get_simulation_engine, ScenarioInput
+                sim_engine = get_simulation_engine()
+                
+                scenario = ScenarioInput(
+                    type=sim_type,
+                    location={'lat': lat, 'lng': lng},
+                    parameters={},
+                    description=query
+                )
+                
+                sim_deltas = sim_engine.simulate(scenario, sim_context)
+                facts.simulation_results = {
+                    "scenario": {
+                        "type": sim_type,
+                        "description": query
+                    },
+                    "impacts": asdict(sim_deltas)
+                }
+                
+                # Update Digital Twin with simulation event
+                if self.digital_twin and StateChange:
+                    import uuid
+                    change = StateChange(
+                        change_id=str(uuid.uuid4()),
+                        timestamp=datetime.now().isoformat(),
+                        change_type='infrastructure',
+                        entity_id=sim_type,
+                        before_state={},
+                        after_state={"description": query, "impacts": asdict(sim_deltas)},
+                        impact_radius_m=1000,
+                        affected_entities=[]
+                    )
+                    self.digital_twin.update_state(change)
+                    digital_twin_state = asdict(self.digital_twin.get_state())
+
+                # Add storyboard UI action
+                ui_actions.append({"action": "openPanel", "value": "insights"})
+                ui_actions.append({"action": "switchTab", "value": "insights"})
+            except Exception as e:
+                print(f"Simulation agent error: {e}")
+
         # Add UI actions based on intent
         if lat and lng:
-            if intent in [Intent.NAVIGATE, Intent.ANALYZE_AREA]:
+            if intent in [Intent.NAVIGATE, Intent.ANALYZE_AREA, Intent.SIMULATE]:
                 ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 16})
             ui_actions.append({"action": "openPanel", "value": "insights"})
             ui_actions.append({"action": "switchTab", "value": "insights"})
         
-        return facts, intent, ui_actions
+        return facts, intent, ui_actions, digital_twin_state
     
     def build_system_prompt(self, intent: Intent) -> str:
         """Build a focused system prompt based on intent."""

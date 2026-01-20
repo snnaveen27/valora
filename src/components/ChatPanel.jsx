@@ -115,10 +115,15 @@ export default function ChatPanel({ agentData, setAgentData }) {
       }
 
       const data = await response.json()
-      if (data?.dashboard && setAgentData) {
+      
+      // Update global agent data with simulation and digital twin state
+      if (setAgentData) {
         setAgentData(prev => ({
           ...prev,
-          dashboard: data.dashboard
+          dashboard: data.dashboard || prev.dashboard,
+          simulation: data.simulation || null,
+          digitalTwinState: data.digital_twin_state || null,
+          credits: data.user_credits?.balance ?? prev.credits
         }))
       }
 
@@ -129,7 +134,7 @@ export default function ChatPanel({ agentData, setAgentData }) {
           if (a.action === 'flyTo' && a.lat != null && a.lng != null && setAgentData) {
             setAgentData(prev => ({
               ...prev,
-              flyTo: { lat: a.lat, lng: a.lng, zoom: a.zoom || 16 }
+              flyTo: { lat: a.lat, lng: a.lng, zoom: a.zoom || 18 }
             }))
           }
 
@@ -191,7 +196,7 @@ export default function ChatPanel({ agentData, setAgentData }) {
           flyTo: {
             lat: place.lat,
             lng: place.lng,
-            zoom: 16
+            zoom: 18
           },
           selectedPlace: place
         }))
@@ -229,7 +234,7 @@ export default function ChatPanel({ agentData, setAgentData }) {
       flyTo: {
         lat: place.lat,
         lng: place.lng,
-        zoom: 16
+        zoom: 18
       },
       selectedPlace: place
     }))

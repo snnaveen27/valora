@@ -38,6 +38,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const keyDownHandlerRef = useRef(null) // Track key handler so we can remove it on cleanup
   const lastCameraViewRef = useRef(null)
   const placeMarkerRef = useRef(null)
+  const rotationIntervalRef = useRef(null)
+  const rotationTargetRef = useRef(null)
   const [isLoading, setIsLoading] = useState(true)
   const [is3DMode, setIs3DMode] = useState(true)
   const [heading, setHeading] = useState(0)
@@ -47,10 +49,116 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const [loadingBuildings, setLoadingBuildings] = useState(false)
   const [tilesLoaded, setTilesLoaded] = useState(0)
   const [clickRipple, setClickRipple] = useState(null)
-  const [basemap, setBasemap] = useState('osm') // 'osm' or 'mappls'
-  const [hasMappls, setHasMappls] = useState(false)
-  const imageryLayerRef = useRef(null)
   const [canGoBack, setCanGoBack] = useState(false)
+  const [mapboxApiKey, setMapboxApiKey] = useState(null)
+  const [useMapbox, setUseMapbox] = useState(false)
+
+  // Fetch Mapbox API key on mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/config`)
+        const data = await response.json()
+        console.log('Config response:', data)
+        if (data.mapbox_api_key) {
+          setMapboxApiKey(data.mapbox_api_key)
+          console.log('✅ Mapbox API key loaded:', data.mapbox_api_key.substring(0, 20) + '...')
+        } else {
+          console.warn('⚠️ No Mapbox API key in config')
+        }
+      } catch (err) {
+        console.warn('Failed to fetch config:', err)
+      }
+    }
+    fetchConfig()
+  }, [])
+
+  // Stop rotation helper function
+  const stopRotation = () => {
+    if (rotationIntervalRef.current) {
+      console.log('🎥 Stopping camera orbit')
+      clearInterval(rotationIntervalRef.current)
+      rotationIntervalRef.current = null
+      rotationTargetRef.current = null
+    }
+  }
+
+  // Auto-rotate camera 360° around target during analysis loading
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+
+    const isAnalyzing = agentData?.buildingAnalysisLoading || agentData?.locationAnalysisLoading
+
+    if (isAnalyzing && !rotationIntervalRef.current && rotationTargetRef.current) {
+      // Start 360° orbit rotation around target at close distance (150m)
+      console.log('🎥 Starting 360° camera orbit')
+      const target = rotationTargetRef.current
+      const orbitDistance = 150 // Fixed close distance for street-level view
+      const pitch = Cesium.Math.toRadians(-45) // 45° downward angle
+      
+      // Stop rotation on any user input (mouse/touch/wheel)
+      const stopOnInput = () => {
+        stopRotation()
+        document.removeEventListener('mousedown', stopOnInput)
+        document.removeEventListener('wheel', stopOnInput)
+        document.removeEventListener('touchstart', stopOnInput)
+      }
+      document.addEventListener('mousedown', stopOnInput)
+      document.addEventListener('wheel', stopOnInput)
+      document.addEventListener('touchstart', stopOnInput)
+      
+      rotationIntervalRef.current = setInterval(() => {
+        if (viewer && !viewer.isDestroyed() && target) {
+          // Orbit around target by rotating heading (slower: 0.3° per frame)
+          viewer.camera.lookAt(
+            target,
+            new Cesium.HeadingPitchRange(
+              viewer.camera.heading + Cesium.Math.toRadians(0.3),
+              pitch,
+              orbitDistance
+            )
+          )
+          viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+        }
+      }, 16) // ~60fps
+    } else if (!isAnalyzing) {
+      stopRotation()
+    }
+
+    return () => {
+      stopRotation()
+    }
+  }, [agentData?.buildingAnalysisLoading, agentData?.locationAnalysisLoading])
+
+  // Toggle between OSM and Mapbox
+  const toggleTileProvider = () => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed() || !mapboxApiKey) return
+    
+    const newMode = !useMapbox
+    setUseMapbox(newMode)
+    
+    // Remove existing imagery layers
+    viewer.imageryLayers.removeAll()
+    
+    if (newMode) {
+      // Mapbox: Streets
+      console.log('🗺️ Switching to Mapbox tiles')
+      const mapboxProvider = new Cesium.UrlTemplateImageryProvider({
+        url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxApiKey}`,
+        credit: 'Mapbox'
+      })
+      viewer.imageryLayers.addImageryProvider(mapboxProvider)
+    } else {
+      // OSM: OpenStreetMap
+      console.log('🗺️ Switching to OSM tiles')
+      const osmProvider = new Cesium.OpenStreetMapImageryProvider({
+        url: 'https://tile.openstreetmap.org/'
+      })
+      viewer.imageryLayers.addImageryProvider(osmProvider)
+    }
+  }
 
   const flyToArea = (areaKey, height = 1200) => {
     const viewer = viewerRef.current
@@ -212,53 +320,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     setHeading(Math.round((headingDeg + 360) % 360))
   }
 
-  // Fetch MapPLS API key from backend
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const resp = await fetch(`${API_BASE}/api/config`)
-        if (resp.ok) {
-          const config = await resp.json()
-          setHasMappls(Boolean(config?.has_mappls))
-        }
-      } catch (err) {
-        console.error('Failed to fetch config:', err)
-      }
-    }
-    fetchConfig()
-  }, [])
-
-  // Switch basemap function
-  const switchBasemap = (newBasemap) => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed()) return
-    
-    // Remove current imagery layer
-    if (imageryLayerRef.current) {
-      viewer.imageryLayers.remove(imageryLayerRef.current)
-      imageryLayerRef.current = null
-    }
-    
-    // Add new imagery layer
-    let provider
-    if (newBasemap === 'mappls' && hasMappls) {
-      // MapPLS tile provider (proxied via backend to avoid browser CORS)
-      provider = new Cesium.UrlTemplateImageryProvider({
-        url: `${API_BASE}/api/mappls/tiles/{z}/{x}/{y}.png`,
-        maximumLevel: 19,
-        credit: 'MapmyIndia'
-      })
-    } else {
-      // OSM tile provider (default)
-      provider = new Cesium.OpenStreetMapImageryProvider({
-        url: 'https://tile.openstreetmap.org/'
-      })
-    }
-    
-    imageryLayerRef.current = viewer.imageryLayers.addImageryProvider(provider)
-    setBasemap(newBasemap)
-  }
-
   // Load a single tile and add buildings to scene
   const loadTile = async (tileId, tileUrl) => {
     const viewer = viewerRef.current
@@ -385,7 +446,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       if (newTiles.length === 0) return // All tiles already loaded
       
       // Limit total tiles to load at once for performance
-      const maxTilesPerLoad = 8
+      const maxTilesPerLoad = 16
       const tilesToLoad = newTiles.slice(0, maxTilesPerLoad)
       
       if (tilesToLoad.length === 0) return
@@ -400,8 +461,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         }))
       }
       
-      // Load tiles sequentially (2 at a time) - faster than 5 parallel
-      const batchSize = 2
+      // Load tiles in parallel batches (4 at a time for speed)
+      const batchSize = 4
       let loadedCount = 0
       
       for (let i = 0; i < tilesToLoad.length; i += batchSize) {
@@ -459,11 +520,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       }
       setCanGoBack(true)
       
-      // Calculate camera height based on zoom level
-      // zoom 16 (street level) = 500m height
-      // zoom 14 (neighborhood) = 2000m height
-      // zoom 12 (city) = 8000m height
-      const height = zoom ? Math.max(100, 50000 / Math.pow(2, zoom)) : 1500
+      // height calculation for closer zoom (production grade)
+      const height = zoom ? Math.max(50, 15000000 / Math.pow(2, zoom)) : 400
       
       if (placeMarkerRef.current) {
         viewer.entities.remove(placeMarkerRef.current)
@@ -562,7 +620,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           }
         })
 
-        const height = zoom ? Math.max(100, 50000 / Math.pow(2, zoom)) : 1500
+        const height = zoom ? Math.max(100, 20000 / Math.pow(2, zoom)) : 600
         viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, height),
           orientation: {
@@ -595,7 +653,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         await new Promise(resolve => setTimeout(resolve, 100))
         if (cancelled) return
 
-        // Create viewer with ONLINE OSM tiles
+        // Create viewer with online OSM tiles
         const viewer = new Cesium.Viewer(cesiumContainerRef.current, {
           baseLayerPicker: false,
           geocoder: false,
@@ -618,14 +676,24 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
 
         viewerRef.current = viewer
 
-        // Remove default layers and add ONLINE OSM tiles
+        // Remove default layers and add map tiles
         viewer.imageryLayers.removeAll()
         
-        // Add OpenStreetMap online tiles (default)
-        const osmProvider = new Cesium.OpenStreetMapImageryProvider({
-          url: 'https://tile.openstreetmap.org/'
-        })
-        imageryLayerRef.current = viewer.imageryLayers.addImageryProvider(osmProvider)
+        // Add imagery provider (default: OSM, can switch to Mapbox)
+        if (useMapbox && mapboxApiKey) {
+          const mapboxProvider = new Cesium.UrlTemplateImageryProvider({
+            url: `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxApiKey}`,
+            credit: 'Mapbox'
+          })
+          viewer.imageryLayers.addImageryProvider(mapboxProvider)
+          console.log('🗺️ Using Mapbox tiles')
+        } else {
+          const osmProvider = new Cesium.OpenStreetMapImageryProvider({
+            url: 'https://tile.openstreetmap.org/'
+          })
+          viewer.imageryLayers.addImageryProvider(osmProvider)
+          console.log('🗺️ Using OSM tiles')
+        }
 
         // Configure globe
         viewer.scene.globe.show = true
@@ -661,12 +729,31 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         // Track camera changes
         viewer.camera.changed.addEventListener(updateHeading)
         
-        // Track camera movement end to load buildings (longer debounce for performance)
+        // Track camera movement end to load buildings and update mapCenter
         viewer.camera.moveEnd.addEventListener(() => {
           clearTimeout(cameraMoveTimeoutRef.current)
           cameraMoveTimeoutRef.current = setTimeout(() => {
             loadTilesForViewport()
-          }, 500) // Increased from 200ms to 500ms
+            
+            // Update mapCenter in agentData for viewport analysis
+            if (setAgentData && viewer && !viewer.isDestroyed()) {
+              try {
+                const cameraCartographic = Cesium.Cartographic.fromCartesian(viewer.camera.position)
+                const centerLat = Cesium.Math.toDegrees(cameraCartographic.latitude)
+                const centerLng = Cesium.Math.toDegrees(cameraCartographic.longitude)
+                const height = cameraCartographic.height
+                
+                if (Number.isFinite(centerLat) && Number.isFinite(centerLng)) {
+                  setAgentData(prev => ({
+                    ...prev,
+                    mapCenter: { lat: centerLat, lng: centerLng, height }
+                  }))
+                }
+              } catch (e) {
+                console.warn('Failed to update mapCenter:', e)
+              }
+            }
+          }, 500)
         })
 
         // Function to deselect building
@@ -809,6 +896,31 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
               selectedBuildingEntityRef.current = entity
             }
 
+            // Zoom to street-level view of building (150m orbit distance)
+            const lat = buildingData.coordinates.lat
+            const lng = buildingData.coordinates.lng
+            const height = buildingData.height || 10
+            const orbitDistance = 150
+            const orbitPitch = Cesium.Math.toRadians(-45)
+            
+            // Target is center of building
+            const target = Cesium.Cartesian3.fromDegrees(lng, lat, height / 2)
+            rotationTargetRef.current = target
+            
+            // Fly to orbit position using lookAt
+            viewer.camera.flyToBoundingSphere(
+              new Cesium.BoundingSphere(target, orbitDistance / 2),
+              {
+                duration: 1.5,
+                offset: new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance),
+                complete: () => {
+                  // Ensure exact orbit position after fly
+                  viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance))
+                  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+                }
+              }
+            )
+
             if (onAnalysisUpdate) {
               onAnalysisUpdate(buildingData)
             }
@@ -826,9 +938,115 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
             return
           }
 
-          // Clicked empty ground: deselect
+          // Clicked empty ground: analyze location (for properties, lands, etc.)
           deselectBuilding()
+          
+          // Get the clicked position on the globe
+          const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid)
+          if (cartesian) {
+            const cartographic = Cesium.Cartographic.fromCartesian(cartesian)
+            const clickLat = Cesium.Math.toDegrees(cartographic.latitude)
+            const clickLng = Cesium.Math.toDegrees(cartographic.longitude)
+            
+            if (Number.isFinite(clickLat) && Number.isFinite(clickLng)) {
+              // Update selected location in agentData
+              const locationData = {
+                type: 'location_selected',
+                coordinates: { lat: clickLat, lng: clickLng }
+              }
+              
+              if (setAgentData) {
+                setAgentData(prev => ({
+                  ...prev,
+                  selectedLocation: locationData.coordinates,
+                  selectedBuilding: null,
+                  buildingAnalysis: null
+                }))
+              }
+              
+              // Target is ground level at clicked location
+              const target = Cesium.Cartesian3.fromDegrees(clickLng, clickLat, 0)
+              rotationTargetRef.current = target
+              const orbitDistance = 150
+              const orbitPitch = Cesium.Math.toRadians(-45)
+              
+              // Fly to orbit position using lookAt
+              viewer.camera.flyToBoundingSphere(
+                new Cesium.BoundingSphere(target, orbitDistance / 2),
+                {
+                  duration: 1.5,
+                  offset: new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance),
+                  complete: () => {
+                    // Ensure exact orbit position after fly
+                    viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance))
+                    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+                  }
+                }
+              )
+              
+              // Trigger location analysis
+              analyzeLocationAsync(clickLat, clickLng)
+            }
+          }
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+        
+        // Analyze any clicked location (properties, lands, empty areas)
+        const analyzeLocationAsync = async (lat, lng) => {
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+          
+          // Set loading state
+          if (setAgentData) {
+            setAgentData(prev => ({
+              ...prev,
+              locationAnalysisLoading: true,
+              locationAnalysis: null
+            }))
+          }
+          
+          // Open analysis panel
+          window.dispatchEvent(new CustomEvent('valora-ui-command', {
+            detail: { action: 'openPanel', value: 'insights' }
+          }))
+          window.dispatchEvent(new CustomEvent('valora-ui-command', {
+            detail: { action: 'switchTab', value: 'insights' }
+          }))
+          
+          try {
+            const response = await fetch(`${API_BASE}/api/location/analyze`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lat, lng })
+            })
+            
+            if (response.ok) {
+              const analysis = await response.json()
+              if (setAgentData) {
+                setAgentData(prev => ({
+                  ...prev,
+                  locationAnalysisLoading: false,
+                  locationAnalysis: analysis
+                }))
+              }
+              console.log('📍 Location analysis complete:', analysis)
+            } else {
+              console.warn('Location analysis failed:', response.status)
+              if (setAgentData) {
+                setAgentData(prev => ({
+                  ...prev,
+                  locationAnalysisLoading: false
+                }))
+              }
+            }
+          } catch (err) {
+            console.error('Location analysis error:', err)
+            if (setAgentData) {
+              setAgentData(prev => ({
+                ...prev,
+                locationAnalysisLoading: false
+              }))
+            }
+          }
+        }
 
         // ESC key handler - deselect building (with cleanup)
         const onKeyDown = (e) => {
@@ -879,7 +1097,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         }
       }
     }
-  }, [])
+  }, [mapboxApiKey, useMapbox])
 
   // Hide Cesium logo
   useEffect(() => {
@@ -913,39 +1131,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         </div>
       )}
 
-      {/* Basemap Toggle - Top Left */}
-      {hasMappls && (
-        <div className="absolute top-4 left-4 z-40">
-          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden">
-            <div className="flex">
-              <button
-                onClick={() => switchBasemap('osm')}
-                className={`px-3 py-2 text-xs font-medium transition-colors ${
-                  basemap === 'osm'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-                title="OpenStreetMap"
-              >
-                OSM
-              </button>
-              <button
-                onClick={() => switchBasemap('mappls')}
-                className={`px-3 py-2 text-xs font-medium transition-colors border-l border-gray-200 ${
-                  basemap === 'mappls'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-                title="MapPLS"
-              >
-                MapPLS
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Map Controls - Top Right */}
+      {/* Navigation Controls - Top Right */}
       <div className="absolute top-4 right-4 z-40 flex flex-col gap-2">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden flex flex-col">
           <button
@@ -1011,6 +1197,32 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
             {is3DMode ? '2D' : '3D'}
           </button>
         </div>
+
+        {/* OSM/Mapbox Toggle */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden">
+          <button
+            onClick={toggleTileProvider}
+            disabled={!mapboxApiKey}
+            className={`w-9 h-9 flex items-center justify-center transition-colors ${
+              !mapboxApiKey 
+                ? 'bg-gray-50 cursor-not-allowed opacity-60' 
+                : useMapbox 
+                  ? 'bg-blue-50 hover:bg-blue-100' 
+                  : 'bg-green-50 hover:bg-green-100'
+            }`}
+            title={!mapboxApiKey ? 'Mapbox key not configured' : useMapbox ? 'Mapbox (click for OSM)' : 'OSM (click for Mapbox)'}
+          >
+            {useMapbox ? (
+              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
 
@@ -1018,10 +1230,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-4 shadow-lg">
             <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-            <p className="text-sm text-gray-600">Loading Online Map...</p>
+            <p className="text-sm text-gray-600">Loading Map...</p>
           </div>
         </div>
       )}
+
     </div>
   )
 }

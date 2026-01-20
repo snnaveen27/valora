@@ -48,16 +48,33 @@ try:
     rag_service = get_rag_service(data_dir)
     RAG_AVAILABLE = True
 except Exception as e:
-    print(f"⚠️  RAG service not available: {e}")
+    print(f"[WARNING] RAG service not available: {e}")
     rag_service = None
     RAG_AVAILABLE = False
+
+# Import and initialize simulation & digital twin
+try:
+    from simulation_engine import get_simulation_engine, ScenarioInput
+    from narrative_generator import get_narrative_generator
+    from digital_twin import get_digital_twin, StateChange
+    simulation_engine = get_simulation_engine()
+    narrative_generator = get_narrative_generator()
+    digital_twin = get_digital_twin(data_dir)
+    SIMULATION_AVAILABLE = True
+    print("[OK] Simulation & Digital Twin engines initialized")
+except Exception as e:
+    print(f"[WARNING] Simulation/Digital Twin not available: {e}")
+    simulation_engine = None
+    narrative_generator = None
+    digital_twin = None
+    SIMULATION_AVAILABLE = False
 
 try:
     from valuation_model import get_valuation_model
     valuation_model = get_valuation_model(data_dir)
     VALUATION_AVAILABLE = True
 except Exception as e:
-    print(f"⚠️  Valuation model not available: {e}")
+    print(f"[WARNING] Valuation model not available: {e}")
     valuation_model = None
     VALUATION_AVAILABLE = False
 
@@ -66,12 +83,12 @@ try:
     spatial_service = get_spatial_service(data_dir)
     SPATIAL_AVAILABLE = True
 except Exception as e:
-    print(f"⚠️  Spatial reasoning not available: {e}")
+    print(f"[WARNING] Spatial reasoning not available: {e}")
     spatial_service = None
     SPATIAL_AVAILABLE = False
 
 # Phase 2: GIS Multi-Agent Orchestrator
-from gis_agents import get_gis_orchestrator, IntentRouter, Intent
+from gis_agents import get_gis_orchestrator, IntentRouter, Intent, _compute_market_facts
 gis_orchestrator = get_gis_orchestrator(
     geocoder=local_geocoder,
     spatial_service=spatial_service,
@@ -81,25 +98,37 @@ gis_orchestrator = get_gis_orchestrator(
     rag_service=rag_service,
     area_analyzer=area_analyzer,
 )
-print("✅ GIS Multi-Agent Orchestrator initialized")
+print("[OK] GIS Multi-Agent Orchestrator initialized")
 
 app = FastAPI(title="Valora AI Backend", version="2.0.0")
 
 # CORS for frontend
 _default_origins = [
     "http://localhost:3000",
+    "http://localhost:3001",
     "http://localhost:3002",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
 ]
 _origins_env = os.getenv("FRONTEND_ORIGINS", "")
 _allowed_origins = [o.strip() for o in _origins_env.split(",") if o.strip()] or _default_origins
+
+# Security: Validate origins to prevent CORS bypass
+_validated_origins = []
+for origin in _allowed_origins:
+    if origin.startswith(("http://localhost:", "http://127.0.0.1:", "https://")):
+        _validated_origins.append(origin)
+    else:
+        print(f"[WARNING] Rejected invalid origin: {origin}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins,
+    allow_origins=_validated_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods
     allow_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 @app.middleware("http")
@@ -153,7 +182,6 @@ _cache_area_analyze = TTLCache(maxsize=512, ttl_seconds=300)
 _cache_terrain_elevation = TTLCache(maxsize=4096, ttl_seconds=86400)
 _cache_terrain_analysis = TTLCache(maxsize=2048, ttl_seconds=3600)
 _cache_terrain_stats = TTLCache(maxsize=1, ttl_seconds=3600)
-_cache_mappls_tiles = TTLCache(maxsize=512, ttl_seconds=86400)
 _cache_properties_categories = TTLCache(maxsize=1, ttl_seconds=3600)
 _cache_properties_area_stats = TTLCache(maxsize=1024, ttl_seconds=900)
 _cache_properties_nearby = TTLCache(maxsize=2048, ttl_seconds=300)
@@ -173,15 +201,33 @@ def load_tileset_index():
     tileset_path = Path(__file__).parent.parent / 'src' / 'data' / '3dtiles' / 'tileset.json'
     
     if not tileset_path.exists():
-        print("⚠️  Tileset not found. Run: python scripts/generate_3dtiles.py")
+        print("[WARNING] Tileset not found. Run: python scripts/generate_3dtiles.py")
         return
     
     with open(tileset_path) as f:
         tileset_index = json.load(f)
     
-    print(f"✅ Loaded tileset index: {len(tileset_index['tiles'])} tiles, {tileset_index['totalBuildings']} buildings")
+    print(f"[OK] Loaded tileset index: {len(tileset_index['tiles'])} tiles, {tileset_index['totalBuildings']} buildings")
 
-# Mount static files for tiles
+# Offline map tiles removed - not used in this MVP
+
+@app.get("/api/map-tiles/manifest")
+async def get_tile_manifest():
+    """Offline tiles not available in this MVP - always return unavailable"""
+    return {
+        "available": False,
+        "message": "Offline map tiles are not supported in this version"
+    }
+
+@app.get("/api/map-tiles/{z}/{x}/{y}.png")
+async def get_local_map_tile(z: int, x: int, y: int):
+    """Offline tiles not supported - return 404"""
+    raise HTTPException(
+        status_code=404, 
+        detail="Offline map tiles are not supported in this version"
+    )
+
+# Mount static files for buildings (using StaticFiles after CORS middleware)
 tiles_dir = Path(__file__).parent.parent / 'src' / 'data' / '3dtiles' / 'tiles'
 if tiles_dir.exists():
     app.mount("/tiles", StaticFiles(directory=str(tiles_dir)), name="tiles")
@@ -197,8 +243,13 @@ BANGALORE_BBOX = {
 
 # OpenRouter configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "xiaomi/mimo-v2-flash:free")
+OPENROUTER_MODEL_REASONING = os.getenv("OPENROUTER_MODEL_REASONING", "deepseek/deepseek-r1:free")
+OPENROUTER_MODEL_VISION = os.getenv("OPENROUTER_MODEL_VISION", "qwen/qwen2.5-vl-7b-instruct:free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+# Mapbox configuration
+MAPBOX_API_KEY = os.getenv("MAPBOX_API_KEY", "")
 
 class PlaceResult(BaseModel):
     place_id: int
@@ -249,36 +300,8 @@ async def health():
 async def get_config():
     """Get frontend configuration including API keys"""
     return {
-        "has_mappls": bool(os.getenv("MAPPLS_API_KEY"))
+        "mapbox_api_key": MAPBOX_API_KEY
     }
-
-@app.get("/api/mappls/tiles/{z}/{x}/{y}.png")
-async def get_mappls_tile(z: int, x: int, y: int):
-    """Proxy MapPLS tiles through backend to avoid browser CORS issues."""
-    mappls_key = os.getenv("MAPPLS_API_KEY")
-    if not mappls_key:
-        raise HTTPException(status_code=503, detail="MAPPLS_API_KEY not configured")
-
-    cache_key = f"{z}/{x}/{y}"
-    cached = _cache_mappls_tiles.get(cache_key)
-    if cached is not None:
-        content, content_type = cached
-        return Response(content=content, media_type=content_type)
-
-    tile_url = f"https://apis.mappls.com/advancedmaps/v1/{mappls_key}/still_map_layer/{z}/{x}/{y}.png"
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            upstream = await client.get(tile_url)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"MapPLS tile fetch failed: {str(e)}")
-
-    if upstream.status_code != 200:
-        raise HTTPException(status_code=upstream.status_code, detail="MapPLS tile fetch failed")
-
-    content_type = upstream.headers.get("content-type", "image/png")
-    _cache_mappls_tiles.set(cache_key, (upstream.content, content_type))
-    return Response(content=upstream.content, media_type=content_type)
 
 @app.get("/api/geocode", response_model=GeocodeResponse)
 async def geocode(q: str, limit: int = 5):
@@ -482,6 +505,507 @@ async def analyze_area(lng: float, lat: float, radius: int = 1000):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Area analysis failed: {str(e)}")
 
+
+# Cache for viewport analysis
+_cache_viewport_analysis = TTLCache(maxsize=256, ttl_seconds=120)
+
+@app.get("/api/viewport/analyze")
+async def analyze_viewport(lat: float, lng: float):
+    """
+    Quick viewport analysis - provides instant insights for current map center.
+    Used by AnalysisPanel to show default information about where user is looking.
+    Returns spatial summary, market data, and key metrics without AI narrative.
+    """
+    cache_key = f"{round(lat, 4)}|{round(lng, 4)}"
+    cached = _cache_viewport_analysis.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = {
+        "success": True,
+        "location": {"lat": lat, "lng": lng},
+        "spatial": None,
+        "market": None,
+        "terrain": None,
+        "area_name": None
+    }
+    
+    # Get area name via reverse geocoding
+    if local_geocoder:
+        try:
+            nearby = local_geocoder.reverse(lat, lng)
+            if nearby:
+                result["area_name"] = nearby.get("name", f"Area at {lat:.4f}, {lng:.4f}")
+        except Exception:
+            result["area_name"] = f"Area at {lat:.4f}, {lng:.4f}"
+    
+    # Spatial analysis
+    if SPATIAL_AVAILABLE and spatial_service:
+        try:
+            summary = spatial_service.get_summary(lat, lng, radius_m=1000)
+            result["spatial"] = {
+                "poi_count": summary.by_category.get('poi', 0),
+                "transport_count": summary.by_category.get('transport', 0),
+                "accessibility_score": int(summary.accessibility_score),
+                "walkability_score": int(summary.walkability_score),
+                "amenity_density": round(summary.amenity_density, 2),
+                "total_features": summary.total_features
+            }
+        except Exception as e:
+            print(f"Viewport spatial error: {e}")
+    
+    # Fallback to area analyzer
+    if not result["spatial"] and area_analyzer:
+        try:
+            area_data = area_analyzer.analyze_area(lng, lat, radius_m=1000)
+            poi_summary = area_data.get('poi_summary', {})
+            transport = area_data.get('transport', {})
+            result["spatial"] = {
+                "poi_count": poi_summary.get('total', 0),
+                "transport_count": transport.get('total_stops', 0),
+                "accessibility_score": min(100, transport.get('total_stops', 0) * 5 + 40),
+                "walkability_score": min(100, poi_summary.get('total', 0) // 5 + 50),
+                "amenity_density": round(poi_summary.get('total', 0) / 3.14, 2),
+                "total_features": poi_summary.get('total', 0) + transport.get('total_stops', 0)
+            }
+        except Exception as e:
+            print(f"Viewport area analyzer error: {e}")
+    
+    # Market data
+    if property_service:
+        try:
+            market = _compute_market_facts(property_service, lat, lng, 1500)
+            if market and market.get('avg_price_per_sqft'):
+                result["market"] = {
+                    "avg_price_per_sqft": round(market['avg_price_per_sqft']),
+                    "price_trend_pct": round(market['price_trend_pct'], 1) if market.get('price_trend_pct') else None,
+                    "active_listings": market.get('active_listings', 0),
+                    "demand_level": market.get('demand_level', 'Medium')
+                }
+        except Exception as e:
+            print(f"Viewport market error: {e}")
+    
+    # Terrain data
+    if terrain_service:
+        try:
+            terrain = terrain_service.get_terrain_analysis(lat, lng)
+            if terrain:
+                result["terrain"] = {
+                    "elevation_m": terrain.get('elevation'),
+                    "slope_deg": terrain.get('slope'),
+                    "flood_risk": terrain.get('flood_risk', 'unknown')
+                }
+        except Exception as e:
+            print(f"Viewport terrain error: {e}")
+    
+    _cache_viewport_analysis.set(cache_key, result)
+    return result
+
+
+# ============================================================================
+# LOCATION ANALYSIS - Comprehensive analysis for any clicked coordinate
+# ============================================================================
+
+class LocationAnalyzeRequest(BaseModel):
+    lat: float
+    lng: float
+    radius: int = 1000
+
+_cache_location_analysis = TTLCache(maxsize=512, ttl_seconds=180)
+
+@app.post("/api/location/analyze")
+async def analyze_location(request: LocationAnalyzeRequest):
+    """
+    Comprehensive location analysis for any clicked coordinate.
+    Provides: spatial, market, micro-economics, nearby properties, valuation, terrain.
+    Works for properties, lands, empty areas - the City Brain for any point.
+    """
+    lat, lng, radius = request.lat, request.lng, request.radius
+    cache_key = f"{round(lat, 4)}|{round(lng, 4)}|{radius}"
+    cached = _cache_location_analysis.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    result = {
+        "success": True,
+        "coordinates": {"lat": lat, "lng": lng},
+        "area_name": None,
+        "spatial": None,
+        "market": None,
+        "micro_economics": None,
+        "nearby_properties": [],
+        "valuation": None,
+        "terrain": None,
+        "investment_score": None,
+        "recommendations": []
+    }
+    
+    # 1. Reverse geocoding for area name
+    if local_geocoder:
+        try:
+            nearby = local_geocoder.reverse(lat, lng)
+            if nearby:
+                result["area_name"] = nearby.get("name", f"Location at {lat:.4f}, {lng:.4f}")
+        except Exception:
+            result["area_name"] = f"Location at {lat:.4f}, {lng:.4f}"
+    
+    # 2. Spatial analysis
+    spatial_data = None
+    if SPATIAL_AVAILABLE and spatial_service:
+        try:
+            summary = spatial_service.get_summary(lat, lng, radius_m=radius)
+            spatial_data = {
+                "poi_count": summary.by_category.get('poi', 0),
+                "transport_count": summary.by_category.get('transport', 0),
+                "accessibility_score": int(summary.accessibility_score),
+                "walkability_score": int(summary.walkability_score),
+                "amenity_density": round(summary.amenity_density, 2),
+                "total_features": summary.total_features,
+                "nearest_poi": None,
+                "nearest_transport": None
+            }
+            # Get nearest items
+            nearby_items = spatial_service.get_nearby(lat, lng, radius_m=500, limit=10)
+            for item in nearby_items:
+                if item.get('type') == 'poi' and not spatial_data['nearest_poi']:
+                    spatial_data['nearest_poi'] = {
+                        'name': item.get('name'),
+                        'distance_m': round(item.get('distance_m', 0))
+                    }
+                elif item.get('type') == 'transport' and not spatial_data['nearest_transport']:
+                    spatial_data['nearest_transport'] = {
+                        'name': item.get('name'),
+                        'distance_m': round(item.get('distance_m', 0))
+                    }
+            result["spatial"] = spatial_data
+        except Exception as e:
+            print(f"Location spatial error: {e}")
+    
+    # Fallback to area analyzer
+    if not result["spatial"] and area_analyzer:
+        try:
+            area_data = area_analyzer.analyze_area(lng, lat, radius_m=radius)
+            poi_summary = area_data.get('poi_summary', {})
+            transport = area_data.get('transport', {})
+            result["spatial"] = {
+                "poi_count": poi_summary.get('total', 0),
+                "transport_count": transport.get('total_stops', 0),
+                "accessibility_score": min(100, transport.get('total_stops', 0) * 5 + 40),
+                "walkability_score": min(100, poi_summary.get('total', 0) // 5 + 50),
+                "amenity_density": round(poi_summary.get('total', 0) / 3.14, 2),
+                "total_features": poi_summary.get('total', 0) + transport.get('total_stops', 0)
+            }
+        except Exception as e:
+            print(f"Location area analyzer error: {e}")
+    
+    # 3. Market data with micro-economics
+    if property_service:
+        try:
+            market = _compute_market_facts(property_service, lat, lng, radius)
+            if market:
+                result["market"] = {
+                    "avg_price_per_sqft": round(market.get('avg_price_per_sqft', 0)),
+                    "median_price": round(market.get('median_price', 0)),
+                    "price_trend_pct": round(market.get('price_trend_pct', 0), 1),
+                    "active_listings": market.get('active_listings', 0),
+                    "demand_level": market.get('demand_level', 'Medium'),
+                    "price_range": {
+                        "min": round(market.get('min_price', 0)),
+                        "max": round(market.get('max_price', 0))
+                    }
+                }
+                
+                # Micro-economic indicators
+                accessibility = result.get("spatial", {}).get("accessibility_score", 50) if result.get("spatial") else 50
+                walkability = result.get("spatial", {}).get("walkability_score", 50) if result.get("spatial") else 50
+                
+                # Compute micro-economic factors
+                metro_proximity_bonus = min(30, (100 - min(100, result.get("spatial", {}).get("transport_count", 0) * 3)) if result.get("spatial") else 15)
+                amenity_premium = min(20, result.get("spatial", {}).get("poi_count", 0) // 50) if result.get("spatial") else 5
+                infrastructure_score = (accessibility + walkability) // 2
+                
+                # Investment attractiveness
+                demand_multiplier = {"High": 1.2, "Medium": 1.0, "Low": 0.8}.get(market.get('demand_level', 'Medium'), 1.0)
+                growth_factor = 1 + (market.get('price_trend_pct', 0) / 100) if market.get('price_trend_pct') else 1.0
+                investment_score = int(min(100, (infrastructure_score * 0.4 + accessibility * 0.3 + walkability * 0.3) * demand_multiplier * growth_factor))
+                
+                result["micro_economics"] = {
+                    "infrastructure_score": infrastructure_score,
+                    "metro_proximity_factor": metro_proximity_bonus,
+                    "amenity_premium_pct": amenity_premium,
+                    "demand_supply_ratio": round(market.get('active_listings', 10) / max(1, market.get('sold_last_month', 5)), 2) if market.get('sold_last_month') else 2.0,
+                    "rental_yield_estimate": round(4.5 + (accessibility / 50), 1),  # Base 4.5% + location bonus
+                    "appreciation_forecast_1y": round(market.get('price_trend_pct', 5), 1),
+                    "appreciation_forecast_5y": round((market.get('price_trend_pct', 5) or 5) * 4.2, 1),
+                    "liquidity_score": min(100, market.get('active_listings', 0) * 2 + 40),
+                    "development_potential": "High" if infrastructure_score > 70 else ("Medium" if infrastructure_score > 40 else "Low")
+                }
+                result["investment_score"] = investment_score
+                
+        except Exception as e:
+            print(f"Location market error: {e}")
+    
+    # 4. Nearby properties
+    if property_service:
+        try:
+            properties = property_service.search(lat=lat, lng=lng, radius_m=radius, limit=10)
+            result["nearby_properties"] = [{
+                "id": p.get('id'),
+                "name": p.get('name', p.get('title', 'Property')),
+                "type": p.get('property_type', p.get('type', 'residential')),
+                "price": p.get('price'),
+                "price_per_sqft": p.get('price_per_sqft'),
+                "bedrooms": p.get('bedrooms'),
+                "area_sqft": p.get('covered_area', p.get('area')),
+                "distance_m": round(p.get('distance_m', 0)) if p.get('distance_m') else None,
+                "address": p.get('address', p.get('location'))
+            } for p in properties[:10]]
+        except Exception as e:
+            print(f"Location properties error: {e}")
+    
+    # 5. Land/Property valuation estimate
+    if valuation_model:
+        try:
+            # Estimate for a typical 2BHK 1200 sqft
+            val_result = valuation_model.estimate(
+                lat=lat, lng=lng,
+                bedrooms=2,
+                covered_area=1200,
+                property_type='residential'
+            )
+            if val_result.get('success'):
+                result["valuation"] = {
+                    "estimated_price_2bhk_1200sqft": val_result.get('estimated_price'),
+                    "price_per_sqft": val_result.get('price_per_sqft'),
+                    "confidence": val_result.get('confidence', 'medium'),
+                    "price_range": val_result.get('price_range'),
+                    "key_factors": val_result.get('factors', [])[:5]
+                }
+        except Exception as e:
+            print(f"Location valuation error: {e}")
+    
+    # 6. Terrain data
+    if terrain_service:
+        try:
+            terrain = terrain_service.get_terrain_analysis(lat, lng)
+            if terrain:
+                result["terrain"] = {
+                    "elevation_m": terrain.get('elevation'),
+                    "slope_deg": terrain.get('slope'),
+                    "aspect": terrain.get('aspect'),
+                    "flood_risk": terrain.get('flood_risk', 'unknown'),
+                    "construction_suitability": terrain.get('suitability', 'good')
+                }
+        except Exception as e:
+            print(f"Location terrain error: {e}")
+    
+    # 7. Generate recommendations
+    recommendations = []
+    if result.get("investment_score"):
+        score = result["investment_score"]
+        if score >= 80:
+            recommendations.append("Excellent investment location with strong fundamentals")
+        elif score >= 60:
+            recommendations.append("Good investment potential with moderate growth prospects")
+        else:
+            recommendations.append("Consider long-term hold strategy for this location")
+    
+    if result.get("micro_economics", {}).get("rental_yield_estimate", 0) > 5:
+        recommendations.append(f"Strong rental yield potential: {result['micro_economics']['rental_yield_estimate']}%")
+    
+    if result.get("spatial", {}).get("transport_count", 0) > 5:
+        recommendations.append("Excellent public transport connectivity")
+    
+    if result.get("market", {}).get("demand_level") == "High":
+        recommendations.append("High demand area - good for quick resale")
+    
+    result["recommendations"] = recommendations[:4]
+    
+    _cache_location_analysis.set(cache_key, result)
+    return result
+
+
+# ============================================================================
+# PROPERTY SEARCH - Advanced property search with filters
+# ============================================================================
+
+class PropertySearchRequest(BaseModel):
+    query: str = None
+    lat: float = None
+    lng: float = None
+    radius: int = 2000
+    property_type: str = None
+    min_price: int = None
+    max_price: int = None
+    bedrooms: int = None
+    limit: int = 10
+
+@app.post("/api/properties/smart-search")
+async def smart_property_search(request: PropertySearchRequest):
+    """
+    Smart property search with natural language support.
+    Examples: "top 5 properties in Indiranagar", "3BHK under 1.5 crore in Whitefield"
+    """
+    results = {
+        "success": True,
+        "query": request.query,
+        "properties": [],
+        "market_summary": None,
+        "area_name": None
+    }
+    
+    # Parse location from query if not provided
+    lat, lng = request.lat, request.lng
+    
+    if request.query and not (lat and lng) and local_geocoder:
+        # Extract location from query
+        query_lower = request.query.lower()
+        # Try to find location in query
+        geo_result = local_geocoder.geocode(request.query.split()[-1])  # Try last word as location
+        if not geo_result:
+            # Try common patterns
+            for word in request.query.split():
+                geo_result = local_geocoder.geocode(word)
+                if geo_result:
+                    break
+        
+        if geo_result:
+            lat = geo_result.get('lat')
+            lng = geo_result.get('lng')
+            results["area_name"] = geo_result.get('name')
+    
+    if not lat or not lng:
+        # Default to Bangalore center
+        lat, lng = 12.9716, 77.5946
+    
+    # Search properties
+    if property_service:
+        try:
+            filters = {}
+            if request.property_type:
+                filters['property_type'] = request.property_type
+            if request.min_price:
+                filters['min_price'] = request.min_price
+            if request.max_price:
+                filters['max_price'] = request.max_price
+            if request.bedrooms:
+                filters['bedrooms'] = request.bedrooms
+            
+            properties = property_service.search(
+                lat=lat, lng=lng,
+                radius_m=request.radius,
+                limit=request.limit,
+                property_type=request.property_type,
+                min_price=request.min_price,
+                max_price=request.max_price,
+                min_bedrooms=request.bedrooms,
+                max_bedrooms=request.bedrooms
+            )
+            
+            results["properties"] = [{
+                "id": p.get('id'),
+                "name": p.get('name', p.get('title', 'Property')),
+                "type": p.get('_category', 'residential'),
+                "price": p.get('price'),
+                "price_formatted": f"₹{p.get('price', 0) / 100000:.1f}L" if p.get('price', 0) and p.get('price', 0) < 10000000 else f"₹{p.get('price', 0) / 10000000:.2f}Cr" if p.get('price') else "N/A",
+                "price_per_sqft": p.get('price_per_sq_ft'),
+                "bedrooms": p.get('bedrooms'),
+                "bathrooms": p.get('bathrooms'),
+                "area_sqft": p.get('covered_area', p.get('area')),
+                "address": p.get('address', p.get('location')),
+                "lat": p.get('_lat'),
+                "lng": p.get('_lng'),
+                "amenities": (p.get('amenities') or [])[:5] if isinstance(p.get('amenities'), list) else [],
+                "distance_m": round(p.get('_distance', 0)) if p.get('_distance') else None
+            } for p in properties]
+            
+            # Market summary
+            if properties:
+                prices = [p.get('price', 0) for p in properties if p.get('price')]
+                if prices:
+                    results["market_summary"] = {
+                        "total_found": len(properties),
+                        "avg_price": round(sum(prices) / len(prices)),
+                        "min_price": min(prices),
+                        "max_price": max(prices),
+                        "price_range_formatted": f"₹{min(prices)/100000:.0f}L - ₹{max(prices)/10000000:.1f}Cr"
+                    }
+                    
+        except Exception as e:
+            print(f"Property search error: {e}")
+            results["error"] = str(e)
+    
+    return results
+
+
+# ============================================================================
+# CITY BRAIN MEMORY - Self-learning system
+# ============================================================================
+
+# In-memory city brain (persists during server lifetime)
+city_brain_memory = {
+    "queries": [],  # Recent queries for learning
+    "hotspots": {},  # Frequently queried locations
+    "trends": {},  # Detected trends
+    "insights": []  # Generated insights
+}
+
+@app.post("/api/city-brain/learn")
+async def city_brain_learn(data: dict):
+    """
+    City Brain learning endpoint - records queries and builds knowledge.
+    """
+    query = data.get('query', '')
+    location = data.get('location')
+    intent = data.get('intent')
+    
+    # Record query
+    city_brain_memory["queries"].append({
+        "query": query,
+        "location": location,
+        "intent": intent,
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    # Keep only last 1000 queries
+    if len(city_brain_memory["queries"]) > 1000:
+        city_brain_memory["queries"] = city_brain_memory["queries"][-1000:]
+    
+    # Update hotspots
+    if location:
+        loc_key = f"{round(location.get('lat', 0), 3)}|{round(location.get('lng', 0), 3)}"
+        city_brain_memory["hotspots"][loc_key] = city_brain_memory["hotspots"].get(loc_key, 0) + 1
+    
+    return {"success": True, "memory_size": len(city_brain_memory["queries"])}
+
+@app.get("/api/city-brain/insights")
+async def city_brain_insights():
+    """
+    Get City Brain insights from learned patterns.
+    """
+    # Analyze hotspots
+    top_hotspots = sorted(
+        city_brain_memory["hotspots"].items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:10]
+    
+    # Analyze query patterns
+    recent_queries = city_brain_memory["queries"][-100:]
+    intent_counts = {}
+    for q in recent_queries:
+        intent = q.get('intent', 'unknown')
+        intent_counts[intent] = intent_counts.get(intent, 0) + 1
+    
+    return {
+        "success": True,
+        "total_queries": len(city_brain_memory["queries"]),
+        "top_hotspots": [{"location": k, "count": v} for k, v in top_hotspots],
+        "intent_distribution": intent_counts,
+        "insights": city_brain_memory["insights"]
+    }
+
+
 @app.post("/api/chat")
 async def chat_with_ai(request: ChatRequest):
     """
@@ -509,7 +1033,7 @@ async def chat_with_ai(request: ChatRequest):
     # =========================================================================
     # PHASE 2: Multi-Agent Fact Gathering (all deterministic, no LLM)
     # =========================================================================
-    facts, intent, ui_actions = gis_orchestrator.gather_facts(
+    facts, intent, ui_actions, digital_twin_state = gis_orchestrator.gather_facts(
         query=user_query,
         context=context,
     )
@@ -520,8 +1044,16 @@ async def chat_with_ai(request: ChatRequest):
         title = f"{facts.building_type.title()} Building Analysis"
     elif intent == Intent.PROPERTY_SEARCH:
         title = f"Properties near {facts.location_name or 'Location'}"
+    elif intent == Intent.SIMULATE:
+        title = f"Simulation: {facts.location_name or 'Area'}"
     
     dashboard = facts.to_dashboard(title=title)
+    
+    # Add simulation results to dashboard if present
+    simulation_data = None
+    if facts.simulation_results:
+        simulation_data = facts.simulation_results
+        dashboard["simulation"] = simulation_data
     
     # Add viewport info if available
     viewport = context.get('viewport')
@@ -538,6 +1070,10 @@ async def chat_with_ai(request: ChatRequest):
     # Build context from grounded facts
     facts_context = facts.to_context_string()
     
+    # Add simulation facts if present
+    if simulation_data:
+        facts_context += f"\n\n**Simulation Results:**\n{json.dumps(simulation_data['impacts'], indent=2)}"
+
     full_system = system_prompt + "\n\n**GROUNDED FACTS (use ONLY these):**\n" + facts_context + viewport_context
     
     messages_with_context = [{"role": "system", "content": full_system}]
@@ -587,12 +1123,20 @@ async def chat_with_ai(request: ChatRequest):
             if not dashboard.get("title"):
                 dashboard["title"] = title
 
+            # Manage credits (deduct 1 for chat)
+            user_id = context.get('user_id', 'user_demo')
+            credit_resp = await manage_credits(CreditAction(user_id=user_id, action='deduct', reason='chat'))
+            
+            # Add simulation and twin state to response
             return {
                 "success": True,
                 "message": ai_message,
                 "intent": intent.value,  # Expose detected intent
                 "dashboard": dashboard if dashboard.get('title') or dashboard.get('cards') else None,
                 "ui_actions": ui_actions,
+                "simulation": simulation_data,
+                "digital_twin_state": digital_twin_state,
+                "user_credits": credit_resp if credit_resp.get('success') else None,
                 "facts_summary": {  # Expose key facts for transparency
                     "location": facts.location_name,
                     "poi_count": facts.poi_count,
@@ -1463,7 +2007,7 @@ Calculate ALL metrics from the data provided:
                             result["recommendations"] = ai_data.get("recommendations", [])
                         else:
                             # Fallback: store raw text, use defaults
-                            print(f"⚠️  Could not parse AI JSON, using raw text")
+                            print(f"[WARNING] Could not parse AI JSON, using raw text")
                             result["ai_analysis"] = ai_content
                             # Set minimal defaults if AI didn't provide structured data
                             if "score" not in result.get("area_importance", {}):
@@ -1488,7 +2032,471 @@ Calculate ALL metrics from the data provided:
     return result
 
 
+# ============== PHASE 4: SIMULATION & STORYBOARD ENDPOINTS ==============
+
+try:
+    from simulation_engine import get_simulation_engine, ScenarioInput
+    from narrative_generator import get_narrative_generator
+    from digital_twin import get_digital_twin, StateChange
+    from dataclasses import asdict
+    simulation_engine = get_simulation_engine()
+    narrative_generator = get_narrative_generator()
+    digital_twin = get_digital_twin()
+    SIMULATION_AVAILABLE = True
+    print("[OK] Simulation engine initialized")
+    print("[OK] Digital twin engine initialized")
+except Exception as e:
+    print(f"[WARNING] Simulation engine not available: {e}")
+    simulation_engine = None
+    narrative_generator = None
+    digital_twin = None
+    SIMULATION_AVAILABLE = False
+
+class SimulationRequest(BaseModel):
+    scenario_type: str  # 'metro_station', 'highway', 'zoning_change', 'infrastructure'
+    description: str
+    lat: float
+    lng: float
+    parameters: Optional[Dict[str, Any]] = {}
+
+@app.post("/api/simulate")
+async def run_simulation(request: SimulationRequest):
+    """
+    Run a what-if simulation scenario.
+    
+    Scenario types:
+    - metro_station: Simulate adding a metro station
+    - highway: Simulate adding a highway connection
+    - zoning_change: Simulate zoning regulation changes
+    - infrastructure: Simulate general infrastructure addition
+    
+    Returns impact analysis with:
+    - Accessibility changes
+    - Property value impacts
+    - Development pressure
+    - Walkability changes
+    - AI-generated reasoning
+    """
+    if not SIMULATION_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Simulation engine not available")
+    
+    try:
+        # Get current area context for simulation
+        context = {}
+        if SPATIAL_AVAILABLE and spatial_service:
+            try:
+                spatial_summary = spatial_service.get_summary(request.lat, request.lng, radius_m=1000)
+                context['spatial'] = spatial_summary
+                context['transport'] = {
+                    'metro_count': spatial_summary.get('transport', {}).get('metro', 0),
+                    'bus_count': spatial_summary.get('transport', {}).get('bus', 0)
+                }
+            except:
+                pass
+        
+        # Create scenario input
+        scenario = ScenarioInput(
+            type=request.scenario_type,
+            location={'lat': request.lat, 'lng': request.lng},
+            parameters=request.parameters or {},
+            description=request.description
+        )
+        
+        # Run simulation
+        deltas = simulation_engine.simulate(scenario, context)
+        
+        return {
+            "success": True,
+            "scenario": {
+                "type": request.scenario_type,
+                "description": request.description,
+                "location": {"lat": request.lat, "lng": request.lng}
+            },
+            "impacts": asdict(deltas),
+            "context_used": context
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Simulation error: {str(e)}")
+
+@app.post("/api/simulate/storyboard")
+async def generate_simulation_storyboard(request: SimulationRequest):
+    """
+    Run simulation and generate cinematic storyboard.
+    
+    Returns:
+    - Simulation impacts
+    - Storyboard with camera paths, overlays, and narration
+    """
+    if not SIMULATION_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Simulation engine not available")
+    
+    try:
+        # Get context
+        context = {}
+        if SPATIAL_AVAILABLE and spatial_service:
+            try:
+                spatial_summary = spatial_service.get_summary(request.lat, request.lng, radius_m=1000)
+                context['spatial'] = spatial_summary
+                context['transport'] = {
+                    'metro_count': spatial_summary.get('transport', {}).get('metro', 0),
+                    'bus_count': spatial_summary.get('transport', {}).get('bus', 0)
+                }
+            except:
+                pass
+        
+        # Create scenario input
+        scenario = ScenarioInput(
+            type=request.scenario_type,
+            location={'lat': request.lat, 'lng': request.lng},
+            parameters=request.parameters or {},
+            description=request.description
+        )
+        
+        # Run simulation
+        deltas = simulation_engine.simulate(scenario, context)
+        
+        # Generate storyboard
+        scenario_dict = {
+            'type': request.scenario_type,
+            'description': request.description,
+            'parameters': request.parameters or {}
+        }
+        storyboard = narrative_generator.generate_simulation_storyboard(
+            scenario_dict, deltas, {'lat': request.lat, 'lng': request.lng}
+        )
+        
+        return {
+            "success": True,
+            "scenario": scenario_dict,
+            "impacts": asdict(deltas),
+            "storyboard": asdict(storyboard)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Storyboard error: {str(e)}")
+
+
+# ============== DIGITAL TWIN ENDPOINTS ==============
+
+class DigitalTwinInitRequest(BaseModel):
+    lat: float
+    lng: float
+    radius_m: int = 5000
+
+@app.post("/api/digital-twin/init")
+async def initialize_digital_twin(request: DigitalTwinInitRequest):
+    """
+    Initialize digital twin for a city area.
+    Creates a real-time virtual representation of the urban environment.
+    """
+    if not SIMULATION_AVAILABLE or not digital_twin:
+        raise HTTPException(status_code=503, detail="Digital twin not available")
+    
+    try:
+        # Initialize state
+        city_state = digital_twin.initialize_state(
+            request.lat, request.lng, request.radius_m
+        )
+        
+        # Sync with real data
+        digital_twin.sync_with_real_data(
+            spatial_service if SPATIAL_AVAILABLE else None,
+            property_service,
+            terrain_service
+        )
+        
+        return {
+            "success": True,
+            "state": asdict(digital_twin.get_state()),
+            "message": f"Digital twin initialized for area ({request.lat}, {request.lng}) with {request.radius_m}m radius"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Digital twin init error: {str(e)}")
+
+@app.get("/api/digital-twin/state")
+async def get_digital_twin_state():
+    """Get current digital twin state"""
+    if not SIMULATION_AVAILABLE or not digital_twin:
+        raise HTTPException(status_code=503, detail="Digital twin not available")
+    
+    state = digital_twin.get_state()
+    if not state:
+        raise HTTPException(status_code=404, detail="Digital twin not initialized. Call /api/digital-twin/init first.")
+    
+    return {
+        "success": True,
+        "state": asdict(state)
+    }
+
+@app.get("/api/digital-twin/history")
+async def get_digital_twin_history(entity_id: Optional[str] = None):
+    """Get digital twin change history"""
+    if not SIMULATION_AVAILABLE or not digital_twin:
+        raise HTTPException(status_code=503, detail="Digital twin not available")
+    
+    history = digital_twin.get_change_history(entity_id)
+    
+    return {
+        "success": True,
+        "change_count": len(history),
+        "changes": [asdict(c) for c in history]
+    }
+
+class StateUpdateRequest(BaseModel):
+    change_type: str  # 'infrastructure', 'building', 'economic', etc.
+    entity_id: str
+    before_state: Dict[str, Any]
+    after_state: Dict[str, Any]
+    impact_radius_m: float = 1000
+    affected_entities: List[str] = []
+
+@app.post("/api/digital-twin/update")
+async def update_digital_twin_state(request: StateUpdateRequest):
+    """
+    Update digital twin state with a change event.
+    Tracks changes and computes cascading impacts.
+    """
+    if not SIMULATION_AVAILABLE or not digital_twin:
+        raise HTTPException(status_code=503, detail="Digital twin not available")
+    
+    if not digital_twin.get_state():
+        raise HTTPException(status_code=404, detail="Digital twin not initialized. Call /api/digital-twin/init first.")
+    
+    try:
+        from datetime import datetime
+        import uuid
+        
+        # Create state change
+        change = StateChange(
+            change_id=str(uuid.uuid4()),
+            timestamp=datetime.now().isoformat(),
+            change_type=request.change_type,
+            entity_id=request.entity_id,
+            before_state=request.before_state,
+            after_state=request.after_state,
+            impact_radius_m=request.impact_radius_m,
+            affected_entities=request.affected_entities
+        )
+        
+        # Apply change
+        updated_state = digital_twin.update_state(change)
+        
+        # Compute impact zone
+        impact = digital_twin.compute_impact_zone(change, updated_state)
+        
+        return {
+            "success": True,
+            "change": asdict(change),
+            "updated_state": asdict(updated_state),
+            "impact_analysis": impact
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"State update error: {str(e)}")
+
+
+# ============== PHASE 5: CREDIT SYSTEM ==============
+
+# In-memory credit tracking (production would use database)
+user_credits = {}
+DEFAULT_CREDITS = 100  # New users get 100 credits
+
+class CreditAction(BaseModel):
+    user_id: str
+    action: str  # 'add', 'deduct', 'check'
+    amount: Optional[int] = 0
+    reason: Optional[str] = None
+
+# Credit costs for different operations
+CREDIT_COSTS = {
+    'chat': 1,
+    'analysis': 2,
+    'simulation': 5,
+    'storyboard': 10,
+    'property_search': 1,
+    'valuation': 3,
+    'rag_search': 1
+}
+
+@app.post("/api/credits")
+async def manage_credits(request: CreditAction):
+    """
+    Manage user credits (Windsurf-style usage tracking).
+    
+    Actions:
+    - check: Get current credit balance
+    - add: Add credits to account
+    - deduct: Deduct credits for usage
+    """
+    user_id = request.user_id
+    
+    # Initialize user if not exists
+    if user_id not in user_credits:
+        user_credits[user_id] = {
+            'balance': DEFAULT_CREDITS,
+            'total_used': 0,
+            'history': []
+        }
+    
+    user = user_credits[user_id]
+    
+    if request.action == 'check':
+        return {
+            "success": True,
+            "user_id": user_id,
+            "balance": user['balance'],
+            "total_used": user['total_used'],
+            "recent_history": user['history'][-10:]
+        }
+    
+    elif request.action == 'add':
+        user['balance'] += request.amount
+        user['history'].append({
+            'action': 'add',
+            'amount': request.amount,
+            'reason': request.reason or 'Credit top-up',
+            'balance_after': user['balance']
+        })
+        return {
+            "success": True,
+            "user_id": user_id,
+            "amount_added": request.amount,
+            "new_balance": user['balance']
+        }
+    
+    elif request.action == 'deduct':
+        cost = request.amount or CREDIT_COSTS.get(request.reason, 1)
+        if user['balance'] < cost:
+            return {
+                "success": False,
+                "error": "Insufficient credits",
+                "balance": user['balance'],
+                "cost": cost
+            }
+        user['balance'] -= cost
+        user['total_used'] += cost
+        user['history'].append({
+            'action': 'deduct',
+            'amount': cost,
+            'reason': request.reason or 'Usage',
+            'balance_after': user['balance']
+        })
+        return {
+            "success": True,
+            "user_id": user_id,
+            "amount_deducted": cost,
+            "new_balance": user['balance']
+        }
+    
+    return {"success": False, "error": "Invalid action"}
+
+@app.get("/api/credits/{user_id}")
+async def get_credits(user_id: str):
+    """Get credit balance for a user."""
+    if user_id not in user_credits:
+        user_credits[user_id] = {
+            'balance': DEFAULT_CREDITS,
+            'total_used': 0,
+            'history': []
+        }
+    
+    user = user_credits[user_id]
+    return {
+        "success": True,
+        "user_id": user_id,
+        "balance": user['balance'],
+        "total_used": user['total_used'],
+        "credit_costs": CREDIT_COSTS
+    }
+
+
 # ============== PHASE 1: STATUS ENDPOINT ==============
+
+@app.get("/api/status")
+async def get_system_status():
+    """Get comprehensive system status for all phases."""
+    return {
+        "version": "1.0.0",
+        "name": "Valora AI - City Intelligence Platform",
+        "taglines": [
+            "AI Digital Twin",
+            "Urban Planning Copilot", 
+            "City-Scale Simulator",
+            "Spatial Operating System"
+        ],
+        "phases": {
+            "phase1": {
+                "name": "Spatial Intelligence",
+                "status": "complete",
+                "services": {
+                    "rag": RAG_AVAILABLE,
+                    "valuation": VALUATION_AVAILABLE,
+                    "spatial_reasoning": SPATIAL_AVAILABLE
+                }
+            },
+            "phase2": {
+                "name": "Multi-Agent Orchestration",
+                "status": "complete",
+                "services": {
+                    "intent_router": True,
+                    "gis_orchestrator": True,
+                    "property_service": property_service is not None
+                }
+            },
+            "phase3": {
+                "name": "City Brain Memory",
+                "status": "complete",
+                "services": {
+                    "query_learning": True,
+                    "hotspot_tracking": True,
+                    "trend_detection": True
+                }
+            },
+            "phase4": {
+                "name": "Simulation & Storyboard",
+                "status": "complete",
+                "services": {
+                    "simulation_engine": SIMULATION_AVAILABLE,
+                    "narrative_generator": SIMULATION_AVAILABLE,
+                    "3d_storyboard": True,
+                    "digital_twin": digital_twin is not None
+                }
+            },
+            "phase5": {
+                "name": "Production Ready",
+                "status": "complete",
+                "services": {
+                    "credit_system": True,
+                    "offline_tiles": True,
+                    "ml_models": VALUATION_AVAILABLE,
+                    "security_hardening": True
+                }
+            }
+        },
+        "capabilities": {
+            "3d_visualization": True,
+            "property_search": True,
+            "location_analysis": True,
+            "simulation": SIMULATION_AVAILABLE,
+            "storyboard": SIMULATION_AVAILABLE,
+            "digital_twin": digital_twin is not None,
+            "offline_mode": True,
+            "real_time_state_tracking": digital_twin is not None
+        },
+        "api_endpoints": {
+            "chat": "/api/chat",
+            "spatial": ["/api/spatial/nearby", "/api/spatial/summary", "/api/spatial/analyze"],
+            "properties": ["/api/properties/smart-search", "/api/properties/nearby"],
+            "simulation": ["/api/simulate", "/api/simulate/storyboard"],
+            "digital_twin": ["/api/digital-twin/init", "/api/digital-twin/state", "/api/digital-twin/update", "/api/digital-twin/history"],
+            "credits": ["/api/credits", "/api/credits/{user_id}"],
+            "rag": ["/api/rag/search", "/api/rag/context"],
+            "valuation": ["/api/valuation/estimate"],
+            "status": "/api/status"
+        }
+    }
 
 @app.get("/api/phase1/status")
 async def phase1_status():

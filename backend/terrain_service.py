@@ -21,14 +21,14 @@ class TerrainService:
             return
             
         if not self.index_file.exists():
-            print(f"⚠️  Terrain index not found: {self.index_file}")
+            print(f"[WARNING]  Terrain index not found: {self.index_file}")
             return
             
         with open(self.index_file, 'r') as f:
             self.index_data = json.load(f)
             self.tiles = self.index_data.get('tiles', [])
         
-        print(f"✅ Loaded terrain index: {len(self.tiles)} tiles")
+        print(f"[OK] Loaded terrain index: {len(self.tiles)} tiles")
         print(f"   Elevation range: {self.index_data['stats']['min_elevation']:.1f}m - {self.index_data['stats']['max_elevation']:.1f}m")
         
         self.loaded = True

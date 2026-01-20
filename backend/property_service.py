@@ -51,6 +51,8 @@ class PropertyService:
                         
                         # Build spatial index
                         for prop in data:
+                            if not isinstance(prop, dict):
+                                continue
                             if prop.get('location'):
                                 try:
                                     lat, lng = map(float, prop['location'].split(','))
@@ -60,11 +62,11 @@ class PropertyService:
                                 except:
                                     pass
                 except Exception as e:
-                    print(f"⚠️ Failed to load {filename}: {e}")
+                    print(f"[WARNING] Failed to load {filename}: {e}")
             else:
-                print(f"⚠️ Property file not found: {filename}")
+                print(f"[WARNING] Property file not found: {filename}")
         
-        print(f"✅ Loaded {total_loaded} properties across {len(self.properties)} categories")
+        print(f"[OK] Loaded {total_loaded} properties across {len(self.properties)} categories")
     
     def _haversine_distance(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         """Calculate distance between two points in meters"""
@@ -121,6 +123,8 @@ class PropertyService:
         
         for cat in categories_to_search:
             for prop in self.properties.get(cat, []):
+                if not isinstance(prop, dict):
+                    continue
                 # Location filter
                 if lat is not None and lng is not None:
                     prop_lat = prop.get('_lat')

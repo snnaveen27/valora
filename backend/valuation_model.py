@@ -28,7 +28,7 @@ try:
     ML_AVAILABLE = True
 except ImportError:
     ML_AVAILABLE = False
-    print("⚠️  ML libraries not installed. Valuation features will be limited.")
+    print("[WARNING]  ML libraries not installed. Valuation features will be limited.")
 
 
 @dataclass
@@ -111,9 +111,9 @@ class PropertyValuationModel:
                             'lat': coords[1],
                             'lng': coords[0]
                         })
-                print(f"✅ Loaded {len(self.pois)} POIs for spatial features")
+                print(f"[OK] Loaded {len(self.pois)} POIs for spatial features")
             except Exception as e:
-                print(f"⚠️  Error loading POIs: {e}")
+                print(f"[WARNING]  Error loading POIs: {e}")
         
         # Load transport
         transport_file = self.osm_dir / 'transport.geojson'
@@ -137,9 +137,9 @@ class PropertyValuationModel:
                         self.transport.append(entry)
                         if 'metro' in t_type.lower() or 'metro' in t_name.lower():
                             self.metro_stations.append(entry)
-                print(f"✅ Loaded {len(self.transport)} transport stops ({len(self.metro_stations)} metro)")
+                print(f"[OK] Loaded {len(self.transport)} transport stops ({len(self.metro_stations)} metro)")
             except Exception as e:
-                print(f"⚠️  Error loading transport: {e}")
+                print(f"[WARNING]  Error loading transport: {e}")
     
     def _haversine(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         """Calculate distance in km between two points."""
@@ -247,13 +247,13 @@ class PropertyValuationModel:
                     })
                     
             except Exception as e:
-                print(f"⚠️  Error loading {json_file.name}: {e}")
+                print(f"[WARNING]  Error loading {json_file.name}: {e}")
         
         if not all_properties:
             return None
         
         df = pd.DataFrame(all_properties)
-        print(f"✅ Loaded {len(df)} properties for training")
+        print(f"[OK] Loaded {len(df)} properties for training")
         return df
     
     def _prepare_features(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, List[str]]:
@@ -329,7 +329,7 @@ class PropertyValuationModel:
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
         
-        print(f"✅ Model trained: MAE=₹{mae:,.0f}, R²={r2:.3f}")
+        print(f"[OK] Model trained: MAE=₹{mae:,.0f}, R²={r2:.3f}")
         
         # Save model
         self._save_model()
@@ -350,7 +350,7 @@ class PropertyValuationModel:
         with open(features_path, 'w') as f:
             json.dump(self.feature_names, f)
         
-        print(f"✅ Model saved to {self.model_dir}")
+        print(f"[OK] Model saved to {self.model_dir}")
     
     def _load_model(self) -> bool:
         """Load model from disk."""
@@ -366,16 +366,16 @@ class PropertyValuationModel:
             self.scaler = joblib.load(scaler_path)
             with open(features_path, 'r') as f:
                 self.feature_names = json.load(f)
-            print("✅ Loaded valuation model from disk")
+            print("[OK] Loaded valuation model from disk")
             return True
         except Exception as e:
-            print(f"⚠️  Error loading model: {e}")
+            print(f"[WARNING]  Error loading model: {e}")
             return False
     
     def _load_model_if_exists(self):
         """Load existing model if available, otherwise use heuristics."""
         if not ML_AVAILABLE:
-            print("⚠️  ML not available. Valuation will use heuristics.")
+            print("[WARNING]  ML not available. Valuation will use heuristics.")
             return
         
         if self._load_model():
@@ -399,7 +399,7 @@ class PropertyValuationModel:
     def _load_or_train_model(self):
         """Load existing model or train a new one (legacy, not used on startup)."""
         if not ML_AVAILABLE:
-            print("⚠️  ML not available. Valuation will use heuristics.")
+            print("[WARNING]  ML not available. Valuation will use heuristics.")
             return
         
         if self._load_model():
@@ -410,7 +410,7 @@ class PropertyValuationModel:
             self.properties_df = df
             self._train_model(df)
         else:
-            print("⚠️  Not enough data to train model. Using heuristics.")
+            print("[WARNING]  Not enough data to train model. Using heuristics.")
     
     def _heuristic_valuation(
         self,

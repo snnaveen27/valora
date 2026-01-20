@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import OnlineOSMMap from '../spatial/OnlineOSMMap'
 import AnalysisPanel from './AnalysisPanel'
 import ChatPanel from './ChatPanel'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet } from 'lucide-react'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export default function MainApp() {
   const [agentData, setAgentData] = useState({})
@@ -11,10 +13,33 @@ export default function MainApp() {
   const [activeTab, setActiveTab] = useState('insights')
   const [analysisWidth, setAnalysisWidth] = useState('narrow') // narrow or wide
   const [chatWidth, setChatWidth] = useState('narrow') // narrow or wide
+  const [credits, setCredits] = useState(null)
 
   useEffect(() => {
+    const fetchCredits = async () => {
+      try {
+        const resp = await fetch(`${API_URL}/api/credits/user_demo`)
+        if (resp.ok) {
+          const data = await resp.json()
+          setCredits(data.balance)
+        }
+      } catch (err) {
+        console.warn('Failed to fetch credits:', err)
+      }
+    }
+    
+    fetchCredits()
+    // Refresh credits every minute
+    const interval = setInterval(fetchCredits, 60000)
+    
     const handleUICommand = (e) => {
       const { action, value, panel, tab } = e.detail || {}
+      
+      // Update credits if a deduction happened
+      if (action === 'creditUpdate') {
+        fetchCredits()
+      }
+
       const targetTab = value || tab
 
       if (action === 'switchTab' && targetTab) {
@@ -66,6 +91,15 @@ export default function MainApp() {
           <span className="text-white font-bold text-lg">Valora AI</span>
           <span className="text-slate-400 text-xs ml-2">City Intelligence</span>
         </div>
+
+        {/* Credits Display */}
+        {credits !== null && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-slate-700/50 rounded-full border border-slate-600">
+            <Wallet className="w-3.5 h-3.5 text-blue-400" />
+            <span className="text-white text-xs font-bold">{credits}</span>
+            <span className="text-slate-400 text-[10px]">credits</span>
+          </div>
+        )}
       </div>
 
       {/* Main Content - 3 Panel Layout */}

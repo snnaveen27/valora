@@ -35,7 +35,7 @@ except ImportError:
     H3_AVAILABLE = False
     def _h3_geo_to_cell(lat, lng, res): return None
     def _h3_grid_disk(cell, rings): return []
-    print("⚠️  h3 not installed. Using fallback spatial indexing.")
+    print("[WARNING]  h3 not installed. Using fallback spatial indexing.")
 
 try:
     import numpy as np
@@ -115,7 +115,7 @@ class SpatialReasoningService:
         self._load_places()
         
         total = len(self.pois) + len(self.transport) + len(self.places)
-        print(f"✅ Spatial reasoning: indexed {total} features")
+        print(f"[OK] Spatial reasoning: indexed {total} features")
     
     def _load_pois(self):
         """Load and index POIs."""
@@ -154,7 +154,7 @@ class SpatialReasoningService:
                         self.poi_index[h3_idx].append(poi)
                     
         except Exception as e:
-            print(f"⚠️  Error loading POIs: {e}")
+            print(f"[WARNING]  Error loading POIs: {e}")
     
     def _load_transport(self):
         """Load and index transport stops."""
@@ -191,7 +191,7 @@ class SpatialReasoningService:
                         self.transport_index[h3_idx].append(transport)
                     
         except Exception as e:
-            print(f"⚠️  Error loading transport: {e}")
+            print(f"[WARNING]  Error loading transport: {e}")
     
     def _load_places(self):
         """Load and index places."""
@@ -228,7 +228,7 @@ class SpatialReasoningService:
                         self.places_index[h3_idx].append(place)
                     
         except Exception as e:
-            print(f"⚠️  Error loading places: {e}")
+            print(f"[WARNING]  Error loading places: {e}")
     
     def _haversine(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         """Calculate distance in meters between two points."""
@@ -506,7 +506,7 @@ class SpatialReasoningService:
             recommendations.append("Challenging terrain - significant site work may be required")
         
         if flood_risk == "high":
-            recommendations.append("⚠️ High flood risk area - consider drainage and elevation")
+            recommendations.append("[WARNING] High flood risk area - consider drainage and elevation")
         elif flood_risk == "medium":
             recommendations.append("Moderate flood risk - ensure proper drainage planning")
         
