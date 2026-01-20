@@ -1,0 +1,5804 @@
+{
+  "bounds": {
+    "min_lng": 77.4159381,
+    "max_lng": 77.7584328,
+    "min_lat": 12.8782696,
+    "max_lat": 13.0911559
+  },
+  "tileSize": 0.01,
+  "tiles": {
+    "7757_1296": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 24.5,
+      "count": 999
+    },
+    "7766_1292": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 49.0,
+      "count": 478
+    },
+    "7766_1291": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 56.0,
+      "count": 373
+    },
+    "7766_1290": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 87.5,
+      "count": 144
+    },
+    "7767_1291": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 52.5,
+      "count": 531
+    },
+    "7758_1292": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 25.0,
+      "count": 2230
+    },
+    "7761_1296": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 42.0,
+      "count": 1465
+    },
+    "7762_1304": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 143.5,
+      "count": 877
+    },
+    "7758_1294": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 17.5,
+      "count": 982
+    },
+    "7756_1297": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 108.5,
+      "count": 714
+    },
+    "7750_1293": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 14.0,
+      "count": 317
+    },
+    "7761_1293": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 38.5,
+      "count": 1403
+    },
+    "7763_1292": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 38.5,
+      "count": 2552
+    },
+    "7757_1291": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 87.5,
+      "count": 2923
+    },
+    "7763_1305": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 25.0,
+      "count": 654
+    },
+    "7762_1305": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 66.5,
+      "count": 354
+    },
+    "7767_1305": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 130.0,
+      "count": 390
+    },
+    "7765_1306": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 112.0,
+      "count": 420
+    },
+    "7764_1305": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 25.0,
+      "count": 975
+    },
+    "7760_1298": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 80.5,
+      "count": 3536
+    },
+    "7758_1295": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 91.0,
+      "count": 1826
+    },
+    "7764_1302": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 36.55,
+      "count": 2503
+    },
+    "7763_1302": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 87.5,
+      "count": 2282
+    },
+    "7756_1301": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 35.0,
+      "count": 279
+    },
+    "7757_1301": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 28.0,
+      "count": 544
+    },
+    "7756_1302": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 25.0,
+      "count": 1087
+    },
+    "7763_1301": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 25.0,
+      "count": 4836
+    },
+    "7759_1296": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 98.0,
+      "count": 1329
+    },
+    "7753_1303": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 52.5,
+      "count": 151
+    },
+    "7763_1303": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 42.0,
+      "count": 2437
+    },
+    "7771_1296": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 35.0,
+      "count": 2087
+    },
+    "7759_1294": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 25.0,
+      "count": 2694
+    },
+    "7759_1293": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 28.0,
+      "count": 1204
+    },
+    "7770_1299": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 66.5,
+      "count": 421
+    },
+    "7750_1294": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 10.0,
+      "count": 37
+    },
+    "7751_1299": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 10.5,
+      "count": 157
+    },
+    "7758_1301": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 105.0,
+      "count": 483
+    },
+    "7759_1298": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 94.5,
+      "count": 723
+    },
+    "7755_1307": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 42.0,
+      "count": 2177
+    },
+    "7759_1297": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 122.0,
+      "count": 257
+    },
+    "7758_1296": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 45.5,
+      "count": 1576
+    },
+    "7758_1297": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 40.0,
+      "count": 407
+    },
+    "7758_1298": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 115.0,
+      "count": 403
+    },
+    "7756_1300": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 25.0,
+      "count": 2376
+    },
+    "7757_1299": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 130.0,
+      "count": 2219
+    },
+    "7760_1296": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 59.5,
+      "count": 1241
+    },
+    "7760_1297": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 79.05,
+      "count": 583
+    },
+    "7761_1297": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 56.0,
+      "count": 603
+    },
+    "7758_1293": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 25.0,
+      "count": 1897
+    },
+    "7753_1296": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 25.0,
+      "count": 3343
+    },
+    "7765_1307": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 25.0,
+      "count": 157
+    },
+    "7756_1303": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 2237
+    },
+    "7755_1300": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 120.0,
+      "count": 3949
+    },
+    "7758_1299": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 100.0,
+      "count": 901
+    },
+    "7761_1304": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 135.0,
+      "count": 584
+    },
+    "7774_1296": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 63.0,
+      "count": 1014
+    },
+    "7771_1298": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 70.0,
+      "count": 565
+    },
+    "7771_1300": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 25.0,
+      "count": 1408
+    },
+    "7768_1292": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 52.5,
+      "count": 504
+    },
+    "7772_1299": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 74.0,
+      "count": 397
+    },
+    "7771_1295": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 49.0,
+      "count": 1472
+    },
+    "7770_1298": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 66.5,
+      "count": 458
+    },
+    "7758_1307": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 52.5,
+      "count": 436
+    },
+    "7757_1307": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 25.0,
+      "count": 645
+    },
+    "7773_1299": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 66.5,
+      "count": 83
+    },
+    "7775_1297": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 94.5,
+      "count": 2486
+    },
+    "7771_1299": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 49.0,
+      "count": 480
+    },
+    "7773_1300": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 112.2,
+      "count": 251
+    },
+    "7761_1289": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 25.0,
+      "count": 1153
+    },
+    "7755_1301": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 128.0,
+      "count": 573
+    },
+    "7760_1294": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 12.0,
+      "count": 2472
+    },
+    "7771_1302": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 130.0,
+      "count": 789
+    },
+    "7769_1300": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 10.0,
+      "count": 1185
+    },
+    "7764_1295": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 42.0,
+      "count": 670
+    },
+    "7763_1296": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 35.0,
+      "count": 1932
+    },
+    "7764_1294": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 24.5,
+      "count": 156
+    },
+    "7766_1294": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 6.0,
+      "count": 111
+    },
+    "7756_1291": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 3596
+    },
+    "7760_1288": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 59.6,
+      "count": 1777
+    },
+    "7758_1304": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 35.0,
+      "count": 370
+    },
+    "7763_1295": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 25.0,
+      "count": 892
+    },
+    "7768_1299": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 63.0,
+      "count": 1930
+    },
+    "7762_1293": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 28.0,
+      "count": 2344
+    },
+    "7762_1292": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 25.0,
+      "count": 867
+    },
+    "7765_1291": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 1173
+    },
+    "7760_1293": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 42.0,
+      "count": 1290
+    },
+    "7755_1289": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 17.5,
+      "count": 1741
+    },
+    "7772_1296": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 60.0,
+      "count": 606
+    },
+    "7759_1291": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 73.5,
+      "count": 2602
+    },
+    "7763_1306": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 115.0,
+      "count": 916
+    },
+    "7759_1295": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 25.0,
+      "count": 1883
+    },
+    "7774_1306": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 70.0,
+      "count": 387
+    },
+    "7770_1301": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 42.0,
+      "count": 1990
+    },
+    "7773_1298": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 100.0,
+      "count": 251
+    },
+    "7772_1298": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 102.0,
+      "count": 147
+    },
+    "7771_1297": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 52.5,
+      "count": 407
+    },
+    "7772_1297": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 63.0,
+      "count": 153
+    },
+    "7766_1288": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 56.925,
+      "count": 67
+    },
+    "7766_1287": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 3
+    },
+    "7763_1291": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 2365
+    },
+    "7762_1291": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 71.55,
+      "count": 1302
+    },
+    "7769_1298": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 52.5,
+      "count": 448
+    },
+    "7769_1295": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 28.0,
+      "count": 1373
+    },
+    "7769_1294": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 56.0,
+      "count": 366
+    },
+    "7767_1292": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 54.15,
+      "count": 1085
+    },
+    "7768_1293": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 57.15,
+      "count": 291
+    },
+    "7770_1295": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 38.5,
+      "count": 2453
+    },
+    "7769_1293": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 66.5,
+      "count": 364
+    },
+    "7762_1294": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 25.0,
+      "count": 2522
+    },
+    "7763_1289": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 70.0,
+      "count": 581
+    },
+    "7763_1290": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 77.0,
+      "count": 2196
+    },
+    "7755_1302": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 70.0,
+      "count": 2488
+    },
+    "7765_1295": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 35.0,
+      "count": 1971
+    },
+    "7765_1299": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 25.0,
+      "count": 876
+    },
+    "7774_1295": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 64.2,
+      "count": 485
+    },
+    "7774_1297": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 56.55,
+      "count": 617
+    },
+    "7757_1297": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 49.0,
+      "count": 1100
+    },
+    "7762_1297": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 84.0,
+      "count": 2543
+    },
+    "7757_1300": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 25.0,
+      "count": 2624
+    },
+    "7749_1292": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 25.0,
+      "count": 659
+    },
+    "7755_1306": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 25.0,
+      "count": 2271
+    },
+    "7750_1292": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 25.0,
+      "count": 974
+    },
+    "7757_1294": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 42.0,
+      "count": 1832
+    },
+    "7756_1294": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 25.0,
+      "count": 2579
+    },
+    "7748_1308": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 21.0,
+      "count": 277
+    },
+    "7758_1291": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 80.5,
+      "count": 2079
+    },
+    "7757_1292": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 91.0,
+      "count": 2345
+    },
+    "7757_1293": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 40.0,
+      "count": 1975
+    },
+    "7755_1292": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 25.0,
+      "count": 3027
+    },
+    "7757_1302": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 49.0,
+      "count": 1333
+    },
+    "7765_1296": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 25.0,
+      "count": 2072
+    },
+    "7757_1304": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 98.0,
+      "count": 2390
+    },
+    "7754_1300": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 25.0,
+      "count": 3729
+    },
+    "7754_1302": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 161.5,
+      "count": 715
+    },
+    "7757_1303": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 84.0,
+      "count": 2804
+    },
+    "7760_1292": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 38.5,
+      "count": 4107
+    },
+    "7744_1288": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 14.0,
+      "count": 308
+    },
+    "7764_1296": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 35.0,
+      "count": 2681
+    },
+    "7764_1298": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 38.5,
+      "count": 1460
+    },
+    "7774_1298": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 87.5,
+      "count": 559
+    },
+    "7758_1289": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 52.5,
+      "count": 1674
+    },
+    "7755_1295": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 12.0,
+      "count": 1689
+    },
+    "7770_1302": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 10.5,
+      "count": 1262
+    },
+    "7771_1294": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 42.45,
+      "count": 646
+    },
+    "7753_1292": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 42.0,
+      "count": 1149
+    },
+    "7750_1305": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 25.0,
+      "count": 452
+    },
+    "7759_1288": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 91.0,
+      "count": 1260
+    },
+    "7760_1289": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 25.0,
+      "count": 1180
+    },
+    "7754_1301": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 31.5,
+      "count": 2964
+    },
+    "7773_1295": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 59.5,
+      "count": 1144
+    },
+    "7759_1299": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 74.42,
+      "count": 1209
+    },
+    "7759_1289": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 45.5,
+      "count": 1090
+    },
+    "7770_1294": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 35.0,
+      "count": 1309
+    },
+    "7774_1299": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 48.0,
+      "count": 270
+    },
+    "7775_1298": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 105.7,
+      "count": 589
+    },
+    "7749_1288": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 12.0,
+      "count": 195
+    },
+    "7775_1296": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 42.0,
+      "count": 1120
+    },
+    "7747_1300": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 6.0,
+      "count": 472
+    },
+    "7766_1295": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 24.5,
+      "count": 646
+    },
+    "7757_1289": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 70.0,
+      "count": 1576
+    },
+    "7775_1299": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 28.0,
+      "count": 531
+    },
+    "7772_1295": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 52.5,
+      "count": 835
+    },
+    "7755_1299": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 25.0,
+      "count": 2904
+    },
+    "7765_1298": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 25.0,
+      "count": 889
+    },
+    "7759_1305": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 81.0,
+      "count": 1445
+    },
+    "7758_1305": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 25.0,
+      "count": 1264
+    },
+    "7772_1291": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 108.0,
+      "count": 88
+    },
+    "7757_1295": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 24.5,
+      "count": 1385
+    },
+    "7759_1304": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 81.0,
+      "count": 1213
+    },
+    "7758_1303": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 750
+    },
+    "7769_1297": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 52.5,
+      "count": 1671
+    },
+    "7769_1299": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 73.0,
+      "count": 1683
+    },
+    "7751_1290": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 25.0,
+      "count": 889
+    },
+    "7770_1296": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 38.5,
+      "count": 977
+    },
+    "7764_1291": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 56.0,
+      "count": 2087
+    },
+    "7770_1293": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 52.5,
+      "count": 411
+    },
+    "7771_1301": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 25.0,
+      "count": 1535
+    },
+    "7764_1301": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 25.0,
+      "count": 3353
+    },
+    "7765_1301": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 31.5,
+      "count": 2214
+    },
+    "7766_1301": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 25.0,
+      "count": 2734
+    },
+    "7756_1292": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 12.0,
+      "count": 2433
+    },
+    "7759_1303": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 70.0,
+      "count": 4564
+    },
+    "7760_1299": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 73.5,
+      "count": 1650
+    },
+    "7764_1297": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 25.0,
+      "count": 1994
+    },
+    "7761_1294": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 30.0,
+      "count": 1808
+    },
+    "7763_1293": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 49.0,
+      "count": 1579
+    },
+    "7774_1294": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 75.5,
+      "count": 985
+    },
+    "7768_1296": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 25.0,
+      "count": 1608
+    },
+    "7754_1295": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 35.0,
+      "count": 202
+    },
+    "7755_1298": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 25.0,
+      "count": 3285
+    },
+    "7763_1297": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 25.0,
+      "count": 3730
+    },
+    "7752_1297": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 6.0,
+      "count": 1959
+    },
+    "7753_1297": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 25.0,
+      "count": 2868
+    },
+    "7761_1300": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 49.0,
+      "count": 2384
+    },
+    "7754_1291": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 6.0,
+      "count": 3667
+    },
+    "7754_1297": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 25.0,
+      "count": 2439
+    },
+    "7752_1295": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 35.0,
+      "count": 2543
+    },
+    "7751_1304": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 25.0,
+      "count": 1898
+    },
+    "7752_1296": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 25.0,
+      "count": 3176
+    },
+    "7753_1293": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 49.0,
+      "count": 1713
+    },
+    "7759_1292": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 84.0,
+      "count": 2862
+    },
+    "7761_1299": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 77.0,
+      "count": 1774
+    },
+    "7758_1300": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 25.0,
+      "count": 855
+    },
+    "7763_1300": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 49.0,
+      "count": 3768
+    },
+    "7762_1300": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 30.0,
+      "count": 3338
+    },
+    "7762_1299": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 63.0,
+      "count": 1697
+    },
+    "7759_1300": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 12.0,
+      "count": 1180
+    },
+    "7768_1295": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 28.0,
+      "count": 81
+    },
+    "7759_1302": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 25.0,
+      "count": 4363
+    },
+    "7764_1299": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 10.5,
+      "count": 663
+    },
+    "7766_1299": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 80.5,
+      "count": 1399
+    },
+    "7762_1298": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 25.0,
+      "count": 741
+    },
+    "7773_1297": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 52.5,
+      "count": 607
+    },
+    "7758_1288": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 70.0,
+      "count": 2036
+    },
+    "7761_1298": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 49.0,
+      "count": 2011
+    },
+    "7758_1302": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 102.0,
+      "count": 2052
+    },
+    "7766_1297": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 38.5,
+      "count": 1187
+    },
+    "7755_1304": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 25.0,
+      "count": 848
+    },
+    "7763_1298": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 25.0,
+      "count": 630
+    },
+    "7764_1308": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 107.5,
+      "count": 360
+    },
+    "7763_1308": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 107.5,
+      "count": 144
+    },
+    "7756_1290": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 25.0,
+      "count": 4293
+    },
+    "7757_1298": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 56.0,
+      "count": 967
+    },
+    "7756_1298": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 130.0,
+      "count": 1278
+    },
+    "7755_1297": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 105.0,
+      "count": 2114
+    },
+    "7756_1295": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 66.5,
+      "count": 3064
+    },
+    "7751_1297": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 25.0,
+      "count": 1739
+    },
+    "7750_1296": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 14.0,
+      "count": 1873
+    },
+    "7750_1295": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 12.0,
+      "count": 488
+    },
+    "7765_1289": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 66.5,
+      "count": 393
+    },
+    "7754_1293": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 17.5,
+      "count": 3550
+    },
+    "7754_1292": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 56.0,
+      "count": 4016
+    },
+    "7757_1288": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 49.0,
+      "count": 1398
+    },
+    "7756_1299": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 59.5,
+      "count": 2004
+    },
+    "7753_1290": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 10.5,
+      "count": 839
+    },
+    "7754_1290": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 17.5,
+      "count": 2049
+    },
+    "7768_1301": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 10.0,
+      "count": 2303
+    },
+    "7752_1304": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 25.0,
+      "count": 363
+    },
+    "7753_1304": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 105.0,
+      "count": 88
+    },
+    "7747_1306": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 12.0,
+      "count": 245
+    },
+    "7753_1289": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 63.0,
+      "count": 450
+    },
+    "7751_1289": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 6.0,
+      "count": 196
+    },
+    "7773_1296": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 52.5,
+      "count": 878
+    },
+    "7768_1291": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 84.0,
+      "count": 309
+    },
+    "7752_1299": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 25.0,
+      "count": 1672
+    },
+    "7768_1298": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 42.0,
+      "count": 1089
+    },
+    "7760_1291": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 52.5,
+      "count": 3553
+    },
+    "7771_1305": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 10.0,
+      "count": 19
+    },
+    "7771_1304": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 6.0,
+      "count": 16
+    },
+    "7768_1300": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 10.0,
+      "count": 78
+    },
+    "7754_1299": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 25.0,
+      "count": 4715
+    },
+    "7755_1293": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 12.0,
+      "count": 3178
+    },
+    "7759_1290": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 35.0,
+      "count": 2034
+    },
+    "7764_1290": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 52.5,
+      "count": 2030
+    },
+    "7757_1308": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 69
+    },
+    "7762_1289": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 25.0,
+      "count": 34
+    },
+    "7762_1290": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 77.0,
+      "count": 2044
+    },
+    "7760_1309": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 25.0,
+      "count": 6
+    },
+    "7764_1300": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 25.0,
+      "count": 1972
+    },
+    "7765_1300": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 25.0,
+      "count": 2175
+    },
+    "7755_1290": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 25.0,
+      "count": 3300
+    },
+    "7766_1303": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 1088
+    },
+    "7760_1290": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 87.5,
+      "count": 1826
+    },
+    "7752_1301": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 10.5,
+      "count": 35
+    },
+    "7753_1301": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 25.0,
+      "count": 1581
+    },
+    "7746_1289": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 10.0,
+      "count": 171
+    },
+    "7745_1288": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 63.0,
+      "count": 118
+    },
+    "7765_1302": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 25.0,
+      "count": 2623
+    },
+    "7761_1288": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 21.0,
+      "count": 1064
+    },
+    "7754_1298": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 28.0,
+      "count": 3145
+    },
+    "7758_1290": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 100.0,
+      "count": 2604
+    },
+    "7755_1291": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 73.5,
+      "count": 3429
+    },
+    "7759_1306": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 80.5,
+      "count": 1721
+    },
+    "7757_1306": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 25.0,
+      "count": 2036
+    },
+    "7744_1306": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 12.0,
+      "count": 43
+    },
+    "7764_1303": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 1959
+    },
+    "7753_1295": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 14.0,
+      "count": 2703
+    },
+    "7766_1302": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 25.0,
+      "count": 1441
+    },
+    "7766_1296": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 25.0,
+      "count": 1600
+    },
+    "7752_1307": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 12.0,
+      "count": 1318
+    },
+    "7753_1306": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 25.0,
+      "count": 613
+    },
+    "7755_1303": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 2175
+    },
+    "7755_1288": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 56.0,
+      "count": 857
+    },
+    "7765_1290": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 25.0,
+      "count": 587
+    },
+    "7771_1289": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 14.0,
+      "count": 248
+    },
+    "7749_1290": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 94.0,
+      "count": 134
+    },
+    "7770_1290": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 70.0,
+      "count": 463
+    },
+    "7771_1290": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 66.5,
+      "count": 155
+    },
+    "7765_1297": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 28.0,
+      "count": 1988
+    },
+    "7764_1292": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 42.2,
+      "count": 602
+    },
+    "7765_1288": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 25.0,
+      "count": 620
+    },
+    "7760_1295": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 25.0,
+      "count": 1920
+    },
+    "7762_1295": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 33.25,
+      "count": 1110
+    },
+    "7754_1303": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 63.0,
+      "count": 1069
+    },
+    "7768_1294": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 44.0,
+      "count": 515
+    },
+    "7761_1295": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 35.8,
+      "count": 3603
+    },
+    "7749_1295": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 17.5,
+      "count": 1510
+    },
+    "7748_1295": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 14.0,
+      "count": 720
+    },
+    "7752_1294": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 87.5,
+      "count": 1619
+    },
+    "7757_1290": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 70.0,
+      "count": 2451
+    },
+    "7775_1288": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 147.0,
+      "count": 77
+    },
+    "7767_1295": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 6.0,
+      "count": 155
+    },
+    "7756_1296": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 105.0,
+      "count": 880
+    },
+    "7752_1291": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 1495
+    },
+    "7748_1292": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 25.0,
+      "count": 1234
+    },
+    "7764_1289": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 70.0,
+      "count": 268
+    },
+    "7756_1293": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 14.0,
+      "count": 2460
+    },
+    "7750_1303": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 10.0,
+      "count": 1922
+    },
+    "7752_1303": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 10.5,
+      "count": 108
+    },
+    "7767_1294": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 35.0,
+      "count": 309
+    },
+    "7769_1292": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 56.0,
+      "count": 1375
+    },
+    "7769_1291": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 70.0,
+      "count": 897
+    },
+    "7767_1293": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 45.5,
+      "count": 125
+    },
+    "7761_1292": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 38.5,
+      "count": 2942
+    },
+    "7748_1301": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 7.0,
+      "count": 1392
+    },
+    "7773_1294": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 25.0,
+      "count": 118
+    },
+    "7773_1293": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 108.0,
+      "count": 368
+    },
+    "7772_1293": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 66.5,
+      "count": 438
+    },
+    "7760_1308": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 70.85,
+      "count": 421
+    },
+    "7767_1288": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 70.0,
+      "count": 705
+    },
+    "7774_1293": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 101.5,
+      "count": 1185
+    },
+    "7749_1302": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 6.0,
+      "count": 802
+    },
+    "7749_1301": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 6.0,
+      "count": 1773
+    },
+    "7768_1288": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 25.0,
+      "count": 168
+    },
+    "7748_1300": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 17.5,
+      "count": 1609
+    },
+    "7767_1287": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 52.5,
+      "count": 4
+    },
+    "7772_1292": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 91.0,
+      "count": 160
+    },
+    "7749_1300": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 6.0,
+      "count": 2327
+    },
+    "7773_1292": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 108.0,
+      "count": 518
+    },
+    "7748_1291": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 1100
+    },
+    "7771_1293": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 66.5,
+      "count": 285
+    },
+    "7771_1292": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 64.35,
+      "count": 157
+    },
+    "7768_1297": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 25.0,
+      "count": 1827
+    },
+    "7755_1294": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 25.0,
+      "count": 2620
+    },
+    "7767_1296": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 25.0,
+      "count": 2983
+    },
+    "7751_1307": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 10.0,
+      "count": 991
+    },
+    "7751_1308": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 122
+    },
+    "7762_1303": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 12.0,
+      "count": 2777
+    },
+    "7752_1308": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 21
+    },
+    "7753_1307": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 472
+    },
+    "7750_1297": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 6.0,
+      "count": 2218
+    },
+    "7750_1298": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 10.0,
+      "count": 673
+    },
+    "7751_1293": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 134.35,
+      "count": 772
+    },
+    "7761_1301": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 10.0,
+      "count": 2848
+    },
+    "7752_1293": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 70.0,
+      "count": 700
+    },
+    "7751_1294": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 10.0,
+      "count": 276
+    },
+    "7765_1294": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 6.0,
+      "count": 303
+    },
+    "7753_1302": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 102.25,
+      "count": 578
+    },
+    "7751_1303": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 10.0,
+      "count": 889
+    },
+    "7750_1304": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 84.0,
+      "count": 1514
+    },
+    "7753_1298": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 105.0,
+      "count": 1602
+    },
+    "7770_1291": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 653
+    },
+    "7771_1291": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 103
+    },
+    "7751_1295": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 12.0,
+      "count": 1331
+    },
+    "7751_1296": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 25.0,
+      "count": 1871
+    },
+    "7751_1305": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 6.0,
+      "count": 945
+    },
+    "7743_1290": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 6.0,
+      "count": 164
+    },
+    "7743_1289": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 6.0,
+      "count": 239
+    },
+    "7745_1290": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 8.0,
+      "count": 30
+    },
+    "7744_1290": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 6.0,
+      "count": 16
+    },
+    "7744_1289": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 10.0,
+      "count": 24
+    },
+    "7752_1306": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 25.0,
+      "count": 877
+    },
+    "7767_1299": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 25.0,
+      "count": 4314
+    },
+    "7751_1306": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 56.0,
+      "count": 1053
+    },
+    "7763_1299": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 25.0,
+      "count": 853
+    },
+    "7767_1298": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 28.0,
+      "count": 2186
+    },
+    "7763_1294": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 10.0,
+      "count": 275
+    },
+    "7752_1305": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 6.0,
+      "count": 80
+    },
+    "7770_1300": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 14.0,
+      "count": 3113
+    },
+    "7754_1307": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 25.0,
+      "count": 232
+    },
+    "7753_1308": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 110
+    },
+    "7754_1308": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 10.5,
+      "count": 974
+    },
+    "7760_1300": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 10.0,
+      "count": 2169
+    },
+    "7753_1294": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 49.0,
+      "count": 1051
+    },
+    "7758_1308": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 65.0,
+      "count": 1045
+    },
+    "7758_1309": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 5
+    },
+    "7750_1302": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 6.0,
+      "count": 853
+    },
+    "7751_1302": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 10.5,
+      "count": 677
+    },
+    "7762_1302": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 6.0,
+      "count": 2731
+    },
+    "7751_1298": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 49.0,
+      "count": 473
+    },
+    "7767_1297": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 25.0,
+      "count": 2206
+    },
+    "7771_1288": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 25.0,
+      "count": 72
+    },
+    "7772_1289": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 12.0,
+      "count": 68
+    },
+    "7772_1290": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 25.0,
+      "count": 133
+    },
+    "7759_1301": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 10.0,
+      "count": 1339
+    },
+    "7746_1290": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 12.0,
+      "count": 358
+    },
+    "7746_1288": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 39.95,
+      "count": 223
+    },
+    "7745_1289": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 10.0,
+      "count": 631
+    },
+    "7743_1288": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 10.0,
+      "count": 80
+    },
+    "7744_1287": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 4
+    },
+    "7745_1287": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7750_1308": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 12
+    },
+    "7750_1307": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 35.0,
+      "count": 620
+    },
+    "7760_1302": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 25.0,
+      "count": 2940
+    },
+    "7758_1306": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 52.5,
+      "count": 2308
+    },
+    "7749_1305": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 200.0,
+      "count": 1355
+    },
+    "7748_1305": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 105.0,
+      "count": 805
+    },
+    "7748_1306": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 6.0,
+      "count": 445
+    },
+    "7749_1306": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 25.0,
+      "count": 1876
+    },
+    "7752_1298": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 49.0,
+      "count": 1304
+    },
+    "7761_1302": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 8.0,
+      "count": 2413
+    },
+    "7775_1300": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 31.5,
+      "count": 821
+    },
+    "7753_1300": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 6.0,
+      "count": 2043
+    },
+    "7766_1298": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 52.5,
+      "count": 1039
+    },
+    "7756_1304": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 25.0,
+      "count": 1278
+    },
+    "7749_1303": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 6.0,
+      "count": 2323
+    },
+    "7746_1304": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 6.0,
+      "count": 199
+    },
+    "7746_1302": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 6.0,
+      "count": 312
+    },
+    "7746_1303": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 6.0,
+      "count": 216
+    },
+    "7745_1303": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 6.0,
+      "count": 5
+    },
+    "7745_1304": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 6.0,
+      "count": 71
+    },
+    "7745_1302": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 6.0,
+      "count": 99
+    },
+    "7774_1300": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 25.0,
+      "count": 125
+    },
+    "7747_1302": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 6.0,
+      "count": 393
+    },
+    "7747_1303": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 6.0,
+      "count": 82
+    },
+    "7747_1305": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 10.0,
+      "count": 729
+    },
+    "7771_1303": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 6.0,
+      "count": 600
+    },
+    "7770_1303": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 453
+    },
+    "7760_1301": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 25.0,
+      "count": 2779
+    },
+    "7749_1304": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 52.5,
+      "count": 673
+    },
+    "7773_1301": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 10.0,
+      "count": 133
+    },
+    "7774_1302": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 10.0,
+      "count": 124
+    },
+    "7774_1301": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 10.0,
+      "count": 51
+    },
+    "7775_1302": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 25.0,
+      "count": 79
+    },
+    "7773_1302": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 8.0,
+      "count": 50
+    },
+    "7749_1298": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 10.0,
+      "count": 282
+    },
+    "7749_1297": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 6.0,
+      "count": 945
+    },
+    "7750_1306": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 66.5,
+      "count": 1778
+    },
+    "7762_1301": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 17.5,
+      "count": 2344
+    },
+    "7766_1300": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 35.0,
+      "count": 1857
+    },
+    "7765_1304": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 6.0,
+      "count": 355
+    },
+    "7761_1303": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 2812
+    },
+    "7759_1307": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 25.0,
+      "count": 451
+    },
+    "7775_1301": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 129.0,
+      "count": 274
+    },
+    "7762_1296": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 25.0,
+      "count": 557
+    },
+    "7746_1306": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 10.0,
+      "count": 643
+    },
+    "7745_1306": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 10.0,
+      "count": 172
+    },
+    "7760_1303": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 4785
+    },
+    "7770_1304": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 6.0,
+      "count": 7
+    },
+    "7757_1305": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 38.5,
+      "count": 1370
+    },
+    "7765_1303": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 1713
+    },
+    "7746_1305": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 10.0,
+      "count": 446
+    },
+    "7767_1300": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 10.0,
+      "count": 1749
+    },
+    "7749_1296": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 6.0,
+      "count": 597
+    },
+    "7748_1303": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 6.0,
+      "count": 659
+    },
+    "7745_1305": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 6.0,
+      "count": 311
+    },
+    "7759_1308": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 65.0,
+      "count": 185
+    },
+    "7754_1304": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 25.0,
+      "count": 461
+    },
+    "7747_1304": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 6.0,
+      "count": 68
+    },
+    "7769_1303": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 970
+    },
+    "7772_1303": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 6.0,
+      "count": 7
+    },
+    "7769_1301": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 25.0,
+      "count": 398
+    },
+    "7753_1299": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 12.0,
+      "count": 3591
+    },
+    "7748_1304": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 12.0,
+      "count": 1166
+    },
+    "7755_1296": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 115.5,
+      "count": 701
+    },
+    "7769_1296": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 25.0,
+      "count": 810
+    },
+    "7748_1302": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 6.0,
+      "count": 466
+    },
+    "7770_1297": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 38.5,
+      "count": 762
+    },
+    "7764_1304": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 29.85,
+      "count": 636
+    },
+    "7754_1294": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 10.5,
+      "count": 1614
+    },
+    "7772_1300": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 25.0,
+      "count": 510
+    },
+    "7772_1301": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 25.0,
+      "count": 403
+    },
+    "7763_1304": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 49.2,
+      "count": 304
+    },
+    "7760_1304": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 135.0,
+      "count": 1002
+    },
+    "7752_1292": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 25.0,
+      "count": 1332
+    },
+    "7751_1292": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 25.0,
+      "count": 1807
+    },
+    "7772_1294": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 25.0,
+      "count": 81
+    },
+    "7758_1287": {
+      "min_lng": 77.58,
+      "max_lng": 77.59,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 25.0,
+      "count": 6
+    },
+    "7773_1291": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 108.0,
+      "count": 229
+    },
+    "7759_1287": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 5
+    },
+    "7747_1289": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 10.0,
+      "count": 239
+    },
+    "7747_1288": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 39.95,
+      "count": 130
+    },
+    "7752_1290": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 25.0,
+      "count": 903
+    },
+    "7773_1290": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 10.0,
+      "count": 18
+    },
+    "7775_1295": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 7.0,
+      "count": 113
+    },
+    "7753_1291": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 42.0,
+      "count": 1033
+    },
+    "7754_1289": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 63.0,
+      "count": 658
+    },
+    "7747_1290": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 12.0,
+      "count": 201
+    },
+    "7765_1292": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 49.0,
+      "count": 271
+    },
+    "7753_1288": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 10.0,
+      "count": 190
+    },
+    "7752_1289": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 45.5,
+      "count": 257
+    },
+    "7752_1288": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 10.0,
+      "count": 7
+    },
+    "7769_1302": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 25.0,
+      "count": 1450
+    },
+    "7765_1293": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 6.0,
+      "count": 15
+    },
+    "7762_1288": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 25.0,
+      "count": 759
+    },
+    "7760_1287": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 8
+    },
+    "7775_1294": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 25.0,
+      "count": 505
+    },
+    "7761_1290": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 25.0,
+      "count": 1359
+    },
+    "7763_1288": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 70.0,
+      "count": 388
+    },
+    "7754_1288": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 52.5,
+      "count": 616
+    },
+    "7763_1287": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 16
+    },
+    "7756_1289": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 25.0,
+      "count": 1456
+    },
+    "7761_1287": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 6
+    },
+    "7750_1291": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 896
+    },
+    "7751_1291": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 105.0,
+      "count": 1662
+    },
+    "7749_1291": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 91.0,
+      "count": 604
+    },
+    "7746_1291": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 30
+    },
+    "7747_1291": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 6.0,
+      "count": 1058
+    },
+    "7747_1292": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 25.0,
+      "count": 280
+    },
+    "7746_1292": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 6.0,
+      "count": 208
+    },
+    "7745_1291": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 10.0,
+      "count": 270
+    },
+    "7750_1290": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 10.5,
+      "count": 695
+    },
+    "7748_1290": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 10.0,
+      "count": 629
+    },
+    "7745_1292": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 6.0,
+      "count": 42
+    },
+    "7745_1296": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 6.0,
+      "count": 377
+    },
+    "7754_1296": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 35.0,
+      "count": 1993
+    },
+    "7747_1293": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 6.0,
+      "count": 561
+    },
+    "7746_1293": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 6.0,
+      "count": 556
+    },
+    "7745_1293": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 6.0,
+      "count": 59
+    },
+    "7762_1287": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7746_1297": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 6.0,
+      "count": 724
+    },
+    "7745_1297": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 6.0,
+      "count": 113
+    },
+    "7745_1298": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 6.0,
+      "count": 486
+    },
+    "7746_1301": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 6.0,
+      "count": 117
+    },
+    "7746_1300": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 6.0,
+      "count": 107
+    },
+    "7745_1300": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 10.5,
+      "count": 110
+    },
+    "7747_1301": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 6.0,
+      "count": 103
+    },
+    "7745_1301": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 6.0,
+      "count": 123
+    },
+    "7746_1298": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 6.0,
+      "count": 1444
+    },
+    "7747_1298": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 12.0,
+      "count": 1777
+    },
+    "7746_1299": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 10.0,
+      "count": 950
+    },
+    "7746_1287": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7747_1307": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 192
+    },
+    "7746_1307": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 167
+    },
+    "7745_1307": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 410
+    },
+    "7746_1294": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 6.0,
+      "count": 830
+    },
+    "7746_1295": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 6.0,
+      "count": 803
+    },
+    "7745_1294": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 6.0,
+      "count": 43
+    },
+    "7747_1295": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 10.5,
+      "count": 558
+    },
+    "7747_1294": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 10.0,
+      "count": 736
+    },
+    "7745_1308": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 20
+    },
+    "7746_1308": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 226
+    },
+    "7761_1291": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 25.0,
+      "count": 2642
+    },
+    "7752_1300": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 6.0,
+      "count": 913
+    },
+    "7751_1300": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 6.0,
+      "count": 705
+    },
+    "7746_1296": {
+      "min_lng": 77.46000000000001,
+      "max_lng": 77.47,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 6.0,
+      "count": 90
+    },
+    "7745_1295": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 6.0,
+      "count": 3
+    },
+    "7747_1299": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 6.0,
+      "count": 784
+    },
+    "7748_1296": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 17.5,
+      "count": 555
+    },
+    "7748_1294": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 25.0,
+      "count": 1106
+    },
+    "7748_1299": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 25.0,
+      "count": 1324
+    },
+    "7748_1288": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 6.0,
+      "count": 275
+    },
+    "7748_1289": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 12.0,
+      "count": 282
+    },
+    "7749_1289": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 6.0,
+      "count": 101
+    },
+    "7748_1287": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7748_1293": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 6.0,
+      "count": 702
+    },
+    "7749_1294": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 6.0,
+      "count": 1326
+    },
+    "7749_1293": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 10.5,
+      "count": 1095
+    },
+    "7749_1308": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 12.0,
+      "count": 418
+    },
+    "7749_1309": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 6
+    },
+    "7749_1307": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 12.0,
+      "count": 422
+    },
+    "7748_1309": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 11
+    },
+    "7747_1296": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 10.0,
+      "count": 1281
+    },
+    "7756_1288": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 98.0,
+      "count": 782
+    },
+    "7747_1297": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 6.0,
+      "count": 528
+    },
+    "7745_1299": {
+      "min_lng": 77.45,
+      "max_lng": 77.46000000000001,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 6.0,
+      "count": 209
+    },
+    "7747_1308": {
+      "min_lng": 77.47,
+      "max_lng": 77.48,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 25.0,
+      "count": 15
+    },
+    "7748_1307": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 268
+    },
+    "7766_1293": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 10.0,
+      "count": 10
+    },
+    "7750_1289": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 6.0,
+      "count": 112
+    },
+    "7750_1288": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 6.0,
+      "count": 93
+    },
+    "7751_1288": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 6.0,
+      "count": 175
+    },
+    "7751_1287": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7751_1301": {
+      "min_lng": 77.51,
+      "max_lng": 77.52,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 6.0,
+      "count": 1378
+    },
+    "7750_1300": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 6.0,
+      "count": 2133
+    },
+    "7750_1299": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 6.0,
+      "count": 1611
+    },
+    "7749_1299": {
+      "min_lng": 77.49,
+      "max_lng": 77.5,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 6.0,
+      "count": 2659
+    },
+    "7748_1298": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 10.5,
+      "count": 1772
+    },
+    "7750_1301": {
+      "min_lng": 77.5,
+      "max_lng": 77.51,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 10.0,
+      "count": 674
+    },
+    "7770_1292": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 64.35,
+      "count": 38
+    },
+    "7748_1297": {
+      "min_lng": 77.48,
+      "max_lng": 77.49,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 6.0,
+      "count": 401
+    },
+    "7767_1289": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 49.0,
+      "count": 343
+    },
+    "7756_1306": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 25.0,
+      "count": 1244
+    },
+    "7760_1307": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 14.0,
+      "count": 569
+    },
+    "7761_1306": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 10.0,
+      "count": 771
+    },
+    "7767_1290": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 63.0,
+      "count": 1213
+    },
+    "7757_1287": {
+      "min_lng": 77.57000000000001,
+      "max_lng": 77.58,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7768_1302": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 25.0,
+      "count": 2867
+    },
+    "7762_1307": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 25.0,
+      "count": 758
+    },
+    "7742_1308": {
+      "min_lng": 77.42,
+      "max_lng": 77.43,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7767_1302": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 25.0,
+      "count": 1302
+    },
+    "7765_1305": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 20.0,
+      "count": 868
+    },
+    "7768_1290": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 57.2,
+      "count": 864
+    },
+    "7764_1288": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 10.5,
+      "count": 677
+    },
+    "7762_1306": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 39.9,
+      "count": 808
+    },
+    "7767_1301": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 25.0,
+      "count": 4036
+    },
+    "7770_1289": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 70.0,
+      "count": 182
+    },
+    "7774_1290": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 10.0,
+      "count": 10
+    },
+    "7755_1308": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 25.0,
+      "count": 1901
+    },
+    "7742_1295": {
+      "min_lng": 77.42,
+      "max_lng": 77.43,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7760_1306": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 63.0,
+      "count": 974
+    },
+    "7761_1305": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 70.0,
+      "count": 508
+    },
+    "7760_1305": {
+      "min_lng": 77.60000000000001,
+      "max_lng": 77.61,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 25.0,
+      "count": 3002
+    },
+    "7769_1288": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 25.0,
+      "count": 96
+    },
+    "7770_1288": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 70.0,
+      "count": 98
+    },
+    "7773_1288": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 12.0,
+      "count": 70
+    },
+    "7742_1307": {
+      "min_lng": 77.42,
+      "max_lng": 77.43,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 3
+    },
+    "7764_1306": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 42.0,
+      "count": 656
+    },
+    "7766_1305": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 25.0,
+      "count": 555
+    },
+    "7756_1307": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 25.0,
+      "count": 2273
+    },
+    "7769_1290": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 63.0,
+      "count": 654
+    },
+    "7767_1304": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 17.5,
+      "count": 663
+    },
+    "7766_1289": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 66.5,
+      "count": 444
+    },
+    "7752_1287": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7753_1305": {
+      "min_lng": 77.53,
+      "max_lng": 77.54,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 49.0,
+      "count": 97
+    },
+    "7762_1308": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 25.0,
+      "count": 128
+    },
+    "7774_1288": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 147.0,
+      "count": 100
+    },
+    "7775_1289": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 109.85,
+      "count": 76
+    },
+    "7768_1289": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 10.0,
+      "count": 460
+    },
+    "7769_1289": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 25.0,
+      "count": 148
+    },
+    "7769_1306": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 10.0,
+      "count": 160
+    },
+    "7768_1306": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 10.5,
+      "count": 82
+    },
+    "7763_1309": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7759_1309": {
+      "min_lng": 77.59,
+      "max_lng": 77.60000000000001,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7773_1303": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 127.0,
+      "count": 284
+    },
+    "7769_1287": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7754_1305": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 25.0,
+      "count": 341
+    },
+    "7755_1305": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 6.0,
+      "count": 457
+    },
+    "7744_1293": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7763_1307": {
+      "min_lng": 77.63,
+      "max_lng": 77.64,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 52.5,
+      "count": 1123
+    },
+    "7772_1288": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 10.0,
+      "count": 11
+    },
+    "7766_1306": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 66.5,
+      "count": 396
+    },
+    "7764_1307": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 140.0,
+      "count": 388
+    },
+    "7768_1303": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 1865
+    },
+    "7756_1308": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 25.0,
+      "count": 794
+    },
+    "7773_1307": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 10.0,
+      "count": 276
+    },
+    "7744_1307": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 13
+    },
+    "7766_1304": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 25.0,
+      "count": 588
+    },
+    "7773_1289": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 25.0,
+      "count": 12
+    },
+    "7774_1304": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 120.0,
+      "count": 108
+    },
+    "7774_1289": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.89,
+      "max_lat": 12.9,
+      "max_height": 111.6,
+      "count": 41
+    },
+    "7774_1292": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 101.5,
+      "count": 61
+    },
+    "7775_1293": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 25.0,
+      "count": 271
+    },
+    "7768_1305": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 109.5,
+      "count": 143
+    },
+    "7765_1308": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 42.0,
+      "count": 253
+    },
+    "7743_1291": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 10.5,
+      "count": 4
+    },
+    "7775_1303": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 52.5,
+      "count": 50
+    },
+    "7775_1304": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 165.0,
+      "count": 37
+    },
+    "7771_1306": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 6.0,
+      "count": 6
+    },
+    "7744_1299": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 6.0,
+      "count": 18
+    },
+    "7743_1296": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 6.0,
+      "count": 23
+    },
+    "7773_1308": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 13
+    },
+    "7774_1308": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 3
+    },
+    "7775_1290": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.9,
+      "max_lat": 12.91,
+      "max_height": 10.0,
+      "count": 1
+    },
+    "7761_1308": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 52.1,
+      "count": 182
+    },
+    "7768_1307": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 8.0,
+      "count": 36
+    },
+    "7769_1308": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 8.0,
+      "count": 8
+    },
+    "7768_1308": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 15
+    },
+    "7768_1304": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 6.0,
+      "count": 452
+    },
+    "7742_1293": {
+      "min_lng": 77.42,
+      "max_lng": 77.43,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7741_1293": {
+      "min_lng": 77.41,
+      "max_lng": 77.42,
+      "min_lat": 12.93,
+      "max_lat": 12.94,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7756_1305": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 25.0,
+      "count": 486
+    },
+    "7761_1307": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 10.0,
+      "count": 511
+    },
+    "7742_1306": {
+      "min_lng": 77.42,
+      "max_lng": 77.43,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7744_1297": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 6.0,
+      "count": 41
+    },
+    "7775_1307": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 25.0,
+      "count": 5
+    },
+    "7775_1306": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 6.0,
+      "count": 15
+    },
+    "7766_1307": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 10.0,
+      "count": 207
+    },
+    "7773_1306": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 10.0,
+      "count": 35
+    },
+    "7744_1308": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 27
+    },
+    "7743_1308": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 3
+    },
+    "7743_1309": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7744_1309": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7743_1306": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7768_1287": {
+      "min_lng": 77.68,
+      "max_lng": 77.69,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7744_1296": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.96,
+      "max_lat": 12.97,
+      "max_height": 6.0,
+      "count": 6
+    },
+    "7743_1297": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 10.0,
+      "count": 69
+    },
+    "7754_1306": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 6.0,
+      "count": 37
+    },
+    "7756_1287": {
+      "min_lng": 77.56,
+      "max_lng": 77.57000000000001,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 4
+    },
+    "7767_1303": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 10.0,
+      "count": 1012
+    },
+    "7765_1287": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 8
+    },
+    "7772_1305": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 6.0,
+      "count": 8
+    },
+    "7755_1309": {
+      "min_lng": 77.55,
+      "max_lng": 77.56,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 6
+    },
+    "7754_1287": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7769_1305": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 6.0,
+      "count": 19
+    },
+    "7767_1306": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 129.5,
+      "count": 280
+    },
+    "7774_1303": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 13.030000000000001,
+      "max_lat": 13.040000000000001,
+      "max_height": 25.0,
+      "count": 40
+    },
+    "7743_1307": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 10.0,
+      "count": 5
+    },
+    "7752_1302": {
+      "min_lng": 77.52,
+      "max_lng": 77.53,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 10.0,
+      "count": 99
+    },
+    "7773_1305": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 8.0,
+      "count": 7
+    },
+    "7775_1305": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 113.85,
+      "count": 20
+    },
+    "7774_1305": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 10.5,
+      "count": 27
+    },
+    "7766_1308": {
+      "min_lng": 77.66,
+      "max_lng": 77.67,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 47
+    },
+    "7770_1307": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 10.0,
+      "count": 14
+    },
+    "7770_1306": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 13.06,
+      "max_lat": 13.07,
+      "max_height": 10.0,
+      "count": 32
+    },
+    "7770_1305": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 13.05,
+      "max_lat": 13.06,
+      "max_height": 6.0,
+      "count": 14
+    },
+    "7744_1298": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.98,
+      "max_lat": 12.99,
+      "max_height": 10.0,
+      "count": 189
+    },
+    "7773_1304": {
+      "min_lng": 77.73,
+      "max_lng": 77.74,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 8.0,
+      "count": 19
+    },
+    "7761_1309": {
+      "min_lng": 77.61,
+      "max_lng": 77.62,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7775_1292": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 10.0,
+      "count": 17
+    },
+    "7775_1287": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7774_1291": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 6.0,
+      "count": 14
+    },
+    "7742_1288": {
+      "min_lng": 77.42,
+      "max_lng": 77.43,
+      "min_lat": 12.88,
+      "max_lat": 12.89,
+      "max_height": 6.0,
+      "count": 8
+    },
+    "7741_1291": {
+      "min_lng": 77.41,
+      "max_lng": 77.42,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7741_1301": {
+      "min_lng": 77.41,
+      "max_lng": 77.42,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 6.0,
+      "count": 2
+    },
+    "7742_1301": {
+      "min_lng": 77.42,
+      "max_lng": 77.43,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 6.0,
+      "count": 3
+    },
+    "7743_1300": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 10.5,
+      "count": 19
+    },
+    "7767_1307": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 10
+    },
+    "7744_1300": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 13.0,
+      "max_lat": 13.01,
+      "max_height": 6.0,
+      "count": 36
+    },
+    "7764_1309": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7767_1308": {
+      "min_lng": 77.67,
+      "max_lng": 77.68,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 6.0,
+      "count": 3
+    },
+    "7765_1309": {
+      "min_lng": 77.65,
+      "max_lng": 77.66,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7769_1307": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 8.0,
+      "count": 10
+    },
+    "7741_1297": {
+      "min_lng": 77.41,
+      "max_lng": 77.42,
+      "min_lat": 12.97,
+      "max_lat": 12.98,
+      "max_height": 10.0,
+      "count": 1
+    },
+    "7744_1295": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.950000000000001,
+      "max_lat": 12.96,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7742_1291": {
+      "min_lng": 77.42,
+      "max_lng": 77.43,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 6.0,
+      "count": 7
+    },
+    "7743_1299": {
+      "min_lng": 77.43,
+      "max_lng": 77.44,
+      "min_lat": 12.99,
+      "max_lat": 13.0,
+      "max_height": 6.0,
+      "count": 21
+    },
+    "7744_1301": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 13.01,
+      "max_lat": 13.02,
+      "max_height": 6.0,
+      "count": 7
+    },
+    "7754_1309": {
+      "min_lng": 77.54,
+      "max_lng": 77.55,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 25.0,
+      "count": 8
+    },
+    "7744_1291": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 6.0,
+      "count": 19
+    },
+    "7744_1292": {
+      "min_lng": 77.44,
+      "max_lng": 77.45,
+      "min_lat": 12.92,
+      "max_lat": 12.93,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7775_1291": {
+      "min_lng": 77.75,
+      "max_lng": 77.76,
+      "min_lat": 12.91,
+      "max_lat": 12.92,
+      "max_height": 10.0,
+      "count": 23
+    },
+    "7742_1294": {
+      "min_lng": 77.42,
+      "max_lng": 77.43,
+      "min_lat": 12.94,
+      "max_lat": 12.950000000000001,
+      "max_height": 10.0,
+      "count": 1
+    },
+    "7769_1304": {
+      "min_lng": 77.69,
+      "max_lng": 77.7,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 6.0,
+      "count": 141
+    },
+    "7771_1308": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 10.0,
+      "count": 5
+    },
+    "7764_1287": {
+      "min_lng": 77.64,
+      "max_lng": 77.65,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 3
+    },
+    "7770_1287": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 10.0,
+      "count": 2
+    },
+    "7774_1287": {
+      "min_lng": 77.74,
+      "max_lng": 77.75,
+      "min_lat": 12.870000000000001,
+      "max_lat": 12.88,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7772_1304": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 13.040000000000001,
+      "max_lat": 13.05,
+      "max_height": 6.0,
+      "count": 6
+    },
+    "7762_1309": {
+      "min_lng": 77.62,
+      "max_lng": 77.63,
+      "min_lat": 13.09,
+      "max_lat": 13.1,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7772_1302": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 13.02,
+      "max_lat": 13.030000000000001,
+      "max_height": 10.0,
+      "count": 27
+    },
+    "7772_1307": {
+      "min_lng": 77.72,
+      "max_lng": 77.73,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 1
+    },
+    "7771_1307": {
+      "min_lng": 77.71000000000001,
+      "max_lng": 77.72,
+      "min_lat": 13.07,
+      "max_lat": 13.08,
+      "max_height": 6.0,
+      "count": 7
+    },
+    "7770_1308": {
+      "min_lng": 77.7,
+      "max_lng": 77.71000000000001,
+      "min_lat": 13.08,
+      "max_lat": 13.09,
+      "max_height": 8.0,
+      "count": 4
+    }
+  },
+  "totalBuildings": 686370
+}

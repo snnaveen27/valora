@@ -1,0 +1,39 @@
+{
+  "generated": "1768857346.6634567",
+  "source": "C:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\windsurf-project\\src\\data\\bengaluru.pbf",
+  "output": {
+    "raw_dir": "C:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\windsurf-project\\src\\data\\osm_extracted\\raw",
+    "derived_dir": "C:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\windsurf-project\\src\\data\\osm_extracted\\derived"
+  },
+  "raw_counts": {
+    "nodes": 6367250,
+    "ways": 1241645,
+    "relations": 6119
+  },
+  "derived_counts": {
+    "roads": 334784,
+    "places": 4871,
+    "pois": 33541,
+    "landuse": 52190,
+    "natural": 9348,
+    "transport": 8712,
+    "boundaries": 1129,
+    "buildings_metadata": 817619
+  },
+  "derived_total_features": 1262194,
+  "raw_files": [
+    "raw/nodes.jsonl",
+    "raw/ways.jsonl",
+    "raw/relations.jsonl"
+  ],
+  "derived_files": [
+    "derived/roads.geojson",
+    "derived/places.geojson",
+    "derived/pois.geojson",
+    "derived/landuse.geojson",
+    "derived/natural.geojson",
+    "derived/transport.geojson",
+    "derived/boundaries.geojson",
+    "derived/buildings_metadata.geojson"
+  ]
+}

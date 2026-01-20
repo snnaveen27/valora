@@ -1,0 +1,304 @@
+state_name,district_name,block_name,panchayat_name,village_name,habitation_name,habitation_id,households,house_connection_by_pws,ispws,gen_current_pop,sc_current_pop,st_current_pop,total_current_pop,water_quality_contamination,update_date
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Gudnahalli,Gudnahalli,0000373267,200,62,Yes,760,370,50,1180,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Geritiganabele,Geritiganabele,0000373269,226,70,Yes,738,415,1,1154,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,"S Thammasandra (b)","S. Thimmasandra",0000373272,84,0,Yes,289,99,10,398,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Gandhinagara,"S. Gandhinagara",0000373273,79,0,Yes,281,99,4,384,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Bestamanahalli,Bestamanahalli,0000373279,200,134,Yes,645,254,10,909,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Rachamanahalli,Rachamanahalli,0000373280,179,176,Yes,400,429,0,829,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Soluru,Soluru,0000373307,110,53,Yes,158,468,5,631,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Shettihalli,Shettihalli,0000373314,233,0,Yes,579,429,8,1016,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Chikkanahalli,Chikkanahalli,0000373319,76,0,Yes,252,88,4,344,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Basavanapura,Basavanapura,0000373322,81,0,Yes,87,270,10,367,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Laxmipura,Laxmipura,0000373323,104,0,Yes,253,265,0,518,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Tammanayakanahalli,Muthuru,0000373324,82,0,Yes,183,188,10,381,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Indlawadipura,Indlawadipura,0000373327,90,15,Yes,179,213,104,496,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Indlawadi,Indlawadi,0000373330,607,302,Yes,2579,579,150,3308,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Doddahagde,Doddahagde,0000373341,244,62,Yes,452,541,36,1029,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Byagadadenahalli,Byagadadenahalli,0000373346,303,108,Yes,1225,370,80,1675,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,"Nosenur Gollahalli","Nosenur Gollahalli",0000373353,123,0,Yes,446,23,126,595,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Vaderamanchenahalli,Vaderamanchenahalli,0000373362,864,305,Yes,2338,423,229,2990,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Kasavanakunte,Kasavanakunte,0000373366,48,0,Yes,119,70,15,204,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Konnasandra,Konnasandra,0000373369,159,41,Yes,519,218,10,747,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Bommandahalli,Bommandahalli,0000373370,199,0,Yes,619,234,16,869,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,"J. Bingipura","J. Bingipura",0000373371,15,2,Yes,74,4,4,82,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Mahanthalingapura,Mahanthalingapura,0000373373,233,95,Yes,415,584,100,1099,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Maragondanahalli,Maragondanahalli,0000373392,461,215,Yes,2243,171,0,2414,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Yarandahalli,Yarandahalli,0000373399,1634,586,Yes,5312,1062,226,6600,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Hinnakki,Hinnakki,0000373401,346,151,Yes,1053,433,105,1591,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Mantapa,Mantapa,0000373406,220,107,Yes,488,453,9,950,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Kaleshwari,Kaleswari,0000373409,18,0,Yes,36,34,2,72,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Ramasandra,Ramasandra,0000373411,77,0,Yes,137,237,0,374,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Hullakasavanahalli,Hullakasavanahalli,0000373416,40,0,Yes,67,172,0,239,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,"Chinnaiahna Palya",Chinnaiahanapalya,0000373424,113,0,Yes,178,296,10,484,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Kasaraguppe,Kasaraguppe,0000373438,31,0,Yes,76,21,0,97,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,"Kannayaka Agrahara","Kannayaka Agrahara",0000373446,197,65,Yes,442,312,30,784,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Kariyappanadoddi,Kariyappanadoddi,0000373458,10,0,Yes,29,9,10,48,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Itchangur,Itchangur,0000373474,950,0,Yes,2020,1048,105,3173,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Arehalli,Arehalli,0000373483,206,100,Yes,299,546,47,892,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Ballur,Ballur,0000373484,2154,50,Yes,3895,799,215,4909,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Harohalli,Harohalli,0000373491,305,249,Yes,1260,550,35,1845,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Mallenahallli,Malenahalli,0000373500,200,34,Yes,632,383,17,1032,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Gudighattanahalli,Gudighattanahalli,0000373519,11,0,Yes,30,6,0,36,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Mugalur,Mugalur,0000373524,425,148,Yes,1480,1070,0,2550,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Deshpande Guttahalli","Deshpande Guttahalli",0000373530,19,0,Yes,45,42,3,90,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,"S. Medihalli",Thyavakanahalli,0000373540,274,0,Yes,1258,150,0,1408,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Kommasandra,Kommasandra,0000373556,281,118,Yes,785,200,0,985,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Muthanallur,"Muthanallur Amanikere",0000373558,76,0,Yes,274,1,5,280,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Muthanallur,Muthanallur,0000373559,638,275,Yes,1280,650,40,1970,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Chikkadasarahalli,Chikkadasarahalli,0000373563,130,0,Yes,356,235,0,591,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Ramanayakanahalli,Ramanayakanahalli,0000373566,115,0,Yes,320,245,0,565,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Chookasandra,Chookasandra,0000373576,102,55,Yes,254,213,0,467,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Shantipura,"Chikka Nagamangala",Vaddarapalya,0000373586,768,0,Yes,2465,801,46,3312,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Shantipura,Rayasandra,Rayasandra,0000373589,2128,246,Yes,6051,2899,404,9354,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,3687,672,Yes,15000,610,60,15670,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Dasanapura,Dasanapura,0001622876,509,205,Yes,923,492,120,1535,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Dyavasandra,Dyavasandra,0001622880,144,0,Yes,217,429,5,651,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Nayanahalli,Nayanahalli,0001622885,37,12,Yes,88,34,77,199,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Ramakrishnapura,Ramakrishnapura,0001622888,12,0,Yes,20,29,5,54,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Shantipura,Shantipura,Shantipura,0001622895,4781,300,Yes,10998,5822,700,17520,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"B. Hosahalli",Chikkadunnasandra,0001622900,5,0,Yes,0,28,0,28,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Kuvempunagara,Kuvempunagara,0000373264,287,117,Yes,885,425,15,1325,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Karpoor,Karpoor,0000373278,334,206,Yes,1708,428,4,2140,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Gowrenahalli,Gowrenahalli,0000373284,461,150,Yes,2022,339,0,2361,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Honnakalaspura,Honnakalaspura,0000373285,114,0,Yes,375,185,11,571,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Sidihoskote,Sidihoskote,0000373291,343,118,Yes,1071,629,12,1712,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Aduru,Aduru,0000373295,148,29,Yes,258,289,0,547,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Aduru,"Aduru Palya",0000373296,55,0,Yes,131,138,0,269,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Surgajakanahalli,Surgajakanahalli,0000373297,319,84,Yes,1089,318,12,1419,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Choodenahalli,Choodenahalli,0000373298,229,103,Yes,715,465,109,1289,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Choodenahalli,"Patnagere Gollhalli",0000373302,89,0,Yes,93,318,0,411,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,"Kempudommasandra (b)",Kempadommasandra,0000373304,83,30,Yes,174,228,1,403,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Vannakanahalli,Vannakanahalli,0000373305,337,164,Yes,1069,389,30,1488,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Choodenahalli,Kalyanakanahalli,0000373306,92,0,Yes,339,106,0,445,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,"Chikka Hosahalli","Chikka Hosahalli",0000373317,199,0,Yes,1299,237,5,1541,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Nallaiahnadoddi,Nallaiahanadoddi,0000373328,53,0,Yes,193,32,33,258,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Nagaiahadoddi,Nagaiahabadoddi,0000373332,45,0,Yes,167,37,9,213,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Chikkahagde,Chikkahagde,0000373337,205,0,Yes,635,325,21,981,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Soppahalli,Soppahalli,0000373340,131,0,Yes,212,346,3,561,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Kunimadiwala,Kunimadiwala,0000373345,116,0,Yes,421,120,0,541,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Kallabalu,Kallabalu,0000373363,541,213,Yes,1316,556,125,1997,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Muthurayanadoddi,Muthaaryanaddoddi,0000373364,41,0,Yes,104,44,10,158,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,"Sattarsab Dinne","Satharsab Dinne",0000373367,48,20,Yes,120,76,13,209,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Giddenahalli,Giddenahalli,0000373372,110,0,Yes,175,285,5,465,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Yallammanadoddi,"Yallammana Doddi",0000373376,50,0,Yes,88,125,22,235,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,"Goninayakana Doddi","Goninayakana Doddi",0000373378,32,0,Yes,53,80,14,147,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Arenur,Arenur,0000373498,195,0,Yes,480,290,10,780,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Mattanahalli,Mattanahalli,0000373521,157,54,Yes,385,180,138,703,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Chikkanahalli Kamanahalli","Chikkanahalli Kamanahalli",0000373526,144,0,Yes,368,260,0,628,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Seeganaikanahalli,Seeganaikanahalli,0000373531,16,0,Yes,30,34,0,64,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Billapura,Billapura,Billapura,0000373532,729,312,Yes,2065,474,89,2628,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Bilchikkanahalli,Bilchikkanahalli,0000373535,16,0,Yes,6,53,0,59,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Sollepura,Bikkanahalli,0000373537,230,92,Yes,520,480,0,1000,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,"S. Medihalli","S. Medihalli",0000373539,152,0,Yes,428,186,0,614,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,"S. Medihalli",Sultanpalya,0000373541,25,0,Yes,78,32,0,110,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Sollepura,Sollepura,0000373543,168,0,Yes,468,275,0,743,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,Ittangur,Ittangur,0000373546,161,0,Yes,725,117,0,842,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,Yamare,Yamare,0000373549,520,128,Yes,1645,601,17,2263,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Neriga,Neriga,0000373564,325,174,Yes,800,630,0,1430,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,"Jantha Gondanahalli","Jantha Gondanahalli",0000373568,175,0,Yes,410,350,0,760,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,"Halsahalli Thippasandra","Halsahalli Thippasandra",0000373571,230,110,Yes,590,240,0,830,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,"Nekundi Dommasandra","Nekundi Dommasandra",0000373572,315,92,Yes,860,270,0,1130,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,"Chinnthala Madiwala",Gottamaranahalli,0000373577,4,0,Yes,18,4,0,22,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,"Chinnthala Madiwala","Chinnthala Madiwala",0000373578,229,44,Yes,468,314,198,980,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Huskuru,Huskuru,0000373579,263,106,Yes,1986,578,79,2643,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Haragadde,Haragadde,0001622881,1294,610,Yes,3882,1238,67,5187,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Koratageredoddi,Eraligeredoddi,0001622897,12,0,Yes,35,20,9,64,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Koppa,Koppa,0000373383,244,110,Yes,657,430,10,1097,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Nanjapura,Nanjapura,0000373385,115,0,Yes,252,207,8,467,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Shikaripalya,Shikaripalya,0000373393,559,192,Yes,1729,1256,0,2985,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,"Hennagara Amanikere","Hennagara Amanikere",0000373395,5,0,Yes,26,0,0,26,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Ramakrishnapura,Hinnakki,0000373403,69,0,No,131,180,26,337,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Laxmipura,Sanjeevanagar,0000373415,178,0,Yes,575,224,2,801,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Kempanayakanahalli,Kempanayakanahalli,0000373431,416,0,Yes,1289,334,28,1651,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,"Bannerughatta Kaval","Bannerghatta Kaval",0000373435,60,2,Yes,170,40,60,270,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Shyanubhoganahalli,Shanubhoganahalli,0000373437,553,0,Yes,1521,349,125,1995,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Boothanahalli,Boothanahalli,0000373440,152,0,Yes,112,38,232,382,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Shileendradoddi,"Shylendra Doddi",0000373442,28,0,Yes,13,119,10,142,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Kulumepalya,Kulumepalya,0000373447,56,0,Yes,224,22,10,256,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Ujjinappanadoddi,Ujjappanadoddi,0000373460,36,0,Yes,86,25,29,140,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Ramanayakanadoddi,Ramanayakanadoddi,0000373465,27,0,Yes,61,32,17,110,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Mudlaiahnadoddi,Mudlaiahnadoddi,0000373469,43,0,Yes,97,51,25,173,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Balagaranahalli,Balagaranahalli,0000373476,1474,576,Yes,5048,523,140,5711,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Bendiganahalli,Bendiganahalli,0000373482,190,0,Yes,378,288,70,736,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Kodlipura,Kodlipura,0000373485,217,72,Yes,525,270,0,795,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Manchanahalli,Manchanahalli,0000373488,302,300,Yes,815,555,4,1374,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Kamblipura,Kamblipura,0000373492,136,60,Yes,430,156,0,586,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,"M. Medihalli","M. Medihalli",0000373494,165,72,Yes,432,245,20,697,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Bidaraguppe,Bidaraguppe,0000373499,480,243,Yes,1780,630,3,2413,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Narasapura,Narsapura,0000373501,140,0,Yes,478,166,1,645,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Banahalli,Banahalli,0000373528,48,45,Yes,52,27,0,79,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Handenahalli,Handenahalli,0000373542,460,260,Yes,1391,530,7,1928,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"Volagere Kallahalli",Chennigapura,0000373551,1,0,Yes,1,1,1,3,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"Thigala Chowdadenahalli","Thigala Chowdadenahalli",0000373553,974,353,Yes,2950,960,51,3961,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Samanahalli,Samanahalli,0000373554,175,60,Yes,370,190,30,590,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,"Chikka Thimmasandra","Chikka Thimmasandra",0000373555,95,0,Yes,280,125,10,415,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,"Ali Bommasandra","Ali Bommasandra",0000373557,220,104,Yes,480,338,15,833,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Narayanaghatta,Narayanaghatta,0000373561,503,102,Yes,1003,720,100,1823,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,"Singena Agrahara","Singena Agrahara",0000373562,351,318,Yes,1002,647,32,1681,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Kathriguppe,Kathriguppe,0000373567,155,0,Yes,412,428,0,840,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Harohalli,Harohalli,0000373575,110,0,Yes,398,142,0,540,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Avalahalli,Avalahalli,0000373582,108,92,Yes,129,455,2,586,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Gulimangala,Gulimangala,0000373583,199,0,Yes,621,297,31,949,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Shantipura,Gattahalli,Gattahalli,0000373587,684,0,Yes,2033,944,62,3039,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Shantipura,Choodasandra,Choodasandra,0000373591,2420,327,Yes,6583,2999,324,9906,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,"Mada Pattana",Madapatna,0001622883,647,201,Yes,1926,614,34,2574,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Begihalli,Bidarekerenagara,0001726550,20,0,Yes,48,26,4,78,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Chikkavaderapura,Chikkavaderapura,0001852905,256,0,Yes,766,208,48,1022,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,"Anekal Grama","Anekal Grama",0001852978,120,0,Yes,338,129,58,525,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Hulimangala,Hulimangala,0000373388,716,342,Yes,1926,1228,62,3216,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Podu,Podu,0000373390,134,0,Yes,300,242,5,547,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Hennagara,Hennagara,0000373394,731,483,Yes,2298,866,62,3226,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Rajapura,Rajapura,0000373396,118,0,Yes,348,190,8,546,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Masthenahalli,Mastenahalli,0000373397,107,0,Yes,325,178,8,511,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Kachanayakanahalli,Kachanayakanahalli,0000373402,1630,512,Yes,5685,624,141,6450,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Laxmipura,Sampangiramanagara,0000373414,77,0,Yes,262,101,0,363,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Vaderahalli,Vaderahalli,0000373418,22,0,Yes,44,25,0,69,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Chathekerepalya,Chathekerepalya,0000373423,382,152,Yes,617,1019,34,1670,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Gollahalli,Gollahalli,0000373434,230,0,Yes,752,146,10,908,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Kenchagaiahnadoddi,"Kenchagaina Doddi",0000373439,118,0,Yes,324,126,0,450,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,"Hakkipikki Colony","Akki Pikki Colony",0000373441,299,79,Yes,102,725,210,1037,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Byladamaradadoddi,"Byaladamara Doddi",0000373443,39,0,Yes,32,62,58,152,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Shivanahalli,Shivanahalli,0000373451,140,0,Yes,362,117,129,608,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Shivanahalli,Rangappanadoddi,0000373459,14,0,Yes,41,12,13,66,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Annaiahnadoddi,Annaiahanadoddi,0000373463,94,0,Yes,289,80,66,435,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Ragihalli,Koratageredoddi,0000373468,35,0,Yes,40,12,13,65,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Neralur,Neralur,0000373479,2180,470,Yes,7458,1990,198,9646,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Muthagatti,Muthagatti,0000373263,359,147,Yes,1109,515,20,1644,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,"Chennana Agrahara","Chennana Agrahara",0000373268,98,34,Yes,189,310,4,503,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Samandur,Samandur,0000373270,339,80,Yes,1198,416,30,1644,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,"A. Medihalli","A. Medihalli",0000373283,111,49,Yes,220,268,35,523,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Chinnaiahnapalya,Chinnaiahanapalya,0000373290,89,0,Yes,62,348,0,410,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Naganaikanahalli,Naganayakanahalli,0000373310,314,269,Yes,711,551,40,1302,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,"Marsoor Agrahara","Marsoor Agrahara",0000373316,32,0,Yes,136,18,0,154,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Karakalaghatta,Karikalgatta,0000373318,139,0,Yes,495,210,4,709,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Thimmasandra,Thimmasandra,0000373320,57,36,Yes,12,0,362,374,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Tammanayakanahalli,Tammanayakanahalli,0000373321,234,0,Yes,1478,335,19,1832,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Kadajakanahalli,Kadajakanahalli,0000373334,158,62,Yes,311,155,106,572,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Kadajakanahalli,"Thimmaiahana Doddi",0000373335,45,40,Yes,141,36,35,212,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Kempavaderahalli,Kempavaderahalli,0000373336,71,30,Yes,171,157,7,335,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Avadedenahalli,Avadedenahalli,0000373343,167,67,Yes,350,340,62,752,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Nosenur,Nosenur,0000373352,294,102,Yes,876,467,0,1343,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Poojiganapalya,Pujiganapalya,0000373375,89,0,Yes,156,225,39,420,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Madappanadoddi,"Madappana Doddi",0000373377,52,2,Yes,85,121,20,226,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Haldenahalli,Haldenahalli,0000373275,347,72,Yes,1256,224,23,1503,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Agasthimmanahalli,Agasthimmanahalli,0000373287,5,0,Yes,29,0,0,29,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Sonnayakanapura,Sonnayakanapura,0000373288,112,76,Yes,73,440,0,513,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Telagarahalli,Telagarahalli,0000373301,174,0,Yes,719,83,30,832,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Menaseganahalli,Menaseganahalli,0000373303,139,0,Yes,479,229,1,709,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Marsoor,Marsoor,0000373309,774,362,Yes,2221,801,40,3062,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Madiwala,Madiwala,0000373311,280,0,Yes,615,526,10,1151,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Choodahalli,Choodahalli,0000373326,145,0,Yes,598,225,0,823,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Bangladoddi,Bangaladoddi,0000373329,39,0,Yes,82,70,50,202,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Mysoorammanadoddi,Mysooramanadoddi,0000373331,72,0,Yes,171,45,9,225,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,"Kammasandra Agrahara","Kammasandra Agrahara",0000373339,173,0,Yes,427,318,76,821,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Thatnahalli,Thatnahalli,0000373344,246,61,Yes,627,412,20,1059,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Kumbarahalli,Kumbarahalli,0000373347,199,0,Yes,685,148,0,833,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Lingapura,Lingapura,0000373348,112,0,Yes,260,103,231,594,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Bukkasagara,Bukkasagara,0000373365,359,211,Yes,856,545,96,1497,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,"Krishna Doddi","Krishna Doddi",0000373374,98,0,Yes,171,245,43,459,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,"Kuppusiddegowdana Doddi","Kuppasiddana Doddi",0000373379,33,2,Yes,54,77,13,144,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,"Koppa Gate","Koppa Gate",0000373384,130,0,Yes,360,236,10,606,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,"S. Bingipura","S. Bingipura",0000373389,334,180,Yes,755,614,10,1379,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Hosahalli,Hosahalli,0000373400,213,177,Yes,510,473,25,1008,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Begihalli,Begihalli,0000373404,591,73,Yes,787,386,86,1259,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,"Jangal Palya",Jangalapalya,0000373407,101,0,Yes,224,208,5,437,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Kalkere,Kalkere,0000373417,809,457,Yes,2256,756,29,3041,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Sakalavara,Sakalavara,0000373419,206,30,Yes,481,379,5,865,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Byrappanahalli,Byrappanahalli,0000373429,210,35,Yes,510,398,10,918,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Bilwardahalli,Bilwardahalli,0000373436,118,0,Yes,1452,269,18,1739,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Bytarayanadoddi,"Byatarayana Doddi",0000373444,271,0,Yes,1519,218,190,1927,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,"Kannayaka Agrahara",Doddabeedu,0000373450,15,0,No,40,20,5,65,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Ontemaranadoddi,Ontemaranadoddi,0000373452,21,0,Yes,61,18,19,98,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Shivanahalli,Guddaiahanadoddi,0000373456,11,0,Yes,33,10,10,53,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Jaipuradoddi,Jaipuradoddi,0000373457,35,0,Yes,179,75,29,283,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Shivanahalli,Kateridoddi,0000373461,11,0,Yes,28,8,9,45,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Ragihalli,Ragihalli,0000373462,179,0,Yes,439,239,115,793,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Basappanadoddi,Basavanadoddi,0000373466,35,0,Yes,80,43,23,146,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Puttanayakanadoddi,Puttanayakanadoddi,0000373467,9,0,Yes,25,12,7,44,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Giddenahalli,Giddenahalli,0000373472,2,0,Yes,14,0,0,14,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Krishnasagara,Krishnasagara,0000373473,143,0,Yes,480,140,2,622,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Itchangur,Vaddarapalya,0000373475,1141,48,Yes,3365,515,30,3910,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Yadavanahalli,Yadavanahalli,0000373477,2310,552,Yes,5875,902,425,7202,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Thirumagondanahalli,Thirumagondanahalli,0000373478,710,246,Yes,1951,716,100,2767,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Mayasandra,Mayasandra,0000373490,562,220,Yes,1350,590,40,1980,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,2923,791,Yes,10551,5555,20,16126,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Thindlu,Thindlu,0000373517,290,140,Yes,1095,450,29,1574,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Kugur,Kugur,0000373527,320,92,Yes,990,328,78,1396,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Madappanahalli,Madappanahalli,0000373529,97,0,Yes,420,70,0,490,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Kotiganahalli,Kotiganahalli,0000373536,73,0,Yes,113,181,0,294,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,Sompura,Sompura,0000373545,323,298,Yes,787,382,32,1201,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"B. Hosahalli","B. Hosahalli",0000373547,300,187,Yes,820,450,0,1270,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"Kada Agrahara","Kada Agrahara",0000373548,177,148,Yes,561,185,0,746,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"Volagere Kallahalli","Volagere Kallahalli",0000373550,300,0,Yes,679,570,0,1249,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Gopasandra,Gopasandra,0000373560,370,34,Yes,888,440,0,1328,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Chikkanekundi,Chikkanekundi,0000373573,256,42,Yes,732,225,65,1022,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Huskuru,Sanjeevanagara,0000373580,90,0,Yes,466,198,0,664,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Huskuru,"Lakshmi Narayanapura",0000373581,154,0,Yes,465,201,20,686,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Govindapura,0000373593,1395,240,Yes,5660,700,0,6360,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Munimaranadoddi,Munimaranadoddi,0001622877,49,0,Yes,186,21,5,212,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Bidaraguppe,"Silk Farm",0001622878,165,0,Yes,530,190,1,721,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,"Kavala Hosahalli","Kavala Hosahalli",0001622879,466,218,Yes,1237,584,10,1831,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Lingapura,"Lingapura Jhc",0001622884,45,0,Yes,103,40,92,235,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,"Muthurayaswamy Doddi","Muthurayaswamy Doddi",0001622893,14,0,Yes,25,36,6,67,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Javaregowdanadoddi,"Javaregowdana Doddi",0000373380,5,2,Yes,14,22,4,40,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Balarabande,Balarabande,0000373381,33,0,Yes,52,76,13,141,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Basappanadoddi,"Basappana Doddi",0000373382,13,0,Yes,17,26,5,48,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Vabbasandra,Vabbasandra,0000373386,245,0,Yes,496,336,12,844,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Kempapura,Kempapura,0000373391,52,0,Yes,116,94,2,212,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Vaddarapalya,Vaddarapalya,0000373405,107,0,Yes,272,144,18,434,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Vajarahalli,Vajarahalli,0000373408,27,0,Yes,55,42,5,102,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Malenallasandra,Malenallasandra,0000373410,193,0,Yes,528,352,14,894,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,"Hale Sampigehalli","Hale Sampigehalli",0000373412,262,0,Yes,928,65,19,1012,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Laxmipura,Laxmipura,0000373413,124,0,Yes,427,164,2,593,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Hullahalli,Hullahalli,0000373422,382,125,Yes,617,1019,33,1669,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Bannerughatta,Bannerghatta,0000373430,1852,532,Yes,5255,1568,102,6925,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Kariyappanahalli,Kariyappanahalli,0000373432,449,0,Yes,1110,86,20,1216,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Sampigehalli,Sampigehalli,0000373433,431,0,Yes,1625,180,15,1820,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Amruthanagara,Amruthanagara,0000373449,200,0,Yes,658,360,40,1058,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Sollepuradoddi,Sollepuradoddi,0000373453,39,0,Yes,108,33,36,177,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,"Muninanjappana Doddi",Muninanjappaanadoddi,0000373454,11,0,Yes,31,10,11,52,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Shivanahalli,Koramaradoddi,0000373455,14,0,Yes,40,12,13,65,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Sevanayakanadoddi,Sevanayakanadoddi,0000373464,41,0,Yes,103,52,27,182,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Guddahatti,Guddahatti,0000373480,894,231,Yes,2563,1050,250,3863,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Adigondanahalli,Adigondanahalli,0000373481,327,103,Yes,1045,392,6,1443,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Halehalli,Halehalli,0000373486,248,30,Yes,568,342,0,910,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Bakthipura,Bakthipura,0000373489,85,20,Yes,260,130,0,390,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Mutsandra,Mutsandra,0000373493,138,89,Yes,163,400,8,571,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Indlabele,Indlabele,0000373495,1082,197,Yes,3550,530,70,4150,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Jigala,Jigala,0000373496,388,153,Yes,970,608,52,1630,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Chikkanahalli,Chikkanahalli,0000373497,85,0,Yes,261,90,0,351,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Mahal Chowdadenahalli","Mahal Chowdadenahalli",0000373518,139,38,Yes,420,270,0,690,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Dodda Thimmasandra","Dodda Thimmasandra",0000373520,168,144,Yes,578,268,0,846,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Kuthaganahalli,Kuthaganahalli,0000373522,259,167,Yes,932,594,0,1526,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Bovipalya,"Kuthaganahalli Bovi Palya",0000373523,104,0,Yes,555,0,0,555,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Pandithana Agrahara","Pandithana Agrahara",0000373525,240,67,Yes,610,315,0,925,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Billapura,Booragunte,Booragunte,0000373533,380,0,Yes,901,190,15,1106,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Billapura,Adigarakallahalli,Adigarakallahalli,0000373538,715,381,Yes,2680,798,18,3496,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Byalahalli,Byalahalli,0000373544,19,0,Yes,60,35,0,95,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,Chambenahalli,Chambenahalli,0000373552,268,110,Yes,995,288,40,1323,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Gonigattapura,Gonigattapura,0000373565,220,7,Yes,405,366,0,771,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Gonigattapura,"Nagena Agrahara",0000373569,6,0,Yes,19,0,0,19,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Heggondahalli,Heggondahalli,0000373570,265,75,Yes,580,440,0,1020,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Kaggalipura,Kaggalipura,0000373574,63,0,Yes,161,25,57,243,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Vaddarapalya,Vaddarapalya,0001622882,290,119,Yes,853,271,15,1139,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,"Amani Bidarakere","Amani Bidarakere",0001622896,7,0,No,11,20,0,31,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Thippasandra,Thippasandra,0001852903,84,0,Yes,217,102,60,379,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Hompalgatta,Hompalgatta,0000373265,136,42,Yes,330,345,18,693,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Sabmangala,Sabmangala,0000373266,210,0,Yes,698,225,22,945,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Madiwala,"S. Madiwala",0000373271,70,0,Yes,239,90,3,332,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Marnayakanahalli,Marnayakanahalli,0000373274,165,107,Yes,480,342,30,852,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Haldenahalli,Dinnuru,0000373276,127,52,Yes,462,87,12,561,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Bidaragere,Bidaragere,0000373277,223,80,Yes,689,400,0,1089,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Arvantigepura,Arvantigepura,0000373281,58,0,Yes,92,185,1,278,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Siddanapalya,Siddanapalya,0000373289,107,0,Yes,65,380,0,445,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Sunavara,Sunavara,0000373299,275,126,Yes,835,319,82,1236,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Singasandra,Singasandra,0000373300,107,0,Yes,409,62,2,473,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Haleuru,Haleuru,0000373312,56,0,Yes,198,98,4,300,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Bandapura,Bandapura,0000373313,210,78,Yes,475,301,6,782,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Adisonnahatti,Adisonnahatti,0000373315,84,28,Yes,295,218,20,533,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Tammanayakanahalli,Arehalli,0000373325,92,0,Yes,230,348,0,578,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Baggandoddi,Baggandoddi,0000373333,103,0,Yes,188,208,52,448,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Chikkahagde,Vadderahalli,0000373338,101,0,Yes,208,180,31,419,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Yellammanapalya,Yellamanapalya,0000373342,80,0,Yes,120,208,17,345,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Seethanayakanahalli,Seethanayakanahalli,0000373350,117,0,Yes,296,76,36,408,NA,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Harapanahalli,Harapanahalli,0000373368,858,322,Yes,2671,485,154,3310,NA,2024-06-07

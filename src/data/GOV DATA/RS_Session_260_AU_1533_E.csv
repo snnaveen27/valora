@@ -1,0 +1,13 @@
+Sl. No.,Section,Vehicle Classification,Fee for Single Journey (in Rs.),Fee for Return Journey within a day (in Rs.)
+1,Package-I (Bengaluru-Nidagatta section),Car/Jeep/Van/Light Motor Vehicle,165,250
+2,Package-I (Bengaluru-Nidagatta section),Light Commercial Vehicle/Light Good Vehicle or Mini Bus,270,405
+3,Package-I (Bengaluru-Nidagatta section),Bus/Truck (Two Axles),565,850
+4,Package-I (Bengaluru-Nidagatta section),Three Axle Commercial Vehicles,615,925
+5,Package-I (Bengaluru-Nidagatta section),HCM or EME or MAV (4 to 6 Axles),885,1330
+6,Package-I (Bengaluru-Nidagatta section),Oversized Vehicles (Seven or More Axles),1080,1620
+7,Package-II (Nidagatta-Mysuru section),Car/Jeep/Van/Light Motor Vehicle,155,235
+8,Package-II (Nidagatta-Mysuru section),Light Commercial Vehicle/Light Good Vehicle or Mini Bus,250,375
+9,Package-II (Nidagatta-Mysuru section),Bus/Truck (Two Axles),525,790
+10,Package-II (Nidagatta-Mysuru section),Three Axle Commercial Vehicles,575,860
+11,Package-II (Nidagatta-Mysuru section),HCM or EME or MAV (4 to 6 Axles),825,1240
+12,Package-II (Nidagatta-Mysuru section),Oversized Vehicles (Seven or More Axles),1005,1510

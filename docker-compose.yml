@@ -1,0 +1,44 @@
+# Valora AI - Local Nominatim Geocoder
+# This runs a local Nominatim instance for offline place search
+
+version: '3.8'
+
+services:
+  nominatim:
+    image: mediagis/nominatim:4.4
+    container_name: valora-nominatim
+    ports:
+      - "8088:8080"
+    environment:
+      # Import from LOCAL PBF file (fully offline)
+      PBF_PATH: /nominatim/data/bengaluru.osm.pbf
+      
+      # Nominatim settings
+      REPLICATION_URL: ""
+      IMPORT_WIKIPEDIA: "false"
+      IMPORT_US_POSTCODES: "false"
+      IMPORT_GB_POSTCODES: "false"
+      NOMINATIM_PASSWORD: nominatim
+      
+      # Performance tuning
+      THREADS: 4
+      
+    volumes:
+      # Persist the database so you don't re-import every time
+      - nominatim-data:/var/lib/postgresql/14/main
+      # Mount local PBF file from src/data
+      - ./src/data:/nominatim/data
+    shm_size: '1gb'
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+volumes:
+  nominatim-data:
+    driver: local

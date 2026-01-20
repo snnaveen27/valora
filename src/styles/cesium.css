@@ -1,0 +1,39 @@
+/* ========================================
+   OSM BUILDINGS STYLE CSS
+   Clean, light appearance like osmbuildings.org
+   ======================================== */
+
+/* Hide Cesium Ion logo and credits */
+.cesium-credit-logoContainer {
+  display: none !important;
+}
+
+.cesium-credit-textContainer {
+  display: none !important;
+}
+
+.cesium-creditContainer {
+  display: none !important;
+}
+
+/* OSM Buildings style: light blue-gray background */
+.cesium-widget canvas {
+  background: linear-gradient(180deg, #E8F4F8 0%, #D4E8EC 50%, #C5DDE3 100%) !important;
+}
+
+/* Smooth rendering */
+.cesium-widget {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Remove any default borders/outlines */
+.cesium-viewer {
+  border: none !important;
+  outline: none !important;
+}
+
+/* Ensure full container coverage */
+.cesium-viewer-cesiumWidgetContainer {
+  width: 100% !important;
+  height: 100% !important;
+}

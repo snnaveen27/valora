@@ -1,0 +1,318 @@
+state_name,district_name,block_name,panchayat_name,village_name,habitation_name,habitation_id,anganwadi_id,anganwadi_name,no_of_student,anganwadi_category,update_date
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Vaddarapalya,Vaddarapalya,0001622882,0002228765,"Haragadde Vaddarapalya A",73,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Haragadde,Haragadde,0001622881,0001326929,"Haragadde A",98,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,0001837633,"Dommasandra  Darga Colony",97,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,0001837597,"Dommasandra  E",75,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Shantipura,"Chikka Nagamangala",Vaddarapalya,0000373586,0002374861,Chikkanagamangala,55,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Gulimangala,Gulimangala,0000373583,0000056763,Gulimangala,45,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Avalahalli,Avalahalli,0000373582,0001327888,Avalahalli,31,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Harohalli,Harohalli,0000373575,0002417858,"huskuru harohalli",35,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Chikkanekundi,Chikkanekundi,0000373573,0001328060,"Chikkanekundi Badavane",69,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,"Nekundi Dommasandra","Nekundi Dommasandra",0000373572,0000056749,"Nekundi Dommasandra",84,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Heggondahalli,Heggondahalli,0000373570,0001328068,Heggondahalli,52,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Ramanayakanahalli,Ramanayakanahalli,0000373566,0002668092,Ramanayakanahalli,56,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Gonigattapura,Gonigattapura,0000373565,0000056742,Gonigattapura,62,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Neriga,Neriga,0000373564,0000056740,Neriga,80,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,"S. Medihalli","S. Medihalli",0000373539,0000056706,"S. Medihalli",51,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Sollepura,Bikkanahalli,0000373537,0000056702,Bikkanahalli,62,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Indlabele,Indlabele,0000373495,0000056642,Indlabele,70,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Balagaranahalli,Balagaranahalli,0000373476,0001327842,Balagaranahalli-A,86,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Itchangur,Vaddarapalya,0000373475,0001327850,"Ichchanguru Vaddarapalya A",109,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Itchangur,Itchangur,0000373474,0001327845,Itchangur,61,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Shivanahalli,Shivanahalli,0000373451,0000056604,Shivanahalli,38,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,"Kannayaka Agrahara","Kannayaka Agrahara",0000373446,0001327998,"Kannayaka Agrahara",64,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Bytarayanadoddi,"Byatarayana Doddi",0000373444,0001327987,"Byatarayana Doddi",80,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Boothanahalli,Boothanahalli,0000373440,0001327991,Boothanahalli,35,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Sampigehalli,Sampigehalli,0000373433,0001327976,"B Sampigehalli",106,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,"Chinnaiahna Palya",Chinnaiahanapalya,0000373424,0001904561,"S Chinnaihanapalya",39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Hullahalli,Hullahalli,0000373422,0001904586,"Hullahalli B",65,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Hullahalli,Hullahalli,0000373422,0000056584,"Hullahalli A",53,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Laxmipura,Laxmipura,0000373413,0000056578,Laxmipura,52,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,"Hale Sampigehalli","Hale Sampigehalli",0000373412,0001327927,"Hale Sampigehalli",90,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,"Nosenur Gollahalli","Nosenur Gollahalli",0000373353,0000056511,"N Gollahalli",31,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Seethanayakanahalli,Seethanayakanahalli,0000373350,0002228706,Seethanayakanahalli,24,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Kunimadiwala,Kunimadiwala,0000373345,0001786566,Kunimadiwala,36,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Kadajakanahalli,"Thimmaiahana Doddi",0000373335,0002423757,"Thimmaiahana Doddi(Mini)",24,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Sidihoskote,Sidihoskote,0000373291,0000056440,Sidihoskote-A,60,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Chinnaiahnapalya,Chinnaiahanapalya,0000373290,0001806997,Chinnaiahanapalya,41,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Karpoor,Karpoor,0000373278,0000056423,Karpoor,81,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Madiwala,"S. Madiwala",0000373271,0000056412,"Samanduru Madiwala",48,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Samandur,Samandur,0000373270,0000056410,Samanduru,37,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Kuvempunagara,Kuvempunagara,0000373264,0001834924,KUVEMPUNAGARA-B,45,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Muthagatti,Muthagatti,0000373263,0001834969,MUTHAGATTI,30,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,"S. Medihalli",Sultanpalya,0000373541,0001833368,Sulthanpalya,55,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0001805093,"sarjapura Vidyanagara",99,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0001804897,"Maruthi nagara",88,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0000056679,"Sarjapura B",113,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Mayasandra,Mayasandra,0000373490,0002414373,Mayasandra-B,62,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Ballur,Ballur,0000373484,0002666350,"Om Shakthi Layout",71,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Guddahatti,Guddahatti,0000373480,0000056620,Guddahatti,64,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Neralur,Neralur,0000373479,0002228159,Neralur-C,72,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Yadavanahalli,Yadavanahalli,0000373477,0001327851,Yadavanahalli-A,82,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Kachanayakanahalli,Kachanayakanahalli,0000373402,0001770503,"Kachanayakanahalli B",90,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Kachanayakanahalli,Kachanayakanahalli,0000373402,0001770447,"Kachanayakanahalli Basaveshwara Nagar",132,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Yarandahalli,Yarandahalli,0000373399,0000056562,Yarandahalli,114,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Rajapura,Rajapura,0000373396,0000056558,Rajapura,46,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Shikaripalya,Shikaripalya,0000373393,0002058433,"Shikaripalya C",107,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Maragondanahalli,Maragondanahalli,0000373392,0000056551,Maragondanahalli,63,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Bommandahalli,Bommandahalli,0000373370,0000056533,Bommandahalli,55,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Marsoor,Marsoor,0000373309,0001880630,"Marsoor Indiranagara",49,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Soluru,Soluru,0000373307,0000056458,Soluru,31,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Sunavara,Sunavara,0000373299,0000056449,Sunavara,26,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Surgajakanahalli,Surgajakanahalli,0000373297,0001806418,Suragajakanahalli,44,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Koratageredoddi,Eraligeredoddi,0001622897,0001327949,Eraligeredoddi,42,Govt.,2023-01-13
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,"Muthurayaswamy Doddi","Muthurayaswamy Doddi",0001622893,0001962320,"Muthurayaswamy doddi",30,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,"Mada Pattana",Madapatna,0001622883,0002228933,"Madapattana C",89,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Haragadde,Haragadde,0001622881,0002227767,"Haragadde B",78,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Shantipura,Choodasandra,Choodasandra,0000373591,0001327883,Choodasandra,135,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Huskuru,Huskuru,0000373579,0000056760,Huskur,79,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,"Halsahalli Thippasandra","Halsahalli Thippasandra",0000373571,0002668088,Halsahalli,53,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Billapura,Adigarakallahalli,Adigarakallahalli,0000373538,0002413742,"AK Colony",55,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Kotiganahalli,Kotiganahalli,0000373536,0001833275,"Kotiganahalli (Mini)",51,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Billapura,Booragunte,Booragunte,0000373533,0001328089,Booragunte,61,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Mutsandra,Mutsandra,0000373493,0000056638,Mutsandra,38,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Harohalli,Harohalli,0000373491,0002414198,Harohalli,45,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,"Hakkipikki Colony","Akki Pikki Colony",0000373441,0001327996,"Akki Pikki Colony",100,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Kariyappanahalli,Kariyappanahalli,0000373432,0001327978,Kariyappanahalli,91,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Sakalavara,Sakalavara,0000373419,0000056582,Sakalavara,58,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Malenallasandra,Malenallasandra,0000373410,0001327923,Malenallasandra,95,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Vaddarapalya,Vaddarapalya,0000373405,0001904692,"Begihalli Vaddarapalya",20,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Begihalli,Begihalli,0000373404,0000056571,Begihalli,87,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,"Koppa Gate","Koppa Gate",0000373384,0002058242,"koppa gate B",73,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Koppa,Koppa,0000373383,0000056541,Koppa,58,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Madappanadoddi,"Madappana Doddi",0000373377,0001962149,"Madappana Doddi (Mini)",37,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Kasavanakunte,Kasavanakunte,0000373366,0001328005,Kasavanakunte,35,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Byagadadenahalli,Byagadadenahalli,0000373346,0000056500,Byagadadenahalli,85,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Thatnahalli,Thatnahalli,0000373344,0001786470,Thatnahalli,50,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Yellammanapalya,Yellamanapalya,0000373342,0001786484,Yellamanapalya,42,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Doddahagde,Doddahagde,0000373341,0000056494,Doddahagde,41,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Soppahalli,Soppahalli,0000373340,0001786463,Soopahalli,39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Chikkahagde,Chikkahagde,0000373337,0001786093,Chikkahagde,53,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Kadajakanahalli,Kadajakanahalli,0000373334,0000056489,Kadajakanahalli,49,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Nagaiahadoddi,Nagaiahabadoddi,0000373332,0001799386,"Nagaiahadoddi (Mini)",34,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Bandapura,Bandapura,0000373313,0001327804,Bandapura,57,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Sonnayakanapura,Sonnayakanapura,0000373288,0000056436,Sonnayakanapura,25,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Honnakalaspura,Honnakalaspura,0000373285,0001807501,Honnakalaspura,34,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Gowrenahalli,Gowrenahalli,0000373284,0000056433,"Gowrenahalli A",97,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Gandhinagara,"S. Gandhinagara",0000373273,0001834822,"Samanduru Gandhinagara",39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Geritiganabele,Geritiganabele,0000373269,0000056408,Geritiganabele,31,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,"Chennana Agrahara","Chennana Agrahara",0000373268,0001832970,"CHANNENA AGRAHARA",16,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Sabmangala,Sabmangala,0000373266,0000056403,Sabmangala,26,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,"Ali Bommasandra","Ali Bommasandra",0000373557,0000056729,"Ali Bommasandra",42,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Samanahalli,Samanahalli,0000373554,0001328029,Samanahalli,39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Handenahalli,Handenahalli,0000373542,0001328091,Handenahalli,69,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Dodda Thimmasandra","Dodda Thimmasandra",0000373520,0001328083,"Dodda Thimmasandra",76,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0001772626,"Serige Bheedi",91,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0001772503,"Kotebeedhi B",115,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0000056680,"Sarjapura A",105,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Bidaraguppe,Bidaraguppe,0000373499,0000056649,Bidaraguppe-B,84,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Halehalli,Halehalli,0000373486,0002424112,HALELALLI,60,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Thirumagondanahalli,Thirumagondanahalli,0000373478,0001327838,Thirumagondanahalli-A,70,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Thirumagondanahalli,Thirumagondanahalli,0000373478,0002423198,Thirumagondanahalli-B,86,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Yadavanahalli,Yadavanahalli,0000373477,0002422126,Yadavanahalli-B,77,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Hinnakki,Hinnakki,0000373401,0000056566,"Hinnakki A",41,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Masthenahalli,Mastenahalli,0000373397,0001770771,"Masthenahalli Dinne",119,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Konnasandra,Konnasandra,0000373369,0000056531,Konnasandra,81,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Marsoor,Marsoor,0000373309,0000056462,Marsur,68,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Vannakanahalli,Vannakanahalli,0000373305,0000056456,Vanakanahalli,54,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,"Kempudommasandra (b)",Kempadommasandra,0000373304,0002376329,Kempadommasandra,29,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"Thigala Chowdadenahalli","Thigala Chowdadenahalli",0000373553,0000056722,"Thigalara Chowdadenahalli A",101,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,Ittangur,Ittangur,0000373546,0001947178,Ittangur,57,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Ragihalli,Ragihalli,0000373462,0000056607,Ragihalli,59,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Nallaiahnadoddi,Nallaiahanadoddi,0000373328,0001799392,Nallaiahainadoddi,15,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Tammanayakanahalli,Tammanayakanahalli,0000373321,0000056476,Tammanayakanahalli,64,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Thimmasandra,Thimmasandra,0000373320,0001799409,Thimmasandra,39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,"Chikka Hosahalli","Chikka Hosahalli",0000373317,0000056471,"Chikka Hosahalli",45,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Ramakrishnapura,Ramakrishnapura,0001622888,0001770822,Ramakrishnapura,12,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Shantipura,Shantipura,Shantipura,0001622895,0001327884,Shantipura,154,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Thippasandra,Thippasandra,0001852903,0002668081,Thippasandra,71,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Vaddarapalya,Vaddarapalya,0001622882,0002228802,"Haragadde Vaddarapalya B",61,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,"Kavala Hosahalli","Kavala Hosahalli",0001622879,0001786227,"Kavala Hosahalli B",42,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,"Kavala Hosahalli","Kavala Hosahalli",0001622879,0001786220,"Kavala Hosahalli A",81,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Bidaraguppe,"Silk Farm",0001622878,0002666445,"Silk Form (Gayithrinagara)",82,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,0001837648,"Dommasandra  A.D. Colony",81,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,0001837628,"Dommasandra  Janatha colony",126,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Huskuru,Sanjeevanagara,0000373580,0002418370,Sanjeevanagara,61,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,"Chinnthala Madiwala","Chinnthala Madiwala",0000373578,0000056757,"Chinnthala Madiwala",52,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,"Jantha Gondanahalli","Jantha Gondanahalli",0000373568,0000056747,"Jantha Gondanahalli",55,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Chikkadasarahalli,Chikkadasarahalli,0000373563,0001328065,Chikkadasarahalli,43,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Narayanaghatta,Narayanaghatta,0000373561,0000056736,Narayanaghatta,65,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Billapura,Billapura,Billapura,0000373532,0001328111,Billapura,79,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Jigala,Jigala,0000373496,0000056644,Jigala,69,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Balagaranahalli,Balagaranahalli,0000373476,0002421679,"Balagaranahalli Dinne",54,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Itchangur,Vaddarapalya,0000373475,0002421996,"Ichchanguru Vaddarapalya B",85,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Shyanubhoganahalli,Shanubhoganahalli,0000373437,0001329733,Shanubhoganahalli,113,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Kempanayakanahalli,Kempanayakanahalli,0000373431,0002666405,Kempanayakanahalli,88,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Byrappanahalli,Byrappanahalli,0000373429,0001327980,Byrappanahalli,58,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Laxmipura,Sampangiramanagara,0000373414,0001327920,"S R Nagara",49,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Hulimangala,Hulimangala,0000373388,0002058191,"hulimangala Dinne",74,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Vabbasandra,Vabbasandra,0000373386,0000056546,Vabbasandra,67,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Bukkasagara,Bukkasagara,0000373365,0000056528,Bukkasagara,146,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Kallabalu,Kallabalu,0000373363,0002667578,"Aishwarya layout",39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Nosenur,Nosenur,0000373352,0000056508,Nosenur,56,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Lingapura,Lingapura,0000373348,0000056503,Lingapura,38,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Avadedenahalli,Avadedenahalli,0000373343,0000056497,Avadedenahalli,64,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Adisonnahatti,Adisonnahatti,0000373315,0001880728,"Jaibheem Nagra",20,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Madiwala,Madiwala,0000373311,0000056467,"Marsur Madiwala",88,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Aduru,Aduru,0000373295,0000056443,Aduru,30,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Siddanapalya,Siddanapalya,0000373289,0000056438,Siddanapalya,38,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Gowrenahalli,Gowrenahalli,0000373284,0001807230,"Gowrenahalli B",95,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Rachamanahalli,Rachamanahalli,0000373280,0001799333,"RACHAMANAHALLI DINNE",30,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Bestamanahalli,Bestamanahalli,0000373279,0000056425,Bestamanahalli,58,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Bidaragere,Bidaragere,0000373277,0000056421,Bidaragere,70,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Sabmangala,Sabmangala,0000373266,0001835006,"KEMPEGOWDA NAGARA",46,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Kuvempunagara,Kuvempunagara,0000373264,0001834905,KUVEMPUNAGARA-A,46,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Muthanallur,Muthanallur,0000373559,0002668001,"Muthanallur Janatha Colony",42,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,Sompura,Sompura,0000373545,0001328011,Sompura,58,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,"S. Medihalli",Thyavakanahalli,0000373540,0001328106,Thyavakanahalli,79,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Madappanahalli,Madappanahalli,0000373529,0001328072,"Madappanahalli (Mini)",39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Chikkanahalli Kamanahalli","Chikkanahalli Kamanahalli",0000373526,0000056693,Kamanahalli,55,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Pandithana Agrahara","Pandithana Agrahara",0000373525,0002303254,"Rajeev Gandi Nagara",57,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Mahal Chowdadenahalli","Mahal Chowdadenahalli",0000373518,0001328085,"Mahal Chowdadenahalli",46,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0000056681,"Sarjaura Yallamma Devasthana",110,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Mallenahallli,Malenahalli,0000373500,0000056651,Malenahalli,79,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Arenur,Arenur,0000373498,0001328097,Arenur,71,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Mayasandra,Mayasandra,0000373490,0002414433,Mayasandra-C,82,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Mayasandra,Mayasandra,0000373490,0000056634,Mayasandra-A,79,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Bakthipura,Bakthipura,0000373489,0000056632,Bakthipura,30,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Manchanahalli,Manchanahalli,0000373488,0000056630,Manchanahalli,55,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Neralur,Neralur,0000373479,0002575935,"Hanuman Layout",85,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Neralur,Neralur,0000373479,0002228014,Neralur-B,68,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Neralur,Neralur,0000373479,0000056618,"Neralur A",80,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Kachanayakanahalli,Kachanayakanahalli,0000373402,0001770619,"Kachanayakanahalli Vinayaka Nagar",95,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Kachanayakanahalli,Kachanayakanahalli,0000373402,0001770586,"Kachanayakanahalli N R Colony",79,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Hinnakki,Hinnakki,0000373401,0001770365,"Hinnakki B",51,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Hosahalli,Hosahalli,0000373400,0000056564,"H Hosahalli",90,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Hennagara,Hennagara,0000373394,0001770238,"Hennagara Dinne",61,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Hennagara,Hennagara,0000373394,0000056556,"Hennagara A",64,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Harapanahalli,Harapanahalli,0000373368,0001328003,Harapanahalli,106,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Marsoor,Marsoor,0000373309,0001880598,"Marsoor Gate",62,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Choodenahalli,Kalyanakanahalli,0000373306,0002380432,Kalanayakanahalli,34,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Choodenahalli,"Patnagere Gollhalli",0000373302,0002379811,"P. Gollahalli",20,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Telagarahalli,Telagarahalli,0000373301,0002376344,Telagarahalli,56,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Singasandra,Singasandra,0000373300,0002376358,Singasandra,22,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Choodenahalli,Choodenahalli,0000373298,0000056447,Choodenahalli,72,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,Yamare,Yamare,0000373549,0000056717,Yamare,82,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Dasanapura,Dasanapura,0001622876,0001327814,Dasanpura-A,66,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,"Mada Pattana",Madapatna,0001622883,0002228890,"Madapattana B",92,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Dyavasandra,Dyavasandra,0001622880,0002228314,Dyavasandra,73,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,0001837641,"Dommasandra Bank Colony",81,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,0000056774,"Dommasandra  C",79,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Huskuru,Huskuru,0000373579,0002575928,Gattahalli,114,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Chookasandra,Chookasandra,0000373576,0000056755,Chookasandra,29,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neriga,Kathriguppe,Kathriguppe,0000373567,0000056745,Kathriguppe,55,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,"Singena Agrahara","Singena Agrahara",0000373562,0001328021,"Singena Agrahara",54,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Chikkanahalli,Chikkanahalli,0000373497,0000056646,"Attibele Chikkanahalli",36,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Indlabele,Indlabele,0000373495,0002666454,"Indlabele Road",106,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,"M. Medihalli","M. Medihalli",0000373494,0000056640,"M. Medihalli",56,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Jaipuradoddi,Jaipuradoddi,0000373457,0001970171,Jaipuradoddi,22,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Sollepuradoddi,Sollepuradoddi,0000373453,0001970124,Sollepuradoddi,39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Bilwardahalli,Bilwardahalli,0000373436,0001327983,Bilwardahalli,103,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Chathekerepalya,Chathekerepalya,0000373423,0001904548,"C K Palya A",77,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Kalkere,Kalkere,0000373417,0000056580,Kalkere,50,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,"Jangal Palya",Jangalapalya,0000373407,0001904598,"Jangala Palya",41,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,"S. Bingipura","S. Bingipura",0000373389,0001327896,Bingipura,64,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Hulimangala,Hulimangala,0000373388,0000056548,hulimangala,60,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,"Koppa Gate","Koppa Gate",0000373384,0000056543,"koppa Gate A",56,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Yallammanadoddi,"Yallammana Doddi",0000373376,0002667708,"Yallammana Doddi",70,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Vaderamanchenahalli,Vaderamanchenahalli,0000373362,0001327964,Vaderamanchenahalli,132,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,Kempavaderahalli,Kempavaderahalli,0000373336,0001786413,Kempavaderahalli,44,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Mysoorammanadoddi,Mysooramanadoddi,0000373331,0001799382,"Mysooramanadoodi (Bangandoddi)",34,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Naganaikanahalli,Naganayakanahalli,0000373310,0000056465,Naganayakanahalli,77,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Sidihoskote,Sidihoskote,0000373291,0001807706,Sidihoskote-B,49,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Gowrenahalli,Gowrenahalli,0000373284,0001807367,"Gowrenahalli C",99,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,"A. Medihalli","A. Medihalli",0000373283,0000056430,"A. Medihalli",45,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Arvantigepura,Arvantigepura,0000373281,0001327832,Arvantigepura,33,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Haldenahalli,Dinnuru,0000373276,0001799348,Dinnuru,83,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Haldenahalli,Haldenahalli,0000373275,0000056419,Haldenahalli,81,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,"S Thammasandra (b)","S. Thimmasandra",0000373272,0000056414,"Samanduru Thimmasandra",48,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Gudnahalli,Gudnahalli,0000373267,0000056405,Gudnahalli,42,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Gopasandra,Gopasandra,0000373560,0001328017,Gopasandra,62,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Muthanallur,Muthanallur,0000373559,0000056733,Muthanallur,60,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,Kommasandra,Kommasandra,0000373556,0000056727,Kommasandra,53,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Muthanallur,"Chikka Thimmasandra","Chikka Thimmasandra",0000373555,0000056725,"Chikka Thimmasandra",26,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Kugur,Kugur,0000373527,0000056696,Kugur,53,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,"Pandithana Agrahara","Pandithana Agrahara",0000373525,0000056691,"Pandithana Agrahara",70,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Mugalur,Mugalur,0000373524,0000056689,Mugalur-A,63,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Kuthaganahalli,Kuthaganahalli,0000373522,0000056687,Kuthaganahalli,38,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Mattanahalli,Mattanahalli,0000373521,0001880742,Mattanahalli,64,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Thindlu,Thindlu,0000373517,0001328073,Thindlu,85,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0001805041,"Sarjapura Venkateshwaradevastana",57,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0001804967,Renukanagara,84,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0001772562,"Sarjapura Marketbeedi",51,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0001772475,"Kotebeedhi A",105,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bidaraguppe,Bidaraguppe,Bidaraguppe,0000373499,0002495270,Bidaraguppe-A,82,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Mayasandra,Mayasandra,0000373490,0002415147,Mayasandra-D,62,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Kodlipura,Kodlipura,0000373485,0001327818,kodlipura,57,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Ballur,Ballur,0000373484,0002423922,Ballur-B,66,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Ballur,Ballur,0000373484,0001327826,Ballur-A,63,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Bendiganahalli,Bendiganahalli,0000373482,0000056624,Bendiganahalli,41,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Adigondanahalli,Adigondanahalli,0000373481,0000056622,Adigondanahalli,94,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Neralur,Neralur,0000373479,0002575936,"Ambedkar nagara",69,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Neralur,Neralur,0000373479,0002668023,Abbannapalya,54,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Kachanayakanahalli,Kachanayakanahalli,0000373402,0001770547,"Kachanayakanahalli Janatha Colony",97,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Kachanayakanahalli,Kachanayakanahalli,0000373402,0001770475,"Kachanayakanahalli Police Quarters",127,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Masthenahalli,Mastenahalli,0000373397,0001770712,Masthenahalli,80,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,"Krishna Doddi","Krishna Doddi",0000373374,0001962110,krishnadoddi,47,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Giddenahalli,Giddenahalli,0000373372,0001327968,Giddenahalli,43,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Vannakanahalli,Menaseganahalli,Menaseganahalli,0000373303,0000056453,Menaseganahalli,31,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"Thigala Chowdadenahalli","Thigala Chowdadenahalli",0000373553,0001947733,"Thigalara Chowdadenahalli B",116,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"Volagere Kallahalli","Volagere Kallahalli",0000373550,0000056719,"V. Kallahalli",58,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"Kada Agrahara","Kada Agrahara",0000373548,0001328013,"Kada Agrahara",68,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Indlawadi,Indlawadi,0000373330,0001799317,"Indlawadi B",45,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Tammanayakanahalli,Arehalli,0000373325,0001799430,Arehalli,18,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Laxmipura,Laxmipura,0000373323,0000056480,Lakshmipura,58,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Dasanapura,Dasanapura,0001622876,0002424038,"DASANAPURA -B",68,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Nayanahalli,Nayanahalli,0001622885,0001327774,"Nayanahalli (mini)",24,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,"Mada Pattana",Madapatna,0001622883,0002228865,"Madapattana A",74,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Haragadde,Haragadde,0001622881,0002227828,"Haragadde C",69,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,0001837621,"Dommasandra Vinayakanagara",89,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,0001837605,"Dommasandra  H.B.",85,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Dommasandra,Dommasandra,Dommasandra,0000373592,0000056775,"Dommasandra  A",63,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Shantipura,Rayasandra,Rayasandra,0000373589,0001327892,Rayasandra,179,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Huskuru,Kaggalipura,Kaggalipura,0000373574,0000056752,Kaggalipura,38,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Billapura,Adigarakallahalli,Adigarakallahalli,0000373538,0001475871,Adigarakallahalli-B,77,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Billapura,Adigarakallahalli,Adigarakallahalli,0000373538,0001328101,Adigarakallahalli-A,70,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mayasandra,Kamblipura,Kamblipura,0000373492,0000056636,Kamblipura,53,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Balagaranahalli,Balagaranahalli,0000373476,0002668035,Balagaranahalli-B,68,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Ragihalli,Koratageredoddi,0000373468,0001327957,Koratageredoddi,26,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Amruthanagara,Amruthanagara,0000373449,0002666386,Amruthanagara,79,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Bannerghatta,Bannerughatta,Bannerghatta,0000373430,0001327972,Bannerghatta,153,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Chathekerepalya,Chathekerepalya,0000373423,0002667725,"C K Palya B",86,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Kalkere,Kalkere,0000373417,0001904639,"Kalkere Calony",76,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Ramasandra,Ramasandra,0000373411,0000056576,Ramasandra,44,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Vajarahalli,Vajarahalli,0000373408,0001904697,Vajarahalli,31,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mantapa,Mantapa,Mantapa,0000373406,0000056573,Mantapa,55,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Nanjapura,Nanjapura,0000373385,0001327902,Nanjapura,21,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Kallabalu,Kallabalu,0000373363,0000056526,Kallabalu,132,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Haragadde,Kumbarahalli,Kumbarahalli,0000373347,0002228484,Kumbarahalli,34,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Byagadadevanahalli,"Kammasandra Agrahara","Kammasandra Agrahara",0000373339,0001786195,"Kammasandra Agrahara",49,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Adisonnahatti,Adisonnahatti,0000373315,0001880434,Adesonnahatti,11,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Marsoor,Shettihalli,Shettihalli,0000373314,0001327807,Shettihalli,46,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Karpoor,Rachamanahalli,Rachamanahalli,0000373280,0000056427,Rachamanahalli,39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Marnayakanahalli,Marnayakanahalli,0000373274,0000056417,Marnayakanahalli,45,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Hompalgatta,Hompalgatta,0000373265,0001834884,HOMPALATTA,56,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Samandur,Muthagatti,Muthagatti,0000373263,0000056399,"Muttagatti Janatha Colony",35,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Handenahalli,Sollepura,Sollepura,0000373543,0001833296,Sollepura,63,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Mugalur,Mugalur,0000373524,0001880774,Mugalur-B,68,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Mugalur,Bovipalya,"Kuthaganahalli Bovi Palya",0000373523,0001880468,Bovipalya,24,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Sarjapura,Sarjapura,Sarjapura,0000373516,0001804936,"sarjapura Kumbara Bheedi",61,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ballur,Arehalli,Arehalli,0000373483,0001327824,Arehalli,39,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Neralur,Neralur,0000373479,0002575933,Raghavanagara,66,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Neralur,Neralur,Neralur,0000373479,0002228243,Sainagara,82,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Kachanayakanahalli,Kachanayakanahalli,0000373402,0000056568,"Kachanayakanahalli A",71,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Yarandahalli,Yarandahalli,0000373399,0001770864,"Yarandahalli Janatha Colony",97,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hennagara,Hennagara,Hennagara,0000373394,0001770200,"Hennagara B",60,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Shikaripalya,Shikaripalya,0000373393,0002058377,"Shikaripalya A",131,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Shikaripalya,Shikaripalya,0000373393,0000056553,"Shrikaripalya B",138,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Hulimangala,Podu,Podu,0000373390,0002058327,Podu,78,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Kallabalu,Mahanthalingapura,Mahanthalingapura,0000373373,0000056536,Mahanthalingapura,106,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Surgajakanahalli,Surgajakanahalli,Surgajakanahalli,0000373297,0000056445,Badarahalli,50,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,Chambenahalli,Chambenahalli,0000373552,0001328009,Chambenahalli,64,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Yamare,"B. Hosahalli","B. Hosahalli",0000373547,0000056714,"B Hosahalli",54,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Ragihalli,Sevanayakanadoddi,Sevanayakanadoddi,0000373464,0001327955,Sevaramanayakanadoddi,44,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Indlawadi,Indlawadi,0000373330,0000056485,"Indlawadi A",62,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Bangladoddi,Bangaladoddi,0000373329,0001326901,Bangaladoddi,19,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Indlawadipura,Indlawadipura,0000373327,0001799324,Indlawadipura,35,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Choodahalli,Choodahalli,0000373326,0000056482,Choodahalli,38,Govt.,2024-06-07
+Karnataka,"Bengaluru Urban",Anekal,Indlawadi,Karakalaghatta,Karikalgatta,0000373318,0001799367,Karikalgatta,32,Govt.,2024-06-07

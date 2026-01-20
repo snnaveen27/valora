@@ -1,0 +1,215 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-01-20T04:35:00.000Z",
+  "description": "Valora AI - Complete Data Registry for Bangalore GIS Platform",
+  "datasets": {
+    "osm_extracted": {
+      "description": "OpenStreetMap data extracted from Karnataka PBF",
+      "source": "src/data/raw/bengaluru.pbf",
+      "index_file": "src/data/osm_extracted/index.json",
+      "counts": {
+        "buildings": 817619,
+        "roads": 334784,
+        "pois": 33541,
+        "places": 4871,
+        "transport": 8712,
+        "landuse": 52190,
+        "natural": 9348,
+        "boundaries": 1129
+      },
+      "files": {
+        "buildings_metadata": "osm_extracted/derived/buildings_metadata.geojson",
+        "roads": "osm_extracted/derived/roads.geojson",
+        "pois": "osm_extracted/derived/pois.geojson",
+        "places": "osm_extracted/places.geojson",
+        "transport": "osm_extracted/transport.geojson",
+        "landuse": "osm_extracted/derived/landuse.geojson",
+        "natural": "osm_extracted/derived/natural.geojson",
+        "boundaries": "osm_extracted/boundaries.geojson"
+      },
+      "bbox": {
+        "min_lat": 12.7,
+        "max_lat": 13.2,
+        "min_lng": 77.3,
+        "max_lng": 78.0
+      }
+    },
+    "3dtiles": {
+      "description": "3D building tiles for Cesium visualization",
+      "tileset_file": "src/data/3dtiles/tileset.json",
+      "tiles_dir": "src/data/3dtiles/tiles/",
+      "counts": {
+        "tiles": 724,
+        "buildings": 686000
+      },
+      "tile_size_degrees": 0.01
+    },
+    "terrain": {
+      "description": "Digital Elevation Model and derived terrain products",
+      "source": "src/data/raw/dem_bengaluru.tif",
+      "index_file": "src/data/terrain/elevation_index.json",
+      "products": {
+        "elevation": "Elevation tiles (JSON)",
+        "slope": "terrain/slope.tif",
+        "aspect": "terrain/aspect.tif",
+        "hillshade": "terrain/hillshade.tif"
+      },
+      "resolution": "30m SRTM",
+      "bbox": {
+        "min_lat": 12.7,
+        "max_lat": 13.2,
+        "min_lng": 77.3,
+        "max_lng": 78.0
+      }
+    },
+    "posted_properties": {
+      "description": "Real estate property listings for Bangalore",
+      "source_dir": "src/data/posted_properties/",
+      "categories": {
+        "residential": {
+          "apartment": {
+            "file": "bangalore-residential-apartment.json",
+            "type": "sale"
+          },
+          "apartment_rent": {
+            "file": "bangalore-residential-apartment-rent.json",
+            "type": "rent"
+          },
+          "house": {
+            "file": "bangalore-residential-house.json",
+            "type": "sale"
+          },
+          "house_rent": {
+            "file": "bangalore-residential-house-rent.json",
+            "type": "rent"
+          },
+          "plot": {
+            "file": "bangalore-residential-plot.json",
+            "type": "sale"
+          }
+        },
+        "commercial": {
+          "land": {
+            "file": "bangalore-commercial-land.json",
+            "type": "sale"
+          },
+          "office_space": {
+            "file": "bangalore-commercial-officespace.json",
+            "type": "sale"
+          },
+          "shop_rent": {
+            "file": "bangalore-commercial-shop-rent.json",
+            "type": "rent"
+          },
+          "warehouse": {
+            "file": "bangalore-commercial-warehouse.json",
+            "type": "sale"
+          },
+          "industrial_building": {
+            "file": "bangalore-commercial-industrialbuilding.json",
+            "type": "sale"
+          },
+          "industrial_shed": {
+            "file": "bangalore-commercial-industrialshed.json",
+            "type": "sale"
+          }
+        },
+        "agricultural": {
+          "land": {
+            "file": "bangalore-agriculturalland.json",
+            "type": "sale"
+          },
+          "farmhouse": {
+            "file": "bangalore-farmhouse.json",
+            "type": "sale"
+          }
+        }
+      },
+      "schema": {
+        "id": "string - Unique property ID",
+        "url": "string - Property listing URL slug",
+        "name": "string - Property title",
+        "posted_date": "string - ISO date of listing",
+        "price": "number - Price in INR",
+        "price_per_sq_ft": "number - Price per sq ft",
+        "currency": "string - Currency symbol",
+        "description": "string - Property description",
+        "seo_description": "string - SEO description",
+        "location": "string - 'lat,lng' coordinates",
+        "address": "string - Address",
+        "city_name": "string - City name",
+        "owner_name": "string - Owner/Agent name",
+        "company_name": "string - Company name",
+        "bedrooms": "number - Number of bedrooms",
+        "bathrooms": "number - Number of bathrooms",
+        "balconies": "number - Number of balconies",
+        "covered_area": "number - Covered area in sq ft",
+        "carpet_area": "number - Carpet area in sq ft",
+        "facing": "string - Direction facing",
+        "floors": "number - Number of floors",
+        "amenities": "string - Comma-separated amenities",
+        "landmark_details": "array - Nearby landmarks",
+        "image_url": "string - Property image URL"
+      }
+    },
+    "government_data": {
+      "description": "Government datasets for Bangalore",
+      "source_dir": "src/data/GOV DATA/",
+      "categories": {
+        "education": {
+          "description": "UDISE school enrollment and infrastructure data",
+          "files": [
+            "UDISE_plus-14-15_enrol_bengaluru_rural_kar.csv",
+            "UDISE_plus-14-15_enrol_bengaluru_u_north_kar.csv",
+            "UDISE_plus-14-15_enrol_bengaluru_u_south_kar.csv",
+            "UDISE_plus-15-16_infra_bengaluru_rural_kar.csv",
+            "UDISE_plus-18-19_teachers_bengaluru_rural_kar.csv",
+            "UDISE_plus-18-19_teachers_bengaluru_u_north_kar.csv",
+            "UDISE_plus-18-19_teachers_bengaluru_u_south_kar.csv"
+          ]
+        },
+        "parliament": {
+          "description": "Parliament session data",
+          "files": [
+            "RJ_Session_246_AU2592.csv",
+            "RS_Session_250_AU394.csv",
+            "RS_Session_253_AU2403.csv",
+            "RS_Session_254_AU_536.B_and_C.csv",
+            "RS_Session_255_AU_2644_D.csv",
+            "RS_Session_256_AS_318_A.csv",
+            "RS_Session_256_AU_2967_A.csv",
+            "RS_Session_256_AU_3386_1.csv",
+            "RS_Session_256_AU_877_A_and_B.csv",
+            "RS_Session_257_AU_2016_A_to_E.csv",
+            "RS_Session_260_AU_1168_A_to_C.csv",
+            "RS_Session_260_AU_1533_E.csv",
+            "RS_Session_267_AU_1571_A.csv"
+          ]
+        },
+        "other": {
+          "description": "Other government datasets",
+          "files": [
+            "1f13a8ca-dd4b-4bf6-9d14-f86cff8ae49a.csv",
+            "3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69.csv",
+            "5106ead4-1aaf-489a-8b9f-6f1dc847eac0.csv",
+            "b5d8d72e-8f14-411e-87cb-dbd55e9476c8.csv",
+            "e4dd0301-07e7-4353-bf06-cf39882b06a5.csv"
+          ]
+        }
+      }
+    }
+  },
+  "api_endpoints": {
+    "geocode": "/api/geocode",
+    "geocode_local": "/api/geocode/local",
+    "reverse": "/api/reverse",
+    "area_analyze": "/api/area/analyze",
+    "terrain_elevation": "/api/terrain/elevation",
+    "terrain_analysis": "/api/terrain/analysis",
+    "terrain_stats": "/api/terrain/stats",
+    "tiles_viewport": "/api/tiles/viewport",
+    "mappls_proxy": "/api/mappls/tiles/{z}/{x}/{y}.png",
+    "config": "/api/config",
+    "chat": "/api/chat"
+  }
+}

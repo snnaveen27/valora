@@ -65,3 +65,17 @@ postgresql-installer.exe
 pgvector/
 cleanup_*.py
 final_cleanup.py
+
+# Large data files (regenerate with scripts)
+src/data/raw/
+src/data/osm_extracted/raw/
+src/data/osm_extracted/derived/buildings_metadata.geojson
+src/data/osm_extracted/derived/roads.geojson
+src/data/osm_extracted/derived/landuse.geojson
+src/data/osm_extracted/derived/natural.geojson
+src/data/buildings.geojson
+src/data/terrain/*.tif
+src/data/3dtiles/tiles/
+
+# ML model files
+backend/*.pkl
