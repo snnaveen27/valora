@@ -324,6 +324,7 @@ class IntentRouter:
         r'\b(real estate|realty|homes?)\b',
         r'\b(villa|duplex|penthouse|studio)\b',
         r'\b(commercial|office|shop|warehouse|industrial)\s*(space|property)?\b',
+        r'\b(top|best|recommend|suggest)\s*(properties|apartments?|flats?|houses?|listings?)?\b',
     ]
     
     VALUATION_PATTERNS = [
@@ -359,35 +360,43 @@ class IntentRouter:
         """Classify user intent from query."""
         q = query.lower().strip()
         
-        # Check patterns in priority order
-        for pattern in cls.NAVIGATE_PATTERNS:
-            if re.search(pattern, q, re.IGNORECASE):
-                return Intent.NAVIGATE
+        # PRIORITY: Check for property keywords FIRST - these should override navigation
+        # This allows "show me properties in hebbal" to be PROPERTY_SEARCH, not NAVIGATE
+        has_property_keyword = any(re.search(p, q, re.IGNORECASE) for p in cls.PROPERTY_PATTERNS)
+        if has_property_keyword:
+            return Intent.PROPERTY_SEARCH
         
+        # Check simulation patterns (high priority)
         for pattern in cls.SIMULATE_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.SIMULATE
         
+        # Check comparison patterns
         for pattern in cls.COMPARISON_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.COMPARISON
         
-        for pattern in cls.PROPERTY_PATTERNS:
-            if re.search(pattern, q, re.IGNORECASE):
-                return Intent.PROPERTY_SEARCH
-        
+        # Check valuation patterns
         for pattern in cls.VALUATION_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.VALUATION
         
+        # Check terrain patterns
         for pattern in cls.TERRAIN_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.TERRAIN
         
+        # Check navigation patterns (after property, simulation, valuation)
+        for pattern in cls.NAVIGATE_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.NAVIGATE
+        
+        # Check building patterns
         for pattern in cls.BUILDING_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.ANALYZE_BUILDING
         
+        # Check area patterns
         for pattern in cls.AREA_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.ANALYZE_AREA
@@ -493,8 +502,8 @@ class GISAgentOrchestrator:
             lng = selected_location.get('lng')
             location_name = f"Location {lat:.4f}, {lng:.4f}" if lat and lng else "Selected Location"
         
-        # If navigate intent, try to geocode
-        if intent == Intent.NAVIGATE and not lat:
+        # If navigate or property_search intent, try to geocode location from query
+        if intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH] and not lat:
             place_name = IntentRouter.extract_place_name(query)
             if place_name and self.geocoder:
                 results = self.geocoder.search(place_name, limit=1)
@@ -503,7 +512,12 @@ class GISAgentOrchestrator:
                     lat = top.get('lat')
                     lng = top.get('lng')
                     location_name = top.get('name', place_name)
-                    ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 15})
+                    # Only add flyTo for navigation intent
+                    if intent == Intent.NAVIGATE:
+                        ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 15})
+                    else:
+                        # For property search, fly to location at wider zoom
+                        ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 14})
         
         facts.lat = lat
         facts.lng = lng
