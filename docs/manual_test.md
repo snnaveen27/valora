@@ -158,8 +158,154 @@ This document provides comprehensive manual testing scenarios for all features i
 
 ---
 
-## 📝 Recording Results
+## 🧠 Advanced Spatial Awareness Tests
+
+### A1. Property Search with Location Context
+| Query | Expected Intent | Expected Behavior |
+|-------|-----------------|-------------------|
+| "Show me top properties in Hebbal" | PROPERTY_SEARCH | Returns properties near Hebbal with prices, geocodes location |
+| "Top properties in Manyata Tech Park" | PROPERTY_SEARCH | Returns properties near Manyata, shows on map |
+| "3BHK apartments under 1 crore in Whitefield" | PROPERTY_SEARCH | Filters by BHK and price, shows filtered results |
+| "Commercial properties for rent in Koramangala" | PROPERTY_SEARCH | Returns commercial listings |
+| "Best investment areas in Bangalore" | PROPERTY_SEARCH | Returns top areas with growth potential |
+
+### A2. Multi-Agent Coordination Tests
+| Query | Agents Involved | Expected Response |
+|-------|-----------------|-------------------|
+| "What is the flood risk and property value in this area?" | Terrain + Valuation | Combined terrain analysis + market data |
+| "Compare accessibility of Indiranagar vs Koramangala" | Spatial + Comparison | Side-by-side accessibility scores |
+| "Analyze this building and nearby amenities" | Building + Spatial | Building details + POI list |
+| "What would happen if a metro station is built near this building?" | Simulation + Spatial | Impact deltas + current spatial context |
+
+### A3. Viewport-Aware Queries
+| Query | Expected Behavior |
+|-------|-------------------|
+| "What properties are in my current view?" | Uses mapCenter to find visible properties |
+| "Summarize the buildings I'm looking at" | Analyzes buildings in current viewport |
+| "What is the average height of buildings here?" | Calculates from visible building data |
+| "Show me the tallest building in view" | Highlights tallest building in viewport |
+
+---
+
+## 💰 Valuation & Market Analysis Tests
+
+### V1. Property Valuation Queries
+| Query | Expected Response |
+|-------|-------------------|
+| "What is the price per sqft in Indiranagar?" | Returns avg price from property data |
+| "How much is this building worth?" | Estimates value based on area, height, location |
+| "Price trend in Koramangala over last year" | Returns price_trend_pct data |
+| "Demand level in Whitefield" | Returns High/Medium/Low demand index |
+
+### V2. Market Comparison Tests
+| Query | Expected Data Points |
+|-------|---------------------|
+| "Compare prices: Hebbal vs Electronic City" | Two price comparisons with % difference |
+| "Which area has better appreciation: HSR or BTM?" | Growth rates for both areas |
+| "Most affordable areas for 2BHK in Bangalore" | Sorted list by price |
+
+---
+
+## 🏙️ Digital Twin & Simulation Tests
+
+### D1. Infrastructure Impact Simulations
+| Scenario | Expected Deltas |
+|----------|-----------------|
+| "Add a metro station at current location" | Accessibility +30-40%, Property Value +20-25% |
+| "Build a highway near this area" | Accessibility +30%, Walkability -25% |
+| "Increase FAR by 2x in this zone" | Development pressure +70%, Traffic +30% |
+| "Add a tech park near Hebbal" | Amenity density +25%, Property value +15% |
+
+### D2. Storyboard Playback Tests
+- **Test**: Trigger simulation and verify camera animation
+- **Expected**: 3-5 keyframe transitions with voiceover events
+- **Verify**: `valora-narration` events dispatched to window
+
+### D3. Digital Twin State API
+```bash
+# Test commands
+curl http://localhost:8000/api/digital-twin/state
+curl http://localhost:8000/api/digital-twin/sync
+```
+Expected: JSON with infrastructure, economy, environment counts
+
+---
+
+## 🎯 Intent Classification Accuracy Tests
+
+### I1. Edge Case Queries
+| Query | Correct Intent | Common Misclassification |
+|-------|---------------|-------------------------|
+| "Show me properties in Hebbal" | PROPERTY_SEARCH | ~~NAVIGATE~~ |
+| "Top apartments near Manyata" | PROPERTY_SEARCH | ~~NAVIGATE~~ |
+| "Go to Koramangala and show apartments" | PROPERTY_SEARCH | ~~NAVIGATE~~ |
+| "Navigate to Whitefield" | NAVIGATE | — |
+| "What if metro comes to this area?" | SIMULATE | ~~GENERAL~~ |
+| "Is this area safe from floods?" | TERRAIN | ~~GENERAL~~ |
+
+### I2. Compound Queries
+| Query | Expected Handling |
+|-------|-------------------|
+| "Show me Hebbal and list top properties there" | Geocode Hebbal → Property search |
+| "Analyze terrain and suggest best building spots" | Terrain analysis → Recommendations |
+| "Compare prices and accessibility of 3 areas" | Multi-comparison with both metrics |
+
+---
+
+## � Layer Toggle Tests
+
+### L1. Buildings Layer
+- **Test**: Toggle "3D Buildings" off and on
+- **Expected**: All building polygons hide/show without page reload
+- **Verify**: `tileEntitiesRef` entities have `show` property toggled
+
+### L2. Base Map Toggle
+- **Test**: Switch between OSM and Mapbox
+- **Expected**: Imagery changes, camera position preserved
+- **Verify**: No camera jump, smooth transition
+
+### L3. Transport Layer (Pending)
+- **Status**: UI toggle exists, layer not yet implemented
+- **Future**: Should show bus stops, metro stations as markers
+
+---
+
+## 📊 Grounded Facts Verification
+
+### G1. No Hallucination Test
+For each AI response, verify:
+- [ ] All numbers match `AgentFacts` data
+- [ ] No invented property names
+- [ ] Price ranges match property JSON data
+- [ ] POI names exist in OSM data
+- [ ] Transport counts match spatial analysis
+
+### G2. Dashboard Consistency
+- **Test**: Query property info, check Analysis Panel
+- **Expected**: Dashboard cards match AI narrative exactly
+- **Fields to verify**: POI count, Transport count, Accessibility score, Avg price
+
+---
+
+## �📝 Recording Results
 For each phase, mark:
 - **PASS**: Feature works as expected.
 - **FAIL**: Error occurred or behavior is incorrect.
 - **N/A**: Data/service not available in current environment.
+
+---
+
+## 🚀 Quick Regression Test Suite
+
+Run these 10 queries in sequence to verify core functionality:
+
+1. `"Show me Indiranagar"` → NAVIGATE, map flies to location
+2. `"Top properties in Hebbal"` → PROPERTY_SEARCH, returns listings
+3. `"What is the terrain like here?"` → TERRAIN, returns elevation/flood risk
+4. `"3BHK apartments under 80 lakhs"` → PROPERTY_SEARCH with filters
+5. `"Compare Whitefield and Koramangala"` → COMPARISON with metrics
+6. `"What if a metro station is built here?"` → SIMULATE with deltas
+7. `"Analyze this area"` → ANALYZE_AREA with spatial facts
+8. `"Find cafes nearby"` → RAG search with POI results
+9. `"What is in my current view?"` → Viewport analysis
+10. `"Hello, what can you do?"` → GENERAL, capability overview

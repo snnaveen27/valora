@@ -486,3 +486,84 @@ A comprehensive data index has been created at `src/data/data_registry.json`:
 5. **Phase 3** scene context (viewport-aware reasoning)
 6. **Phase 6** (parallel) vector embeddings for semantic search
 7. **Phase 7** (parallel) geocoding + analysis benchmark suite
+
+---
+
+## Backlog: Missing Capabilities (To Implement)
+
+### Map Visualization Enhancements
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| **Transport Layer** | High | Render bus stops, metro stations as 3D markers on map |
+| **Property Markers** | High | Show property search results as clickable pins on map |
+| **Heat Maps** | Medium | Price density, accessibility score overlays |
+| **Route Visualization** | Medium | Show walking/driving routes to selected POIs |
+| **Building Clustering** | Low | Group buildings at low zoom levels for performance |
+
+### AI Agent Improvements
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| **Compound Query Parsing** | High | Handle "go to X and show Y" as two-step action |
+| **Query Disambiguation** | High | Ask clarifying questions for ambiguous locations |
+| **Conversation Memory** | Medium | Remember context across multi-turn conversations |
+| **Follow-up Suggestions** | Medium | Suggest related queries after each response |
+| **Voice Input/Output** | Low | Speech-to-text and TTS for narration |
+
+### Property Search Enhancements
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| **Filter UI Panel** | High | Visual filters for price, BHK, area, category |
+| **Property Cards** | High | Rich property cards with images in Analysis Panel |
+| **Saved Searches** | Medium | Save and recall property search queries |
+| **Price Alerts** | Low | Notify when properties match criteria |
+| **Comparison View** | Medium | Side-by-side property comparison |
+
+### Offline Mode (Critical for MVP)
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| **Local MBTiles Serving** | Critical | Serve map tiles from local MBTiles file |
+| **Tile Caching** | High | Cache online tiles for offline use |
+| **Data Sync Status** | Medium | Show last sync time and data freshness |
+| **Offline Indicator** | High | Clear UI indicator when in offline mode |
+
+### Digital Twin Enhancements
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| **Time Slider** | Medium | View city state at different time points |
+| **Scenario Comparison** | High | Compare multiple what-if scenarios side-by-side |
+| **Export Reports** | Medium | Generate PDF reports from simulations |
+| **Collaborative Editing** | Low | Multiple users annotating same digital twin |
+
+### Performance & Scale
+| Feature | Priority | Description |
+|---------|----------|-------------|
+| **Building LOD** | Medium | Level-of-detail for buildings at different zoom |
+| **Tile Streaming** | Medium | Progressive loading of 3D tiles |
+| **Query Caching** | High | Cache frequent AI queries with TTL |
+| **WebWorker Processing** | Low | Offload heavy computations to web workers |
+
+---
+
+## Implementation Notes
+
+### Transport Layer Implementation
+```javascript
+// Proposed implementation in OnlineOSMMap.jsx
+const loadTransportMarkers = async () => {
+  const response = await fetch(`${API_BASE}/api/spatial/transport`)
+  const data = await response.json()
+  data.stops.forEach(stop => {
+    viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(stop.lng, stop.lat),
+      billboard: { image: stop.type === 'metro' ? metroIcon : busIcon },
+      label: { text: stop.name }
+    })
+  })
+}
+```
+
+### Offline Tiles Strategy
+1. Generate MBTiles from OSM PBF using `tippecanoe`
+2. Serve tiles via FastAPI endpoint `/api/tiles/{z}/{x}/{y}.png`
+3. Configure Cesium to use local tile server
+4. Fallback to cached tiles when offline

@@ -29,6 +29,7 @@ def test_intent_router():
     
     print(f"\nPassed: {passed}/{len(tests)}")
     assert passed == len(tests), f"Intent router failed {len(tests) - passed} tests"
+    return True
 
 
 def test_place_extraction():
@@ -51,6 +52,7 @@ def test_place_extraction():
     
     print(f"\nPassed: {passed}/{len(tests)}")
     assert passed == len(tests), f"Place extraction failed {len(tests) - passed} tests"
+    return True
 
 
 def test_facts_context_string():
@@ -82,6 +84,7 @@ def test_facts_context_string():
     ]
     
     assert all(checks), "Facts context string missing expected elements"
+    return True
 
 
 def test_facts_dashboard():
@@ -110,6 +113,7 @@ def test_facts_dashboard():
     
     assert dashboard.get("title") == "Koramangala Analysis", "Dashboard title mismatch"
     assert market.get("demandIndex") == "High", "Dashboard demand index mismatch"
+    return True
 
 
 if __name__ == "__main__":
