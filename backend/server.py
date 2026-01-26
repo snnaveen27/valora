@@ -324,9 +324,44 @@ BANGALORE_BBOX = {
     "bounded": 1
 }
 
-# OpenRouter configuration
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.2-3b-instruct:free")
+# LLM Configuration (supports OpenRouter and Local LLM)
+LLM_CONFIG_FILE = Path(__file__).parent / 'llm_config.json'
+
+def load_llm_config():
+    """Load LLM config from file or return defaults."""
+    defaults = {
+        'provider': 'openrouter',  # 'openrouter' or 'local'
+        'openrouter_api_key': os.getenv('OPENROUTER_API_KEY', ''),
+        'openrouter_model': os.getenv('OPENROUTER_MODEL', 'meta-llama/llama-3.2-3b-instruct:free'),
+        'local_url': os.getenv('LOCAL_LLM_URL', 'http://127.0.0.1:11434/v1/chat/completions'),
+        'local_model': os.getenv('LOCAL_LLM_MODEL', 'llama3.2')
+    }
+    if LLM_CONFIG_FILE.exists():
+        try:
+            with open(LLM_CONFIG_FILE, 'r') as f:
+                saved = json.load(f)
+                defaults.update(saved)
+        except Exception as e:
+            print(f"[WARNING] Failed to load LLM config: {e}")
+    return defaults
+
+def save_llm_config(config: dict):
+    """Save LLM config to file."""
+    try:
+        with open(LLM_CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"[ERROR] Failed to save LLM config: {e}")
+        return False
+
+# Load config at startup
+llm_config = load_llm_config()
+print(f"[OK] LLM Provider: {llm_config['provider']}")
+
+# Legacy env vars for compatibility
+OPENROUTER_API_KEY = llm_config.get('openrouter_api_key') or os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = llm_config.get('openrouter_model', "meta-llama/llama-3.2-3b-instruct:free")
 OPENROUTER_MODEL_REASONING = os.getenv("OPENROUTER_MODEL_REASONING", "meta-llama/llama-3.2-3b-instruct:free")
 OPENROUTER_MODEL_VISION = os.getenv("OPENROUTER_MODEL_VISION", "qwen/qwen2.5-vl-7b-instruct:free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -1325,11 +1360,25 @@ async def chat_with_ai(request: ChatRequest):
     3. Agents collect grounded facts from real data
     4. LLM synthesizes narrative from facts (never invents data)
     5. Dashboard populated entirely from computed facts
+    
+    Supports both OpenRouter (cloud) and Local LLM (offline) providers.
     """
     import re as re_module
+    from admin_routes import get_active_llm_config
     
-    if not OPENROUTER_API_KEY:
-        raise HTTPException(status_code=503, detail="OpenRouter API key not configured")
+    # Get current LLM config
+    current_llm_config = get_active_llm_config()
+    llm_provider = current_llm_config.get('provider', 'openrouter')
+    
+    # Validate config based on provider
+    if llm_provider == 'openrouter':
+        api_key = current_llm_config.get('openrouter_api_key', '')
+        if not api_key:
+            raise HTTPException(status_code=503, detail="OpenRouter API key not configured. Go to Admin Panel > Config to set it up.")
+    else:
+        local_url = current_llm_config.get('local_url', '')
+        if not local_url:
+            raise HTTPException(status_code=503, detail="Local LLM URL not configured. Go to Admin Panel > Config to set it up.")
     
     # Extract user query
     user_query = ""
@@ -1392,26 +1441,41 @@ async def chat_with_ai(request: ChatRequest):
             "content": msg.content
         })
     
-    # Call LLM for narrative synthesis only
+    # Call LLM for narrative synthesis only (supports OpenRouter or Local LLM)
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                OPENROUTER_URL,
-                headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "HTTP-Referer": "http://localhost:3000",
-                    "X-Title": "Valora AI - GIS Intelligence"
-                },
-                json={
-                    "model": OPENROUTER_MODEL,
-                    "messages": messages_with_context,
-                    "temperature": 0.5,  # Lower temp for factual synthesis
-                    "max_tokens": 600
-                }
-            )
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            if llm_provider == 'openrouter':
+                # OpenRouter (cloud)
+                response = await client.post(
+                    OPENROUTER_URL,
+                    headers={
+                        "Authorization": f"Bearer {current_llm_config.get('openrouter_api_key', '')}",
+                        "HTTP-Referer": "http://localhost:3000",
+                        "X-Title": "Valora AI - GIS Intelligence"
+                    },
+                    json={
+                        "model": current_llm_config.get('openrouter_model', OPENROUTER_MODEL),
+                        "messages": messages_with_context,
+                        "temperature": 0.5,
+                        "max_tokens": 600
+                    }
+                )
+            else:
+                # Local LLM (offline)
+                response = await client.post(
+                    current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions'),
+                    json={
+                        "model": current_llm_config.get('local_model', 'llama3.2'),
+                        "messages": messages_with_context,
+                        "temperature": 0.5,
+                        "max_tokens": 600,
+                        "stream": False
+                    }
+                )
             
             if response.status_code != 200:
-                raise HTTPException(status_code=response.status_code, detail=f"OpenRouter API error: {response.text}")
+                provider_name = "OpenRouter" if llm_provider == 'openrouter' else "Local LLM"
+                raise HTTPException(status_code=response.status_code, detail=f"{provider_name} error: {response.text[:200]}")
             
             result = response.json()
             ai_message = result['choices'][0]['message']['content']

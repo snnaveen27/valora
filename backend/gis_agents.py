@@ -39,6 +39,28 @@ except ImportError:
     SPATIAL_INFERENCE_AVAILABLE = False
     get_inference_engine = None
 
+# Phase 2.2: Enhanced AI modules
+try:
+    from ai_context import get_ai_context, AIContextManager
+    AI_CONTEXT_AVAILABLE = True
+except ImportError:
+    AI_CONTEXT_AVAILABLE = False
+    get_ai_context = None
+
+try:
+    from spatial_3d_reasoning import get_spatial_3d_reasoning, Spatial3DAnalysis
+    SPATIAL_3D_AVAILABLE = True
+except ImportError:
+    SPATIAL_3D_AVAILABLE = False
+    get_spatial_3d_reasoning = None
+
+try:
+    from enhanced_data_service import get_enhanced_data_service, AreaInsights
+    ENHANCED_DATA_AVAILABLE = True
+except ImportError:
+    ENHANCED_DATA_AVAILABLE = False
+    get_enhanced_data_service = None
+
 
 def _parse_posted_date(value: Any) -> Optional[datetime]:
     """Parse posted_date string to datetime."""
@@ -213,6 +235,27 @@ class AgentFacts:
     investment_outlook: Optional[str] = None
     target_buyer: Optional[str] = None
     
+    # Phase 2.2: Enhanced AI capabilities
+    # Area insights from enhanced data service
+    area_livability_score: Optional[float] = None
+    area_population: Optional[int] = None
+    area_warnings: Optional[List[str]] = None
+    area_landmarks: Optional[List[str]] = None
+    area_summary: Optional[str] = None
+    
+    # True 3D spatial reasoning
+    spatial_3d_analysis: Optional[Dict[str, Any]] = None
+    sky_view_factor: Optional[float] = None
+    open_view_directions: Optional[List[str]] = None
+    skyline_character: Optional[str] = None
+    optimal_floor: Optional[int] = None
+    shadow_analysis: Optional[Dict[str, Any]] = None
+    
+    # AI self-awareness context
+    ai_capabilities_used: Optional[List[str]] = None
+    ai_confidence_factors: Optional[List[str]] = None
+    reasoning_chain: Optional[List[str]] = None
+    
     def get_confidence_warning(self) -> Optional[str]:
         """Get user-facing confidence warning if needed."""
         if self.confidence_score is None:
@@ -320,6 +363,44 @@ class AgentFacts:
         # RAG context
         if self.rag_context:
             parts.append(f"**Knowledge Base:**\n{self.rag_context}")
+        
+        # Phase 2.2: Enhanced Area Insights
+        if self.area_livability_score is not None or self.area_summary:
+            parts.append("**Area Insights:**")
+            if self.area_livability_score is not None:
+                parts.append(f"  - Livability Score: {self.area_livability_score:.0f}/100")
+            if self.area_population:
+                parts.append(f"  - Population: {self.area_population:,}")
+            if self.area_summary:
+                parts.append(f"  - Summary: {self.area_summary}")
+            if self.area_landmarks:
+                parts.append(f"  - Landmarks: {', '.join(self.area_landmarks[:5])}")
+            if self.area_warnings:
+                for warning in self.area_warnings:
+                    parts.append(f"  - {warning}")
+        
+        # Phase 2.2: 3D Spatial Reasoning
+        if self.spatial_3d_analysis or self.sky_view_factor is not None:
+            parts.append("**3D Spatial Analysis:**")
+            if self.sky_view_factor is not None:
+                parts.append(f"  - Sky View Factor: {self.sky_view_factor:.1%}")
+            if self.skyline_character:
+                parts.append(f"  - Skyline Character: {self.skyline_character}")
+            if self.open_view_directions:
+                parts.append(f"  - Open Views: {', '.join(self.open_view_directions)}")
+            if self.optimal_floor:
+                parts.append(f"  - Recommended Floor: {self.optimal_floor}")
+            if self.shadow_analysis and self.shadow_analysis.get('impact'):
+                parts.append(f"  - Shadow Impact (10am): {self.shadow_analysis['impact']}")
+            if self.reasoning_chain:
+                for reason in self.reasoning_chain[:3]:
+                    parts.append(f"  - {reason}")
+        
+        # AI Confidence Factors
+        if self.ai_confidence_factors:
+            parts.append("**Analysis Confidence:**")
+            for factor in self.ai_confidence_factors:
+                parts.append(f"  ✓ {factor}")
         
         context = "\n".join(parts) if parts else "No specific location data available."
         
@@ -772,6 +853,110 @@ class GISAgentOrchestrator:
                     )
             except Exception as e:
                 print(f"[GIS] Spatial inference error: {e}")
+        
+        # Phase 2.2: Enhanced Area Insights (gov_data, terrain, landmarks)
+        if lat and lng and ENHANCED_DATA_AVAILABLE:
+            try:
+                data_service = get_enhanced_data_service()
+                area_insights = data_service.get_area_insights(lat, lng, radius_m=1000)
+                
+                facts.area_livability_score = area_insights.livability_score
+                facts.area_population = area_insights.population
+                facts.area_warnings = area_insights.warnings
+                facts.area_landmarks = area_insights.landmarks[:5]
+                facts.area_summary = area_insights.summary
+                
+                # Enhanced flood risk from terrain
+                if area_insights.flood_risk and area_insights.flood_risk != 'unknown':
+                    facts.flood_risk = area_insights.flood_risk
+                
+                if reasoning_trace:
+                    reasoning_trace.add_step(
+                        ReasoningStep.GATHER,
+                        f"Area insights: livability={area_insights.livability_score:.0f}, warnings={len(area_insights.warnings)}",
+                        {"landmarks": area_insights.landmarks[:3]}
+                    )
+            except Exception as e:
+                print(f"[GIS] Enhanced data service error: {e}")
+        
+        # Phase 2.2: True 3D Spatial Reasoning
+        if lat and lng and SPATIAL_3D_AVAILABLE:
+            try:
+                spatial_3d = get_spatial_3d_reasoning()
+                floor_height = 0
+                
+                # If analyzing a building, use its height
+                if selected_building and selected_building.get('height'):
+                    floor_height = selected_building['height'] / 2  # Mid-floor analysis
+                
+                analysis_3d = spatial_3d.analyze_3d_context(lat, lng, floor_height, radius_m=200)
+                
+                facts.spatial_3d_analysis = {
+                    'buildings_above': len(analysis_3d.buildings_above),
+                    'buildings_below': len(analysis_3d.buildings_below),
+                    'avg_height': analysis_3d.avg_height_nearby,
+                    'max_height': analysis_3d.max_height_nearby,
+                    'density_score': analysis_3d.density_score,
+                }
+                facts.sky_view_factor = analysis_3d.sky_view_factor
+                facts.open_view_directions = analysis_3d.open_directions
+                facts.skyline_character = analysis_3d.skyline_character
+                facts.view_quality = analysis_3d.view_quality
+                
+                # Get optimal floor recommendation
+                if intent == Intent.PROPERTY_SEARCH or intent == Intent.ANALYZE_BUILDING:
+                    optimal = spatial_3d.find_best_floor(lat, lng, max_floor=15)
+                    facts.optimal_floor = optimal.get('recommended_floor')
+                
+                # Shadow analysis for morning/noon
+                shadow_10am = spatial_3d.get_shadow_impact(lat, lng, hour=10)
+                facts.shadow_analysis = shadow_10am
+                
+                facts.reasoning_chain = analysis_3d.reasoning
+                
+                if reasoning_trace:
+                    reasoning_trace.add_step(
+                        ReasoningStep.INFER,
+                        f"3D analysis: view={analysis_3d.view_quality}, sky_view={analysis_3d.sky_view_factor:.2f}",
+                        {"open_directions": analysis_3d.open_directions}
+                    )
+            except Exception as e:
+                print(f"[GIS] 3D spatial reasoning error: {e}")
+        
+        # Phase 2.2: AI Self-Learning Context
+        if AI_CONTEXT_AVAILABLE:
+            try:
+                ai_context = get_ai_context()
+                
+                # Record this query for learning
+                entities = []
+                if location_name:
+                    entities.append(location_name)
+                if parsed_spatial and hasattr(parsed_spatial, 'entities'):
+                    entities.extend([e.name for e in parsed_spatial.entities if hasattr(e, 'name')])
+                
+                ai_context.record_query(
+                    query=query,
+                    intent=intent.value if intent else 'general',
+                    entities=entities
+                )
+                
+                # Get relevant context for this query
+                relevant_context = ai_context.get_relevant_context(query)
+                facts.ai_capabilities_used = [c['name'] for c in relevant_context.get('capabilities', [])]
+                
+                # Add confidence factors
+                confidence_factors = []
+                if facts.poi_count and facts.poi_count > 10:
+                    confidence_factors.append("Rich POI data available")
+                if facts.area_landmarks:
+                    confidence_factors.append(f"{len(facts.area_landmarks)} landmarks identified")
+                if facts.spatial_3d_analysis:
+                    confidence_factors.append("3D spatial analysis complete")
+                facts.ai_confidence_factors = confidence_factors
+                
+            except Exception as e:
+                print(f"[GIS] AI context error: {e}")
         
         # Gather market facts (deterministic from property data)
         if lat and lng and self.property_service:

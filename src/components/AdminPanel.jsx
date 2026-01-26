@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { 
   X, Settings, Database, Server, Cpu, CheckCircle, XCircle, 
   RefreshCw, Play, Zap, HardDrive, Cloud, AlertTriangle,
-  Activity, BarChart3, TestTube, FileText, Loader2
+  Activity, BarChart3, TestTube, FileText, Loader2, Bot, Globe, Save
 } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -15,11 +15,21 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [testResults, setTestResults] = useState(null)
   const [runningTest, setRunningTest] = useState(false)
   const [processingStatus, setProcessingStatus] = useState(null)
+  const [llmConfig, setLlmConfig] = useState({
+    provider: 'openrouter', // 'openrouter' or 'local'
+    openrouter_api_key: '',
+    openrouter_model: 'meta-llama/llama-3.2-3b-instruct:free',
+    local_url: 'http://127.0.0.1:11434/v1/chat/completions',
+    local_model: 'llama3.2'
+  })
+  const [llmSaving, setLlmSaving] = useState(false)
+  const [llmTestResult, setLlmTestResult] = useState(null)
 
   useEffect(() => {
     if (isOpen) {
       fetchSystemStatus()
       fetchVectorBackend()
+      fetchLlmConfig()
     }
   }, [isOpen])
 
@@ -105,6 +115,56 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to trigger indexing:', err)
     }
+  }
+
+  const fetchLlmConfig = async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/admin/llm-config`)
+      if (resp.ok) {
+        const data = await resp.json()
+        setLlmConfig(prev => ({ ...prev, ...data }))
+      }
+    } catch (err) {
+      console.error('Failed to fetch LLM config:', err)
+    }
+  }
+
+  const saveLlmConfig = async () => {
+    setLlmSaving(true)
+    setLlmTestResult(null)
+    try {
+      const resp = await fetch(`${API_URL}/api/admin/llm-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(llmConfig)
+      })
+      if (resp.ok) {
+        setLlmTestResult({ success: true, message: 'Configuration saved!' })
+      } else {
+        const err = await resp.json()
+        setLlmTestResult({ success: false, message: err.detail || 'Failed to save' })
+      }
+    } catch (err) {
+      setLlmTestResult({ success: false, message: 'Failed to connect to backend' })
+    }
+    setLlmSaving(false)
+  }
+
+  const testLlmConnection = async () => {
+    setLlmSaving(true)
+    setLlmTestResult(null)
+    try {
+      const resp = await fetch(`${API_URL}/api/admin/llm-test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(llmConfig)
+      })
+      const data = await resp.json()
+      setLlmTestResult(data)
+    } catch (err) {
+      setLlmTestResult({ success: false, message: 'Failed to test connection' })
+    }
+    setLlmSaving(false)
   }
 
   if (!isOpen) return null
@@ -501,11 +561,145 @@ export default function AdminPanel({ isOpen, onClose }) {
             <div className="space-y-4">
               <h3 className="text-white font-semibold">Configuration</h3>
               
+              {/* LLM Provider Toggle */}
+              <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Bot className="w-5 h-5 text-purple-400" />
+                    <div>
+                      <h4 className="text-white font-medium">LLM Provider</h4>
+                      <p className="text-slate-400 text-xs mt-0.5">
+                        {llmConfig.provider === 'openrouter' 
+                          ? 'Using OpenRouter (cloud API)'
+                          : 'Using Local LLM (offline)'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setLlmConfig(prev => ({ ...prev, provider: 'openrouter' }))}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                        llmConfig.provider === 'openrouter'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                      }`}
+                    >
+                      <Globe className="w-4 h-4" />
+                      OpenRouter
+                    </button>
+                    <button
+                      onClick={() => setLlmConfig(prev => ({ ...prev, provider: 'local' }))}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                        llmConfig.provider === 'local'
+                          ? 'bg-green-600 text-white'
+                          : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                      }`}
+                    >
+                      <HardDrive className="w-4 h-4" />
+                      Local LLM
+                    </button>
+                  </div>
+                </div>
+
+                {/* OpenRouter Settings */}
+                {llmConfig.provider === 'openrouter' && (
+                  <div className="space-y-3 mt-4 pt-4 border-t border-slate-600">
+                    <div>
+                      <label className="text-slate-300 text-xs block mb-1">API Key</label>
+                      <input
+                        type="password"
+                        value={llmConfig.openrouter_api_key}
+                        onChange={(e) => setLlmConfig(prev => ({ ...prev, openrouter_api_key: e.target.value }))}
+                        placeholder="sk-or-..."
+                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                    <div>
+                    <label className="text-slate-300 text-xs block mb-1">Model</label>
+                    <select
+                      value={llmConfig.openrouter_model}
+                      onChange={(e) => setLlmConfig(prev => ({ ...prev, openrouter_model: e.target.value }))}
+                      className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B Instruct (Free)</option>
+                      <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash Experimental (Free)</option>
+                      <option value="google/gemma-3-27b-it:free">Gemma 3 27B (Free)</option>
+                      <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 0528 (Free)</option>
+                      <option value="qwen/qwen3-coder:free">Qwen3 Coder 480B (Free)</option>
+                      <option value="openai/gpt-oss-120b:free">GPT OSS 120B (Free)</option>
+                    </select>
+                  </div>
+                  </div>
+                )}
+
+                {/* Local LLM Settings */}
+                {llmConfig.provider === 'local' && (
+                  <div className="space-y-3 mt-4 pt-4 border-t border-slate-600">
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-3">
+                      <p className="text-green-400 text-xs">
+                        <strong>Offline Mode:</strong> Requires llama.cpp server running locally with a GGUF model.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-xs block mb-1">Server URL</label>
+                      <input
+                        type="text"
+                        value={llmConfig.local_url}
+                        onChange={(e) => setLlmConfig(prev => ({ ...prev, local_url: e.target.value }))}
+                        placeholder="http://127.0.0.1:11434/v1/chat/completions"
+                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-xs block mb-1">Model Name</label>
+                      <input
+                        type="text"
+                        value={llmConfig.local_model}
+                        onChange={(e) => setLlmConfig(prev => ({ ...prev, local_model: e.target.value }))}
+                        placeholder="llama3.2"
+                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Test Result */}
+                {llmTestResult && (
+                  <div className={`mt-4 p-3 rounded-lg text-sm ${
+                    llmTestResult.success 
+                      ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                      : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                  }`}>
+                    {llmTestResult.success ? <CheckCircle className="w-4 h-4 inline mr-2" /> : <XCircle className="w-4 h-4 inline mr-2" />}
+                    {llmTestResult.message}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 mt-4">
+                  <button
+                    onClick={testLlmConnection}
+                    disabled={llmSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition disabled:opacity-50"
+                  >
+                    {llmSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                    Test Connection
+                  </button>
+                  <button
+                    onClick={saveLlmConfig}
+                    disabled={llmSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition disabled:opacity-50"
+                  >
+                    {llmSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Configuration
+                  </button>
+                </div>
+              </div>
+
               <div className="bg-slate-700/50 rounded-lg p-4">
                 <h4 className="text-white font-medium mb-3">Environment</h4>
                 <div className="space-y-2 text-sm font-mono">
                   <ConfigRow label="PINECONE_INDEX" value="valora-realestate" />
-                  <ConfigRow label="OPENROUTER_MODEL" value="claude-3.5-sonnet" />
                   <ConfigRow label="BACKEND_URL" value="http://localhost:8000" />
                   <ConfigRow label="EMBEDDING_MODEL" value="all-MiniLM-L6-v2" />
                 </div>
@@ -516,18 +710,6 @@ export default function AdminPanel({ isOpen, onClose }) {
                 <div className="space-y-2 text-sm">
                   <ConfigRow label="TTL (minutes)" value="5" />
                   <ConfigRow label="Max Entries" value="1000" />
-                </div>
-              </div>
-
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-yellow-400 font-medium text-sm">Configuration is read-only</p>
-                    <p className="text-slate-400 text-xs mt-1">
-                      Edit .env file to change configuration, then restart the server.
-                    </p>
-                  </div>
                 </div>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, MapPin, Navigation } from 'lucide-react'
+import { Send, Bot, User, MapPin, Navigation, Settings, Cloud, HardDrive, ChevronDown, ChevronRight, Brain, Loader2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -49,6 +49,129 @@ function detectNavigationIntent(message) {
   return { isNavigation: false, placeName: null }
 }
 
+// Collapsible Thinking/Reasoning Panel Component
+function ThinkingPanel({ trace, intent, factsSummary }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  
+  const stepTypeIcons = {
+    'decompose': '🔍',
+    'verify': '✓',
+    'infer': '💡',
+    'synthesize': '🔗',
+    'validate': '✅',
+    'gather': '📊',
+    'geocode': '📍',
+    'search': '🔎'
+  }
+  
+  const confidenceColor = trace.confidence >= 80 ? 'text-green-400' : 
+                          trace.confidence >= 50 ? 'text-yellow-400' : 'text-red-400'
+  
+  return (
+    <div className="mb-3 -mt-1">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-300 transition-colors py-1 group"
+      >
+        {isExpanded ? (
+          <ChevronDown className="w-3 h-3" />
+        ) : (
+          <ChevronRight className="w-3 h-3" />
+        )}
+        <Brain className="w-3 h-3 text-purple-400" />
+        <span>Thinking</span>
+        {intent && (
+          <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded text-[10px] uppercase">
+            {intent}
+          </span>
+        )}
+        {trace.confidence > 0 && (
+          <span className={`text-[10px] ${confidenceColor}`}>
+            {trace.confidence}% confident
+          </span>
+        )}
+        <span className="text-[10px] text-slate-500">
+          ({trace.steps?.length || 0} steps)
+        </span>
+      </button>
+      
+      {isExpanded && (
+        <div className="mt-2 bg-slate-900/50 rounded-lg p-3 border border-slate-700/50 text-xs space-y-2">
+          {/* Reasoning Steps */}
+          {trace.steps && trace.steps.map((step, idx) => (
+            <div key={idx} className="flex gap-2 items-start">
+              <span className="text-base leading-none mt-0.5">
+                {stepTypeIcons[step.type] || '→'}
+              </span>
+              <div className="flex-1">
+                <span className="text-slate-300">{step.description}</span>
+                {step.data && typeof step.data === 'object' && (
+                  <div className="mt-1 text-slate-500 bg-slate-800/50 rounded px-2 py-1">
+                    {Object.entries(step.data).slice(0, 3).map(([k, v]) => (
+                      <span key={k} className="mr-2">
+                        <span className="text-slate-400">{k}:</span> {String(v).slice(0, 30)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          
+          {/* Facts Summary */}
+          {factsSummary && (
+            <div className="mt-2 pt-2 border-t border-slate-700/50">
+              <div className="text-slate-400 mb-1 flex items-center gap-1">
+                <span>📊</span> Facts Used:
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {factsSummary.location && (
+                  <span className="px-2 py-0.5 bg-slate-800 rounded text-slate-300">
+                    📍 {factsSummary.location}
+                  </span>
+                )}
+                {factsSummary.poi_count > 0 && (
+                  <span className="px-2 py-0.5 bg-slate-800 rounded text-slate-300">
+                    🏪 {factsSummary.poi_count} POIs
+                  </span>
+                )}
+                {factsSummary.active_listings > 0 && (
+                  <span className="px-2 py-0.5 bg-slate-800 rounded text-slate-300">
+                    🏠 {factsSummary.active_listings} listings
+                  </span>
+                )}
+                {factsSummary.walkability > 0 && (
+                  <span className="px-2 py-0.5 bg-slate-800 rounded text-slate-300">
+                    🚶 Walk: {factsSummary.walkability}/100
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Sources */}
+          {trace.sources && trace.sources.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-slate-700/50 text-slate-500">
+              Sources: {trace.sources.join(', ')}
+            </div>
+          )}
+          
+          {/* Warnings */}
+          {trace.warnings && trace.warnings.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-slate-700/50">
+              {trace.warnings.map((w, i) => (
+                <div key={i} className="text-yellow-400 flex items-center gap-1">
+                  <span>⚠️</span> {w}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ChatPanel({ agentData, setAgentData, fontSize = 100 }) {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: `# 🏙️ Welcome to Valora AI
@@ -89,6 +212,13 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
   const [isLoading, setIsLoading] = useState(false)
   const [backendStatus, setBackendStatus] = useState('checking')
   const [disambiguationCandidates, setDisambiguationCandidates] = useState(null) // For showing multiple location options
+  const [showModelSelector, setShowModelSelector] = useState(false)
+  const [llmConfig, setLlmConfig] = useState({
+    provider: 'local', // 'local' or 'openrouter'
+    local_model: 'llama3.2',
+    openrouter_model: 'meta-llama/llama-3.3-70b-instruct:free'
+  })
+  const [availableModels, setAvailableModels] = useState({ openrouter: [], local: [], loading: false })
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -99,7 +229,7 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
     scrollToBottom()
   }, [messages])
 
-  // Check backend health on mount
+  // Check backend health on mount and load LLM config
   useEffect(() => {
     const checkBackend = async () => {
       try {
@@ -114,8 +244,61 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
         setBackendStatus('offline')
       }
     }
+    const loadLlmConfig = async () => {
+      try {
+        const resp = await fetch(`${API_URL}/api/admin/llm-config`)
+        if (resp.ok) {
+          const data = await resp.json()
+          setLlmConfig({
+            provider: data.provider || 'local',
+            local_model: data.local_model || 'llama3.2',
+            openrouter_model: data.openrouter_model || 'meta-llama/llama-3.2-3b-instruct:free'
+          })
+        }
+      } catch {}
+    }
     checkBackend()
+    loadLlmConfig()
   }, [])
+
+  // Save LLM config when changed
+  const saveLlmConfig = async (newConfig) => {
+    setLlmConfig(newConfig)
+    try {
+      await fetch(`${API_URL}/api/admin/llm-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig)
+      })
+    } catch {}
+  }
+
+  // Fetch available models from backend (real-time check)
+  const fetchAvailableModels = async () => {
+    setAvailableModels(prev => ({ ...prev, loading: true }))
+    try {
+      const resp = await fetch(`${API_URL}/api/admin/llm-models`)
+      if (resp.ok) {
+        const data = await resp.json()
+        setAvailableModels({
+          openrouter: data.openrouter || [],
+          local: data.local || [],
+          openrouter_error: data.openrouter_error,
+          local_error: data.local_error,
+          loading: false
+        })
+      }
+    } catch {
+      setAvailableModels(prev => ({ ...prev, loading: false }))
+    }
+  }
+
+  // Fetch models when selector opens
+  useEffect(() => {
+    if (showModelSelector) {
+      fetchAvailableModels()
+    }
+  }, [showModelSelector])
 
   // Geocode using backend API
   const geocodePlace = async (query) => {
@@ -175,9 +358,15 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
           dashboard: data.dashboard || prev.dashboard,
           simulation: data.simulation || null,
           digitalTwinState: data.digital_twin_state || null,
-          credits: data.user_credits?.balance ?? prev.credits
+          credits: data.user_credits?.balance ?? prev.credits,
+          lastReasoningTrace: data.reasoning_trace || null
         }))
       }
+      
+      // Store reasoning trace for UI display
+      window.__lastReasoningTrace = data.reasoning_trace || null
+      window.__lastIntent = data.intent || null
+      window.__lastFactsSummary = data.facts_summary || null
 
       if (Array.isArray(data?.ui_actions)) {
         for (const a of data.ui_actions) {
@@ -276,7 +465,17 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
     
     // For all other queries (analysis, questions, building info, etc.), use AI
     const aiResponse = await callAI(userMessage)
-    setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }])
+    // Include reasoning trace from the last response
+    const reasoningTrace = window.__lastReasoningTrace
+    const intent = window.__lastIntent
+    const factsSummary = window.__lastFactsSummary
+    setMessages(prev => [...prev, { 
+      role: 'assistant', 
+      content: aiResponse,
+      reasoningTrace,
+      intent,
+      factsSummary
+    }])
     setIsLoading(false)
   }
 
@@ -325,11 +524,21 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
                 : 'bg-slate-800/70 text-slate-100 border border-slate-700/60'
             }`}>
               {msg.role === 'assistant' ? (
-                <div className="prose prose-invert prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-hr:my-3 prose-strong:text-slate-50">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {msg.content}
-                  </ReactMarkdown>
-                </div>
+                <>
+                  {/* Collapsible Thinking/Reasoning UI */}
+                  {msg.reasoningTrace && msg.reasoningTrace.steps && msg.reasoningTrace.steps.length > 0 && (
+                    <ThinkingPanel 
+                      trace={msg.reasoningTrace} 
+                      intent={msg.intent}
+                      factsSummary={msg.factsSummary}
+                    />
+                  )}
+                  <div className="prose prose-invert prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-hr:my-3 prose-strong:text-slate-50">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                </>
               ) : (
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               )}
@@ -400,6 +609,120 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
 
       {/* Input */}
       <div className="p-3 border-t border-slate-700">
+        {/* Model Selector */}
+        <div className="relative mb-2">
+          <button
+            onClick={() => setShowModelSelector(!showModelSelector)}
+            className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-300 transition-colors"
+          >
+            {llmConfig.provider === 'local' ? (
+              <><HardDrive className="w-3 h-3" /> Local: {llmConfig.local_model}</>
+            ) : (
+              <><Cloud className="w-3 h-3" /> Cloud: {llmConfig.openrouter_model.split('/').pop()}</>
+            )}
+            <ChevronDown className={`w-3 h-3 transition-transform ${showModelSelector ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {showModelSelector && (
+            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-xl z-50 min-w-[280px]">
+              <div className="text-xs text-slate-400 mb-2 font-medium">LLM Provider</div>
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => saveLlmConfig({ ...llmConfig, provider: 'local' })}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    llmConfig.provider === 'local'
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/50'
+                      : 'bg-slate-700 text-slate-400 border border-slate-600 hover:border-slate-500'
+                  }`}
+                >
+                  <HardDrive className="w-3.5 h-3.5" /> Local (Offline)
+                </button>
+                <button
+                  onClick={() => saveLlmConfig({ ...llmConfig, provider: 'openrouter' })}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    llmConfig.provider === 'openrouter'
+                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
+                      : 'bg-slate-700 text-slate-400 border border-slate-600 hover:border-slate-500'
+                  }`}
+                >
+                  <Cloud className="w-3.5 h-3.5" /> Cloud
+                </button>
+              </div>
+              
+              {availableModels.loading ? (
+                <div className="text-center py-3">
+                  <div className="text-xs text-slate-400">Loading available models...</div>
+                </div>
+              ) : llmConfig.provider === 'local' ? (
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">
+                    Local Model {availableModels.local.length > 0 && <span className="text-green-400">({availableModels.local.length} available)</span>}
+                  </label>
+                  {availableModels.local_error ? (
+                    <div className="text-xs text-red-400 bg-red-500/10 rounded p-2 mb-2">{availableModels.local_error}</div>
+                  ) : null}
+                  <select
+                    value={llmConfig.local_model}
+                    onChange={(e) => saveLlmConfig({ ...llmConfig, local_model: e.target.value })}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white"
+                  >
+                    {availableModels.local.length > 0 ? (
+                      availableModels.local.map(m => (
+                        <option key={m.id} value={m.id}>{m.id} {m.size ? `(${(m.size / 1e9).toFixed(1)}GB)` : ''}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="llama3.2">llama3.2 (pull with: ollama pull llama3.2)</option>
+                        <option value="llama3.1">llama3.1</option>
+                        <option value="mistral">mistral</option>
+                      </>
+                    )}
+                  </select>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    {availableModels.local.length > 0 ? '✓ Ollama connected' : 'Start Ollama to see available models'}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">
+                    Cloud Model {availableModels.openrouter.length > 0 && <span className="text-blue-400">({availableModels.openrouter.length} free)</span>}
+                  </label>
+                  {availableModels.openrouter_error ? (
+                    <div className="text-xs text-red-400 bg-red-500/10 rounded p-2 mb-2">{availableModels.openrouter_error}</div>
+                  ) : null}
+                  <select
+                    value={llmConfig.openrouter_model}
+                    onChange={(e) => saveLlmConfig({ ...llmConfig, openrouter_model: e.target.value })}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white max-h-48 overflow-y-auto"
+                  >
+                    {availableModels.openrouter.length > 0 ? (
+                      availableModels.openrouter.slice(0, 20).map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
+                        <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+                        <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 (Free)</option>
+                      </>
+                    )}
+                  </select>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    {availableModels.openrouter.length > 0 ? '✓ OpenRouter connected' : 'Add API key in Admin Panel'}
+                  </p>
+                </div>
+              )}
+              
+              <button
+                onClick={() => setShowModelSelector(false)}
+                className="w-full mt-3 text-xs text-slate-500 hover:text-slate-400"
+              >
+                Close
+              </button>
+            </div>
+          )}
+        </div>
+        
         <div className="flex gap-2">
           <input
             type="text"

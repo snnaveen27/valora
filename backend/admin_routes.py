@@ -3,16 +3,53 @@ Admin API Routes
 System management, monitoring, and configuration endpoints
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 import time
 import asyncio
+import httpx
+import json
+from pathlib import Path
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-# Global state for vector backend preference
-_vector_backend = "pinecone"  # Default to Pinecone
+# ============================================================================
+# ADMIN CONFIG (PERSISTENT SETTINGS)
+# ============================================================================
+
+ADMIN_CONFIG_FILE = Path(__file__).parent / 'admin_config.json'
+
+
+def _load_admin_config() -> dict:
+    """Load admin config from file."""
+    defaults = {
+        "vector_backend": "pinecone",
+    }
+    if ADMIN_CONFIG_FILE.exists():
+        try:
+            with open(ADMIN_CONFIG_FILE, 'r') as f:
+                saved = json.load(f)
+                if isinstance(saved, dict):
+                    defaults.update(saved)
+        except:
+            pass
+    return defaults
+
+
+def _save_admin_config(config: dict) -> bool:
+    """Save admin config to file."""
+    try:
+        with open(ADMIN_CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        return True
+    except:
+        return False
+
+
+# Global state for vector backend preference (loaded from persistent config)
+_admin_config = _load_admin_config()
+_vector_backend = _admin_config.get("vector_backend", "pinecone")
 
 # Processing jobs tracker
 _active_jobs = []
@@ -24,6 +61,14 @@ class VectorBackendRequest(BaseModel):
 
 class IndexingRequest(BaseModel):
     target: str  # "pinecone" or "faiss"
+
+
+class LLMConfigRequest(BaseModel):
+    provider: str  # "openrouter" or "local"
+    openrouter_api_key: Optional[str] = ""
+    openrouter_model: Optional[str] = "meta-llama/llama-3.2-3b-instruct:free"
+    local_url: Optional[str] = "http://127.0.0.1:11434/v1/chat/completions"
+    local_model: Optional[str] = "llama3.2"
 
 
 @router.get("/status")
@@ -192,6 +237,14 @@ async def set_vector_backend(request: VectorBackendRequest) -> Dict[str, Any]:
         return {"success": False, "error": "Invalid backend. Use 'pinecone' or 'faiss'"}
     
     _vector_backend = request.backend
+
+    # Persist setting
+    try:
+        global _admin_config
+        _admin_config["vector_backend"] = _vector_backend
+        _save_admin_config(_admin_config)
+    except:
+        pass
     
     # Update RAG service preference
     try:
@@ -414,3 +467,220 @@ def get_vector_backend_preference() -> str:
     """Get current vector backend preference for use by other modules."""
     global _vector_backend
     return _vector_backend
+
+
+# ============================================================================
+# LLM CONFIGURATION ENDPOINTS
+# ============================================================================
+
+LLM_CONFIG_FILE = Path(__file__).parent / 'llm_config.json'
+
+def _load_llm_config() -> dict:
+    """Load LLM config from file."""
+    import os
+    defaults = {
+        'provider': 'openrouter',
+        'openrouter_api_key': os.getenv('OPENROUTER_API_KEY', ''),
+        'openrouter_model': os.getenv('OPENROUTER_MODEL', 'meta-llama/llama-3.2-3b-instruct:free'),
+        'local_url': os.getenv('LOCAL_LLM_URL', 'http://127.0.0.1:11434/v1/chat/completions'),
+        'local_model': os.getenv('LOCAL_LLM_MODEL', 'llama3.2')
+    }
+    if LLM_CONFIG_FILE.exists():
+        try:
+            with open(LLM_CONFIG_FILE, 'r') as f:
+                saved = json.load(f)
+                defaults.update(saved)
+        except:
+            pass
+    return defaults
+
+def _save_llm_config(config: dict) -> bool:
+    """Save LLM config to file."""
+    try:
+        with open(LLM_CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        return True
+    except:
+        return False
+
+
+@router.get("/llm-config")
+async def get_llm_config() -> Dict[str, Any]:
+    """Get current LLM configuration."""
+    config = _load_llm_config()
+    # Mask API key for security (only show last 4 chars)
+    if config.get('openrouter_api_key'):
+        key = config['openrouter_api_key']
+        config['openrouter_api_key'] = f"...{key[-4:]}" if len(key) > 4 else "****"
+    return config
+
+
+@router.post("/llm-config")
+async def set_llm_config(request: LLMConfigRequest) -> Dict[str, Any]:
+    """Set LLM configuration."""
+    # Load existing config to preserve API key if masked
+    existing = _load_llm_config()
+    
+    config = {
+        'provider': request.provider,
+        'openrouter_model': request.openrouter_model,
+        'local_url': request.local_url,
+        'local_model': request.local_model
+    }
+    
+    # Only update API key if it's a real key (not masked)
+    incoming_key = request.openrouter_api_key
+    if incoming_key and isinstance(incoming_key, str) and incoming_key.startswith('...'):
+        incoming_key = ""
+    if incoming_key and isinstance(incoming_key, str) and incoming_key.strip():
+        config['openrouter_api_key'] = incoming_key.strip()
+    else:
+        config['openrouter_api_key'] = existing.get('openrouter_api_key', '')
+    
+    if _save_llm_config(config):
+        return {"success": True, "message": "Configuration saved"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save configuration")
+
+
+@router.get("/llm-models")
+async def get_available_llm_models() -> Dict[str, Any]:
+    """Fetch available models from OpenRouter and Ollama in real-time."""
+    result = {
+        "openrouter": [],
+        "local": [],
+        "openrouter_error": None,
+        "local_error": None
+    }
+    
+    # Load existing config for API key
+    config = _load_llm_config()
+    api_key = config.get('openrouter_api_key', '')
+    
+    # Fetch OpenRouter models (free ones)
+    if api_key:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    "https://openrouter.ai/api/v1/models",
+                    headers={"Authorization": f"Bearer {api_key}"}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    models = data.get('data', [])
+                    # Filter for free models and format them
+                    for model in models:
+                        model_id = model.get('id', '')
+                        pricing = model.get('pricing', {})
+                        prompt_price = float(pricing.get('prompt', '1') or '1')
+                        completion_price = float(pricing.get('completion', '1') or '1')
+                        # Free models have 0 pricing
+                        if prompt_price == 0 and completion_price == 0:
+                            result["openrouter"].append({
+                                "id": model_id,
+                                "name": model.get('name', model_id),
+                                "context_length": model.get('context_length', 0)
+                            })
+                else:
+                    result["openrouter_error"] = f"API error: {response.status_code}"
+        except Exception as e:
+            result["openrouter_error"] = str(e)
+    else:
+        result["openrouter_error"] = "No API key configured"
+    
+    # Fetch Ollama local models
+    local_url = config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions')
+    ollama_base = local_url.replace('/v1/chat/completions', '').replace('/v1', '')
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{ollama_base}/api/tags")
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get('models', [])
+                for model in models:
+                    result["local"].append({
+                        "id": model.get('name', '').replace(':latest', ''),
+                        "name": model.get('name', ''),
+                        "size": model.get('size', 0)
+                    })
+            else:
+                result["local_error"] = f"Ollama error: {response.status_code}"
+    except Exception as e:
+        result["local_error"] = f"Ollama not running: {str(e)}"
+    
+    return result
+
+
+@router.post("/llm-test")
+async def test_llm_connection(request: LLMConfigRequest) -> Dict[str, Any]:
+    """Test LLM connection with provided config."""
+    # Load existing config to get real API key if masked
+    existing = _load_llm_config()
+    
+    api_key = request.openrouter_api_key
+    if api_key and api_key.startswith('...'):
+        api_key = existing.get('openrouter_api_key', '')
+    
+    try:
+        if request.provider == 'openrouter':
+            # Test OpenRouter
+            if not api_key:
+                return {"success": False, "message": "OpenRouter API key not configured"}
+            
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "HTTP-Referer": "http://localhost:3000",
+                        "X-Title": "Valora AI"
+                    },
+                    json={
+                        "model": request.openrouter_model,
+                        "messages": [{"role": "user", "content": "Say 'OK' if you can hear me."}],
+                        "max_tokens": 10
+                    }
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    reply = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+                    return {"success": True, "message": f"OpenRouter connected! Model: {request.openrouter_model}. Reply: {reply[:50]}"}
+                else:
+                    return {"success": False, "message": f"OpenRouter error: {response.status_code} - {response.text[:100]}"}
+        
+        else:
+            # Test Local LLM
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    request.local_url,
+                    json={
+                        "model": request.local_model,
+                        "messages": [{"role": "user", "content": "Say 'OK' if you can hear me."}],
+                        "max_tokens": 10,
+                        "stream": False
+                    }
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    reply = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+                    return {"success": True, "message": f"Local LLM connected! Model: {request.local_model}. Reply: {reply[:50]}"}
+                else:
+                    return {"success": False, "message": f"Local LLM error: {response.status_code} - {response.text[:100]}"}
+    
+    except httpx.ConnectError:
+        if request.provider == 'local':
+            return {"success": False, "message": f"Cannot connect to {request.local_url}. Is the local LLM server running?"}
+        else:
+            return {"success": False, "message": "Cannot connect to OpenRouter. Check your internet connection."}
+    except httpx.TimeoutException:
+        return {"success": False, "message": "Connection timed out. The server might be slow or unresponsive."}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+def get_active_llm_config() -> dict:
+    """Get the active LLM config for use by other modules."""
+    return _load_llm_config()
