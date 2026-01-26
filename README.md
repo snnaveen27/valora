@@ -1252,7 +1252,209 @@ The system auto-detects Qwen VL. Once installed:
 
 ---
 
-## 📄 License
+---
+
+## � DMPE Implementation Roadmap (Dynamic Market Prediction Engine)
+
+Based on the technical specification, here's the implementation status and roadmap:
+
+### Data Ingestion Layer
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Property data ingestion | ✅ | 42,202 properties from multiple sources |
+| POI data | ✅ | 29,240 categorized points of interest |
+| Transport data | ✅ | 5,384 stops (metro/bus typed) |
+| Terrain/elevation | ✅ | 9,090 grid cells |
+| **Historical prices** | ❌ MISSING | Need time-series transaction data |
+| **Macro indicators** | ❌ MISSING | Interest rates, GDP, inflation |
+| **Rental data** | ❌ MISSING | Rental yields, vacancy rates |
+
+### Feature Engineering
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Price per sqft | ✅ | Computed for all properties |
+| Location scores | ✅ | Accessibility, walkability |
+| Amenity counts | ✅ | POI density by category |
+| Metro proximity | ✅ | Distance to nearest station |
+| **Lagged prices** | ❌ | Need historical data |
+| **Rolling averages** | ❌ | Need time-series |
+| **Affordability ratios** | ❌ | Need income data |
+
+### Model Training
+| Model | Status | Notes |
+|-------|--------|-------|
+| XGBoost valuation | ✅ | Basic model trained |
+| Prophet forecasting | 🔶 | Architecture ready |
+| LSTM time-series | ❌ | Need historical data |
+| Ensemble methods | ❌ | Future phase |
+
+### Prediction Serving
+| Component | Status | Notes |
+|-----------|--------|-------|
+| REST API | ✅ | FastAPI endpoints |
+| Confidence intervals | ✅ | Built into prediction schema |
+| Scenario simulation | ✅ | What-if infrastructure |
+| Batch predictions | 🔶 | Partial |
+
+### Explainability
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Key drivers | ✅ | Causal reasoning chains |
+| SHAP integration | 🔶 | Architecture ready |
+| Feature importance | ✅ | Built into responses |
+
+---
+
+## 📊 Data Gaps & Future Data Requirements
+
+### Critical Data Needed (High Priority)
+
+| Data Type | Purpose | Source Options |
+|-----------|---------|----------------|
+| **Historical Transaction Prices** | Time-series forecasting, trend analysis | Property registrar data, portal partnerships |
+| **Rental Market Data** | Yield calculations, rental predictions | NoBroker API, rental portals |
+| **Macro Economic Indicators** | Market cycle detection | RBI data, FRED India |
+| **Census Demographics** | Population projections, demand modeling | Census India |
+| **Infrastructure Projects** | Future impact modeling | BBMP, BMRCL announcements |
+
+### Medium Priority Data
+
+| Data Type | Purpose | Current Workaround |
+|-----------|---------|-------------------|
+| Traffic patterns | Commute time predictions | Time-based heuristics |
+| School ratings | Family area scoring | Category presence only |
+| Crime statistics | Safety scoring | Not available |
+| Air quality index | Livability scoring | Not available |
+| Construction permits | Supply forecasting | Building data only |
+
+### Nice-to-Have Data
+
+| Data Type | Purpose |
+|-----------|---------|
+| Social media sentiment | Neighborhood perception |
+| Google search trends | Demand indicators |
+| Satellite imagery | Development tracking |
+| Interior floor plans | Property twin creation |
+
+---
+
+## 🎯 Next Steps: Intelligence-First Platform
+
+### Immediate (Q1 2026)
+1. [ ] **Integrate historical price data** - Partner with portals or scrape registrar
+2. [ ] **Add SHAP explainability** - Show feature contributions in UI
+3. [ ] **Expand locality profiles** - Add 50+ Bangalore localities
+4. [ ] **Broker pilot program** - Onboard 100 test users
+
+### Short-Term (Q2 2026)
+1. [ ] **DMPE full implementation** - Time-series forecasting
+2. [ ] **Mobile app** - React Native version
+3. [ ] **Mumbai expansion** - Add second city
+4. [ ] **Virtual staging** - Qwen VL for image generation
+
+### Medium-Term (Q3-Q4 2026)
+1. [ ] **Bank API integration** - Valuation service for lenders
+2. [ ] **AR/VR tours** - Immersive property viewing
+3. [ ] **NRI marketing** - International user acquisition
+4. [ ] **Series A preparation** - Metrics and deck
+
+---
+
+## 🏗️ City Intelligence Engine (Implemented Jan 2026)
+
+New cognitive architecture for urban analytics:
+
+```
+backend/city_intelligence/
+├── __init__.py                 # Package exports
+├── locality_personality.py     # Area profiling (10 archetypes)
+├── evolution_timeline.py       # Historical tracking (1882-present)
+├── risk_indexes.py            # Hazard, infrastructure, speculation
+├── knowledge_graph.py         # Urban ontology (entities + relationships)
+├── causal_reasoning.py        # Infrastructure → Impact chains
+└── prediction_schema.py       # Calibrated forecasts with CI
+```
+
+### Architecture Layers
+
+| Layer | Module | Purpose |
+|-------|--------|---------|
+| **Knowledge** | `knowledge_graph.py` | Urban ontology, entity relationships |
+| **Reasoning** | `causal_reasoning.py`, `risk_indexes.py` | Cause-effect, risk assessment |
+| **Narrative** | `prediction_schema.py` | LLM-ready output formats |
+| **Memory** | `ai_context.py` | Self-learning, query patterns |
+
+### Locality Profiles Available
+
+| Locality | Archetype | Growth Stage | Key Characteristics |
+|----------|-----------|--------------|---------------------|
+| Whitefield | tech_hub | mature | IT corridor, expat hub |
+| Koramangala | mixed_use | mature | Startup capital, nightlife |
+| Indiranagar | premium_residential | mature | Boutiques, fine dining |
+| HSR Layout | family_residential | maturing | Planned layout, lakes |
+| Sarjapur Road | emerging | growing | Rapid development, IT |
+| Electronic City | tech_hub | mature | IT giants, expressway |
+| Jayanagar | family_residential | mature | Traditional, South Indian |
+| JP Nagar | family_residential | mature | Wide roads, hospitals |
+| Hebbal | transit_oriented | growing | Lake, airport access |
+| Marathahalli | mixed_use | maturing | ORR junction, PGs |
+
+### Risk Index Categories
+
+| Category | Components | Output |
+|----------|------------|--------|
+| **Hazard Risk** | Flood, heat, waterlogging, air quality | 0-100 composite |
+| **Infrastructure Stress** | Road, water, power, sewage, transport | 0-100 composite |
+| **Social Vulnerability** | Income, housing, healthcare, education | 0-100 composite |
+| **Market Speculation** | Volatility, price-income ratio, momentum | Bubble probability |
+| **Policy Risk** | Zoning, litigation, approvals | 0-100 composite |
+
+### Causal Rules Implemented
+
+| Cause | Effects | Confidence |
+|-------|---------|------------|
+| New Metro Station | +Property values, -Traffic, +Commercial | 85% |
+| Road Widening | +Short-term relief, +Induced demand | 75% |
+| IT Park | +Employment, +Prices, -Infrastructure | 85% |
+| Flood Risk Area | -Property values, +Insurance costs | 80% |
+| Population Surge | +Demand, -Infrastructure capacity | 80% |
+| Zoning Change | +Land value, -Residential character | 75% |
+
+---
+
+## 📈 AI Self-Awareness System
+
+The platform now knows itself:
+
+```python
+from ai_context import get_ai_context
+ctx = get_ai_context()
+print(ctx.get_self_description())
+
+# Output:
+# I am Valora AI with:
+# - 42,202 property listings
+# - 1,372,740 3D building models
+# - 8 capabilities with accuracy ratings
+# - Learning from 150+ query patterns
+```
+
+### Capabilities Tracked
+
+| Capability | Accuracy | Use Cases |
+|------------|----------|-----------|
+| Property Search | 90% | Natural language to listings |
+| 3D Building Analysis | 85% | Height, shadow, view |
+| Spatial Reasoning | 88% | Distance, accessibility |
+| Price Prediction | 75% | Valuation, forecasting |
+| What-If Simulation | 70% | Infrastructure impacts |
+| Area Analysis | 85% | Livability, amenities |
+| Terrain Analysis | 80% | Flood risk, elevation |
+| Visual Analysis | 70% | Image understanding |
+
+---
+
+## �📄 License
 
 Proprietary - All rights reserved
 
@@ -1261,3 +1463,11 @@ Proprietary - All rights reserved
 ## 👥 Contact
 
 For support or inquiries, contact the development team.
+
+---
+
+## 📚 Related Documents
+
+- [INVESTOR_PITCH.md](./INVESTOR_PITCH.md) - Investor deck and funding ask
+- [DATABASE_OPPORTUNITIES.md](./DATABASE_OPPORTUNITIES.md) - Data utilization analysis
+- [backend/city_intelligence/](./backend/city_intelligence/) - City Intelligence Engine modules
