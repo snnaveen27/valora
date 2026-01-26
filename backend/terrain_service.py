@@ -1,111 +1,138 @@
 """
 Terrain Service - Provides elevation and terrain analysis data
+Uses DATABASE as primary source (terrain_grid table)
 """
 
 import json
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-import numpy as np
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 class TerrainService:
     def __init__(self, terrain_dir: Path):
         self.terrain_dir = terrain_dir
-        self.index_file = terrain_dir / 'elevation_index.json'
-        self.index_data = None
-        self.tiles = []
+        self.db = None
         self.loaded = False
+        self._init_db()
         
-    def load_index(self):
-        """Load terrain tile index"""
-        if self.loaded:
-            return
+    def _init_db(self):
+        """Initialize database connection"""
+        try:
+            # Try both import paths (running from project root vs backend dir)
+            try:
+                from backend.database.db_service import DatabaseService
+            except ImportError:
+                from database.db_service import DatabaseService
+            db_path = self.terrain_dir.parent / 'valora.db'
+            self.db = DatabaseService(str(db_path))
             
-        if not self.index_file.exists():
-            print(f"[WARNING]  Terrain index not found: {self.index_file}")
-            return
-            
-        with open(self.index_file, 'r') as f:
-            self.index_data = json.load(f)
-            self.tiles = self.index_data.get('tiles', [])
-        
-        print(f"[OK] Loaded terrain index: {len(self.tiles)} tiles")
-        print(f"   Elevation range: {self.index_data['stats']['min_elevation']:.1f}m - {self.index_data['stats']['max_elevation']:.1f}m")
-        
-        self.loaded = True
+            # Check if terrain_grid table exists
+            result = self.db.execute("SELECT COUNT(*) as cnt FROM terrain_grid")
+            count = result[0]['cnt'] if result else 0
+            if count > 0:
+                print(f"[OK] Terrain service using database ({count:,} grid cells)")
+                self.loaded = True
+            else:
+                print("[WARNING] terrain_grid table empty, terrain analysis limited")
+        except Exception as e:
+            print(f"[WARNING] Database not available for terrain: {e}")
+            self.db = None
     
-    def get_tile_for_location(self, lat: float, lng: float) -> Optional[Dict]:
-        """Find the tile containing the given location"""
-        self.load_index()
+    def _get_nearest_grid_cell(self, lat: float, lng: float) -> Optional[Dict]:
+        """Get nearest terrain grid cell from database"""
+        if not self.db:
+            return None
         
-        for tile in self.tiles:
-            bounds = tile['bounds']
-            if (bounds['west'] <= lng <= bounds['east'] and
-                bounds['south'] <= lat <= bounds['north']):
-                return tile
+        # Query nearest grid cell (within ~1km)
+        result = self.db.execute("""
+            SELECT grid_id, center_lat, center_lng, elevation_m, slope_deg, 
+                   aspect_deg, flood_risk, terrain_type, suitability_score
+            FROM terrain_grid
+            WHERE center_lat BETWEEN ? AND ?
+              AND center_lng BETWEEN ? AND ?
+            ORDER BY ABS(center_lat - ?) + ABS(center_lng - ?)
+            LIMIT 1
+        """, (lat - 0.01, lat + 0.01, lng - 0.01, lng + 0.01, lat, lng))
         
-        return None
+        return result[0] if result else None
     
     def get_elevation(self, lat: float, lng: float) -> Optional[Dict]:
-        """Get elevation data for a specific location"""
-        tile = self.get_tile_for_location(lat, lng)
+        """Get elevation data for a specific location from database"""
+        cell = self._get_nearest_grid_cell(lat, lng)
         
-        if not tile:
+        if not cell:
             return None
         
         return {
             'lat': lat,
             'lng': lng,
-            'elevation': tile['elevation']['mean'],  # Approximate with tile mean
+            'elevation': cell.get('elevation_m', 920),
             'elevation_range': {
-                'min': tile['elevation']['min'],
-                'max': tile['elevation']['max']
+                'min': cell.get('elevation_m', 920) - 20,
+                'max': cell.get('elevation_m', 920) + 20
             },
-            'slope': tile['slope']['mean'],
+            'slope': cell.get('slope_deg', 3),
             'slope_range': {
-                'min': tile['slope']['min'],
-                'max': tile['slope']['max']
+                'min': max(0, cell.get('slope_deg', 3) - 2),
+                'max': cell.get('slope_deg', 3) + 2
             },
-            'tile_id': tile['tile_id']
+            'grid_id': cell.get('grid_id')
         }
     
     def get_terrain_analysis(self, lat: float, lng: float, radius_deg: float = 0.01) -> Optional[Dict]:
-        """Get terrain analysis for an area around a location"""
-        self.load_index()
+        """Get terrain analysis for an area around a location from database"""
+        if not self.db:
+            return None
         
-        # Find all tiles within radius
-        nearby_tiles = []
-        for tile in self.tiles:
-            center = tile['center']
-            dist = ((center['lat'] - lat)**2 + (center['lng'] - lng)**2)**0.5
-            if dist <= radius_deg * 1.5:  # Include tiles within 1.5x radius
-                nearby_tiles.append(tile)
+        # Query all grid cells within radius
+        result = self.db.execute("""
+            SELECT elevation_m, slope_deg, flood_risk, terrain_type, suitability_score
+            FROM terrain_grid
+            WHERE center_lat BETWEEN ? AND ?
+              AND center_lng BETWEEN ? AND ?
+        """, (lat - radius_deg, lat + radius_deg, lng - radius_deg, lng + radius_deg))
         
-        if not nearby_tiles:
+        if not result:
             return None
         
         # Aggregate statistics
-        elevations = [t['elevation']['mean'] for t in nearby_tiles]
-        slopes = [t['slope']['mean'] for t in nearby_tiles]
+        elevations = [r['elevation_m'] for r in result if r.get('elevation_m')]
+        slopes = [r['slope_deg'] for r in result if r.get('slope_deg')]
+        flood_risks = [r['flood_risk'] for r in result]
+        suitabilities = [r['suitability_score'] for r in result if r.get('suitability_score')]
+        
+        if not elevations:
+            return None
+        
+        # Calculate stats
+        elev_mean = sum(elevations) / len(elevations)
+        slope_mean = sum(slopes) / len(slopes) if slopes else 3.0
+        suit_mean = sum(suitabilities) / len(suitabilities) if suitabilities else 70.0
+        
+        # Determine dominant flood risk
+        risk_counts = {}
+        for r in flood_risks:
+            risk_counts[r] = risk_counts.get(r, 0) + 1
+        dominant_risk = max(risk_counts, key=risk_counts.get) if risk_counts else 'unknown'
         
         analysis = {
             'location': {'lat': lat, 'lng': lng},
             'radius_deg': radius_deg,
-            'tiles_analyzed': len(nearby_tiles),
-            'elevation': {
-                'min': min(t['elevation']['min'] for t in nearby_tiles),
-                'max': max(t['elevation']['max'] for t in nearby_tiles),
-                'mean': np.mean(elevations),
-                'std': np.std(elevations),
-                'range': max(t['elevation']['max'] for t in nearby_tiles) - min(t['elevation']['min'] for t in nearby_tiles)
-            },
-            'slope': {
-                'min': min(t['slope']['min'] for t in nearby_tiles),
-                'max': max(t['slope']['max'] for t in nearby_tiles),
-                'mean': np.mean(slopes),
-                'std': np.std(slopes)
-            },
-            'terrain_classification': self._classify_terrain(np.mean(slopes)),
-            'construction_suitability': self._assess_construction_suitability(np.mean(slopes), np.std(elevations))
+            'cells_analyzed': len(result),
+            'elevation_mean': round(elev_mean, 1),
+            'elevation_min': min(elevations),
+            'elevation_max': max(elevations),
+            'slope_mean': round(slope_mean, 1),
+            'slope_min': min(slopes) if slopes else 0,
+            'slope_max': max(slopes) if slopes else 10,
+            'flood_risk': dominant_risk,
+            'suitability_score': round(suit_mean, 1),
+            'terrain_classification': self._classify_terrain(slope_mean),
+            'construction_suitability': self._assess_construction_suitability(slope_mean, max(elevations) - min(elevations) if len(elevations) > 1 else 0)
         }
         
         return analysis
@@ -158,15 +185,37 @@ class TerrainService:
         }
     
     def get_stats(self) -> Dict:
-        """Get overall terrain statistics"""
-        self.load_index()
+        """Get overall terrain statistics from database"""
+        if not self.db:
+            return {'loaded': False}
         
-        if not self.index_data:
-            return {}
-        
-        return {
-            'loaded': self.loaded,
-            'tile_count': len(self.tiles),
-            'stats': self.index_data.get('stats', {}),
-            'coverage': self.index_data['stats'].get('bounds', {})
-        }
+        try:
+            result = self.db.execute("""
+                SELECT 
+                    COUNT(*) as cell_count,
+                    AVG(elevation_m) as avg_elevation,
+                    MIN(elevation_m) as min_elevation,
+                    MAX(elevation_m) as max_elevation,
+                    AVG(slope_deg) as avg_slope,
+                    AVG(suitability_score) as avg_suitability
+                FROM terrain_grid
+            """)
+            
+            if not result:
+                return {'loaded': False}
+            
+            stats = result[0]
+            return {
+                'loaded': self.loaded,
+                'cell_count': stats.get('cell_count', 0),
+                'elevation': {
+                    'min': round(stats.get('min_elevation', 850), 1),
+                    'max': round(stats.get('max_elevation', 980), 1),
+                    'avg': round(stats.get('avg_elevation', 920), 1)
+                },
+                'slope_avg': round(stats.get('avg_slope', 3), 1),
+                'suitability_avg': round(stats.get('avg_suitability', 70), 1),
+                'source': 'database'
+            }
+        except Exception as e:
+            return {'loaded': False, 'error': str(e)}

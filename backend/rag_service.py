@@ -17,6 +17,22 @@ from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 import numpy as np
 
+# Import caching
+try:
+    from query_cache import get_rag_cache
+    CACHE_AVAILABLE = True
+except ImportError:
+    CACHE_AVAILABLE = False
+    get_rag_cache = None
+
+# Import FAISS fallback
+try:
+    from local_vector_store import get_local_store
+    FAISS_AVAILABLE = True
+except ImportError:
+    FAISS_AVAILABLE = False
+    get_local_store = None
+
 # Pinecone and embeddings
 try:
     from pinecone import Pinecone, ServerlessSpec
@@ -52,16 +68,37 @@ class RAGService:
     
     def __init__(self, data_dir: Path):
         self.data_dir = data_dir
+        self.dimension = 384  # all-MiniLM-L6-v2 dimension
+        self.index_name = os.getenv("PINECONE_INDEX", "valora-realestate")
+        
+        # Initialize embedding model
         self.embedding_model = None
+        self._init_embedding_model()
+        
+        # Initialize Pinecone
         self.pc = None
         self.index = None
-        self.index_name = os.getenv("PINECONE_INDEX", "valora-spatial")
-        self.dimension = 384  # all-MiniLM-L6-v2 dimension
-        
-        self._init_embeddings()
         self._init_pinecone()
+        
+        # Initialize cache
+        self.cache = None
+        if CACHE_AVAILABLE:
+            try:
+                self.cache = get_rag_cache()
+                print("[OK] RAG caching enabled")
+            except Exception as e:
+                print(f"[INFO] RAG caching not available: {e}")
+        
+        # Initialize FAISS fallback
+        self.local_store = None
+        if FAISS_AVAILABLE:
+            try:
+                self.local_store = get_local_store(data_dir)
+                print("[OK] FAISS fallback available")
+            except Exception as e:
+                print(f"[INFO] FAISS fallback not available: {e}")
     
-    def _init_embeddings(self):
+    def _init_embedding_model(self):
         """Initialize the embedding model."""
         if EMBEDDINGS_AVAILABLE:
             try:
@@ -154,40 +191,88 @@ class RAGService:
         top_k: int = 10,
         namespace: str = "",
         filter_dict: Optional[Dict] = None,
-        include_metadata: bool = True
+        include_metadata: bool = True,
+        use_cache: bool = True,
+        use_fallback: bool = True
     ) -> List[SearchResult]:
-        """Search for similar vectors."""
-        if self.index is None:
-            return []
+        """Search for similar vectors with caching and FAISS fallback."""
+        # Check cache first
+        if use_cache and self.cache:
+            cached = self.cache.get(query, namespace=namespace, top_k=top_k)
+            if cached is not None:
+                return cached
         
-        try:
-            query_embedding = self.embed_single(query)
-            
-            results = self.index.query(
-                vector=query_embedding,
-                top_k=top_k,
-                namespace=namespace,
-                filter=filter_dict,
-                include_metadata=include_metadata
-            )
-            
-            search_results = []
-            for match in results.matches:
-                metadata = match.metadata or {}
-                search_results.append(SearchResult(
-                    id=match.id,
-                    score=match.score,
-                    text=metadata.get("text", ""),
-                    metadata=metadata,
-                    lat=metadata.get("lat"),
-                    lng=metadata.get("lng")
-                ))
-            
-            return search_results
-            
-        except Exception as e:
-            print(f"[ERROR] Search failed: {e}")
-            return []
+        # Try Pinecone first
+        if self.index is not None:
+            try:
+                query_embedding = self.embed_single(query)
+                
+                results = self.index.query(
+                    vector=query_embedding,
+                    top_k=top_k,
+                    namespace=namespace,
+                    filter=filter_dict,
+                    include_metadata=include_metadata
+                )
+                
+                search_results = []
+                for match in results.matches:
+                    metadata = match.metadata or {}
+                    search_results.append(SearchResult(
+                        id=match.id,
+                        score=match.score,
+                        text=metadata.get("text", ""),
+                        metadata=metadata,
+                        lat=metadata.get("lat"),
+                        lng=metadata.get("lng")
+                    ))
+                
+                # Cache the results
+                if use_cache and self.cache:
+                    self.cache.set(query, search_results, namespace=namespace, top_k=top_k)
+                
+                return search_results
+                
+            except Exception as e:
+                print(f"[WARNING] Pinecone search failed: {e}")
+                if not use_fallback or not self.local_store:
+                    return []
+        
+        # Fallback to FAISS if Pinecone unavailable or failed
+        if use_fallback and self.local_store:
+            print("[INFO] Using FAISS fallback for search")
+            try:
+                query_embedding = self.embed_single(query)
+                local_results = self.local_store.search(
+                    query_embedding,
+                    top_k=top_k,
+                    namespace=namespace or "default",
+                    filter_dict=filter_dict
+                )
+                
+                # Convert to SearchResult format
+                search_results = [
+                    SearchResult(
+                        id=r.id,
+                        score=r.score,
+                        text=r.text,
+                        metadata=r.metadata,
+                        lat=r.lat,
+                        lng=r.lng
+                    )
+                    for r in local_results
+                ]
+                
+                # Cache the results
+                if use_cache and self.cache:
+                    self.cache.set(query, search_results, namespace=namespace, top_k=top_k)
+                
+                return search_results
+            except Exception as e:
+                print(f"[ERROR] FAISS fallback search failed: {e}")
+                return []
+        
+        return []
     
     def delete_all(self, namespace: str = ""):
         """Delete all vectors in a namespace."""

@@ -51,7 +51,39 @@ function detectNavigationIntent(message) {
 
 export default function ChatPanel({ agentData, setAgentData, fontSize = 100 }) {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: '# Welcome to Valora AI\n\nI\'m your GIS assistant for Bangalore.\n\n## What you can do\n- **Navigate** to any location (neighborhoods, landmarks, metro/bus stops)\n- **Analyze** buildings (click on the map)\n- **Explore** POIs, transport, and amenities\n- **Get** area insights from real OSM + terrain data\n\n## Try\n- "Show me Tin Factory"\n- "Show me Airport"\n- "Show me Hebbal"\n- Click any building, then ask: "Tell me about this area"\n\nTip: If a search has multiple matches, I\'ll show you options to choose from.' }
+    { role: 'assistant', content: `# 🏙️ Welcome to Valora AI
+
+Your intelligent city assistant for **Bangalore real estate & urban intelligence**.
+
+---
+
+## 🎯 What I Can Do
+
+### 🗺️ Navigation & Exploration
+- **"Go to Koramangala"** — Fly to any neighborhood
+- **"Show me Hebbal Lake"** — Navigate to landmarks
+- **"Where is Indiranagar Metro?"** — Find transport stops
+
+### 🏢 Property Intelligence
+- **"Find 3BHK apartments in Whitefield under 1.5Cr"**
+- **"Compare properties in HSR Layout vs BTM"**
+- **"What's the price trend in Electronic City?"**
+
+### 📊 Area Analysis
+- **Click any building** on the map for instant analysis
+- **"Analyze this area"** — Get walkability, POIs, transport scores
+- **"What's nearby?"** — Discover amenities around you
+
+### 🔮 Simulations
+- **"What if a metro station opens near Sarjapur?"**
+- **"Simulate infrastructure impact on property values"**
+
+---
+
+## 🚀 Quick Start
+Try: **"Show me the best areas for investment"** or click anywhere on the map!
+
+*Powered by local data — works completely offline* ✨` }
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -159,6 +191,11 @@ export default function ChatPanel({ agentData, setAgentData, fontSize = 100 }) {
           }
 
           if (a.action === 'switchTab' || a.action === 'openPanel' || a.action === 'closePanel') {
+            window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: a }))
+          }
+          
+          // Map Sync: Dispatch highlightProperties to map
+          if (a.action === 'highlightProperties' && a.properties) {
             window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: a }))
           }
         }

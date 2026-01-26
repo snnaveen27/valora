@@ -92,8 +92,50 @@ class PropertyValuationModel:
         self.model_dir.mkdir(parents=True, exist_ok=True)
     
     def _load_spatial_data(self):
-        """Load POIs and transport data for spatial feature computation."""
-        # Load POIs
+        """Load POIs and transport data from DATABASE for spatial feature computation."""
+        try:
+            try:
+                from backend.database.query_service import get_query_service
+            except ImportError:
+                from database.query_service import get_query_service
+            db = get_query_service()
+            
+            # Load POIs from database
+            pois_data = db.get_all_pois()
+            for poi in pois_data:
+                if poi.get('lat') and poi.get('lng'):
+                    self.pois.append({
+                        'name': poi.get('name', ''),
+                        'amenity': poi.get('category', ''),
+                        'shop': poi.get('subcategory', ''),
+                        'lat': poi['lat'],
+                        'lng': poi['lng']
+                    })
+            print(f"[OK] Loaded {len(self.pois)} POIs from DB for spatial features")
+            
+            # Load transport from database
+            transport_data = db.get_all_transport()
+            for t in transport_data:
+                if t.get('lat') and t.get('lng'):
+                    t_type = t.get('type', '')
+                    t_name = t.get('name', '')
+                    entry = {
+                        'name': t_name,
+                        'type': t_type,
+                        'lat': t['lat'],
+                        'lng': t['lng']
+                    }
+                    self.transport.append(entry)
+                    if 'metro' in t_type.lower() or 'metro' in t_name.lower():
+                        self.metro_stations.append(entry)
+            print(f"[OK] Loaded {len(self.transport)} transport from DB ({len(self.metro_stations)} metro)")
+            
+        except Exception as e:
+            print(f"[WARNING] Database not available, falling back to files: {e}")
+            self._load_spatial_data_from_files()
+    
+    def _load_spatial_data_from_files(self):
+        """Fallback: Load POIs and transport from GeoJSON files."""
         pois_file = self.osm_dir / 'pois.geojson'
         if pois_file.exists():
             try:
@@ -101,21 +143,13 @@ class PropertyValuationModel:
                     data = json.load(f)
                 for feat in data.get('features', []):
                     props = feat.get('properties', {})
-                    geom = feat.get('geometry', {})
-                    coords = geom.get('coordinates', [])
+                    coords = feat.get('geometry', {}).get('coordinates', [])
                     if len(coords) >= 2:
-                        self.pois.append({
-                            'name': props.get('name', ''),
-                            'amenity': props.get('amenity', ''),
-                            'shop': props.get('shop', ''),
-                            'lat': coords[1],
-                            'lng': coords[0]
-                        })
-                print(f"[OK] Loaded {len(self.pois)} POIs for spatial features")
+                        self.pois.append({'name': props.get('name', ''), 'amenity': props.get('amenity', ''),
+                                          'lat': coords[1], 'lng': coords[0]})
             except Exception as e:
-                print(f"[WARNING]  Error loading POIs: {e}")
+                print(f"[WARNING] Error loading POIs from file: {e}")
         
-        # Load transport
         transport_file = self.osm_dir / 'transport.geojson'
         if transport_file.exists():
             try:
@@ -123,23 +157,16 @@ class PropertyValuationModel:
                     data = json.load(f)
                 for feat in data.get('features', []):
                     props = feat.get('properties', {})
-                    geom = feat.get('geometry', {})
-                    coords = geom.get('coordinates', [])
+                    coords = feat.get('geometry', {}).get('coordinates', [])
                     if len(coords) >= 2:
                         t_type = props.get('railway', '') or props.get('highway', '') or ''
                         t_name = props.get('name', '') or ''
-                        entry = {
-                            'name': t_name,
-                            'type': t_type,
-                            'lat': coords[1],
-                            'lng': coords[0]
-                        }
+                        entry = {'name': t_name, 'type': t_type, 'lat': coords[1], 'lng': coords[0]}
                         self.transport.append(entry)
                         if 'metro' in t_type.lower() or 'metro' in t_name.lower():
                             self.metro_stations.append(entry)
-                print(f"[OK] Loaded {len(self.transport)} transport stops ({len(self.metro_stations)} metro)")
             except Exception as e:
-                print(f"[WARNING]  Error loading transport: {e}")
+                print(f"[WARNING] Error loading transport from file: {e}")
     
     def _haversine(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         """Calculate distance in km between two points."""

@@ -109,13 +109,77 @@ class LocalGeocoder:
         ]
         
     def load_data(self):
-        """Load all searchable OSM data"""
+        """Load all searchable data from DATABASE"""
         if self.loaded:
             return
             
-        print("📍 Loading local geocoder data...")
+        print("[INFO] Loading local geocoder data from database...")
         
-        # Load places (neighborhoods, suburbs, localities)
+        try:
+            try:
+                from backend.database.query_service import get_query_service
+            except ImportError:
+                from database.query_service import get_query_service
+            db = get_query_service()
+            
+            # Load places from database
+            places_data = db.get_all_places()
+            for p in places_data:
+                if p.get('name') and p.get('lat') and p.get('lng'):
+                    self.places.append({
+                        'name': p['name'],
+                        'type': p.get('type', 'place'),
+                        'lat': p['lat'],
+                        'lng': p['lng'],
+                        'tags': {},
+                        'source': 'places'
+                    })
+            print(f"  [OK] Loaded {len(self.places)} places from DB")
+            
+            # Load transport from database
+            transport_data = db.get_all_transport()
+            seen_names = set()
+            for t in transport_data:
+                name = t.get('name')
+                if name and t.get('lat') and t.get('lng'):
+                    name_key = name.lower()
+                    if name_key not in seen_names:
+                        seen_names.add(name_key)
+                        self.transport.append({
+                            'name': name,
+                            'type': t.get('type', 'transport'),
+                            'lat': t['lat'],
+                            'lng': t['lng'],
+                            'tags': {},
+                            'source': 'transport'
+                        })
+            print(f"  [OK] Loaded {len(self.transport)} transport stops from DB")
+            
+            # Load POIs from database
+            pois_data = db.get_all_pois()
+            for poi in pois_data:
+                name = poi.get('name')
+                if name and poi.get('lat') and poi.get('lng'):
+                    self.pois.append({
+                        'name': name,
+                        'type': poi.get('subcategory') or poi.get('category') or 'poi',
+                        'lat': poi['lat'],
+                        'lng': poi['lng'],
+                        'tags': {},
+                        'source': 'pois'
+                    })
+            print(f"  [OK] Loaded {len(self.pois)} POIs from DB")
+            
+        except Exception as e:
+            print(f"[WARNING] Database not available, falling back to files: {e}")
+            self._load_from_files()
+        
+        self.loaded = True
+        total = len(self.places) + len(self.transport) + len(self.pois)
+        print(f"[OK] Local geocoder ready: {total} searchable locations")
+    
+    def _load_from_files(self):
+        """Fallback: Load from GeoJSON files"""
         places_file = self.derived_dir / 'places.geojson'
         if places_file.exists():
             with open(places_file, 'r', encoding='utf-8') as f:
@@ -125,55 +189,23 @@ class LocalGeocoder:
                     coords = feature.get('geometry', {}).get('coordinates', [])
                     if props.get('name') and len(coords) >= 2:
                         self.places.append({
-                            'name': props['name'],
-                            'type': props.get('subtype', 'place'),
-                            'lat': coords[1],
-                            'lng': coords[0],
-                            'tags': props.get('tags', {}),
-                            'source': 'places'
+                            'name': props['name'], 'type': props.get('subtype', 'place'),
+                            'lat': coords[1], 'lng': coords[0], 'tags': {}, 'source': 'places'
                         })
-            print(f"  ✓ Loaded {len(self.places)} places")
         
-        # Load transport (bus stops, metro stations)
         transport_file = self.derived_dir / 'transport.geojson'
         if transport_file.exists():
             with open(transport_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                seen_names = set()
                 for feature in data.get('features', []):
                     props = feature.get('properties', {})
                     coords = feature.get('geometry', {}).get('coordinates', [])
-                    name = props.get('name')
-                    if name and len(coords) >= 2:
-                        # Deduplicate by name (keep first occurrence)
-                        name_key = name.lower()
-                        if name_key not in seen_names:
-                            seen_names.add(name_key)
-                            self.transport.append({
-                                'name': name,
-                                'type': props.get('subtype', 'transport'),
-                                'lat': coords[1],
-                                'lng': coords[0],
-                                'tags': props.get('tags', {}),
-                                'source': 'transport'
-                            })
-                        # Also check alt_name
-                        alt_name = props.get('tags', {}).get('alt_name')
-                        if alt_name:
-                            alt_key = alt_name.lower()
-                            if alt_key not in seen_names:
-                                seen_names.add(alt_key)
-                                self.transport.append({
-                                    'name': alt_name,
-                                    'type': props.get('subtype', 'transport'),
-                                    'lat': coords[1],
-                                    'lng': coords[0],
-                                    'tags': props.get('tags', {}),
-                                    'source': 'transport'
-                                })
-            print(f"  ✓ Loaded {len(self.transport)} transport stops")
+                    if props.get('name') and len(coords) >= 2:
+                        self.transport.append({
+                            'name': props['name'], 'type': props.get('subtype', 'transport'),
+                            'lat': coords[1], 'lng': coords[0], 'tags': {}, 'source': 'transport'
+                        })
         
-        # Load POIs (landmarks, shops, hospitals, etc.)
         pois_file = self.derived_dir / 'pois.geojson'
         if pois_file.exists():
             with open(pois_file, 'r', encoding='utf-8') as f:
@@ -181,21 +213,11 @@ class LocalGeocoder:
                 for feature in data.get('features', []):
                     props = feature.get('properties', {})
                     coords = feature.get('geometry', {}).get('coordinates', [])
-                    name = props.get('name')
-                    if name and len(coords) >= 2:
+                    if props.get('name') and len(coords) >= 2:
                         self.pois.append({
-                            'name': name,
-                            'type': props.get('subtype', 'poi'),
-                            'lat': coords[1],
-                            'lng': coords[0],
-                            'tags': props.get('tags', {}),
-                            'source': 'pois'
+                            'name': props['name'], 'type': props.get('subtype', 'poi'),
+                            'lat': coords[1], 'lng': coords[0], 'tags': {}, 'source': 'pois'
                         })
-            print(f"  ✓ Loaded {len(self.pois)} POIs")
-        
-        self.loaded = True
-        total = len(self.places) + len(self.transport) + len(self.pois)
-        print(f"📍 Local geocoder ready: {total} searchable locations")
     
     def _similarity(self, a: str, b: str) -> float:
         """Calculate string similarity score"""

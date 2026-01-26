@@ -1,6 +1,6 @@
 """
 Area Analysis Engine for Valora AI
-Generates real-time area summaries from OSM extracted data
+Generates real-time area summaries from DATABASE
 """
 
 import json
@@ -18,9 +18,22 @@ class AreaAnalyzer:
         self._roads_cache = None
         self._transport_cache = None
         self._landuse_cache = None
+        self._db = None
+        self._init_db()
+    
+    def _init_db(self):
+        """Initialize database connection"""
+        try:
+            try:
+                from backend.database.query_service import get_query_service
+            except ImportError:
+                from database.query_service import get_query_service
+            self._db = get_query_service()
+        except:
+            self._db = None
         
     def _load_geojson(self, filename: str):
-        """Load and cache GeoJSON file"""
+        """Load and cache GeoJSON file (fallback)"""
         filepath = self.derived_dir / filename
         if not filepath.exists():
             return {'features': []}
@@ -30,7 +43,16 @@ class AreaAnalyzer:
     
     def _get_pois(self):
         if self._pois_cache is None:
-            self._pois_cache = self._load_geojson('pois.geojson')
+            if self._db:
+                # Load from database
+                pois = self._db.get_all_pois()
+                self._pois_cache = {'features': [
+                    {'properties': {'name': p.get('name'), 'category': p.get('category'), 'subcategory': p.get('subcategory')},
+                     'geometry': {'coordinates': [p.get('lng'), p.get('lat')]}}
+                    for p in pois if p.get('lat') and p.get('lng')
+                ]}
+            else:
+                self._pois_cache = self._load_geojson('pois.geojson')
         return self._pois_cache
     
     def _get_roads(self):
@@ -40,7 +62,15 @@ class AreaAnalyzer:
     
     def _get_transport(self):
         if self._transport_cache is None:
-            self._transport_cache = self._load_geojson('transport.geojson')
+            if self._db:
+                transport = self._db.get_all_transport()
+                self._transport_cache = {'features': [
+                    {'properties': {'name': t.get('name'), 'type': t.get('type')},
+                     'geometry': {'coordinates': [t.get('lng'), t.get('lat')]}}
+                    for t in transport if t.get('lat') and t.get('lng')
+                ]}
+            else:
+                self._transport_cache = self._load_geojson('transport.geojson')
         return self._transport_cache
     
     def _get_landuse(self):

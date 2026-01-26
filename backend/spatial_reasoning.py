@@ -109,126 +109,143 @@ class SpatialReasoningService:
         self._load_and_index_data()
     
     def _load_and_index_data(self):
-        """Load and index all spatial data."""
-        self._load_pois()
-        self._load_transport()
-        self._load_places()
+        """Load and index all spatial data from DATABASE."""
+        self._load_from_database()
         
         total = len(self.pois) + len(self.transport) + len(self.places)
-        print(f"[OK] Spatial reasoning: indexed {total} features")
+        print(f"[OK] Spatial reasoning: indexed {total} features from database")
     
-    def _load_pois(self):
-        """Load and index POIs."""
+    def _load_from_database(self):
+        """Load POIs, transport, and places from database."""
+        try:
+            try:
+                from backend.database.query_service import get_query_service
+            except ImportError:
+                from database.query_service import get_query_service
+            db = get_query_service()
+            
+            # Load POIs
+            pois_data = db.get_all_pois()
+            for poi in pois_data:
+                if poi.get('lat') and poi.get('lng'):
+                    self.pois.append({
+                        'name': poi.get('name', ''),
+                        'amenity': poi.get('category', ''),
+                        'shop': poi.get('subcategory', ''),
+                        'lat': poi['lat'],
+                        'lng': poi['lng']
+                    })
+                    if H3_AVAILABLE:
+                        h3_idx = _h3_geo_to_cell(poi['lat'], poi['lng'], self.h3_resolution)
+                        if h3_idx:
+                            self.poi_index[h3_idx].append(self.pois[-1])
+            
+            # Load transport
+            transport_data = db.get_all_transport()
+            for t in transport_data:
+                if t.get('lat') and t.get('lng'):
+                    self.transport.append({
+                        'name': t.get('name', ''),
+                        'type': t.get('type', ''),
+                        'lat': t['lat'],
+                        'lng': t['lng']
+                    })
+                    if H3_AVAILABLE:
+                        h3_idx = _h3_geo_to_cell(t['lat'], t['lng'], self.h3_resolution)
+                        if h3_idx:
+                            self.transport_index[h3_idx].append(self.transport[-1])
+            
+            # Load places
+            places_data = db.get_all_places()
+            for p in places_data:
+                if p.get('lat') and p.get('lng'):
+                    self.places.append({
+                        'name': p.get('name', ''),
+                        'type': p.get('type', ''),
+                        'lat': p['lat'],
+                        'lng': p['lng']
+                    })
+                    if H3_AVAILABLE:
+                        h3_idx = _h3_geo_to_cell(p['lat'], p['lng'], self.h3_resolution)
+                        if h3_idx:
+                            self.places_index[h3_idx].append(self.places[-1])
+            
+            print(f"[OK] Loaded from DB: {len(self.pois)} POIs, {len(self.transport)} transport, {len(self.places)} places")
+            
+        except Exception as e:
+            print(f"[WARNING] Database not available, falling back to files: {e}")
+            self._load_pois_from_file()
+            self._load_transport_from_file()
+            self._load_places_from_file()
+    
+    def _load_pois_from_file(self):
+        """Fallback: Load POIs from GeoJSON file."""
         pois_file = self.osm_dir / 'pois.geojson'
         if not pois_file.exists():
             return
-        
         try:
             with open(pois_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
             for feat in data.get('features', []):
                 props = feat.get('properties', {})
                 geom = feat.get('geometry', {})
                 coords = geom.get('coordinates', [])
-                
-                if len(coords) < 2:
-                    continue
-                
-                lng, lat = coords[0], coords[1]
-                
-                poi = {
-                    'name': props.get('name', ''),
-                    'amenity': props.get('amenity', ''),
-                    'shop': props.get('shop', ''),
-                    'cuisine': props.get('cuisine', ''),
-                    'lat': lat,
-                    'lng': lng
-                }
-                
-                self.pois.append(poi)
-                
-                if H3_AVAILABLE:
-                    h3_idx = _h3_geo_to_cell(lat, lng, self.h3_resolution)
-                    if h3_idx:
-                        self.poi_index[h3_idx].append(poi)
-                    
+                if len(coords) >= 2:
+                    poi = {'name': props.get('name', ''), 'amenity': props.get('amenity', ''),
+                           'lat': coords[1], 'lng': coords[0]}
+                    self.pois.append(poi)
+                    if H3_AVAILABLE:
+                        h3_idx = _h3_geo_to_cell(coords[1], coords[0], self.h3_resolution)
+                        if h3_idx:
+                            self.poi_index[h3_idx].append(poi)
         except Exception as e:
-            print(f"[WARNING]  Error loading POIs: {e}")
+            print(f"[WARNING] Error loading POIs from file: {e}")
     
-    def _load_transport(self):
-        """Load and index transport stops."""
+    def _load_transport_from_file(self):
+        """Fallback: Load transport from GeoJSON file."""
         transport_file = self.osm_dir / 'transport.geojson'
         if not transport_file.exists():
             return
-        
         try:
             with open(transport_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
             for feat in data.get('features', []):
                 props = feat.get('properties', {})
                 geom = feat.get('geometry', {})
                 coords = geom.get('coordinates', [])
-                
-                if len(coords) < 2:
-                    continue
-                
-                lng, lat = coords[0], coords[1]
-                
-                transport = {
-                    'name': props.get('name', ''),
-                    'type': props.get('railway', '') or props.get('highway', '') or props.get('amenity', ''),
-                    'lat': lat,
-                    'lng': lng
-                }
-                
-                self.transport.append(transport)
-                
-                if H3_AVAILABLE:
-                    h3_idx = _h3_geo_to_cell(lat, lng, self.h3_resolution)
-                    if h3_idx:
-                        self.transport_index[h3_idx].append(transport)
-                    
+                if len(coords) >= 2:
+                    t = {'name': props.get('name', ''), 'type': props.get('railway', '') or props.get('highway', ''),
+                         'lat': coords[1], 'lng': coords[0]}
+                    self.transport.append(t)
+                    if H3_AVAILABLE:
+                        h3_idx = _h3_geo_to_cell(coords[1], coords[0], self.h3_resolution)
+                        if h3_idx:
+                            self.transport_index[h3_idx].append(t)
         except Exception as e:
-            print(f"[WARNING]  Error loading transport: {e}")
+            print(f"[WARNING] Error loading transport from file: {e}")
     
-    def _load_places(self):
-        """Load and index places."""
+    def _load_places_from_file(self):
+        """Fallback: Load places from GeoJSON file."""
         places_file = self.osm_dir / 'places.geojson'
         if not places_file.exists():
             return
-        
         try:
             with open(places_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
             for feat in data.get('features', []):
                 props = feat.get('properties', {})
                 geom = feat.get('geometry', {})
                 coords = geom.get('coordinates', [])
-                
-                if len(coords) < 2:
-                    continue
-                
-                lng, lat = coords[0], coords[1]
-                
-                place = {
-                    'name': props.get('name', ''),
-                    'type': props.get('place', ''),
-                    'lat': lat,
-                    'lng': lng
-                }
-                
-                self.places.append(place)
-                
-                if H3_AVAILABLE:
-                    h3_idx = _h3_geo_to_cell(lat, lng, self.h3_resolution)
-                    if h3_idx:
-                        self.places_index[h3_idx].append(place)
-                    
+                if len(coords) >= 2:
+                    place = {'name': props.get('name', ''), 'type': props.get('place', ''),
+                             'lat': coords[1], 'lng': coords[0]}
+                    self.places.append(place)
+                    if H3_AVAILABLE:
+                        h3_idx = _h3_geo_to_cell(coords[1], coords[0], self.h3_resolution)
+                        if h3_idx:
+                            self.places_index[h3_idx].append(place)
         except Exception as e:
-            print(f"[WARNING]  Error loading places: {e}")
+            print(f"[WARNING] Error loading places from file: {e}")
     
     def _haversine(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         """Calculate distance in meters between two points."""

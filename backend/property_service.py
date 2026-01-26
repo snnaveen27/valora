@@ -1,72 +1,57 @@
 """
 Property Service for Valora AI
-Provides real estate property queries from posted_properties data
+Provides real estate property queries from DATABASE (not files)
 """
 
-import json
 import math
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from functools import lru_cache
 
 
 class PropertyService:
-    """Service for querying real estate property listings"""
+    """Service for querying real estate property listings from database"""
     
     def __init__(self, data_dir: Path = None):
-        if data_dir is None:
-            data_dir = Path(__file__).parent.parent / 'src' / 'data' / 'posted_properties'
-        self.data_dir = data_dir
-        self.properties = {}
-        self.property_index = {}  # Spatial index for nearby queries
-        self._load_properties()
+        # data_dir kept for backward compatibility but not used
+        self._db = None
+        self._hybrid_search = None
+        self._cache = None
+        self._initialized = False
+        self._init_database()
+        self._init_hybrid_search()
     
-    def _load_properties(self):
-        """Load all property files into memory"""
-        property_files = {
-            'residential_apartment': 'bangalore-residential-apartment.json',
-            'residential_apartment_rent': 'bangalore-residential-apartment-rent.json',
-            'residential_house': 'bangalore-residential-house.json',
-            'residential_house_rent': 'bangalore-residential-house-rent.json',
-            'residential_plot': 'bangalore-residential-plot.json',
-            'commercial_land': 'bangalore-commercial-land.json',
-            'commercial_office': 'bangalore-commercial-officespace.json',
-            'commercial_shop_rent': 'bangalore-commercial-shop-rent.json',
-            'commercial_warehouse': 'bangalore-commercial-warehouse.json',
-            'commercial_industrial_building': 'bangalore-commercial-industrialbuilding.json',
-            'commercial_industrial_shed': 'bangalore-commercial-industrialshed.json',
-            'agricultural_land': 'bangalore-agriculturalland.json',
-            'agricultural_farmhouse': 'bangalore-farmhouse.json',
-        }
-        
-        total_loaded = 0
-        for category, filename in property_files.items():
-            filepath = self.data_dir / filename
-            if filepath.exists():
-                try:
-                    with open(filepath, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        self.properties[category] = data
-                        total_loaded += len(data)
-                        
-                        # Build spatial index
-                        for prop in data:
-                            if not isinstance(prop, dict):
-                                continue
-                            if prop.get('location'):
-                                try:
-                                    lat, lng = map(float, prop['location'].split(','))
-                                    prop['_lat'] = lat
-                                    prop['_lng'] = lng
-                                    prop['_category'] = category
-                                except:
-                                    pass
-                except Exception as e:
-                    print(f"[WARNING] Failed to load {filename}: {e}")
-            else:
-                print(f"[WARNING] Property file not found: {filename}")
-        
-        print(f"[OK] Loaded {total_loaded} properties across {len(self.properties)} categories")
+    def _init_database(self):
+        """Initialize database connection"""
+        if self._initialized:
+            return
+        try:
+            # Try both import paths (running from project root vs backend dir)
+            try:
+                from backend.database.query_service import get_query_service
+            except ImportError:
+                from database.query_service import get_query_service
+            self._db = get_query_service()
+            count = self._db.get_properties_count()
+            print(f"[OK] PropertyService: Connected to database with {count:,} properties")
+            self._initialized = True
+        except Exception as e:
+            print(f"[WARNING] PropertyService: Database not available - {e}")
+            self._db = None
+    
+    def _init_hybrid_search(self):
+        """Initialize hybrid search and caching"""
+        try:
+            try:
+                from backend.hybrid_search import get_hybrid_search
+                from backend.query_cache import get_property_cache
+            except ImportError:
+                from hybrid_search import get_hybrid_search
+                from query_cache import get_property_cache
+            self._hybrid_search = get_hybrid_search(self._db, None)
+            self._cache = get_property_cache()
+            print("[OK] PropertyService: Hybrid search & caching enabled")
+        except Exception as e:
+            print(f"[INFO] PropertyService: Hybrid search not available - {e}")
     
     def _haversine_distance(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         """Calculate distance between two points in meters"""
@@ -92,84 +77,70 @@ class PropertyService:
         max_price: Optional[int] = None,
         min_bedrooms: Optional[int] = None,
         max_bedrooms: Optional[int] = None,
-        limit: int = 50
+        limit: int = 50,
+        query: Optional[str] = None,  # For semantic search
+        use_cache: bool = True
     ) -> List[Dict[str, Any]]:
         """
-        Search properties with filters
-        
-        Args:
-            lat, lng: Center point for radius search
-            radius_m: Search radius in meters (default 2000m)
-            category: 'residential', 'commercial', 'agricultural'
-            property_type: 'apartment', 'house', 'plot', 'land', etc.
-            min_price, max_price: Price range filter
-            min_bedrooms, max_bedrooms: Bedroom count filter
-            limit: Maximum results to return
-        
-        Returns:
-            List of matching properties sorted by distance (if location provided)
+        Search properties with filters using DATABASE + optional RAG hybrid search
         """
-        results = []
+        if not self._db:
+            return []
         
-        # Determine which categories to search
-        categories_to_search = []
-        if category:
-            categories_to_search = [k for k in self.properties.keys() if category in k]
+        # Check cache first
+        if use_cache and self._cache:
+            cached = self._cache.get(
+                query or "search",
+                lat=lat, lng=lng, radius_m=radius_m,
+                property_type=property_type, min_price=min_price,
+                max_price=max_price, min_bedrooms=min_bedrooms,
+                max_bedrooms=max_bedrooms, limit=limit
+            )
+            if cached is not None:
+                return cached
+        
+        # Use hybrid search if query provided and available
+        if query and self._hybrid_search:
+            results = self._hybrid_search.search_properties(
+                query=query,
+                lat=lat,
+                lng=lng,
+                radius_m=radius_m,
+                property_type=property_type,
+                min_price=min_price,
+                max_price=max_price,
+                min_bedrooms=min_bedrooms,
+                max_bedrooms=max_bedrooms,
+                use_rag=True,
+                limit=limit
+            )
         else:
-            categories_to_search = list(self.properties.keys())
+            # Fallback to standard database query
+            results = self._db.search_properties(
+                lat=lat,
+                lng=lng,
+                radius_m=radius_m,
+                property_type=property_type,
+                min_price=min_price,
+                max_price=max_price,
+                min_bedrooms=min_bedrooms,
+                max_bedrooms=max_bedrooms,
+                limit=limit
+            )
         
-        if property_type:
-            categories_to_search = [k for k in categories_to_search if property_type in k]
+        # Add computed fields for compatibility
+        for prop in results:
+            prop['_lat'] = prop.get('latitude')
+            prop['_lng'] = prop.get('longitude')
+            prop['_category'] = prop.get('property_type', 'unknown')
         
-        for cat in categories_to_search:
-            for prop in self.properties.get(cat, []):
-                if not isinstance(prop, dict):
-                    continue
-                # Location filter
-                if lat is not None and lng is not None:
-                    prop_lat = prop.get('_lat')
-                    prop_lng = prop.get('_lng')
-                    if prop_lat is None or prop_lng is None:
-                        continue
-                    distance = self._haversine_distance(lat, lng, prop_lat, prop_lng)
-                    if distance > radius_m:
-                        continue
-                    prop['_distance'] = distance
-                
-                # Price filter
-                price = prop.get('price')
-                if price:
-                    if min_price and price < min_price:
-                        continue
-                    if max_price and price > max_price:
-                        continue
-                
-                # Bedroom filter
-                bedrooms = prop.get('bedrooms')
-                if bedrooms:
-                    if min_bedrooms and bedrooms < min_bedrooms:
-                        continue
-                    if max_bedrooms and bedrooms > max_bedrooms:
-                        continue
-                
-                results.append(prop)
-        
-        # Sort by distance if location provided
-        if lat is not None and lng is not None:
-            results.sort(key=lambda x: x.get('_distance', float('inf')))
-        else:
-            # Sort by price
-            results.sort(key=lambda x: x.get('price', 0) or 0)
-        
-        return results[:limit]
+        return results
     
     def get_by_id(self, property_id: str) -> Optional[Dict[str, Any]]:
         """Get a property by its ID"""
-        for category, props in self.properties.items():
-            for prop in props:
-                if str(prop.get('id')) == str(property_id):
-                    return prop
-        return None
+        if not self._db:
+            return None
+        return self._db.get_property_by_id(property_id)
     
     def get_nearby(
         self,
@@ -242,8 +213,10 @@ class PropertyService:
         }
     
     def get_categories_summary(self) -> Dict[str, int]:
-        """Get count of properties by category"""
-        return {cat: len(props) for cat, props in self.properties.items()}
+        """Get count of properties by source"""
+        if not self._db:
+            return {}
+        return self._db.get_properties_by_source()
 
 
 # Singleton instance

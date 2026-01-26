@@ -21,24 +21,48 @@ import os
 from dotenv import load_dotenv
 from area_analyzer import AreaAnalyzer
 from local_geocoder import get_local_geocoder
+import multi_source_scraper
 
 # Load environment variables
 load_dotenv()
 
-# Initialize area analyzer, local geocoder, and terrain service
+# Initialize services - gracefully handle missing folders (database is primary source)
 osm_data_dir = Path(__file__).parent.parent / 'src' / 'data' / 'osm_extracted'
 terrain_dir = Path(__file__).parent.parent / 'src' / 'data' / 'terrain'
 properties_dir = Path(__file__).parent.parent / 'src' / 'data' / 'posted_properties'
-area_analyzer = AreaAnalyzer(osm_data_dir)
-local_geocoder = get_local_geocoder(osm_data_dir)
 
-# Import and initialize terrain service
-from terrain_service import TerrainService
-terrain_service = TerrainService(terrain_dir)
+# Area analyzer and geocoder use database as primary, files as fallback
+try:
+    area_analyzer = AreaAnalyzer(osm_data_dir)
+    print("[OK] Area analyzer initialized (uses database)")
+except Exception as e:
+    print(f"[WARNING] Area analyzer not available: {e}")
+    area_analyzer = None
 
-# Import and initialize property service
-from property_service import get_property_service
-property_service = get_property_service(properties_dir)
+try:
+    local_geocoder = get_local_geocoder(osm_data_dir)
+    print("[OK] Local geocoder initialized (uses database)")
+except Exception as e:
+    print(f"[WARNING] Local geocoder not available: {e}")
+    local_geocoder = None
+
+# Import and initialize terrain service (optional - terrain folder may not exist)
+try:
+    from terrain_service import TerrainService
+    terrain_service = TerrainService(terrain_dir)
+    print("[OK] Terrain service initialized")
+except Exception as e:
+    print(f"[WARNING] Terrain service not available: {e}")
+    terrain_service = None
+
+# Import and initialize property service (uses database, folder is optional)
+try:
+    from property_service import get_property_service
+    property_service = get_property_service(properties_dir)
+    print("[OK] Property service initialized (uses database)")
+except Exception as e:
+    print(f"[WARNING] Property service not available: {e}")
+    property_service = None
 
 # Phase 1: Import and initialize RAG, Valuation, and Spatial Reasoning services
 data_dir = Path(__file__).parent.parent / 'src' / 'data'
@@ -101,6 +125,10 @@ gis_orchestrator = get_gis_orchestrator(
 print("[OK] GIS Multi-Agent Orchestrator initialized")
 
 app = FastAPI(title="Valora AI Backend", version="2.0.0")
+
+# Include admin routes
+from admin_routes import router as admin_router
+app.include_router(admin_router)
 
 # CORS for frontend
 _default_origins = [
@@ -196,18 +224,73 @@ _cache_rag_search = TTLCache(maxsize=512, ttl_seconds=300)
 # Note: Market computation logic moved to gis_agents.py for Phase 2 multi-agent orchestration
 
 def load_tileset_index():
-    """Load tileset index for tile-based building loading"""
+    """Load tileset index - prefer database, fallback to files"""
     global tileset_index
-    tileset_path = Path(__file__).parent.parent / 'src' / 'data' / '3dtiles' / 'tileset.json'
     
-    if not tileset_path.exists():
-        print("[WARNING] Tileset not found. Run: python scripts/generate_3dtiles.py")
-        return
+    # Try database first (check if buildings have polygon data)
+    try:
+        from database.query_service import get_query_service
+        query_service = get_query_service()
+        
+        # Check if database has polygon data
+        test_query = query_service.db.execute(
+            "SELECT COUNT(*) as cnt FROM buildings WHERE polygon_coords IS NOT NULL LIMIT 1"
+        )
+        has_polygons = test_query[0]['cnt'] > 0 if test_query else False
+        
+        if has_polygons:
+            # Load tileset structure from data.zip or generate grid
+            tileset_path = Path(__file__).parent.parent / 'src' / 'data' / 'data.zip'
+            if tileset_path.exists():
+                try:
+                    import zipfile
+                    with zipfile.ZipFile(tileset_path, 'r') as z:
+                        tileset_index = json.loads(z.read('3dtiles/tileset.json'))
+                    # Mark as database source
+                    tileset_index['source'] = 'database'
+                    print(f"[OK] Using database for buildings: {len(tileset_index['tiles'])} tiles, {tileset_index['totalBuildings']} buildings")
+                    return
+                except Exception as e:
+                    print(f"[WARNING] Failed to load tileset structure: {e}")
+            
+            # Generate tile grid
+            tiles = {}
+            tile_size = 0.01
+            for lng_start in range(7740, 7780):
+                for lat_start in range(1280, 1310):
+                    lng = lng_start / 100
+                    lat = lat_start / 100
+                    tile_id = f"{lng_start}_{lat_start}"
+                    tiles[tile_id] = {
+                        'min_lng': lng, 'max_lng': lng + tile_size,
+                        'min_lat': lat, 'max_lat': lat + tile_size,
+                        'max_height': 30, 'count': 0
+                    }
+            
+            tileset_index = {
+                'tiles': tiles,
+                'totalBuildings': query_service.get_database_stats().get('buildings', 0),
+                'source': 'database'
+            }
+            print(f"[OK] Using database for buildings: {len(tiles)} tiles")
+            return
+    except Exception as e:
+        print(f"[WARNING] Database check failed: {e}")
     
-    with open(tileset_path) as f:
-        tileset_index = json.load(f)
+    # Fallback to file-based tiles
+    tileset_path = Path(__file__).parent.parent / 'src' / 'data' / 'data.zip'
+    if tileset_path.exists():
+        try:
+            import zipfile
+            with zipfile.ZipFile(tileset_path, 'r') as z:
+                tileset_index = json.loads(z.read('3dtiles/tileset.json'))
+            print(f"[OK] Using file-based tiles: {len(tileset_index['tiles'])} tiles, {tileset_index['totalBuildings']} buildings")
+            return
+        except Exception as e:
+            print(f"[ERROR] Failed to load tiles: {e}")
     
-    print(f"[OK] Loaded tileset index: {len(tileset_index['tiles'])} tiles, {tileset_index['totalBuildings']} buildings")
+    print("[ERROR] No tile source available")
+    tileset_index = None
 
 # Offline map tiles removed - not used in this MVP
 
@@ -243,8 +326,8 @@ BANGALORE_BBOX = {
 
 # OpenRouter configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "xiaomi/mimo-v2-flash:free")
-OPENROUTER_MODEL_REASONING = os.getenv("OPENROUTER_MODEL_REASONING", "deepseek/deepseek-r1:free")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.2-3b-instruct:free")
+OPENROUTER_MODEL_REASONING = os.getenv("OPENROUTER_MODEL_REASONING", "meta-llama/llama-3.2-3b-instruct:free")
 OPENROUTER_MODEL_VISION = os.getenv("OPENROUTER_MODEL_VISION", "qwen/qwen2.5-vl-7b-instruct:free")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -281,7 +364,7 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """Health check including Nominatim status"""
+    """Health check including Nominatim and database status"""
     nominatim_ok = False
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -290,11 +373,64 @@ async def health():
     except Exception:
         pass
     
+    # Check database status
+    db_stats = {}
+    try:
+        from database.query_service import get_query_service
+        query_service = get_query_service()
+        db_stats = query_service.get_database_stats()
+    except Exception as e:
+        db_stats = {"error": str(e)}
+    
     return {
         "backend": "ok",
         "nominatim": "ok" if nominatim_ok else "unavailable",
-        "nominatim_url": NOMINATIM_URL
+        "nominatim_url": NOMINATIM_URL,
+        "database": db_stats,
+        "services": {
+            "rag": RAG_AVAILABLE,
+            "spatial": SPATIAL_AVAILABLE,
+            "valuation": VALUATION_AVAILABLE,
+            "terrain": terrain_service is not None,
+            "property": property_service is not None,
+            "geocoder": local_geocoder is not None
+        }
     }
+
+@app.get("/api/agent/capabilities")
+async def get_agent_capabilities():
+    """Get AI agent capabilities and data availability for sanity check"""
+    capabilities = {
+        "intents": [
+            "NAVIGATE - Fly to locations (neighborhoods, landmarks, metro stations)",
+            "ANALYZE_AREA - Analyze walkability, POIs, transport for any location",
+            "ANALYZE_BUILDING - Detailed building analysis on click",
+            "PROPERTY_SEARCH - Find properties with filters (price, BHK, locality)",
+            "VALUATION - Estimate property values",
+            "TERRAIN - Get elevation and terrain data",
+            "COMPARISON - Compare areas or properties",
+            "SIMULATION - What-if scenarios for infrastructure changes",
+            "GENERAL - Answer real estate and city questions"
+        ],
+        "data_sources": {},
+        "services": {
+            "rag": RAG_AVAILABLE,
+            "spatial": SPATIAL_AVAILABLE,
+            "valuation": VALUATION_AVAILABLE,
+            "terrain": terrain_service is not None,
+            "geocoder": local_geocoder is not None
+        }
+    }
+    
+    # Get database stats
+    try:
+        from database.query_service import get_query_service
+        query_service = get_query_service()
+        capabilities["data_sources"] = query_service.get_database_stats()
+    except Exception as e:
+        capabilities["data_sources"] = {"error": str(e)}
+    
+    return capabilities
 
 @app.get("/api/config")
 async def get_config():
@@ -465,20 +601,192 @@ async def get_tiles_for_viewport(min_lng: float, min_lat: float, max_lng: float,
         raise HTTPException(status_code=503, detail="Tileset not loaded")
     
     matching_tiles = []
+    is_database_source = tileset_index.get('source') == 'database'
+    
     for tile_id, tile_info in tileset_index['tiles'].items():
-        # Check if tile intersects viewport
         if (tile_info['min_lng'] <= max_lng and tile_info['max_lng'] >= min_lng and
             tile_info['min_lat'] <= max_lat and tile_info['max_lat'] >= min_lat):
-            matching_tiles.append({
-                'id': tile_id,
-                'count': tile_info['count'],
-                'url': f'/tiles/{tile_id}.json'
-            })
+            
+            if is_database_source:
+                # Database tiles: use API endpoint
+                matching_tiles.append({
+                    'id': tile_id,
+                    'count': tile_info.get('count', 0),
+                    'url': f'/api/tiles/db/{tile_id}'
+                })
+            else:
+                # File-based tiles: use static files or extract from zip
+                matching_tiles.append({
+                    'id': tile_id,
+                    'count': tile_info['count'],
+                    'url': f'/api/tiles/file/{tile_id}'
+                })
     
-    return {
-        'tiles': matching_tiles,
-        'total': len(matching_tiles)
-    }
+    return {'tiles': matching_tiles, 'total': len(matching_tiles)}
+
+@app.get("/api/tiles/file/{tile_id}")
+async def get_file_tile(tile_id: str):
+    """Get tile data from data.zip file"""
+    try:
+        import zipfile
+        zip_path = Path(__file__).parent.parent / 'src' / 'data' / 'data.zip'
+        
+        if not zip_path.exists():
+            raise HTTPException(status_code=404, detail="Data zip not found")
+        
+        with zipfile.ZipFile(zip_path, 'r') as z:
+            tile_data = z.read(f'3dtiles/tiles/{tile_id}.json')
+            return Response(content=tile_data, media_type="application/json")
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Tile {tile_id} not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/tiles/db/{tile_id}")
+async def get_database_tile(tile_id: str):
+    """Get tile data from database - returns GeoJSON like file tiles (NO LIMIT)"""
+    try:
+        import sqlite3
+        
+        # Parse tile_id to get bounds (format: 7757_1296 = lng 77.57, lat 12.96)
+        parts = tile_id.split('_')
+        if len(parts) != 2:
+            raise HTTPException(status_code=400, detail="Invalid tile ID format")
+        
+        lng_start = int(parts[0]) / 100
+        lat_start = int(parts[1]) / 100
+        tile_size = 0.01
+        
+        min_lng = lng_start
+        max_lng = lng_start + tile_size
+        min_lat = lat_start
+        max_lat = lat_start + tile_size
+        
+        # Direct query - NO LIMIT - get ALL buildings in tile bounds
+        db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT osm_id, name, building_type, height, levels, 
+                   latitude as lat, longitude as lng, polygon_coords
+            FROM buildings
+            WHERE polygon_coords IS NOT NULL
+              AND latitude BETWEEN ? AND ?
+              AND longitude BETWEEN ? AND ?
+        """, (min_lat, max_lat, min_lng, max_lng))
+        buildings = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        # Convert to GeoJSON
+        features = []
+        for b in (buildings or []):
+            height = b.get('height') or 10
+            
+            try:
+                coords = json.loads(b['polygon_coords'])
+                geometry = {'type': 'Polygon', 'coordinates': [coords]}
+            except:
+                continue
+            
+            features.append({
+                'type': 'Feature',
+                'geometry': geometry,
+                'properties': {
+                    'id': b.get('osm_id', ''),
+                    'name': b.get('name', ''),
+                    'height': height,
+                    'building': b.get('building_type', 'yes'),
+                    'type': b.get('building_type', 'building'),
+                    'levels': b.get('levels') or max(1, int(height / 3))
+                }
+            })
+        
+        return {
+            'type': 'FeatureCollection',
+            'features': features,
+            'total': len(features)
+        }
+    except Exception as e:
+        print(f"[ERROR] Database tile query failed: {e}")
+        return {'type': 'FeatureCollection', 'features': [], 'total': 0, 'error': str(e)}
+
+@app.get("/api/buildings/viewport")
+async def get_buildings_for_viewport(min_lng: float, min_lat: float, max_lng: float, max_lat: float, limit: int = 2000):
+    """Get buildings from database for viewport - returns GeoJSON features with polygons"""
+    try:
+        from database.query_service import get_query_service
+        import json
+        
+        query_service = get_query_service()
+        
+        # Calculate center and radius from viewport
+        center_lat = (min_lat + max_lat) / 2
+        center_lng = (min_lng + max_lng) / 2
+        # Approximate radius in meters (diagonal of viewport / 2)
+        lat_delta = (max_lat - min_lat) * 111000  # ~111km per degree
+        lng_delta = (max_lng - min_lng) * 85000   # ~85km per degree at Bangalore latitude
+        radius_m = int(((lat_delta**2 + lng_delta**2)**0.5) / 2)
+        radius_m = min(radius_m, 5000)  # Cap at 5km
+        
+        buildings = query_service.get_buildings(
+            lat=center_lat, 
+            lng=center_lng, 
+            radius_m=radius_m,
+            limit=limit,
+            include_polygons=True  # Request polygon data
+        )
+        
+        # Convert to GeoJSON features
+        features = []
+        for b in buildings:
+            if not b.get('lat') or not b.get('lng'):
+                continue
+                
+            height = b.get('height') or 10
+            
+            # Use polygon if available, otherwise create point
+            if b.get('polygon_coords'):
+                try:
+                    coords = json.loads(b['polygon_coords'])
+                    geometry = {
+                        'type': 'Polygon',
+                        'coordinates': [coords]
+                    }
+                except:
+                    # Fallback to point if polygon parsing fails
+                    geometry = {
+                        'type': 'Point',
+                        'coordinates': [b['lng'], b['lat']]
+                    }
+            else:
+                geometry = {
+                    'type': 'Point',
+                    'coordinates': [b['lng'], b['lat']]
+                }
+            
+            features.append({
+                'type': 'Feature',
+                'geometry': geometry,
+                'properties': {
+                    'id': b.get('osm_id', ''),
+                    'name': b.get('name', ''),
+                    'height': height,
+                    'building': b.get('building_type', 'yes'),
+                    'type': b.get('building_type', 'building'),
+                    'levels': b.get('levels') or max(1, int(height / 3))
+                }
+            })
+        
+        return {
+            'type': 'FeatureCollection',
+            'features': features,
+            'total': len(features),
+            'source': 'database'
+        }
+    except Exception as e:
+        print(f"[ERROR] Buildings viewport query failed: {e}")
+        return {'type': 'FeatureCollection', 'features': [], 'total': 0, 'error': str(e)}
 
 @app.get("/api/area/analyze")
 async def analyze_area(lng: float, lat: float, radius: int = 1000):
@@ -1033,7 +1341,7 @@ async def chat_with_ai(request: ChatRequest):
     # =========================================================================
     # PHASE 2: Multi-Agent Fact Gathering (all deterministic, no LLM)
     # =========================================================================
-    facts, intent, ui_actions, digital_twin_state = gis_orchestrator.gather_facts(
+    facts, intent, ui_actions, digital_twin_state, reasoning_trace = gis_orchestrator.gather_facts(
         query=user_query,
         context=context,
     )
@@ -1145,6 +1453,7 @@ async def chat_with_ai(request: ChatRequest):
                     "avg_price_sqft": facts.avg_price_per_sqft,
                     "active_listings": facts.active_listings,
                 },
+                "reasoning_trace": reasoning_trace,  # Chain-of-thought visibility
                 "usage": result.get('usage', {})
             }
             
@@ -2410,6 +2719,154 @@ async def get_credits(user_id: str):
         "total_used": user['total_used'],
         "credit_costs": CREDIT_COSTS
     }
+
+
+# ============== INGESTION STATUS ENDPOINT ==============
+
+@app.get("/api/ingestion/status")
+async def get_ingestion_status():
+    """Get current status of Apify data ingestion pipeline."""
+    status_file = data_dir / "ingestion_status.json"
+    
+    if not status_file.exists():
+        return {
+            "status": "idle",
+            "message": "No ingestion has been run yet",
+            "timestamp": None,
+            "counts": {},
+            "progress": {}
+        }
+    
+    try:
+        with open(status_file, "r", encoding="utf-8") as f:
+            status_data = json.load(f)
+        return status_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read ingestion status: {str(e)}")
+
+
+# ============== MULTI-SOURCE SCRAPING ENDPOINTS ==============
+
+class ScrapeConfig(BaseModel):
+    search_type: str = "buy"
+    location: str = "Bangalore"
+    property_category: str = "residential"
+    property_type: str = "flat"
+    max_items: int = 1000
+    custom_url: Optional[str] = None
+    min_price: Optional[int] = None
+    max_price: Optional[int] = None
+    min_bedrooms: Optional[int] = None
+    max_bedrooms: Optional[int] = None
+
+@app.get("/api/scrape/platforms")
+async def get_platforms():
+    """Get list of available scraping platforms."""
+    return multi_source_scraper.get_platform_list()
+
+@app.post("/api/scrape/{platform}/start")
+async def start_platform_scrape(platform: str, config: ScrapeConfig):
+    """Start scrape for a specific platform."""
+    result = multi_source_scraper.start_platform_scrape(platform, config.dict())
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed to start scrape"))
+    return result
+
+@app.post("/api/scrape/{platform}/stop")
+async def stop_platform_scrape(platform: str, job_id: Optional[str] = None):
+    """Stop scrape for a specific platform or job."""
+    result = multi_source_scraper.stop_platform_scrape(platform, job_id)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed to stop scrape"))
+    return result
+
+@app.post("/api/scrape/job/{job_id}/stop")
+async def stop_scrape_job(job_id: str):
+    """Stop a specific scrape job by job_id."""
+    # Extract platform from job_id (format: platform_category_searchtype_propertytype)
+    parts = job_id.split("_")
+    if len(parts) < 4:
+        raise HTTPException(status_code=400, detail="Invalid job_id format")
+    platform = parts[0]
+    result = multi_source_scraper.stop_platform_scrape(platform, job_id)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed to stop scrape"))
+    return result
+
+@app.get("/api/scrape/status")
+async def get_all_scrape_status():
+    """Get status of all jobs grouped by platform."""
+    return multi_source_scraper.get_all_status()
+
+@app.get("/api/scrape/job/{job_id}/status")
+async def get_job_status(job_id: str):
+    """Get status of a specific scrape job."""
+    return multi_source_scraper.get_job_status(job_id)
+
+@app.get("/api/scrape/{platform}/status")
+async def get_platform_scrape_status(platform: str):
+    """Get status of all jobs for a specific platform."""
+    return multi_source_scraper.get_platform_status(platform)
+
+@app.get("/api/scrape/history")
+async def get_scrape_history():
+    """Get history of past scrapes."""
+    return multi_source_scraper.get_history()
+
+@app.get("/api/scrape/stats")
+async def get_scrape_stats():
+    """Get statistics about scraped data."""
+    return multi_source_scraper.get_data_stats()
+
+@app.post("/api/scrape/config/save")
+async def save_scraper_config(config: dict):
+    """Save scraper configuration to JSON file."""
+    try:
+        config_file = Path(__file__).parent.parent / "src" / "data" / "scraper_config.json"
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(config_file, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        return {"success": True, "message": "Configuration saved successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save configuration: {str(e)}")
+
+@app.get("/api/scrape/config/load")
+async def load_scraper_config():
+    """Load scraper configuration from JSON file."""
+    try:
+        config_file = Path(__file__).parent.parent / "src" / "data" / "scraper_config.json"
+        
+        if not config_file.exists():
+            return {"success": False, "config": None, "message": "No saved configuration found"}
+        
+        with open(config_file, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        
+        return {"success": True, "config": config, "message": "Configuration loaded successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load configuration: {str(e)}")
+
+@app.post("/api/scrape/import")
+async def import_external_run(request: dict):
+    """Import an external Apify run by run_id."""
+    from import_apify_run import import_apify_run
+    
+    run_id = request.get("run_id")
+    platform = request.get("platform")
+    config = request.get("config", {})
+    
+    if not run_id:
+        raise HTTPException(status_code=400, detail="run_id is required")
+    if not platform:
+        raise HTTPException(status_code=400, detail="platform is required")
+    
+    result = import_apify_run(run_id, platform, config)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed to import run"))
+    
+    return result
 
 
 # ============== PHASE 1: STATUS ENDPOINT ==============

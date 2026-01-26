@@ -51,33 +51,12 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const [tilesLoaded, setTilesLoaded] = useState(0)
   const [clickRipple, setClickRipple] = useState(null)
   const [canGoBack, setCanGoBack] = useState(false)
-  const [mapboxApiKey, setMapboxApiKey] = useState(null)
-  const [useMapbox, setUseMapbox] = useState(false)
   
-  // Layer visibility toggles with persistence
-  const [showBuildings, setShowBuildings] = useState(() => {
-    return localStorage.getItem('valora_show_buildings') !== 'false'
-  })
-  const [showPlaces, setShowPlaces] = useState(() => {
-    return localStorage.getItem('valora_show_places') !== 'false'
-  })
-  const [showTransport, setShowTransport] = useState(() => {
-    return localStorage.getItem('valora_show_transport') !== 'false'
-  })
-  const [layersPanelOpen, setLayersPanelOpen] = useState(false)
+  // Layer visibility - all visible by default
+  const [showBuildings] = useState(true)
+  const [showPlaces] = useState(true)
+  const [showTransport] = useState(true)
 
-  // Persist layer preferences
-  useEffect(() => {
-    localStorage.setItem('valora_show_buildings', showBuildings)
-  }, [showBuildings])
-  
-  useEffect(() => {
-    localStorage.setItem('valora_show_places', showPlaces)
-  }, [showPlaces])
-  
-  useEffect(() => {
-    localStorage.setItem('valora_show_transport', showTransport)
-  }, [showTransport])
 
   const applyPlaceLabelStyle = (entity, subtype) => {
     if (!entity) return
@@ -182,29 +161,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   }
 
   const toggleTransportLayer = () => {
-    setShowTransport(prev => !prev)
+    // setShowTransport(prev => !prev)
     // Transport layer implementation pending
   }
 
-  // Fetch Mapbox API key on mount
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const response = await fetch(`${API_BASE}/api/config`)
-        const data = await response.json()
-        console.log('Config response:', data)
-        if (data.mapbox_api_key) {
-          setMapboxApiKey(data.mapbox_api_key)
-          console.log('✅ Mapbox API key loaded:', data.mapbox_api_key.substring(0, 20) + '...')
-        } else {
-          console.warn('⚠️ No Mapbox API key in config')
-        }
-      } catch (err) {
-        console.warn('Failed to fetch config:', err)
-      }
-    }
-    fetchConfig()
-  }, [])
 
   // Stop rotation helper function
   const stopRotation = () => {
@@ -284,51 +244,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   //   }
   // }, [showPlaces])
 
-  // Toggle between OSM and Mapbox (preserves camera view)
-  const toggleTileProvider = () => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed() || !mapboxApiKey) return
-    
-    // Save current camera state BEFORE any changes
-    const camera = viewer.camera
-    const savedPosition = Cesium.Cartesian3.clone(camera.position)
-    const savedHeading = camera.heading
-    const savedPitch = camera.pitch
-    const savedRoll = camera.roll
-    
-    const newMode = !useMapbox
-    setUseMapbox(newMode)
-    
-    // Remove existing imagery layers
-    viewer.imageryLayers.removeAll()
-    
-    if (newMode) {
-      // Mapbox: Streets
-      console.log('🗺️ Switching to Mapbox tiles')
-      const mapboxProvider = new Cesium.UrlTemplateImageryProvider({
-        url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxApiKey}`,
-        credit: 'Mapbox'
-      })
-      viewer.imageryLayers.addImageryProvider(mapboxProvider)
-    } else {
-      // OSM: OpenStreetMap
-      console.log('🗺️ Switching to OSM tiles')
-      const osmProvider = new Cesium.OpenStreetMapImageryProvider({
-        url: 'https://tile.openstreetmap.org/'
-      })
-      viewer.imageryLayers.addImageryProvider(osmProvider)
-    }
-    
-    // Restore camera position immediately (no animation)
-    viewer.camera.setView({
-      destination: savedPosition,
-      orientation: {
-        heading: savedHeading,
-        pitch: savedPitch,
-        roll: savedRoll
-      }
-    })
-  }
 
   const flyToArea = (areaKey, height = 1200) => {
     const viewer = viewerRef.current
@@ -497,25 +412,49 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     if (loadedTilesRef.current.has(tileId)) return false // Already loaded
 
     try {
-      const response = await fetch(`${API_BASE}${tileUrl}`)
+      // Handle both relative and absolute URLs
+      const url = tileUrl.startsWith('/api/') ? `${API_BASE}${tileUrl}` : `${API_BASE}${tileUrl}`
+      const response = await fetch(url)
       if (!response.ok) return false
 
       const data = await response.json()
       
-      // Add buildings from this tile
+      // Add buildings from this tile/database response
       const entities = []
       viewer.entities.suspendEvents()
       
-      for (const feature of data.features) {
-        const coords = feature.geometry.coordinates[0]
+      const features = data.features || []
+      for (const feature of features) {
+        const geomType = feature.geometry?.type
+        const coords = feature.geometry?.coordinates
         const props = feature.properties || {}
         const height = Math.max(props.height || 10, 3)
-
-        // Calculate building centroid for location
-        const lons = coords.map(c => c[0])
-        const lats = coords.map(c => c[1])
-        const centroidLng = lons.reduce((a, b) => a + b, 0) / lons.length
-        const centroidLat = lats.reduce((a, b) => a + b, 0) / lats.length
+        
+        let centroidLng, centroidLat, polygonHierarchy
+        
+        if (geomType === 'Point' && coords) {
+          // Database returns points - create simple building footprint
+          centroidLng = coords[0]
+          centroidLat = coords[1]
+          // Create a simple square footprint (~15m x 15m)
+          const size = 0.00015 // ~15m in degrees
+          polygonHierarchy = Cesium.Cartesian3.fromDegreesArray([
+            centroidLng - size, centroidLat - size,
+            centroidLng + size, centroidLat - size,
+            centroidLng + size, centroidLat + size,
+            centroidLng - size, centroidLat + size
+          ])
+        } else if (geomType === 'Polygon' && coords?.[0]) {
+          // File-based tiles have polygon coordinates
+          const ring = coords[0]
+          const lons = ring.map(c => c[0])
+          const lats = ring.map(c => c[1])
+          centroidLng = lons.reduce((a, b) => a + b, 0) / lons.length
+          centroidLat = lats.reduce((a, b) => a + b, 0) / lats.length
+          polygonHierarchy = Cesium.Cartesian3.fromDegreesArray(ring.flat())
+        } else {
+          continue // Skip invalid geometry
+        }
 
         // Color by height for attractive visualization
         let color = '#e8e8e8'
@@ -524,14 +463,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         else if (height > 15) color = '#c4c4c4'
         else if (height > 8) color = '#d4d4d4'
 
-        // Determine building type
         const buildingType = props.building || props.type || 'building'
         const levels = props.levels || Math.round(height / 3)
 
         const entity = viewer.entities.add({
           name: props.name || `Building`,
           polygon: {
-            hierarchy: Cesium.Cartesian3.fromDegreesArray(coords.flat()),
+            hierarchy: polygonHierarchy,
             material: Cesium.Color.fromCssColorString(color).withAlpha(0.9),
             outline: false,
             extrudedHeight: height,
@@ -546,7 +484,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
             address: props.address || props['addr:street'] || null,
             lng: centroidLng,
             lat: centroidLat,
-            area: props.area || Math.round(Math.abs((coords[0][0] - coords[2][0]) * (coords[0][1] - coords[2][1]) * 111000 * 111000))
+            area: props.area || 225 // Default ~15m x 15m
           }
         })
         entities.push(entity)
@@ -739,13 +677,62 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     }
   }, [agentData?.flyTo, setAgentData])
 
+  // Track property markers for highlighting
+  const propertyMarkersRef = useRef([])
+
   // Listen for map commands
   useEffect(() => {
     const handleMapCommand = (e) => {
       const viewer = viewerRef.current
       if (!viewer || viewer.isDestroyed()) return
       
-      const { action, coordinates, zoom } = e.detail || {}
+      const { action, coordinates, zoom, properties } = e.detail || {}
+      
+      // Handle highlightProperties action for map sync
+      if (action === 'highlightProperties' && properties && Array.isArray(properties)) {
+        // Clear previous property markers
+        propertyMarkersRef.current.forEach(entity => {
+          try { viewer.entities.remove(entity) } catch {}
+        })
+        propertyMarkersRef.current = []
+        
+        // Add new property markers
+        properties.forEach((prop, index) => {
+          if (!prop.lat || !prop.lng) return
+          
+          const priceLabel = prop.price ? `₹${(prop.price / 100000).toFixed(1)}L` : ''
+          const bhkLabel = prop.bedrooms ? `${prop.bedrooms}BHK` : ''
+          const label = [bhkLabel, priceLabel].filter(Boolean).join(' • ') || `Property ${index + 1}`
+          
+          const marker = viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(prop.lng, prop.lat),
+            point: {
+              pixelSize: 12,
+              color: Cesium.Color.fromCssColorString('#22c55e'),
+              outlineColor: Cesium.Color.WHITE,
+              outlineWidth: 2,
+              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+            },
+            label: {
+              text: label,
+              font: '12px sans-serif',
+              fillColor: Cesium.Color.WHITE,
+              outlineColor: Cesium.Color.fromCssColorString('#111827'),
+              outlineWidth: 2,
+              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+              pixelOffset: new Cesium.Cartesian2(0, -20),
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              showBackground: true,
+              backgroundColor: Cesium.Color.fromCssColorString('#22c55e').withAlpha(0.8),
+              backgroundPadding: new Cesium.Cartesian2(6, 3)
+            }
+          })
+          propertyMarkersRef.current.push(marker)
+        })
+        return
+      }
       
       if (action === 'center' && coordinates && coordinates.length === 2) {
         const [lat, lng] = coordinates
@@ -846,24 +833,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
 
         viewerRef.current = viewer
 
-        // Remove default layers and add map tiles
-        viewer.imageryLayers.removeAll()
+        // Remove default layers and add OSM tiles
+        viewer.imageryLayers.removeAll(true)
         
-        // Add imagery provider (default: OSM, can switch to Mapbox)
-        if (useMapbox && mapboxApiKey) {
-          const mapboxProvider = new Cesium.UrlTemplateImageryProvider({
-            url: `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxApiKey}`,
-            credit: 'Mapbox'
-          })
-          viewer.imageryLayers.addImageryProvider(mapboxProvider)
-          console.log('🗺️ Using Mapbox tiles')
-        } else {
-          const osmProvider = new Cesium.OpenStreetMapImageryProvider({
-            url: 'https://tile.openstreetmap.org/'
-          })
-          viewer.imageryLayers.addImageryProvider(osmProvider)
-          console.log('🗺️ Using OSM tiles')
-        }
+        const osmProvider = new Cesium.OpenStreetMapImageryProvider({
+          url: 'https://tile.openstreetmap.org/'
+        })
+        viewer.imageryLayers.addImageryProvider(osmProvider)
+        console.log('🗺️ Using OSM tiles')
 
         // Configure globe
         viewer.scene.globe.show = true
@@ -1270,7 +1247,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         }
       }
     }
-  }, [mapboxApiKey])
+  }, [])
 
   // Hide Cesium logo
   useEffect(() => {
@@ -1371,119 +1348,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           </button>
         </div>
 
-        {/* Layers Panel */}
-        <div className="relative bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden">
-          <button
-            onClick={() => setLayersPanelOpen(!layersPanelOpen)}
-            className={`w-9 h-9 flex items-center justify-center transition-colors ${
-              layersPanelOpen ? 'bg-blue-50' : 'hover:bg-gray-50'
-            }`}
-            title="Layers"
-          >
-            <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-            </svg>
-          </button>
-          
-          {/* Layers Dropdown */}
-          {layersPanelOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-white/98 backdrop-blur-sm rounded-lg shadow-xl border border-gray-200/50 overflow-hidden z-50">
-              <div className="p-2 border-b border-gray-100">
-                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide px-2">Map Layers</h3>
-              </div>
-              
-              {/* Buildings Toggle */}
-              <button
-                onClick={toggleBuildingsLayer}
-                className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-50"
-              >
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">3D Buildings</span>
-                </div>
-                <div className={`w-9 h-5 rounded-full transition-colors ${
-                  showBuildings ? 'bg-blue-500' : 'bg-gray-300'
-                }`}>
-                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform mt-0.5 ${
-                    showBuildings ? 'ml-4' : 'ml-0.5'
-                  }`} />
-                </div>
-              </button>
-              
-              {/* Places Labels Toggle */}
-              <button
-                onClick={togglePlacesLayer}
-                className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-50"
-              >
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">Place Labels</span>
-                </div>
-                <div className={`w-9 h-5 rounded-full transition-colors ${
-                  showPlaces ? 'bg-blue-500' : 'bg-gray-300'
-                }`}>
-                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform mt-0.5 ${
-                    showPlaces ? 'ml-4' : 'ml-0.5'
-                  }`} />
-                </div>
-              </button>
-              
-              {/* Transport Toggle (future) */}
-              <button
-                onClick={toggleTransportLayer}
-                className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors border-b border-gray-100"
-              >
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">Transport</span>
-                </div>
-                <div className={`w-9 h-5 rounded-full transition-colors ${
-                  showTransport ? 'bg-blue-500' : 'bg-gray-300'
-                }`}>
-                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform mt-0.5 ${
-                    showTransport ? 'ml-4' : 'ml-0.5'
-                  }`} />
-                </div>
-              </button>
-              
-              {/* Base Map Selection */}
-              <div className="p-2 pt-3">
-                <p className="text-xs font-bold text-gray-700 uppercase tracking-wide px-2 mb-2">Base Map</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => useMapbox && mapboxApiKey && toggleTileProvider()}
-                    disabled={!mapboxApiKey}
-                    className={`px-3 py-2 rounded-md text-xs font-medium transition-all ${
-                      !useMapbox
-                        ? 'bg-green-500 text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    } ${!mapboxApiKey ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  >
-                    OSM
-                  </button>
-                  <button
-                    onClick={() => !useMapbox && mapboxApiKey && toggleTileProvider()}
-                    disabled={!mapboxApiKey}
-                    className={`px-3 py-2 rounded-md text-xs font-medium transition-all ${
-                      useMapbox
-                        ? 'bg-blue-500 text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    } ${!mapboxApiKey ? 'opacity-40 cursor-not-allowed' : ''}`}
-                  >
-                    Mapbox
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
 

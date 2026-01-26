@@ -12,6 +12,14 @@ from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 
 # Import StateChange for digital twin updates
+# Import advanced reasoning engine
+try:
+    from advanced_reasoning import get_reasoning_engine, ReasoningTrace
+    REASONING_AVAILABLE = True
+except ImportError:
+    REASONING_AVAILABLE = False
+    get_reasoning_engine = None
+    ReasoningTrace = None
 try:
     from digital_twin import StateChange
 except ImportError:
@@ -127,6 +135,9 @@ class AgentFacts:
     lat: Optional[float] = None
     lng: Optional[float] = None
     
+    # Reasoning metadata
+    confidence_score: Optional[float] = None
+    
     # Spatial facts
     poi_count: Optional[int] = None
     transport_count: Optional[int] = None
@@ -167,6 +178,19 @@ class AgentFacts:
     
     # RAG context
     rag_context: Optional[str] = None
+    
+    def get_confidence_warning(self) -> Optional[str]:
+        """Get user-facing confidence warning if needed."""
+        if self.confidence_score is None:
+            return None
+        
+        if self.confidence_score < 40:
+            return "⚠️ **Limited Data**: Our analysis is based on incomplete information. Results may not be fully accurate."
+        elif self.confidence_score < 60:
+            return "ℹ️ **Partial Data**: Some information is missing. Consider this a preliminary analysis."
+        elif self.confidence_score < 75:
+            return "✓ **Moderate Confidence**: Analysis based on available data, but some details may be estimated."
+        return None
     
     def to_context_string(self) -> str:
         """Convert facts to a structured context string for LLM."""
@@ -247,7 +271,14 @@ class AgentFacts:
         if self.rag_context:
             parts.append(f"**Knowledge Base:**\n{self.rag_context}")
         
-        return "\n".join(parts) if parts else "No specific location data available."
+        context = "\n".join(parts) if parts else "No specific location data available."
+        
+        # Add confidence warning if needed
+        warning = self.get_confidence_warning()
+        if warning:
+            context = f"{warning}\n\n{context}"
+        
+        return context
     
     def to_dashboard(self, title: str = "Analysis") -> Dict[str, Any]:
         """Convert facts to dashboard format for frontend."""
@@ -463,14 +494,15 @@ class GISAgentOrchestrator:
         query: str,
         context: Dict[str, Any],
         intent: Intent = None,
-    ) -> Tuple[AgentFacts, Intent, List[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    ) -> Tuple[AgentFacts, Intent, List[Dict[str, Any]], Optional[Dict[str, Any]], Optional[Dict]]:
         """
         Gather grounded facts from all relevant agents.
-        Returns (facts, detected_intent, ui_actions, digital_twin_state).
+        Returns (facts, detected_intent, ui_actions, digital_twin_state, reasoning_trace).
         """
         facts = AgentFacts()
         ui_actions = []
         digital_twin_state = None
+        reasoning_trace = None
         
         # Extract context
         selected_building = context.get('selectedBuilding')
@@ -623,9 +655,29 @@ class GISAgentOrchestrator:
                         "bedrooms": p.get('bedrooms'),
                         "area": p.get('covered_area'),
                         "distance_m": int(p.get('_distance', 0)),
+                        "lat": p.get('latitude'),
+                        "lng": p.get('longitude'),
                     }
                     for p in props[:10]
                 ]
+                
+                # Map Sync: Add highlightProperties action for properties with coordinates
+                properties_to_highlight = [
+                    {
+                        "lat": p.get('latitude'),
+                        "lng": p.get('longitude'),
+                        "name": p.get('name', 'Property'),
+                        "price": p.get('price'),
+                        "bedrooms": p.get('bedrooms'),
+                    }
+                    for p in props[:10]
+                    if p.get('latitude') and p.get('longitude')
+                ]
+                if properties_to_highlight:
+                    ui_actions.append({
+                        "action": "highlightProperties",
+                        "properties": properties_to_highlight
+                    })
             except Exception as e:
                 print(f"Property agent error: {e}")
         
@@ -726,18 +778,64 @@ class GISAgentOrchestrator:
             ui_actions.append({"action": "openPanel", "value": "insights"})
             ui_actions.append({"action": "switchTab", "value": "insights"})
         
-        return facts, intent, ui_actions, digital_twin_state
+        # Apply advanced reasoning if available
+        if REASONING_AVAILABLE:
+            try:
+                reasoning_engine = get_reasoning_engine()
+                facts_dict = asdict(facts)
+                rag_results = None
+                if self.rag_service:
+                    try:
+                        rag_results = self.rag_service.search(query, top_k=5)
+                    except:
+                        pass
+                
+                trace = reasoning_engine.reason(
+                    query=query,
+                    collected_facts=facts_dict,
+                    rag_results=rag_results,
+                    geocoder=self.geocoder
+                )
+                reasoning_trace = trace.to_dict()
+                
+                # Add confidence to facts
+                facts.confidence_score = trace.confidence_score
+                
+                # Log low confidence warnings
+                if trace.confidence_score < 50:
+                    print(f"[WARNING] Low confidence response: {trace.confidence_score:.1f}/100")
+                    for warning in trace.warnings:
+                        print(f"  - {warning}")
+            except Exception as e:
+                print(f"Reasoning engine error: {e}")
+        
+        return facts, intent, ui_actions, digital_twin_state, reasoning_trace
     
     def build_system_prompt(self, intent: Intent) -> str:
         """Build a focused system prompt based on intent."""
-        base = """You are Valora AI, a GIS and real estate intelligence assistant for Bangalore, India.
+        base = """You are Valora AI, an advanced GIS and real estate intelligence assistant for Bangalore, India.
+
+**YOUR CAPABILITIES:**
+- Multi-step reasoning and analysis
+- Spatial intelligence and location insights  
+- Market trend analysis and predictions
+- Property valuation and comparisons
+- Urban planning and infrastructure impact assessment
 
 **CRITICAL RULES:**
 1. ONLY use the factual data provided in the context below. Do NOT invent statistics.
-2. If data is missing, say "data not available" rather than making up numbers.
-3. Be concise (2-3 short paragraphs).
-4. Focus on insights the user can act on.
-5. Do NOT output code, XML, or tool calls.
+2. If data is missing, acknowledge it: "Based on available data..." or "Additional data needed for..."
+3. Think step-by-step: break complex queries into logical reasoning steps.
+4. Provide actionable insights with confidence levels when relevant.
+5. Use precise numbers from the data - no rounding unless specified.
+6. For comparisons, create clear structured analysis.
+7. Be concise but comprehensive (2-4 paragraphs maximum).
+8. Do NOT output code, XML, or tool calls in your response.
+
+**RESPONSE FORMAT:**
+- Start with a direct answer to the user's question
+- Provide supporting evidence from the data
+- End with actionable insights or recommendations
 """
         
         intent_guidance = {

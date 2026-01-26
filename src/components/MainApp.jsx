@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import OnlineOSMMap from '../spatial/OnlineOSMMap'
 import AnalysisPanel from './AnalysisPanel'
 import ChatPanel from './ChatPanel'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote } from 'lucide-react'
+import AdminPanel from './AdminPanel'
+import ScrapeController from './ScrapeController'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -14,6 +16,7 @@ export default function MainApp() {
   const [analysisWidth, setAnalysisWidth] = useState('narrow') // narrow or wide
   const [chatWidth, setChatWidth] = useState('narrow') // narrow or wide
   const [credits, setCredits] = useState(null)
+  const [isAdminOpen, setIsAdminOpen] = useState(false)
 
   // Font size persistence
   const [analysisFontSize, setAnalysisFontSize] = useState(() => {
@@ -116,14 +119,25 @@ export default function MainApp() {
           <span className="text-slate-400 text-xs ml-2">City Intelligence</span>
         </div>
 
-        {/* Credits Display */}
-        {credits !== null && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-slate-700/50 rounded-full border border-slate-600">
-            <Wallet className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-white text-xs font-bold">{credits}</span>
-            <span className="text-slate-400 text-[10px]">credits</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {/* Admin Button */}
+          <button
+            onClick={() => setIsAdminOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 hover:text-white rounded-lg border border-purple-500/30 transition text-xs font-medium"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Admin
+          </button>
+
+          {/* Credits Display */}
+          {credits !== null && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-slate-700/50 rounded-full border border-slate-600">
+              <Wallet className="w-3.5 h-3.5 text-blue-400" />
+              <span className="text-white text-xs font-bold">{credits}</span>
+              <span className="text-slate-400 text-[10px]">credits</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Content - 3 Panel Layout */}
@@ -284,6 +298,9 @@ export default function MainApp() {
           )}
         </div>
       </div>
+
+      {/* Admin Panel Modal */}
+      <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
     </div>
   )
 }
