@@ -1516,6 +1516,49 @@ async def chat_with_ai(request: ChatRequest):
             credit_resp = await manage_credits(CreditAction(user_id=user_id, action='deduct', reason='chat'))
             
             # Add simulation and twin state to response
+            # Build full facts object for frontend explainability
+            facts_data = {
+                # Location
+                "location_name": facts.location_name,
+                "lat": facts.lat,
+                "lng": facts.lng,
+                # Spatial
+                "poi_count": facts.poi_count,
+                "transport_count": facts.transport_count,
+                "accessibility_score": facts.accessibility_score,
+                "walkability_score": facts.walkability_score,
+                "amenity_density": facts.amenity_density,
+                # Market
+                "avg_price_per_sqft": facts.avg_price_per_sqft,
+                "price_trend_pct": facts.price_trend_pct,
+                "active_listings": facts.active_listings,
+                "demand_level": facts.demand_level,
+                # Terrain
+                "elevation_m": facts.elevation_m,
+                "flood_risk": facts.flood_risk,
+                # 3D
+                "sky_view_factor": facts.sky_view_factor,
+                "view_quality": facts.view_quality,
+                "skyline_character": facts.skyline_character,
+                "optimal_floor": facts.optimal_floor,
+                # City Intelligence
+                "locality_archetype": facts.locality_archetype,
+                "locality_growth_stage": facts.locality_growth_stage,
+                "locality_tagline": facts.locality_tagline,
+                "locality_personality": facts.locality_personality,
+                "overall_risk_score": facts.overall_risk_score,
+                "risk_level": facts.risk_level,
+                "risk_profile": facts.risk_profile,
+                "risk_warnings": facts.risk_warnings,
+                "causal_analysis": facts.causal_analysis,
+                # Confidence
+                "confidence_score": facts.confidence_score,
+                "location_score": facts.location_score,
+                "location_strengths": facts.location_strengths,
+                "location_weaknesses": facts.location_weaknesses,
+                "investment_outlook": facts.investment_outlook,
+            }
+            
             return {
                 "success": True,
                 "message": ai_message,
@@ -1525,6 +1568,7 @@ async def chat_with_ai(request: ChatRequest):
                 "simulation": simulation_data,
                 "digital_twin_state": digital_twin_state,
                 "user_credits": credit_resp if credit_resp.get('success') else None,
+                "facts": facts_data,  # Full facts for explainability panel
                 "facts_summary": {  # Expose key facts for transparency
                     "location": facts.location_name,
                     "poi_count": facts.poi_count,

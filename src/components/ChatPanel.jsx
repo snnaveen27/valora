@@ -9,6 +9,118 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 // Confidence threshold for auto-navigation (0-100)
 const AUTO_NAV_CONFIDENCE = 70
 
+// Extract key drivers from facts for SHAP-style explainability
+function extractKeyDrivers(facts) {
+  if (!facts) return []
+  
+  const drivers = []
+  
+  // Location quality factors
+  if (facts.accessibility_score !== undefined) {
+    drivers.push({ 
+      name: 'Accessibility', 
+      value: facts.accessibility_score, 
+      impact: (facts.accessibility_score - 50) / 100 
+    })
+  }
+  if (facts.walkability_score !== undefined) {
+    drivers.push({ 
+      name: 'Walkability', 
+      value: facts.walkability_score, 
+      impact: (facts.walkability_score - 50) / 100 
+    })
+  }
+  if (facts.poi_count !== undefined) {
+    drivers.push({ 
+      name: 'Amenity Density', 
+      value: facts.poi_count, 
+      impact: Math.min(facts.poi_count / 50, 1) - 0.3 
+    })
+  }
+  if (facts.transport_count !== undefined) {
+    drivers.push({ 
+      name: 'Transit Access', 
+      value: facts.transport_count, 
+      impact: Math.min(facts.transport_count / 10, 1) - 0.2 
+    })
+  }
+  
+  // Market factors
+  if (facts.price_trend_pct !== undefined) {
+    drivers.push({ 
+      name: 'Price Trend', 
+      value: `${facts.price_trend_pct > 0 ? '+' : ''}${facts.price_trend_pct?.toFixed(1)}%`, 
+      impact: facts.price_trend_pct / 20 
+    })
+  }
+  if (facts.demand_level) {
+    const demandImpact = facts.demand_level === 'High' ? 0.3 : facts.demand_level === 'Medium' ? 0 : -0.3
+    drivers.push({ 
+      name: 'Market Demand', 
+      value: facts.demand_level, 
+      impact: demandImpact 
+    })
+  }
+  
+  // Risk factors (negative impact)
+  if (facts.overall_risk_score !== undefined) {
+    drivers.push({ 
+      name: 'Risk Score', 
+      value: facts.overall_risk_score, 
+      impact: -(facts.overall_risk_score - 30) / 100 
+    })
+  }
+  if (facts.flood_risk && facts.flood_risk !== 'low') {
+    drivers.push({ 
+      name: 'Flood Risk', 
+      value: facts.flood_risk, 
+      impact: facts.flood_risk === 'high' ? -0.4 : -0.2 
+    })
+  }
+  
+  // Locality factors
+  if (facts.locality_growth_stage) {
+    const stageImpact = {
+      'mature': 0.2,
+      'maturing': 0.3,
+      'growing': 0.4,
+      'emerging': 0.2,
+      'nascent': 0.1,
+      'declining': -0.3,
+    }
+    drivers.push({ 
+      name: 'Growth Stage', 
+      value: facts.locality_growth_stage, 
+      impact: stageImpact[facts.locality_growth_stage] || 0 
+    })
+  }
+  
+  // 3D factors
+  if (facts.sky_view_factor !== undefined) {
+    drivers.push({ 
+      name: 'Sky View', 
+      value: `${(facts.sky_view_factor * 100).toFixed(0)}%`, 
+      impact: facts.sky_view_factor - 0.5 
+    })
+  }
+  if (facts.view_quality) {
+    const viewImpact = {
+      'excellent': 0.4,
+      'good': 0.2,
+      'moderate': 0,
+      'poor': -0.3,
+    }
+    drivers.push({ 
+      name: 'View Quality', 
+      value: facts.view_quality, 
+      impact: viewImpact[facts.view_quality] || 0 
+    })
+  }
+  
+  // Sort by absolute impact
+  return drivers.sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact)).slice(0, 8)
+}
+
 // Check if message is a navigation request and extract place
 function detectNavigationIntent(message) {
   const msg = message.toLowerCase()
@@ -359,7 +471,44 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
           simulation: data.simulation || null,
           digitalTwinState: data.digital_twin_state || null,
           credits: data.user_credits?.balance ?? prev.credits,
-          lastReasoningTrace: data.reasoning_trace || null
+          lastReasoningTrace: data.reasoning_trace || null,
+          // City Intelligence data for explainability
+          explainability: {
+            confidence: data.reasoning_trace?.confidence || data.facts?.confidence_score || 75,
+            keyDrivers: data.facts?.key_drivers || extractKeyDrivers(data.facts),
+            reasoning_chain: data.reasoning_trace?.steps || [],
+            causal_analysis: data.facts?.causal_analysis,
+            risk_profile: data.facts?.risk_profile,
+            risk_warnings: data.facts?.risk_warnings || [],
+            prediction: data.facts?.prediction,
+            locality: {
+              archetype: data.facts?.locality_archetype,
+              growth_stage: data.facts?.locality_growth_stage,
+              tagline: data.facts?.locality_tagline,
+              personality: data.facts?.locality_personality,
+            }
+          },
+          // For real-time panel updates
+          causalAnalysis: data.facts?.causal_analysis,
+          riskProfile: data.facts?.risk_profile,
+          riskWarnings: data.facts?.risk_warnings,
+          reasoningTrace: data.reasoning_trace,
+        }))
+        
+        // Dispatch live analysis update event for real-time panel sync
+        window.dispatchEvent(new CustomEvent('valora-ui-command', { 
+          detail: { 
+            action: 'updateAnalysis', 
+            analysis: {
+              confidence: data.reasoning_trace?.confidence || 75,
+              keyDrivers: extractKeyDrivers(data.facts),
+              reasoning_chain: data.reasoning_trace?.steps || [],
+              causal_analysis: data.facts?.causal_analysis,
+              risk_profile: data.facts?.risk_profile,
+              risk_warnings: data.facts?.risk_warnings || [],
+              dataPoints: data.facts?.poi_count || 0,
+            }
+          } 
         }))
       }
       
@@ -367,6 +516,13 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
       window.__lastReasoningTrace = data.reasoning_trace || null
       window.__lastIntent = data.intent || null
       window.__lastFactsSummary = data.facts_summary || null
+      
+      // Dispatch storytelling event if we have location + narrative data
+      if (data.facts?.lat && data.facts?.lng && data.storyboard) {
+        window.dispatchEvent(new CustomEvent('valora-storyboard', { 
+          detail: data.storyboard 
+        }))
+      }
 
       if (Array.isArray(data?.ui_actions)) {
         for (const a of data.ui_actions) {

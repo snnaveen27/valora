@@ -4,8 +4,7 @@ import AnalysisPanel from './AnalysisPanel'
 import ChatPanel from './ChatPanel'
 import AdminPanel from './AdminPanel'
 import ScrapeController from './ScrapeController'
-import CityIntelligencePanel from './CityIntelligencePanel'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Building2 } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -18,7 +17,7 @@ export default function MainApp() {
   const [chatWidth, setChatWidth] = useState('narrow') // narrow or wide
   const [credits, setCredits] = useState(null)
   const [isAdminOpen, setIsAdminOpen] = useState(false)
-  const [selectedLocality, setSelectedLocality] = useState(null)
+  const [liveAnalysis, setLiveAnalysis] = useState(null) // Real-time analysis from AI
 
   // Font size persistence
   const [analysisFontSize, setAnalysisFontSize] = useState(() => {
@@ -73,11 +72,18 @@ export default function MainApp() {
 
       if (action === 'switchTab' && targetTab) {
         // Map old tab names to new 'insights' tab
-        if (targetTab === 'analysis' || targetTab === 'market') {
+        if (targetTab === 'analysis' || targetTab === 'market' || targetTab === 'city') {
           setActiveTab('insights')
         } else {
           setActiveTab(targetTab)
         }
+      }
+
+      // Handle live analysis updates from AI
+      if (action === 'updateAnalysis') {
+        setLiveAnalysis(e.detail.analysis)
+        setActiveTab('insights') // Auto-switch to insights
+        setIsAnalysisOpen(true) // Ensure panel is open
       }
 
       if (action === 'openPanel') {
@@ -158,7 +164,7 @@ export default function MainApp() {
             <>
               <div className="p-2 border-b border-slate-700 flex items-center justify-between shrink-0">
                 <div className="flex gap-1">
-                  {['insights', 'city', 'docs', 'notes'].map(tab => (
+                  {['insights', 'explain', 'docs', 'notes'].map(tab => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -167,10 +173,10 @@ export default function MainApp() {
                       }`}
                     >
                       {tab === 'insights' && <TrendingUp className="w-3 h-3" />}
-                      {tab === 'city' && <Building2 className="w-3 h-3" />}
+                      {tab === 'explain' && <Brain className="w-3 h-3" />}
                       {tab === 'docs' && <FileText className="w-3 h-3" />}
                       {tab === 'notes' && <StickyNote className="w-3 h-3" />}
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {tab === 'explain' ? 'Why?' : tab.charAt(0).toUpperCase() + tab.slice(1)}
                     </button>
                   ))}
                 </div>
@@ -208,24 +214,14 @@ export default function MainApp() {
                 </div>
               </div>
               <div className="flex-1 overflow-hidden">
-                {activeTab === 'city' ? (
-                  <CityIntelligencePanel
-                    onLocalitySelect={(name) => {
-                      setSelectedLocality(name)
-                      // Dispatch event to fly to locality on map
-                      window.dispatchEvent(new CustomEvent('valora-fly-to-locality', { detail: { locality: name } }))
-                    }}
-                    selectedLocality={selectedLocality}
-                  />
-                ) : (
-                  <AnalysisPanel 
-                    agentData={agentData} 
-                    setAgentData={setAgentData}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    fontSize={analysisFontSize}
-                  />
-                )}
+                <AnalysisPanel 
+                  agentData={agentData} 
+                  setAgentData={setAgentData}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  fontSize={analysisFontSize}
+                  liveAnalysis={liveAnalysis}
+                />
               </div>
             </>
           ) : (
