@@ -66,23 +66,10 @@ pgvector/
 cleanup_*.py
 final_cleanup.py
 
-# Large data files (regenerate with scripts)
-src/data/raw/
-src/data/*.db
-src/data/*.json
-src/data/3dtiles/
-src/data/osm_extracted/
-src/data/terrain/
-src/data/data.zip
-src/data/faiss_store/*.faiss
-src/data/faiss_store/*.pkl
-src/data/osm_extracted/derived/buildings_metadata.geojson
-src/data/osm_extracted/derived/roads.geojson
-src/data/osm_extracted/derived/landuse.geojson
-src/data/osm_extracted/derived/natural.geojson
-src/data/buildings.geojson
-src/data/terrain/*.tif
-src/data/3dtiles/tiles/
+# Exclude entire data folder (keep only data_registry.json if needed)
+src/data/
+!src/data/.gitkeep
+!src/data/data_registry.json
 
 # ML model files
 backend/*.pkl
