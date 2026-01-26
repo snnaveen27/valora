@@ -4,7 +4,8 @@ import AnalysisPanel from './AnalysisPanel'
 import ChatPanel from './ChatPanel'
 import AdminPanel from './AdminPanel'
 import ScrapeController from './ScrapeController'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings } from 'lucide-react'
+import CityIntelligencePanel from './CityIntelligencePanel'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Building2 } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -17,6 +18,7 @@ export default function MainApp() {
   const [chatWidth, setChatWidth] = useState('narrow') // narrow or wide
   const [credits, setCredits] = useState(null)
   const [isAdminOpen, setIsAdminOpen] = useState(false)
+  const [selectedLocality, setSelectedLocality] = useState(null)
 
   // Font size persistence
   const [analysisFontSize, setAnalysisFontSize] = useState(() => {
@@ -156,7 +158,7 @@ export default function MainApp() {
             <>
               <div className="p-2 border-b border-slate-700 flex items-center justify-between shrink-0">
                 <div className="flex gap-1">
-                  {['insights', 'docs', 'notes'].map(tab => (
+                  {['insights', 'city', 'docs', 'notes'].map(tab => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -165,6 +167,7 @@ export default function MainApp() {
                       }`}
                     >
                       {tab === 'insights' && <TrendingUp className="w-3 h-3" />}
+                      {tab === 'city' && <Building2 className="w-3 h-3" />}
                       {tab === 'docs' && <FileText className="w-3 h-3" />}
                       {tab === 'notes' && <StickyNote className="w-3 h-3" />}
                       {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -205,13 +208,24 @@ export default function MainApp() {
                 </div>
               </div>
               <div className="flex-1 overflow-hidden">
-                <AnalysisPanel 
-                  agentData={agentData} 
-                  setAgentData={setAgentData}
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  fontSize={analysisFontSize}
-                />
+                {activeTab === 'city' ? (
+                  <CityIntelligencePanel
+                    onLocalitySelect={(name) => {
+                      setSelectedLocality(name)
+                      // Dispatch event to fly to locality on map
+                      window.dispatchEvent(new CustomEvent('valora-fly-to-locality', { detail: { locality: name } }))
+                    }}
+                    selectedLocality={selectedLocality}
+                  />
+                ) : (
+                  <AnalysisPanel 
+                    agentData={agentData} 
+                    setAgentData={setAgentData}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    fontSize={analysisFontSize}
+                  />
+                )}
               </div>
             </>
           ) : (

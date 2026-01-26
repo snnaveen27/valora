@@ -61,6 +61,23 @@ except ImportError:
     ENHANCED_DATA_AVAILABLE = False
     get_enhanced_data_service = None
 
+# Phase 3: City Intelligence Engine
+try:
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent / 'city_intelligence'))
+    from city_intelligence.locality_personality import get_locality_personality_model
+    from city_intelligence.evolution_timeline import get_evolution_timeline_system
+    from city_intelligence.risk_indexes import get_risk_index_calculator
+    from city_intelligence.causal_reasoning import get_causal_reasoning_engine
+    CITY_INTELLIGENCE_AVAILABLE = True
+except ImportError:
+    CITY_INTELLIGENCE_AVAILABLE = False
+    get_locality_personality_model = None
+    get_evolution_timeline_system = None
+    get_risk_index_calculator = None
+    get_causal_reasoning_engine = None
+
 
 def _parse_posted_date(value: Any) -> Optional[datetime]:
     """Parse posted_date string to datetime."""
@@ -256,6 +273,18 @@ class AgentFacts:
     ai_confidence_factors: Optional[List[str]] = None
     reasoning_chain: Optional[List[str]] = None
     
+    # Phase 3: City Intelligence Engine
+    locality_archetype: Optional[str] = None
+    locality_growth_stage: Optional[str] = None
+    locality_tagline: Optional[str] = None
+    locality_personality: Optional[Dict[str, Any]] = None
+    locality_timeline: Optional[Dict[str, Any]] = None
+    risk_profile: Optional[Dict[str, Any]] = None
+    overall_risk_score: Optional[float] = None
+    risk_level: Optional[str] = None
+    risk_warnings: Optional[List[str]] = None
+    causal_analysis: Optional[Dict[str, Any]] = None
+    
     def get_confidence_warning(self) -> Optional[str]:
         """Get user-facing confidence warning if needed."""
         if self.confidence_score is None:
@@ -401,6 +430,52 @@ class AgentFacts:
             parts.append("**Analysis Confidence:**")
             for factor in self.ai_confidence_factors:
                 parts.append(f"  ✓ {factor}")
+        
+        # Phase 3: City Intelligence
+        if self.locality_archetype or self.locality_tagline:
+            parts.append("**Locality Intelligence:**")
+            if self.locality_tagline:
+                parts.append(f"  - {self.locality_tagline}")
+            if self.locality_archetype:
+                parts.append(f"  - Archetype: {self.locality_archetype.replace('_', ' ').title()}")
+            if self.locality_growth_stage:
+                parts.append(f"  - Growth Stage: {self.locality_growth_stage.replace('_', ' ').title()}")
+            if self.locality_personality:
+                lp = self.locality_personality
+                if lp.get('tech_orientation'):
+                    parts.append(f"  - Tech Orientation: {lp['tech_orientation']}/100")
+                if lp.get('family_friendliness'):
+                    parts.append(f"  - Family Friendliness: {lp['family_friendliness']}/100")
+                if lp.get('investment_profile'):
+                    parts.append(f"  - Investment Profile: {lp['investment_profile'].replace('_', ' ').title()}")
+        
+        if self.overall_risk_score is not None or self.risk_level:
+            parts.append("**Risk Assessment:**")
+            if self.overall_risk_score is not None:
+                parts.append(f"  - Overall Risk Score: {self.overall_risk_score:.0f}/100 ({self.risk_level or 'unknown'})")
+            if self.risk_profile:
+                rp = self.risk_profile
+                if rp.get('hazard'):
+                    parts.append(f"  - Hazard Risk: {rp['hazard']:.0f}/100")
+                if rp.get('infrastructure'):
+                    parts.append(f"  - Infrastructure Stress: {rp['infrastructure']:.0f}/100")
+                if rp.get('speculation') and rp['speculation'] > 40:
+                    parts.append(f"  - Speculation Index: {rp['speculation']:.0f}/100")
+                if rp.get('bubble_probability') and rp['bubble_probability'] > 0.3:
+                    parts.append(f"  - ⚠️ Bubble Probability: {rp['bubble_probability']:.0%}")
+            if self.risk_warnings:
+                for warning in self.risk_warnings[:3]:
+                    parts.append(f"  - ⚠️ {warning}")
+        
+        if self.causal_analysis:
+            parts.append("**Causal Analysis:**")
+            if self.causal_analysis.get('conclusion'):
+                parts.append(f"  - {self.causal_analysis['conclusion'][:200]}")
+            if self.causal_analysis.get('confidence'):
+                parts.append(f"  - Confidence: {self.causal_analysis['confidence']:.0%}")
+            if self.causal_analysis.get('caveats'):
+                for caveat in self.causal_analysis['caveats'][:2]:
+                    parts.append(f"  - Note: {caveat}")
         
         context = "\n".join(parts) if parts else "No specific location data available."
         
@@ -1052,6 +1127,64 @@ class GISAgentOrchestrator:
                         facts.estimated_value = val_result['estimated_value']
                 except Exception as e:
                     print(f"Valuation agent error: {e}")
+        
+        # Phase 3: City Intelligence Engine
+        if location_name and CITY_INTELLIGENCE_AVAILABLE:
+            try:
+                # Get locality personality profile
+                personality_model = get_locality_personality_model()
+                profile = personality_model.get_profile(location_name)
+                
+                if profile:
+                    facts.locality_archetype = profile.archetype.value
+                    facts.locality_growth_stage = profile.growth_stage.value
+                    facts.locality_tagline = profile.tagline
+                    facts.locality_personality = {
+                        'tech_orientation': profile.tech_orientation,
+                        'family_friendliness': profile.family_friendliness,
+                        'nightlife_vibrancy': profile.nightlife_vibrancy,
+                        'green_spaces': profile.green_spaces,
+                        'cosmopolitan_index': profile.cosmopolitan_index,
+                        'investment_profile': profile.investment.value if profile.investment else None,
+                    }
+                    
+                    if reasoning_trace:
+                        reasoning_trace.add_step(
+                            ReasoningStep.GATHER,
+                            f"Locality profile: {profile.archetype.value}, {profile.growth_stage.value}",
+                            {"tagline": profile.tagline}
+                        )
+                
+                # Get risk profile
+                risk_calculator = get_risk_index_calculator()
+                risk_profile = risk_calculator.get_risk_profile(location_name, lat, lng)
+                
+                if risk_profile:
+                    facts.overall_risk_score = risk_profile.overall_risk_score
+                    facts.risk_level = risk_profile.overall_risk_level.value
+                    facts.risk_warnings = risk_profile.critical_warnings
+                    facts.risk_profile = {
+                        'hazard': risk_profile.hazard.composite_score,
+                        'infrastructure': risk_profile.infrastructure.composite_score,
+                        'speculation': risk_profile.speculation.composite_score,
+                        'bubble_probability': risk_profile.speculation.bubble_probability,
+                    }
+                
+                # For simulation queries, get causal analysis
+                if intent == Intent.SIMULATE and query:
+                    causal_engine = get_causal_reasoning_engine()
+                    chain = causal_engine.reason_about(query, location_name)
+                    
+                    if chain:
+                        facts.causal_analysis = {
+                            'conclusion': chain.conclusion,
+                            'confidence': chain.overall_confidence,
+                            'steps': len(chain.steps),
+                            'caveats': chain.caveats,
+                        }
+                
+            except Exception as e:
+                print(f"[GIS] City Intelligence error: {e}")
         
         # RAG context
         if self.rag_service and query:

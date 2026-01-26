@@ -113,6 +113,22 @@ except Exception as e:
 
 # Phase 2: GIS Multi-Agent Orchestrator
 from gis_agents import get_gis_orchestrator, IntentRouter, Intent, _compute_market_facts
+
+# Phase 3: City Intelligence Engine
+try:
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent / 'city_intelligence'))
+    from city_intelligence.locality_personality import get_locality_personality_model, LocalityProfile
+    from city_intelligence.evolution_timeline import get_evolution_timeline_system
+    from city_intelligence.risk_indexes import get_risk_index_calculator
+    from city_intelligence.knowledge_graph import get_urban_knowledge_graph
+    from city_intelligence.causal_reasoning import get_causal_reasoning_engine
+    from city_intelligence.prediction_schema import get_prediction_builder, PredictionDomain, TimeHorizon
+    CITY_INTELLIGENCE_AVAILABLE = True
+    print("[OK] City Intelligence Engine initialized")
+except Exception as e:
+    print(f"[WARNING] City Intelligence not available: {e}")
+    CITY_INTELLIGENCE_AVAILABLE = False
 gis_orchestrator = get_gis_orchestrator(
     geocoder=local_geocoder,
     spatial_service=spatial_service,
@@ -3038,6 +3054,301 @@ async def phase1_status():
                 "description": "H3 spatial indexing and proximity analysis"
             }
         }
+    }
+
+
+# ============== CITY INTELLIGENCE API ENDPOINTS ==============
+
+@app.get("/api/city-intelligence/locality/{locality_name}")
+async def get_locality_profile(locality_name: str):
+    """Get comprehensive locality personality profile."""
+    if not CITY_INTELLIGENCE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="City Intelligence not available")
+    
+    try:
+        model = get_locality_personality_model()
+        profile = model.get_profile(locality_name)
+        
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"Locality '{locality_name}' not found")
+        
+        return {
+            "success": True,
+            "locality": profile.name,
+            "profile": profile.to_dict(),
+            "summary": profile.get_personality_summary(),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/city-intelligence/localities")
+async def get_all_localities():
+    """Get all available locality profiles."""
+    if not CITY_INTELLIGENCE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="City Intelligence not available")
+    
+    try:
+        model = get_locality_personality_model()
+        profiles = model.get_all_profiles()
+        
+        return {
+            "success": True,
+            "count": len(profiles),
+            "localities": [
+                {
+                    "name": p.name,
+                    "archetype": p.archetype.value,
+                    "growth_stage": p.growth_stage.value,
+                    "tagline": p.tagline,
+                    "lat": p.lat,
+                    "lng": p.lng,
+                }
+                for p in profiles
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/city-intelligence/compare")
+async def compare_localities(locality1: str, locality2: str):
+    """Compare two localities across dimensions."""
+    if not CITY_INTELLIGENCE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="City Intelligence not available")
+    
+    try:
+        model = get_locality_personality_model()
+        comparison = model.compare_localities(locality1, locality2)
+        
+        if "error" in comparison:
+            raise HTTPException(status_code=404, detail=comparison["error"])
+        
+        return {"success": True, "comparison": comparison}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/city-intelligence/timeline/{locality_name}")
+async def get_locality_timeline(locality_name: str):
+    """Get evolution timeline for a locality."""
+    if not CITY_INTELLIGENCE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="City Intelligence not available")
+    
+    try:
+        timeline_system = get_evolution_timeline_system()
+        timeline = timeline_system.get_timeline(locality_name)
+        
+        if not timeline:
+            raise HTTPException(status_code=404, detail=f"Timeline for '{locality_name}' not found")
+        
+        return {
+            "success": True,
+            "locality": timeline.name,
+            "founding_era": timeline.founding_era,
+            "original_character": timeline.original_character,
+            "current_phase": timeline.current_phase.value,
+            "development_velocity": timeline.development_velocity,
+            "phases": [
+                {"start": s, "end": e, "phase": p.value}
+                for s, e, p in timeline.phases
+            ],
+            "milestones": [
+                {"year": m.year, "event": m.event, "category": m.category, "impact": m.impact}
+                for m in timeline.historical_milestones
+            ],
+            "projections": [
+                {"year": p.year, "event": p.event, "probability": p.probability}
+                for p in timeline.projected_milestones
+            ],
+            "key_catalysts": timeline.key_catalysts,
+            "key_risks": timeline.key_risks,
+            "narrative": timeline.get_full_narrative(),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/city-intelligence/risk/{locality_name}")
+async def get_locality_risk(locality_name: str, lat: float = None, lng: float = None):
+    """Get risk profile for a locality."""
+    if not CITY_INTELLIGENCE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="City Intelligence not available")
+    
+    try:
+        calculator = get_risk_index_calculator()
+        profile = calculator.get_risk_profile(locality_name, lat, lng)
+        
+        return {
+            "success": True,
+            "locality": profile.name,
+            "overall_risk": {
+                "score": round(profile.overall_risk_score, 1),
+                "level": profile.overall_risk_level.value,
+            },
+            "investment_risk": {
+                "score": round(profile.investment_risk_score, 1),
+                "level": profile.investment_risk_level.value,
+            },
+            "components": {
+                "hazard": round(profile.hazard.composite_score, 1),
+                "infrastructure": round(profile.infrastructure.composite_score, 1),
+                "social": round(profile.social.composite_score, 1),
+                "speculation": round(profile.speculation.composite_score, 1),
+                "policy": round(profile.policy.composite_score, 1),
+            },
+            "bubble_probability": round(profile.speculation.bubble_probability, 2),
+            "warnings": profile.critical_warnings,
+            "mitigations": profile.risk_mitigations,
+            "summary": profile.get_summary(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/city-intelligence/reason")
+async def causal_reasoning(request: dict):
+    """Perform causal reasoning about a scenario."""
+    if not CITY_INTELLIGENCE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="City Intelligence not available")
+    
+    try:
+        scenario = request.get("scenario", "")
+        locality = request.get("locality")
+        
+        if not scenario:
+            raise HTTPException(status_code=400, detail="scenario is required")
+        
+        engine = get_causal_reasoning_engine()
+        chain = engine.reason_about(scenario, locality)
+        
+        return {
+            "success": True,
+            "query": chain.query,
+            "steps": [
+                {
+                    "step": s.step_number,
+                    "description": s.description,
+                    "cause": s.cause,
+                    "effect": s.effect,
+                    "confidence": s.confidence,
+                }
+                for s in chain.steps
+            ],
+            "conclusion": chain.conclusion,
+            "confidence": round(chain.overall_confidence, 2),
+            "caveats": chain.caveats,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/city-intelligence/knowledge-graph/stats")
+async def get_knowledge_graph_stats():
+    """Get knowledge graph statistics."""
+    if not CITY_INTELLIGENCE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="City Intelligence not available")
+    
+    try:
+        kg = get_urban_knowledge_graph()
+        stats = kg.get_statistics()
+        
+        return {"success": True, "stats": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/city-intelligence/knowledge-graph/context/{locality_id}")
+async def get_locality_context(locality_id: str):
+    """Get knowledge graph context for a locality."""
+    if not CITY_INTELLIGENCE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="City Intelligence not available")
+    
+    try:
+        kg = get_urban_knowledge_graph()
+        context = kg.get_locality_context(locality_id)
+        
+        if not context:
+            raise HTTPException(status_code=404, detail=f"Locality '{locality_id}' not found in knowledge graph")
+        
+        return {"success": True, "context": context}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/city-intelligence/predict")
+async def create_prediction(request: dict):
+    """Create a calibrated prediction."""
+    if not CITY_INTELLIGENCE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="City Intelligence not available")
+    
+    try:
+        subject = request.get("subject", "")
+        domain = request.get("domain", "property_value")
+        point_estimate = request.get("point_estimate")
+        unit = request.get("unit", "INR/sqft")
+        target_date = request.get("target_date", "2027-01")
+        baseline = request.get("baseline")
+        reasoning = request.get("reasoning", [])
+        
+        if not subject or point_estimate is None:
+            raise HTTPException(status_code=400, detail="subject and point_estimate are required")
+        
+        builder = get_prediction_builder()
+        
+        domain_map = {
+            "property_value": PredictionDomain.PROPERTY_VALUE,
+            "population": PredictionDomain.POPULATION,
+            "traffic": PredictionDomain.TRAFFIC,
+            "employment": PredictionDomain.EMPLOYMENT,
+        }
+        
+        pred = builder.create_numeric_prediction(
+            subject=subject,
+            domain=domain_map.get(domain, PredictionDomain.PROPERTY_VALUE),
+            point_estimate=point_estimate,
+            unit=unit,
+            target_date=target_date,
+            baseline=baseline,
+            reasoning=reasoning,
+        )
+        
+        return {
+            "success": True,
+            "prediction": pred.to_dict(),
+            "narrative": pred.to_narrative(),
+            "dashboard_card": pred.to_dashboard_card(),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/city-intelligence/status")
+async def get_city_intelligence_status():
+    """Get City Intelligence Engine status."""
+    return {
+        "available": CITY_INTELLIGENCE_AVAILABLE,
+        "modules": {
+            "locality_personality": CITY_INTELLIGENCE_AVAILABLE,
+            "evolution_timeline": CITY_INTELLIGENCE_AVAILABLE,
+            "risk_indexes": CITY_INTELLIGENCE_AVAILABLE,
+            "knowledge_graph": CITY_INTELLIGENCE_AVAILABLE,
+            "causal_reasoning": CITY_INTELLIGENCE_AVAILABLE,
+            "prediction_schema": CITY_INTELLIGENCE_AVAILABLE,
+        },
+        "endpoints": [
+            "/api/city-intelligence/locality/{name}",
+            "/api/city-intelligence/localities",
+            "/api/city-intelligence/compare",
+            "/api/city-intelligence/timeline/{name}",
+            "/api/city-intelligence/risk/{name}",
+            "/api/city-intelligence/reason",
+            "/api/city-intelligence/predict",
+            "/api/city-intelligence/knowledge-graph/stats",
+        ]
     }
 
 
