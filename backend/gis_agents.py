@@ -25,6 +25,20 @@ try:
 except ImportError:
     StateChange = None
 
+try:
+    from spatial_nlp import get_spatial_nlp, ParsedSpatialQuery
+    SPATIAL_NLP_AVAILABLE = True
+except ImportError:
+    SPATIAL_NLP_AVAILABLE = False
+    get_spatial_nlp = None
+
+try:
+    from spatial_inference import get_inference_engine, LocationInference
+    SPATIAL_INFERENCE_AVAILABLE = True
+except ImportError:
+    SPATIAL_INFERENCE_AVAILABLE = False
+    get_inference_engine = None
+
 
 def _parse_posted_date(value: Any) -> Optional[datetime]:
     """Parse posted_date string to datetime."""
@@ -173,11 +187,31 @@ class AgentFacts:
     building_area: Optional[float] = None
     estimated_value: Optional[float] = None
     
+    # 3D Building Analysis (Phase 1.1)
+    building_3d_analysis: Optional[Dict[str, Any]] = None  # Full 3D analysis
+    shadow_impact: Optional[str] = None  # "good", "moderate", "significant"
+    view_quality: Optional[str] = None  # "excellent", "good", "moderate", "poor"
+    view_directions: Optional[List[str]] = None
+    taller_neighbors: Optional[int] = None
+    shorter_neighbors: Optional[int] = None
+    ground_amenities: Optional[int] = None
+    elevator_likely: Optional[bool] = None
+    
     # Simulation facts
     simulation_results: Optional[Dict[str, Any]] = None
     
     # RAG context
     rag_context: Optional[str] = None
+    
+    # Spatial NLP parsed filters (Phase 2.1 enhancement)
+    property_filters: Optional[Dict[str, Any]] = None
+    
+    # Spatial Inference results (Phase 2.1 enhancement)
+    location_score: Optional[float] = None
+    location_strengths: Optional[List[str]] = None
+    location_weaknesses: Optional[List[str]] = None
+    investment_outlook: Optional[str] = None
+    target_buyer: Optional[str] = None
     
     def get_confidence_warning(self) -> Optional[str]:
         """Get user-facing confidence warning if needed."""
@@ -266,6 +300,22 @@ class AgentFacts:
                 parts.append(f"  - Area: {self.building_area}m²")
             if self.estimated_value is not None:
                 parts.append(f"  - Estimated value: ₹{self.estimated_value:,.0f}")
+            
+            # 3D Analysis (Phase 1.1)
+            if self.view_quality:
+                parts.append(f"  - View Quality: {self.view_quality}")
+            if self.shadow_impact:
+                parts.append(f"  - Shadow Impact: {self.shadow_impact}")
+            if self.view_directions:
+                parts.append(f"  - Open Views: {', '.join(self.view_directions)}")
+            if self.taller_neighbors is not None:
+                parts.append(f"  - Taller neighbors: {self.taller_neighbors}")
+            if self.shorter_neighbors is not None:
+                parts.append(f"  - Shorter neighbors: {self.shorter_neighbors}")
+            if self.ground_amenities is not None:
+                parts.append(f"  - Ground-floor amenities: {self.ground_amenities}")
+            if self.elevator_likely is not None:
+                parts.append(f"  - Elevator: {'Yes (likely)' if self.elevator_likely else 'No (low-rise)'}")
         
         # RAG context
         if self.rag_context:
@@ -316,6 +366,14 @@ class AgentFacts:
                 "height": self.building_height,
                 "levels": self.building_levels,
                 "area": self.building_area,
+                # 3D Analysis (Phase 1.1)
+                "view_quality": self.view_quality,
+                "shadow_impact": self.shadow_impact,
+                "view_directions": self.view_directions,
+                "taller_neighbors": self.taller_neighbors,
+                "shorter_neighbors": self.shorter_neighbors,
+                "ground_amenities": self.ground_amenities,
+                "elevator_likely": self.elevator_likely,
             }
         
         # Market section (all grounded)
@@ -504,6 +562,15 @@ class GISAgentOrchestrator:
         digital_twin_state = None
         reasoning_trace = None
         
+        # Phase 2.2: Spatial Memory - track exploration
+        session_id = context.get('session_id', 'default')
+        spatial_memory = None
+        try:
+            from spatial_memory import get_spatial_memory
+            spatial_memory = get_spatial_memory(session_id)
+        except Exception as e:
+            print(f"[GIS] Spatial memory init error: {e}")
+        
         # Extract context
         selected_building = context.get('selectedBuilding')
         selected_location = context.get('selectedLocation')
@@ -534,7 +601,35 @@ class GISAgentOrchestrator:
             lng = selected_location.get('lng')
             location_name = f"Location {lat:.4f}, {lng:.4f}" if lat and lng else "Selected Location"
         
-        # If navigate or property_search intent, try to geocode location from query
+        # Enhanced: Use Spatial NLP for better query understanding
+        parsed_spatial = None
+        if SPATIAL_NLP_AVAILABLE and intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA]:
+            try:
+                spatial_nlp = get_spatial_nlp(geocoder=self.geocoder)
+                parsed_spatial = spatial_nlp.parse(query, context)
+                
+                # Use parsed scope if we don't have coordinates
+                if not lat and parsed_spatial.spatial_scope:
+                    lat = parsed_spatial.spatial_scope.get('center_lat')
+                    lng = parsed_spatial.spatial_scope.get('center_lng')
+                    if parsed_spatial.entities:
+                        location_name = parsed_spatial.entities[0].name
+                    
+                    # Store parsed filters for property search
+                    if parsed_spatial.property_filters:
+                        facts.property_filters = parsed_spatial.property_filters
+                    
+                    # Add to reasoning trace
+                    if reasoning_trace:
+                        reasoning_trace.add_step(
+                            ReasoningStep.DECOMPOSE,
+                            f"Parsed spatial query: {parsed_spatial.explain_query(parsed_spatial)}",
+                            {"confidence": parsed_spatial.confidence}
+                        )
+            except Exception as e:
+                print(f"[GIS] Spatial NLP error: {e}")
+        
+        # Fallback: If navigate or property_search intent, try to geocode location from query
         if intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH] and not lat:
             place_name = IntentRouter.extract_place_name(query)
             if place_name and self.geocoder:
@@ -554,6 +649,18 @@ class GISAgentOrchestrator:
         facts.lat = lat
         facts.lng = lng
         facts.location_name = location_name
+        
+        # Phase 2.2: Record visit in spatial memory
+        if spatial_memory and lat and lng and location_name:
+            try:
+                spatial_memory.record_visit(
+                    lat=lat,
+                    lng=lng,
+                    name=location_name,
+                    intent=intent.value if intent else 'general'
+                )
+            except Exception as e:
+                print(f"[GIS] Spatial memory record error: {e}")
         
         # Sync Digital Twin if location is known
         if lat and lng and self.digital_twin:
@@ -631,6 +738,41 @@ class GISAgentOrchestrator:
             except Exception as e:
                 print(f"Terrain agent error: {e}")
         
+        # Enhanced: Spatial Inference for location quality analysis
+        if lat and lng and SPATIAL_INFERENCE_AVAILABLE:
+            try:
+                inference_engine = get_inference_engine()
+                # Determine buyer profile from query
+                buyer_profile = 'general'
+                query_lower = query.lower()
+                if any(w in query_lower for w in ['family', 'kids', 'children', 'school']):
+                    buyer_profile = 'family'
+                elif any(w in query_lower for w in ['it', 'professional', 'tech', 'work', 'commute']):
+                    buyer_profile = 'professional'
+                elif any(w in query_lower for w in ['invest', 'roi', 'appreciation', 'rental']):
+                    buyer_profile = 'investor'
+                elif any(w in query_lower for w in ['retire', 'peaceful', 'quiet', 'senior']):
+                    buyer_profile = 'retiree'
+                
+                location_inference = inference_engine.analyze_location(lat, lng, buyer_profile)
+                
+                # Store inference results in facts
+                facts.location_score = location_inference.overall_score
+                facts.location_strengths = location_inference.strengths[:3]
+                facts.location_weaknesses = location_inference.weaknesses[:3]
+                facts.investment_outlook = location_inference.investment_outlook
+                facts.target_buyer = location_inference.target_buyer
+                
+                # Add to reasoning trace
+                if reasoning_trace:
+                    reasoning_trace.add_step(
+                        ReasoningStep.INFER,
+                        f"Location analysis: score={location_inference.overall_score:.0f}, outlook={location_inference.investment_outlook}",
+                        {"factors": [f.description for f in location_inference.factors]}
+                    )
+            except Exception as e:
+                print(f"[GIS] Spatial inference error: {e}")
+        
         # Gather market facts (deterministic from property data)
         if lat and lng and self.property_service:
             try:
@@ -687,6 +829,30 @@ class GISAgentOrchestrator:
             facts.building_levels = selected_building.get('levels')
             facts.building_type = selected_building.get('buildingType')
             facts.building_area = selected_building.get('area')
+            
+            # 3D Building Analysis (Phase 1.1)
+            if lat and lng:
+                try:
+                    from building_analyzer import get_building_analyzer
+                    building_analyzer = get_building_analyzer()
+                    analysis_result = building_analyzer.analyze_building_context(lat, lng)
+                    
+                    if analysis_result:
+                        facts.building_3d_analysis = analysis_result.get('analysis')
+                        highlights = analysis_result.get('highlights', {})
+                        facts.view_quality = highlights.get('view_quality')
+                        facts.shadow_impact = highlights.get('shadow_rating')
+                        facts.ground_amenities = highlights.get('nearby_amenities')
+                        facts.elevator_likely = highlights.get('elevator') == 'yes'
+                        
+                        # Get from full analysis
+                        full_analysis = analysis_result.get('analysis', {})
+                        neighbors = full_analysis.get('neighbors', {})
+                        facts.taller_neighbors = neighbors.get('taller')
+                        facts.shorter_neighbors = neighbors.get('shorter')
+                        facts.view_directions = full_analysis.get('view_directions', [])
+                except Exception as e:
+                    print(f"3D Building analysis error: {e}")
             
             # Valuation if available
             if self.valuation_model and lat and lng:
