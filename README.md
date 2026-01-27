@@ -24,7 +24,8 @@ Valora AI is an advanced 3D GIS platform that combines:
 - Node.js 18+
 - Python 3.11+
 - Pinecone API key (for RAG)
-- OpenRouter API key (for AI)
+- **Local LLM (Recommended)**: Ollama with qwen3-vl:8b, llama3.2, deepseek-r1:8b
+- **OR Cloud LLM**: OpenRouter API key
 
 ### Installation
 
@@ -59,6 +60,27 @@ npm run dev
 ```
 
 **Access the app at:** http://localhost:3000
+
+### LLM Configuration (3-Model System)
+
+Valora uses a **3-model architecture** for optimal performance:
+
+| Mode | Model | Use Case | Speed |
+|------|-------|----------|-------|
+| 🎯 **Quality** | `qwen3-vl:8b` | Primary chat, visual queries | Medium |
+| ⚡ **Fast** | `llama3.2` | Quick responses, navigation | Fast |
+| 🧠 **Deep** | `deepseek-r1:8b` | Simulations, complex reasoning | Slow |
+
+**Setup Ollama (Recommended):**
+```bash
+# Install Ollama from https://ollama.ai
+ollama pull qwen3-vl:8b
+ollama pull llama3.2
+ollama pull deepseek-r1:8b
+ollama serve
+```
+
+Switch models in the **ChatPanel** using the Quality/Fast/Deep selector.
 
 ---
 
@@ -772,9 +794,26 @@ python backend/database/index_to_pinecone.py
 
 ## 📝 API Endpoints
 
+### Core APIs
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/agent/chat` | POST | AI chat with GIS context |
+| `/api/chat` | POST | AI chat with GIS context |
+| `/api/viewport/analyze` | GET | Quick viewport analysis |
+| `/api/location/analyze` | POST | Comprehensive location analysis |
+| `/api/geocode` | GET | Geocode location queries |
+| `/api/tileset` | GET | 3D building tileset index |
+| `/api/tiles/viewport` | GET | Get tiles for viewport |
+
+### New APIs (Jan 2026)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/storyboard/generate` | POST | Generate cinematic map storytelling |
+| `/api/investment/leaderboard` | GET | Top localities by investment score |
+| `/api/compare/properties` | POST | Compare localities or properties |
+| `/api/city-intelligence/locality/{name}` | GET | Locality personality profile |
+| `/api/admin/sanity-check` | POST | Real-time API smoke tests |
 | `/api/properties/search` | GET | Search properties |
 | `/api/tiles/viewport` | GET | Get buildings in viewport |
 | `/api/spatial/analyze` | POST | Spatial analysis |
