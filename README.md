@@ -172,9 +172,10 @@ Switch models in the **ChatPanel** using the Quality/Fast/Deep selector.
 ## 🧠 AI Capabilities
 
 ### 1. Multi-Agent System
-- **IntentRouter**: Classifies user queries into 8 intent types
+- **IntentRouter**: Classifies user queries into 16 intent types (including conversational)
 - **GISAgentOrchestrator**: Coordinates fact gathering from all services
 - **NarrativeGenerator**: LLM-powered response synthesis
+- **Fast Responses**: Instant replies for greetings/help without LLM
 
 ### 2. Advanced Reasoning Engine
 - **Query Decomposition**: Breaks complex queries into sub-queries
@@ -210,17 +211,41 @@ For simulation queries, the map plays cinematic storyboards:
 - Narration overlay explains impacts
 - Stop button to cancel playback
 
-### Intent Types
-| Intent | Example Query |
-|--------|--------------|
-| `navigate` | "Show me Whitefield" |
-| `property_search` | "3 BHK apartments under 1 crore" |
-| `analyze_area` | "Analyze Indiranagar" |
-| `valuation` | "Price trends in Koramangala" |
-| `comparison` | "Compare Whitefield vs HSR Layout" |
-| `simulate` | "What if metro comes to Hebbal" |
-| `terrain` | "Is this area flood-prone?" |
-| `general` | "Hello, what can you do?" |
+### 7. Knowledge Layer (NEW Jan 2026)
+Precomputed locality intelligence for instant lookups:
+
+| Component | Description |
+|-----------|-------------|
+| **locality_state** | 788 localities with market + spatial features |
+| **locality_state_ts** | Historical time series for trend analysis |
+| **prediction_logs** | For learning loop and accuracy tracking |
+| **feature_store** | Fast feature lookups |
+
+**Precomputed Intelligence:**
+- Growth phase (emerging/growing/maturing/mature)
+- Risk index and investor type recommendations
+- Archetype (tech_hub, family_suburb, premium_enclave, etc.)
+- Hotspot scores for investment prioritization
+
+### Intent Types (16 Total)
+| Category | Intent | Example Query |
+|----------|--------|--------------|
+| **Conversational** | `greeting` | "Hi", "Hello" |
+| | `help` | "What can you do?" |
+| | `thanks` | "Thank you" |
+| | `farewell` | "Bye" |
+| **Navigation** | `navigate` | "Show me Whitefield" |
+| **Property** | `property_search` | "3 BHK apartments under 1 crore" |
+| | `recommendation` | "Best areas for families" |
+| **Analysis** | `analyze_area` | "Analyze Indiranagar" |
+| | `analyze_building` | "Tell me about this building" |
+| | `valuation` | "Price trends in Koramangala" |
+| | `market_trend` | "Market trends in Bangalore" |
+| **Advanced** | `investment` | "Is Hebbal good for investment?" |
+| | `comparison` | "Compare Whitefield vs HSR Layout" |
+| | `simulate` | "What if metro comes to Hebbal" |
+| | `terrain` | "Is this area flood-prone?" |
+| | `general` | General questions |
 
 ---
 
@@ -244,9 +269,11 @@ windsurf-project/
 │   ├── admin_routes.py        # Admin API + LLM config
 │   ├── local_vector_store.py  # FAISS offline store
 │   ├── export_to_faiss.py     # Export to FAISS
-│   ├── building_analyzer.py   # 3D building analysis ✨ NEW
-│   ├── viewshed_analyzer.py   # View/visibility analysis ✨ NEW
-│   ├── spatial_memory.py      # Session memory ✨ NEW
+│   ├── building_analyzer.py   # 3D building analysis
+│   ├── viewshed_analyzer.py   # View/visibility analysis
+│   ├── spatial_memory.py      # Session memory
+│   ├── locality_service.py    # Fast locality lookups ✨ NEW
+│   ├── response_templates.py  # Conversational templates ✨ NEW
 │   ├── llm_config.json        # LLM provider settings
 │   ├── admin_config.json      # Admin panel settings
 │   ├── session_memory/        # Session persistence folder ✨ NEW
@@ -269,7 +296,10 @@ windsurf-project/
 │
 ├── scripts/
 │   ├── sanity_check.py        # Real-time E2E sanity checks (API smoke)
-│   └── verify_system.py       # Offline/local DB verification
+│   ├── verify_system.py       # Offline/local DB verification
+│   ├── build_locality_brain.py # Precompute locality intelligence ✨ NEW
+│   ├── migrate_locality_state.py # Create knowledge layer tables ✨ NEW
+│   └── test_intents.py        # Intent classification tests ✨ NEW
 │
 └── .env                       # Environment variables
 ```

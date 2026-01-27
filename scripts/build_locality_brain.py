@@ -31,10 +31,32 @@ def get_db_connection(db_path: str = None) -> sqlite3.Connection:
 
 
 def discover_localities(conn: sqlite3.Connection) -> List[Dict]:
-    """Discover localities from property data."""
+    """Discover localities from multiple sources (places, POIs, properties)."""
     cursor = conn.cursor()
     
-    # Get unique localities from properties
+    # First, get localities from places table (most accurate coordinates)
+    cursor.execute("""
+        SELECT 
+            name,
+            city_id,
+            center_latitude as lat,
+            center_longitude as lng,
+            property_count
+        FROM places
+        WHERE center_latitude IS NOT NULL 
+          AND center_longitude IS NOT NULL
+          AND name IS NOT NULL
+    """)
+    
+    places_data = {row['name'].lower(): {
+        'name': row['name'],
+        'city_id': row['city_id'] or 'BLR',
+        'center_lat': row['lat'],
+        'center_lng': row['lng'],
+        'property_count': row['property_count'] or 0
+    } for row in cursor.fetchall()}
+    
+    # Then get localities from properties (for coverage)
     cursor.execute("""
         SELECT 
             locality,
@@ -51,16 +73,31 @@ def discover_localities(conn: sqlite3.Connection) -> List[Dict]:
     
     localities = []
     for row in cursor.fetchall():
-        localities.append({
-            'id': row['locality'].lower().replace(' ', '_').replace(',', ''),
-            'name': row['locality'],
-            'city_id': row['city_id'] or 'BLR',
-            'property_count': row['property_count'],
-            'center_lat': row['avg_lat'],
-            'center_lng': row['avg_lng'],
-        })
+        name = row['locality']
+        name_lower = name.lower()
+        
+        # Use places coordinates if available (more accurate), else use property avg
+        if name_lower in places_data:
+            places_info = places_data[name_lower]
+            localities.append({
+                'id': name_lower.replace(' ', '_').replace(',', ''),
+                'name': name,
+                'city_id': row['city_id'] or places_info['city_id'] or 'BLR',
+                'property_count': row['property_count'],
+                'center_lat': places_info['center_lat'],  # Use places coords
+                'center_lng': places_info['center_lng'],
+            })
+        else:
+            localities.append({
+                'id': name_lower.replace(' ', '_').replace(',', ''),
+                'name': name,
+                'city_id': row['city_id'] or 'BLR',
+                'property_count': row['property_count'],
+                'center_lat': row['avg_lat'],
+                'center_lng': row['avg_lng'],
+            })
     
-    print(f"Discovered {len(localities)} localities from property data")
+    print(f"Discovered {len(localities)} localities ({len(places_data)} with places coords)")
     return localities
 
 
@@ -164,28 +201,28 @@ def compute_spatial_features(conn: sqlite3.Connection, lat: float, lng: float, r
     min_lat, max_lat = lat - radius_deg, lat + radius_deg
     min_lng, max_lng = lng - radius_deg, lng + radius_deg
     
-    # Count POIs by type
+    # Count POIs by type (using correct column names: latitude, longitude)
     cursor.execute("""
         SELECT 
             COUNT(*) as total,
-            SUM(CASE WHEN category = 'education' THEN 1 ELSE 0 END) as schools,
-            SUM(CASE WHEN category = 'health' THEN 1 ELSE 0 END) as hospitals,
+            SUM(CASE WHEN category = 'education' OR category LIKE '%school%' THEN 1 ELSE 0 END) as schools,
+            SUM(CASE WHEN category = 'health' OR category LIKE '%hospital%' THEN 1 ELSE 0 END) as hospitals,
             SUM(CASE WHEN category = 'park' OR category = 'recreation' THEN 1 ELSE 0 END) as parks,
-            SUM(CASE WHEN category = 'shopping' THEN 1 ELSE 0 END) as malls
+            SUM(CASE WHEN category = 'shopping' OR category LIKE '%mall%' THEN 1 ELSE 0 END) as malls
         FROM pois
-        WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
+        WHERE latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?
     """, (min_lat, max_lat, min_lng, max_lng))
     
     poi_row = cursor.fetchone()
     
-    # Count transport
+    # Count transport (using correct column names: latitude, longitude, transport_type)
     cursor.execute("""
         SELECT 
             COUNT(*) as total,
-            SUM(CASE WHEN stop_type = 'metro' THEN 1 ELSE 0 END) as metro,
-            SUM(CASE WHEN stop_type = 'bus' THEN 1 ELSE 0 END) as bus
+            SUM(CASE WHEN transport_type = 'metro' OR transport_type LIKE '%Metro%' THEN 1 ELSE 0 END) as metro,
+            SUM(CASE WHEN transport_type = 'bus' OR transport_type LIKE '%Bus%' THEN 1 ELSE 0 END) as bus
         FROM transport_stops
-        WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
+        WHERE latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?
     """, (min_lat, max_lat, min_lng, max_lng))
     
     transport_row = cursor.fetchone()

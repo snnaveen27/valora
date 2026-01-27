@@ -362,6 +362,17 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
     except Exception as e:
       tests.append(_make_result('Data Integrity', t0, False, f'Data integrity check failed: {e}'))
 
+    # Test Locality State (Knowledge Layer)
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.post('/api/database/query', json={'query': 'SELECT COUNT(*) as cnt FROM locality_state'}))
+      rows = data.get('rows', [])
+      cnt = rows[0]['cnt'] if rows else 0
+      ok = cnt >= 700  # Should have 700+ localities
+      tests.append(_make_result('Locality Brain', t0, ok, f'locality_state: {cnt} localities'))
+    except Exception as e:
+      tests.append(_make_result('Locality Brain', t0, False, f'Locality brain check failed: {e}'))
+
     t0 = _now_ms()
     if not include_chat:
       tests.append(_make_result('Chat Orchestration', t0, False, 'Skipped (--no-chat flag)', skipped=True))
