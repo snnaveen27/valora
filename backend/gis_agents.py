@@ -1140,12 +1140,12 @@ class GISAgentOrchestrator:
                     facts.locality_growth_stage = profile.growth_stage.value
                     facts.locality_tagline = profile.tagline
                     facts.locality_personality = {
-                        'tech_orientation': profile.tech_orientation,
-                        'family_friendliness': profile.family_friendliness,
-                        'nightlife_vibrancy': profile.nightlife_vibrancy,
-                        'green_spaces': profile.green_spaces,
-                        'cosmopolitan_index': profile.cosmopolitan_index,
-                        'investment_profile': profile.investment.value if profile.investment else None,
+                        'tech_orientation': getattr(profile, 'tech_orientation', 0),
+                        'family_friendliness': getattr(profile, 'family_friendliness', 0),
+                        'nightlife_vibrancy': getattr(profile, 'nightlife_vibrancy', 0),
+                        'green_spaces': getattr(profile, 'green_spaces', 0),
+                        'cosmopolitan_index': getattr(profile, 'cosmopolitan_index', 0),
+                        'investment_profile': profile.investment.value if hasattr(profile, 'investment') and profile.investment else None,
                     }
                     
                     if reasoning_trace:

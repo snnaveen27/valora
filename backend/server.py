@@ -1481,11 +1481,19 @@ async def chat_with_ai(request: ChatRequest):
                     }
                 )
             else:
-                # Local LLM (offline)
+                # Local LLM (offline) - use single active model based on type
+                active_model_type = current_llm_config.get('active_model_type', 'fast')
+                if active_model_type == 'reasoning':
+                    model_name = current_llm_config.get('local_model_reasoning', 'deepseek-r1:8b')
+                elif active_model_type == 'fast':
+                    model_name = current_llm_config.get('local_model_fast', 'llama3.2')
+                else:
+                    model_name = current_llm_config.get('local_model', 'llama3.2')
+                
                 response = await client.post(
                     current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions'),
                     json={
-                        "model": current_llm_config.get('local_model', 'llama3.2'),
+                        "model": model_name,
                         "messages": messages_with_context,
                         "temperature": 0.5,
                         "max_tokens": 600,
@@ -1563,6 +1571,19 @@ async def chat_with_ai(request: ChatRequest):
                 "investment_outlook": facts.investment_outlook,
             }
             
+            # Build task list for complex queries
+            tasks = []
+            if intent in [Intent.PROPERTY_SEARCH, Intent.COMPARE, Intent.SIMULATE]:
+                tasks.append({"step": "Understand user query", "status": "completed"})
+                tasks.append({"step": "Gather spatial and market data", "status": "completed"})
+                if intent == Intent.PROPERTY_SEARCH:
+                    tasks.append({"step": f"Search properties in {facts.location_name or 'area'}", "status": "completed"})
+                elif intent == Intent.COMPARE:
+                    tasks.append({"step": "Compare localities", "status": "completed"})
+                elif intent == Intent.SIMULATE:
+                    tasks.append({"step": "Run simulation", "status": "completed"})
+                tasks.append({"step": "Synthesize AI response", "status": "completed"})
+            
             return {
                 "success": True,
                 "message": ai_message,
@@ -1582,6 +1603,7 @@ async def chat_with_ai(request: ChatRequest):
                     "active_listings": facts.active_listings,
                 },
                 "reasoning_trace": reasoning_trace,  # Chain-of-thought visibility
+                "tasks": tasks if tasks else None,  # Task list for UI
                 "usage": result.get('usage', {})
             }
             

@@ -1,5 +1,5 @@
 {
-  "provider": "local",
+  "provider": "openrouter",
   "openrouter_model": "meta-llama/llama-3.3-70b-instruct:free",
   "local_url": "http://127.0.0.1:11434/v1/chat/completions",
   "local_model": "llama3.2",

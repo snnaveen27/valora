@@ -614,10 +614,11 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
         }))
       }
       
-      // Store reasoning trace for UI display
+      // Store reasoning trace and tasks for UI display
       window.__lastReasoningTrace = data.reasoning_trace || null
       window.__lastIntent = data.intent || null
       window.__lastFactsSummary = data.facts_summary || null
+      window.__lastTasks = data.tasks || null
       
       // Store locality data for inline card display
       if (data.facts?.locality_archetype) {
@@ -736,10 +737,11 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
     
     // For all other queries (analysis, questions, building info, etc.), use AI
     const aiResponse = await callAI(userMessage)
-    // Include reasoning trace from the last response
+    // Include reasoning trace and tasks from the last response
     const reasoningTrace = window.__lastReasoningTrace
     const intent = window.__lastIntent
     const factsSummary = window.__lastFactsSummary
+    const tasks = window.__lastTasks || null
     // Get locality data for inline card display
     const localityData = window.__lastLocalityData || null
     setMessages(prev => [...prev, { 
@@ -748,6 +750,7 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
       reasoningTrace,
       intent,
       factsSummary,
+      tasks,
       locality: localityData
     }])
     setIsLoading(false)
@@ -928,15 +931,19 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
               </button>
             </div>
             
-            {/* Settings Button */}
+            {/* Active Model Display */}
             <button
               onClick={() => setShowModelSelector(!showModelSelector)}
               className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
             >
               <span className="text-[10px]">
-                {llmConfig.active_model_type === 'primary' ? llmConfig.local_model :
-                 llmConfig.active_model_type === 'fast' ? llmConfig.local_model_fast :
-                 llmConfig.local_model_reasoning}
+                {llmConfig.provider === 'local' ? (
+                  llmConfig.active_model_type === 'reasoning' ? llmConfig.local_model_reasoning :
+                  llmConfig.active_model_type === 'fast' ? llmConfig.local_model_fast :
+                  llmConfig.local_model
+                ) : (
+                  llmConfig.openrouter_model.split('/').pop().split(':')[0]
+                )}
               </span>
               <ChevronDown className={`w-3 h-3 transition-transform ${showModelSelector ? 'rotate-180' : ''}`} />
             </button>
