@@ -1386,8 +1386,51 @@ async def chat_with_ai(request: ChatRequest):
     """
     import re as re_module
     from admin_routes import get_active_llm_config
+    from response_templates import get_conversational_response, get_system_prompt
     
-    # Get current LLM config
+    # Extract user query
+    user_query = ""
+    if request.messages:
+        user_query = request.messages[-1].content
+    
+    context = request.context or {}
+    
+    # Classify intent first
+    from gis_agents import IntentRouter
+    selected_building = context.get('selectedBuilding')
+    selected_location = context.get('selectedLocation')
+    selected_place = context.get('selectedPlace')
+    intent = IntentRouter.classify(
+        user_query,
+        has_building=bool(selected_building),
+        has_location=bool(selected_location or selected_place),
+    )
+    
+    # =========================================================================
+    # FAST PATH: Handle conversational intents without LLM
+    # =========================================================================
+    conversational_intents = ['greeting', 'help', 'thanks', 'farewell', 'smalltalk']
+    if intent.value in conversational_intents:
+        response_text = get_conversational_response(intent.value)
+        if response_text:
+            return {
+                "success": True,
+                "message": response_text,
+                "intent": intent.value,
+                "dashboard": None,
+                "ui_actions": [],
+                "simulation": None,
+                "digital_twin_state": None,
+                "facts": {},
+                "facts_summary": {},
+                "reasoning_trace": None,
+                "chain_of_thought": None,
+                "tasks": None,
+                "cached": False,
+                "fast_response": True  # Indicates no LLM was needed
+            }
+    
+    # Get current LLM config (only needed for non-conversational queries)
     current_llm_config = get_active_llm_config()
     llm_provider = current_llm_config.get('provider', 'openrouter')
     
@@ -1401,13 +1444,6 @@ async def chat_with_ai(request: ChatRequest):
         if not local_url:
             raise HTTPException(status_code=503, detail="Local LLM URL not configured. Go to Admin Panel > Config to set it up.")
     
-    # Extract user query
-    user_query = ""
-    if request.messages:
-        user_query = request.messages[-1].content
-    
-    context = request.context or {}
-    
     # =========================================================================
     # PHASE 2: Dynamic Task Planning & Multi-Agent Fact Gathering
     # =========================================================================
@@ -1415,17 +1451,6 @@ async def chat_with_ai(request: ChatRequest):
     
     # Create dynamic task planner for this query
     task_planner = reset_task_planner()
-    
-    # Classify intent first for task plan generation
-    from gis_agents import IntentRouter
-    selected_building = context.get('selectedBuilding')
-    selected_location = context.get('selectedLocation')
-    selected_place = context.get('selectedPlace')
-    intent = IntentRouter.classify(
-        user_query,
-        has_building=bool(selected_building),
-        has_location=bool(selected_location or selected_place),
-    )
     
     # Generate query-specific task plan
     task_planner.generate_plan(user_query, intent.value, context)

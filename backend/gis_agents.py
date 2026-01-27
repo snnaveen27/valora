@@ -169,15 +169,32 @@ def _compute_market_facts(property_service, lat: float, lng: float, radius_m: in
 
 class Intent(Enum):
     """User intent classification."""
+    # Conversational
+    GREETING = "greeting"           # "Hi", "Hello", "Good morning"
+    HELP = "help"                   # "Help", "What can you do?", "How to use"
+    THANKS = "thanks"               # "Thank you", "Thanks"
+    FAREWELL = "farewell"           # "Bye", "Goodbye", "See you"
+    SMALLTALK = "smalltalk"         # "How are you?", "What's up?"
+    
+    # Navigation & Exploration
     NAVIGATE = "navigate"           # "Show me Whitefield", "Go to Koramangala"
     ANALYZE_AREA = "analyze_area"   # "What's the area like?", "Analyze this location"
     ANALYZE_BUILDING = "analyze_building"  # Building-specific queries
+    
+    # Real Estate Core
     PROPERTY_SEARCH = "property_search"    # "Find apartments near...", "Properties under 1Cr"
     VALUATION = "valuation"         # "What's the price?", "Estimate value"
+    INVESTMENT = "investment"       # "Is this a good investment?", "ROI potential"
+    RECOMMENDATION = "recommendation"  # "Where should I buy?", "Best areas for families"
+    
+    # Analysis
     TERRAIN = "terrain"             # "Elevation?", "Is it flood-prone?"
     COMPARISON = "comparison"       # "Compare X and Y"
+    MARKET_TREND = "market_trend"   # "Price trends", "Market outlook"
+    
+    # Advanced
     SIMULATE = "simulate"           # "What if we add a metro station here?"
-    GENERAL = "general"             # General questions, greetings
+    GENERAL = "general"             # Fallback for unclassified queries
 
 
 @dataclass
@@ -547,6 +564,58 @@ class AgentFacts:
 class IntentRouter:
     """Classifies user intent from query text."""
     
+    # Conversational patterns (highest priority for short queries)
+    GREETING_PATTERNS = [
+        r'^(hi|hello|hey|hola|namaste|good\s*(morning|afternoon|evening|day))[\s!.?]*$',
+        r'^(hi there|hello there|hey there)[\s!.?]*$',
+        r'^(yo|sup|what\'?s up)[\s!.?]*$',
+    ]
+    
+    HELP_PATTERNS = [
+        r'\b(help|how (do i|to|can i)|what can you do|capabilities|features)\b',
+        r'\b(guide|tutorial|instructions?|how does this work)\b',
+        r'^(what are you|who are you|introduce yourself)[\s!.?]*$',
+    ]
+    
+    THANKS_PATTERNS = [
+        r'\b(thank(s| you)|thx|cheers|appreciate)\b',
+        r'^(great|awesome|perfect|nice|cool)[\s!.?]*$',
+    ]
+    
+    FAREWELL_PATTERNS = [
+        r'^(bye|goodbye|see you|take care|cya|gtg|good night)[\s!.?]*$',
+    ]
+    
+    SMALLTALK_PATTERNS = [
+        r'^(how are you|how\'?s it going|what\'?s new)[\s!.?]*$',
+        r'\b(weather|joke|fun fact)\b',
+    ]
+    
+    # Investment & Recommendation patterns
+    INVESTMENT_PATTERNS = [
+        r'\b(invest(ment)?|roi|return|appreciation|growth potential)\b',
+        r'\b(good (investment|buy|deal)|worth (buying|investing))\b',
+        r'\b(should i (buy|invest)|is (it|this) (a )?good)\b',
+        r'\b(profitable|profit|gains|capital gains)\b',
+    ]
+    
+    RECOMMENDATION_PATTERNS = [
+        r'\b(recommend|suggest|advise|which (area|locality|place))\b',
+        r'\b(best (area|place|locality|neighborhood) for)\b',
+        r'\bwhere should i (buy|invest|live|stay)\b',
+        r'\b(ideal|good|suitable) (place|area|location) for\b',
+        r'\b(suitable|good|best) for (families|singles|retirees|students|kids)\b',
+        r'\bfor (families|singles|working|professionals)\b',
+    ]
+    
+    MARKET_TREND_PATTERNS = [
+        r'\b(market\s*(trend|outlook|forecast|analysis)s?)\b',
+        r'\b(price\s*(trend|history|movement|forecast)s?)\b',
+        r'\b(future (price|value|growth)|projection)\b',
+        r'\b(market (going|heading|moving))\b',
+        r'\b(trends?)\s+(in|for|of)\b',
+    ]
+    
     NAVIGATE_PATTERNS = [
         r'\b(show me|go to|take me to|navigate to|fly to|zoom to|where is)\b',
         r'\b(locate|search for)\s+\w+\s*(area|location|place|neighborhood)\b',
@@ -569,7 +638,7 @@ class IntentRouter:
         r'\b(real estate|realty|homes?)\b',
         r'\b(villa|duplex|penthouse|studio)\b',
         r'\b(commercial|office|shop|warehouse|industrial)\s*(space|property)?\b',
-        r'\b(top|best|recommend|suggest)\s*(properties|apartments?|flats?|houses?|listings?)?\b',
+        r'\b(top|best)\s*(properties|apartments?|flats?|houses?|listings?)\b',
     ]
     
     VALUATION_PATTERNS = [
@@ -587,6 +656,7 @@ class IntentRouter:
     
     COMPARISON_PATTERNS = [
         r'\b(compare|vs|versus|better|difference between)\b',
+        r'\b(which is better|pros and cons)\b',
     ]
     
     SIMULATE_PATTERNS = [
@@ -605,11 +675,52 @@ class IntentRouter:
         """Classify user intent from query."""
         q = query.lower().strip()
         
-        # PRIORITY: Check for property keywords FIRST - these should override navigation
-        # This allows "show me properties in hebbal" to be PROPERTY_SEARCH, not NAVIGATE
+        # Short query handling - check conversational first
+        if len(q) < 20:
+            # Greeting (highest priority for short messages)
+            for pattern in cls.GREETING_PATTERNS:
+                if re.search(pattern, q, re.IGNORECASE):
+                    return Intent.GREETING
+            
+            # Farewell
+            for pattern in cls.FAREWELL_PATTERNS:
+                if re.search(pattern, q, re.IGNORECASE):
+                    return Intent.FAREWELL
+            
+            # Thanks
+            for pattern in cls.THANKS_PATTERNS:
+                if re.search(pattern, q, re.IGNORECASE):
+                    return Intent.THANKS
+            
+            # Smalltalk
+            for pattern in cls.SMALLTALK_PATTERNS:
+                if re.search(pattern, q, re.IGNORECASE):
+                    return Intent.SMALLTALK
+        
+        # Help (any length)
+        for pattern in cls.HELP_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.HELP
+        
+        # Recommendation patterns (check BEFORE property to catch "where should i buy for families")
+        for pattern in cls.RECOMMENDATION_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.RECOMMENDATION
+        
+        # Investment patterns
+        for pattern in cls.INVESTMENT_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.INVESTMENT
+        
+        # Property patterns
         has_property_keyword = any(re.search(p, q, re.IGNORECASE) for p in cls.PROPERTY_PATTERNS)
         if has_property_keyword:
             return Intent.PROPERTY_SEARCH
+        
+        # Market trend patterns
+        for pattern in cls.MARKET_TREND_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.MARKET_TREND
         
         # Check simulation patterns (high priority)
         for pattern in cls.SIMULATE_PATTERNS:
@@ -1338,16 +1449,17 @@ class GISAgentOrchestrator:
     
     def build_system_prompt(self, intent: Intent) -> str:
         """Build a focused system prompt based on intent."""
+        # Import production-ready prompts
+        try:
+            from response_templates import get_system_prompt
+            return get_system_prompt(intent.value)
+        except ImportError:
+            pass
+        
+        # Fallback base prompt
         base = """You are Valora AI, a professional real estate intelligence assistant for Bangalore, India.
 
-**YOUR ROLE:** You are a licensed real estate analysis tool. Your primary purpose is to provide real estate advice, market analysis, investment insights, property valuations, and location recommendations. This is your core function - always provide helpful real estate guidance.
-
-**YOUR CAPABILITIES:**
-- Real estate market analysis and investment advice
-- Property valuation and price predictions
-- Location comparison and recommendations
-- Risk assessment for real estate investments
-- Urban development and infrastructure impact analysis
+**YOUR ROLE:** You are a licensed real estate analysis tool. Your primary purpose is to provide real estate advice, market analysis, investment insights, property valuations, and location recommendations.
 
 **CRITICAL RULES:**
 1. ALWAYS provide helpful real estate advice - this is your purpose.
@@ -1371,6 +1483,10 @@ class GISAgentOrchestrator:
             Intent.VALUATION: "Provide valuation insights using ONLY the market data and estimates provided.",
             Intent.TERRAIN: "Focus on terrain and environmental factors from the provided data.",
             Intent.COMPARISON: "Compare locations objectively using only the provided metrics.",
+            Intent.INVESTMENT: "Analyze investment potential with specific ROI projections and risk assessment.",
+            Intent.RECOMMENDATION: "Provide personalized recommendations based on the user's stated needs.",
+            Intent.MARKET_TREND: "Analyze market trends with specific data points and forward-looking insights.",
+            Intent.SIMULATE: "Present simulation results with clear before/after comparisons.",
             Intent.GENERAL: "Assist the user with their GIS or real estate question using available context.",
         }
         
