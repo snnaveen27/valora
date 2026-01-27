@@ -161,6 +161,59 @@ function detectNavigationIntent(message) {
   return { isNavigation: false, placeName: null }
 }
 
+// Task List Component - Windsurf-style task progress display
+function TaskListPanel({ tasks, isExpanded = true }) {
+  const [expanded, setExpanded] = useState(isExpanded)
+  
+  if (!tasks || tasks.length === 0) return null
+  
+  const completedCount = tasks.filter(t => t.status === 'completed').length
+  const inProgressTask = tasks.find(t => t.status === 'in_progress')
+  
+  return (
+    <div className="mb-3 bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-700/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-purple-400">📋</span>
+          <span className="text-slate-300 font-medium">Tasks</span>
+          <span className="text-slate-500">({completedCount}/{tasks.length})</span>
+        </div>
+        {expanded ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
+      </button>
+      
+      {expanded && (
+        <div className="px-3 pb-3 space-y-1.5">
+          {tasks.map((task, idx) => (
+            <div 
+              key={idx} 
+              className={`flex items-start gap-2 text-xs ${
+                task.status === 'in_progress' ? 'bg-blue-500/10 rounded px-2 py-1.5 -mx-2' : ''
+              }`}
+            >
+              {task.status === 'completed' ? (
+                <span className="text-green-400 mt-0.5">✓</span>
+              ) : task.status === 'in_progress' ? (
+                <Loader2 className="w-3 h-3 text-blue-400 animate-spin mt-0.5" />
+              ) : (
+                <span className="w-3 h-3 rounded border border-slate-600 mt-0.5" />
+              )}
+              <span className={`flex-1 ${
+                task.status === 'completed' ? 'text-slate-500 line-through' :
+                task.status === 'in_progress' ? 'text-blue-300' : 'text-slate-400'
+              }`}>
+                {task.content || task.step}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Collapsible Thinking/Reasoning Panel Component
 function ThinkingPanel({ trace, intent, factsSummary }) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -407,10 +460,25 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
     loadLlmConfig()
   }, [])
 
-  // Save LLM config when changed
+  // Save LLM config when changed + unload previous model to free RAM
   const saveLlmConfig = async (newConfig) => {
+    const oldModel = llmConfig.local_model
+    const newModel = newConfig.active_model_type === 'fast' ? newConfig.local_model_fast :
+                     newConfig.active_model_type === 'reasoning' ? newConfig.local_model_reasoning :
+                     newConfig.local_model
+    
     setLlmConfig(newConfig)
+    
     try {
+      // Unload old model if switching to free up RAM
+      if (newConfig.provider === 'local' && oldModel && oldModel !== newModel) {
+        await fetch(`${API_URL}/api/admin/unload-model`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: oldModel })
+        })
+      }
+      
       await fetch(`${API_URL}/api/admin/llm-config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -731,6 +799,11 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
             }`}>
               {msg.role === 'assistant' ? (
                 <>
+                  {/* Task List - Windsurf style */}
+                  {msg.tasks && msg.tasks.length > 0 && (
+                    <TaskListPanel tasks={msg.tasks} isExpanded={true} />
+                  )}
+                  
                   {/* Collapsible Thinking/Reasoning UI */}
                   {msg.reasoningTrace && msg.reasoningTrace.steps && msg.reasoningTrace.steps.length > 0 && (
                     <ThinkingPanel 

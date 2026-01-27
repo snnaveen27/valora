@@ -842,6 +842,31 @@ async def test_llm_connection(request: LLMConfigRequest) -> Dict[str, Any]:
         return {"success": False, "message": f"Error: {str(e)}"}
 
 
+class UnloadModelRequest(BaseModel):
+    model: str
+
+@router.post("/unload-model")
+async def unload_model(request: UnloadModelRequest) -> Dict[str, Any]:
+    """Unload a model from Ollama to free RAM."""
+    config = _load_llm_config()
+    local_url = config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions')
+    ollama_base = local_url.replace('/v1/chat/completions', '').replace('/v1', '')
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Ollama unload by setting keep_alive to 0
+            response = await client.post(
+                f"{ollama_base}/api/generate",
+                json={"model": request.model, "keep_alive": 0}
+            )
+            if response.status_code == 200:
+                return {"success": True, "message": f"Model '{request.model}' unloaded to free RAM"}
+            else:
+                return {"success": False, "message": f"Failed to unload: {response.status_code}"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
 def get_active_llm_config() -> dict:
     """Get the active LLM config for use by other modules."""
     return _load_llm_config()
