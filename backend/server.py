@@ -3443,6 +3443,112 @@ async def phase1_status():
     }
 
 
+# ============== LOCALITY STATE API (Fast Lookups) ==============
+
+# Import locality service for fast lookups
+try:
+    from locality_service import get_locality_service, get_locality_state, get_top_hotspots
+    LOCALITY_SERVICE_AVAILABLE = True
+    print("[OK] Locality service initialized")
+except Exception as e:
+    LOCALITY_SERVICE_AVAILABLE = False
+    print(f"[WARNING] Locality service not available: {e}")
+
+
+@app.get("/api/locality/{locality_name}")
+async def get_locality_data(locality_name: str):
+    """Get precomputed locality state (fast lookup)."""
+    if not LOCALITY_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Locality service not available")
+    
+    try:
+        state = get_locality_state(locality_name)
+        if not state:
+            raise HTTPException(status_code=404, detail=f"Locality '{locality_name}' not found")
+        
+        return {
+            "success": True,
+            "locality": locality_name,
+            "state": state,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/locality/hotspots")
+async def get_hotspots(limit: int = 10):
+    """Get top investment hotspots."""
+    if not LOCALITY_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Locality service not available")
+    
+    try:
+        hotspots = get_top_hotspots(limit=limit)
+        return {
+            "success": True,
+            "hotspots": hotspots,
+            "count": len(hotspots),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/locality/compare")
+async def compare_localities_fast(localities: str):
+    """Compare localities using precomputed data."""
+    if not LOCALITY_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Locality service not available")
+    
+    try:
+        locality_list = [l.strip() for l in localities.split(',')]
+        service = get_locality_service()
+        comparison = service.compare_localities(locality_list)
+        return {
+            "success": True,
+            "comparison": comparison,
+            "count": len(comparison),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/locality/recommendations")
+async def get_investment_recommendations(investor_type: str = "balanced", limit: int = 5):
+    """Get investment recommendations based on investor profile."""
+    if not LOCALITY_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Locality service not available")
+    
+    try:
+        service = get_locality_service()
+        recommendations = service.get_investment_recommendations(investor_type, limit=limit)
+        return {
+            "success": True,
+            "investor_type": investor_type,
+            "recommendations": recommendations,
+            "count": len(recommendations),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/locality/market-overview")
+async def get_market_overview():
+    """Get city-wide market overview from precomputed data."""
+    if not LOCALITY_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Locality service not available")
+    
+    try:
+        service = get_locality_service()
+        overview = service.get_market_overview()
+        return {
+            "success": True,
+            "overview": overview,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== CITY INTELLIGENCE API ENDPOINTS ==============
 
 @app.get("/api/city-intelligence/locality/{locality_name}")

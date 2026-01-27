@@ -870,3 +870,115 @@ async def unload_model(request: UnloadModelRequest) -> Dict[str, Any]:
 def get_active_llm_config() -> dict:
     """Get the active LLM config for use by other modules."""
     return _load_llm_config()
+
+
+# ============================================================================
+# LOCALITY BRAIN MANAGEMENT
+# ============================================================================
+
+@router.post("/rebuild-locality-brain")
+async def rebuild_locality_brain() -> Dict[str, Any]:
+    """Rebuild the locality brain (precomputed intelligence)."""
+    import subprocess
+    import sys
+    
+    script_path = Path(__file__).parent.parent / 'scripts' / 'build_locality_brain.py'
+    
+    if not script_path.exists():
+        return {"success": False, "message": "Brain builder script not found"}
+    
+    try:
+        # Run the brain builder script
+        result = subprocess.run(
+            [sys.executable, str(script_path)],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+        
+        # Parse output for summary
+        output = result.stdout
+        lines = output.split('\n')
+        
+        # Find success/error counts
+        success_count = 0
+        error_count = 0
+        for line in lines:
+            if 'Success:' in line:
+                try:
+                    success_count = int(line.split('Success:')[1].split()[0])
+                except:
+                    pass
+            if 'Errors:' in line:
+                try:
+                    error_count = int(line.split('Errors:')[1].split()[0])
+                except:
+                    pass
+        
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": f"Locality brain rebuilt successfully! {success_count} localities processed, {error_count} errors.",
+                "details": {
+                    "localities_processed": success_count,
+                    "errors": error_count,
+                }
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Brain rebuild failed: {result.stderr[:500]}"
+            }
+    
+    except subprocess.TimeoutExpired:
+        return {"success": False, "message": "Brain rebuild timed out (>5 minutes)"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@router.get("/locality-brain-status")
+async def get_locality_brain_status() -> Dict[str, Any]:
+    """Get status of the locality brain."""
+    import sqlite3
+    
+    db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+    
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        
+        # Get counts
+        cursor.execute("SELECT COUNT(*) FROM locality_state")
+        total = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM locality_state WHERE poi_count > 0")
+        with_pois = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM locality_state WHERE transport_count > 0")
+        with_transport = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT MAX(last_updated) FROM locality_state")
+        last_updated = cursor.fetchone()[0]
+        
+        # Get growth phase distribution
+        cursor.execute("""
+            SELECT growth_phase, COUNT(*) as cnt 
+            FROM locality_state 
+            GROUP BY growth_phase
+        """)
+        phases = {row[0]: row[1] for row in cursor.fetchall()}
+        
+        conn.close()
+        
+        return {
+            "success": True,
+            "status": {
+                "total_localities": total,
+                "with_pois": with_pois,
+                "with_transport": with_transport,
+                "last_updated": last_updated,
+                "growth_phases": phases,
+            }
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}

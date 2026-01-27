@@ -952,6 +952,48 @@ class GISAgentOrchestrator:
         facts.lng = lng
         facts.location_name = location_name
         
+        # ============== FAST LOCALITY LOOKUP (Knowledge Layer) ==============
+        # Use precomputed locality state for instant insights
+        if location_name:
+            try:
+                from locality_service import get_locality_state, get_locality_service
+                locality_state = get_locality_state(location_name)
+                
+                if locality_state:
+                    # Use precomputed data instead of computing on the fly
+                    facts.locality_state = locality_state
+                    facts.growth_phase = locality_state.get('growth_phase')
+                    facts.risk_level = locality_state.get('risk_level')
+                    facts.risk_index = locality_state.get('risk_index')
+                    facts.investor_type = locality_state.get('investor_type')
+                    facts.archetype = locality_state.get('archetype')
+                    facts.hotspot_score = locality_state.get('hotspot_score')
+                    
+                    # Use precomputed spatial features if not already set
+                    if not facts.poi_count:
+                        facts.poi_count = locality_state.get('poi_count', 0)
+                    if not facts.transport_count:
+                        facts.transport_count = locality_state.get('transport_count', 0)
+                    if not facts.accessibility_score:
+                        facts.accessibility_score = locality_state.get('accessibility_score')
+                    if not facts.walkability_score:
+                        facts.walkability_score = locality_state.get('walkability_score')
+                    
+                    # Market metrics from precomputed data
+                    facts.locality_avg_price = locality_state.get('avg_price_sqft')
+                    facts.locality_listings = locality_state.get('active_listings')
+                    facts.demand_level = locality_state.get('demand_level')
+                    facts.supply_level = locality_state.get('supply_level')
+                    
+                    if reasoning_trace:
+                        reasoning_trace.add_step(
+                            ReasoningStep.VERIFY,
+                            f"Loaded precomputed locality state: {location_name} ({locality_state.get('growth_phase', 'unknown')} phase)",
+                            {"hotspot_score": locality_state.get('hotspot_score')}
+                        )
+            except Exception as e:
+                print(f"[GIS] Locality service lookup error: {e}")
+        
         # Phase 2.2: Record visit in spatial memory
         if spatial_memory and lat and lng and location_name:
             try:

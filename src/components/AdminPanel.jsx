@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { 
   X, Settings, Database, Server, Cpu, CheckCircle, XCircle, 
   RefreshCw, Play, Zap, HardDrive, Cloud, AlertTriangle,
-  Activity, BarChart3, TestTube, FileText, Loader2, Bot, Globe, Save
+  Activity, BarChart3, TestTube, FileText, Loader2, Bot, Globe, Save, Brain
 } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -27,14 +27,48 @@ export default function AdminPanel({ isOpen, onClose }) {
   })
   const [llmSaving, setLlmSaving] = useState(false)
   const [llmTestResult, setLlmTestResult] = useState(null)
+  const [brainStatus, setBrainStatus] = useState(null)
+  const [rebuildingBrain, setRebuildingBrain] = useState(false)
+  const [brainResult, setBrainResult] = useState(null)
 
   useEffect(() => {
     if (isOpen) {
       fetchSystemStatus()
       fetchVectorBackend()
       fetchLlmConfig()
+      fetchBrainStatus()
     }
   }, [isOpen])
+
+  const fetchBrainStatus = async () => {
+    try {
+      const resp = await fetch(`${API_URL}/api/admin/locality-brain-status`)
+      if (resp.ok) {
+        const data = await resp.json()
+        setBrainStatus(data.status)
+      }
+    } catch (err) {
+      console.error('Failed to fetch brain status:', err)
+    }
+  }
+
+  const rebuildBrain = async () => {
+    setRebuildingBrain(true)
+    setBrainResult(null)
+    try {
+      const resp = await fetch(`${API_URL}/api/admin/rebuild-locality-brain`, {
+        method: 'POST'
+      })
+      const data = await resp.json()
+      setBrainResult(data)
+      if (data.success) {
+        fetchBrainStatus()
+      }
+    } catch (err) {
+      setBrainResult({ success: false, message: `Error: ${err.message}` })
+    }
+    setRebuildingBrain(false)
+  }
 
   const fetchSystemStatus = async () => {
     setLoading(true)
@@ -453,6 +487,69 @@ export default function AdminPanel({ isOpen, onClose }) {
                     )}
                   </button>
                 </div>
+              </div>
+
+              {/* Locality Brain Section */}
+              <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/30 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                      <Brain className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-white font-medium">Locality Brain</h4>
+                      <p className="text-slate-400 text-xs">Precomputed locality intelligence</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={rebuildBrain}
+                    disabled={rebuildingBrain}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition disabled:opacity-50"
+                  >
+                    {rebuildingBrain ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Rebuilding...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Rebuild Brain
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                {brainStatus && (
+                  <div className="grid grid-cols-4 gap-3 mt-3">
+                    <div className="bg-slate-800/50 rounded p-2 text-center">
+                      <p className="text-2xl font-bold text-white">{brainStatus.total_localities || 0}</p>
+                      <p className="text-xs text-slate-400">Localities</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded p-2 text-center">
+                      <p className="text-2xl font-bold text-green-400">{brainStatus.with_pois || 0}</p>
+                      <p className="text-xs text-slate-400">With POIs</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded p-2 text-center">
+                      <p className="text-2xl font-bold text-blue-400">{brainStatus.with_transport || 0}</p>
+                      <p className="text-xs text-slate-400">With Transport</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded p-2 text-center">
+                      <p className="text-xs text-slate-300 truncate">{brainStatus.last_updated?.split('T')[0] || 'Never'}</p>
+                      <p className="text-xs text-slate-400">Last Updated</p>
+                    </div>
+                  </div>
+                )}
+                
+                {brainResult && (
+                  <div className={`mt-3 p-3 rounded-lg text-sm ${
+                    brainResult.success 
+                      ? 'bg-green-500/20 border border-green-500/30 text-green-400' 
+                      : 'bg-red-500/20 border border-red-500/30 text-red-400'
+                  }`}>
+                    {brainResult.message}
+                  </div>
+                )}
               </div>
 
               {/* Indexing Actions */}
