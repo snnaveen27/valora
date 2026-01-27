@@ -113,6 +113,7 @@ except Exception as e:
 
 # Phase 2: GIS Multi-Agent Orchestrator
 from gis_agents import get_gis_orchestrator, IntentRouter, Intent, _compute_market_facts
+from query_cache import get_chat_cache
 
 # Phase 3: City Intelligence Engine
 try:
@@ -1486,146 +1487,163 @@ async def chat_with_ai(request: ChatRequest):
     # Call LLM for narrative synthesis only (supports OpenRouter or Local LLM)
     # DeepSeek R1 needs longer timeout for chain-of-thought reasoning
     chain_of_thought = None
-    try:
-        async with httpx.AsyncClient(timeout=180.0) as client:  # 3 min timeout for reasoning models
-            if llm_provider == 'openrouter':
-                # OpenRouter (cloud)
-                response = await client.post(
-                    OPENROUTER_URL,
-                    headers={
-                        "Authorization": f"Bearer {current_llm_config.get('openrouter_api_key', '')}",
-                        "HTTP-Referer": "http://localhost:3000",
-                        "X-Title": "Valora AI - GIS Intelligence"
-                    },
-                    json={
-                        "model": current_llm_config.get('openrouter_model', OPENROUTER_MODEL),
-                        "messages": messages_with_context,
-                        "temperature": 0.5,
-                        "max_tokens": 600
-                    }
-                )
-            else:
-                # Local LLM (offline) - use single model
-                model_name = current_llm_config.get('local_model', 'llama3.2')
+    
+    # Check cache first (cache key = query + intent + location)
+    chat_cache = get_chat_cache()
+    cache_key_parts = {
+        'intent': intent.value,
+        'lat': round(facts.lat or 0, 3),
+        'lng': round(facts.lng or 0, 3),
+        'location': facts.location_name or ''
+    }
+    cached_response = chat_cache.get(user_query, **cache_key_parts)
+    
+    if cached_response:
+        print(f"[CACHE HIT] Chat response for: {user_query[:50]}...")
+        ai_message = cached_response.get('message', '')
+        chain_of_thought = cached_response.get('chain_of_thought')
+    else:
+        # No cache, call LLM
+        try:
+            async with httpx.AsyncClient(timeout=180.0) as client:  # 3 min timeout for reasoning models
+                if llm_provider == 'openrouter':
+                    # OpenRouter (cloud)
+                    response = await client.post(
+                        OPENROUTER_URL,
+                        headers={
+                            "Authorization": f"Bearer {current_llm_config.get('openrouter_api_key', '')}",
+                            "HTTP-Referer": "http://localhost:3000",
+                            "X-Title": "Valora AI - GIS Intelligence"
+                        },
+                        json={
+                            "model": current_llm_config.get('openrouter_model', OPENROUTER_MODEL),
+                            "messages": messages_with_context,
+                            "temperature": 0.5,
+                            "max_tokens": 600
+                        }
+                    )
+                else:
+                    # Local LLM (offline) - use single model
+                    model_name = current_llm_config.get('local_model', 'llama3.2')
+                    
+                    response = await client.post(
+                        current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions'),
+                        json={
+                            "model": model_name,
+                            "messages": messages_with_context,
+                            "temperature": 0.5,
+                            "max_tokens": 600,
+                            "stream": False
+                        }
+                    )
                 
-                response = await client.post(
-                    current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions'),
-                    json={
-                        "model": model_name,
-                        "messages": messages_with_context,
-                        "temperature": 0.5,
-                        "max_tokens": 600,
-                        "stream": False
-                    }
-                )
+                if response.status_code != 200:
+                    provider_name = "OpenRouter" if llm_provider == 'openrouter' else "Local LLM"
+                    raise HTTPException(status_code=response.status_code, detail=f"{provider_name} error: {response.text[:200]}")
+                
+                result = response.json()
+                ai_message = result['choices'][0]['message']['content']
+                
+                # Extract DeepSeek R1 chain-of-thought from <think> tags
+                if "<think>" in ai_message:
+                    think_match = re_module.search(r"<think>(.*?)</think>", ai_message, re_module.DOTALL)
+                    if think_match:
+                        chain_of_thought = think_match.group(1).strip()
+                        # Remove <think> block from final message
+                        ai_message = re_module.sub(r"<think>.*?</think>", "", ai_message, flags=re_module.DOTALL).strip()
+                
+                # Cache the response for future use
+                chat_cache.set(user_query, {
+                    'message': ai_message,
+                    'chain_of_thought': chain_of_thought
+                }, **cache_key_parts)
+                print(f"[CACHE SET] Chat response cached for: {user_query[:50]}...")
             
-            if response.status_code != 200:
-                provider_name = "OpenRouter" if llm_provider == 'openrouter' else "Local LLM"
-                raise HTTPException(status_code=response.status_code, detail=f"{provider_name} error: {response.text[:200]}")
-            
-            result = response.json()
-            ai_message = result['choices'][0]['message']['content']
-            
-            # Extract DeepSeek R1 chain-of-thought from <think> tags
-            if "<think>" in ai_message:
-                think_match = re_module.search(r"<think>(.*?)</think>", ai_message, re_module.DOTALL)
-                if think_match:
-                    chain_of_thought = think_match.group(1).strip()
-                    # Remove <think> block from final message
-                    ai_message = re_module.sub(r"<think>.*?</think>", "", ai_message, flags=re_module.DOTALL).strip()
-            
-            # Extract SIDEBAR content if present
-            sidebar_content = ""
-            if "[SIDEBAR]" in ai_message and "[/SIDEBAR]" in ai_message:
-                match = re_module.search(r"\[SIDEBAR\](.*?)\[/SIDEBAR\]", ai_message, re_module.DOTALL)
-                if match:
-                    sidebar_content = match.group(1).strip()
-                    ai_message = re_module.sub(r"\[SIDEBAR\].*?\[/SIDEBAR\]", "", ai_message, flags=re_module.DOTALL).strip()
-            
-            if sidebar_content:
-                dashboard["ai_analysis"] = sidebar_content
-            
-            # Ensure dashboard has title
-            if not dashboard.get("title"):
-                dashboard["title"] = title
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"LLM error: {str(e)}")
+    
+    # Extract SIDEBAR content if present (applies to both cached and fresh responses)
+    sidebar_content = ""
+    if "[SIDEBAR]" in ai_message and "[/SIDEBAR]" in ai_message:
+        match = re_module.search(r"\[SIDEBAR\](.*?)\[/SIDEBAR\]", ai_message, re_module.DOTALL)
+        if match:
+            sidebar_content = match.group(1).strip()
+            ai_message = re_module.sub(r"\[SIDEBAR\].*?\[/SIDEBAR\]", "", ai_message, flags=re_module.DOTALL).strip()
+    
+    if sidebar_content:
+        dashboard["ai_analysis"] = sidebar_content
+    
+    # Ensure dashboard has title
+    if not dashboard.get("title"):
+        dashboard["title"] = title
 
-            # Manage credits (deduct 1 for chat)
-            user_id = context.get('user_id', 'user_demo')
-            credit_resp = await manage_credits(CreditAction(user_id=user_id, action='deduct', reason='chat'))
-            
-            # Add simulation and twin state to response
-            # Build full facts object for frontend explainability
-            facts_data = {
-                # Location
-                "location_name": facts.location_name,
-                "lat": facts.lat,
-                "lng": facts.lng,
-                # Spatial
-                "poi_count": facts.poi_count,
-                "transport_count": facts.transport_count,
-                "accessibility_score": facts.accessibility_score,
-                "walkability_score": facts.walkability_score,
-                "amenity_density": facts.amenity_density,
-                # Market
-                "avg_price_per_sqft": facts.avg_price_per_sqft,
-                "price_trend_pct": facts.price_trend_pct,
-                "active_listings": facts.active_listings,
-                "demand_level": facts.demand_level,
-                # Terrain
-                "elevation_m": facts.elevation_m,
-                "flood_risk": facts.flood_risk,
-                # 3D
-                "sky_view_factor": facts.sky_view_factor,
-                "view_quality": facts.view_quality,
-                "skyline_character": facts.skyline_character,
-                "optimal_floor": facts.optimal_floor,
-                # City Intelligence
-                "locality_archetype": facts.locality_archetype,
-                "locality_growth_stage": facts.locality_growth_stage,
-                "locality_tagline": facts.locality_tagline,
-                "locality_personality": facts.locality_personality,
-                "overall_risk_score": facts.overall_risk_score,
-                "risk_level": facts.risk_level,
-                "risk_profile": facts.risk_profile,
-                "risk_warnings": facts.risk_warnings,
-                "causal_analysis": facts.causal_analysis,
-                # Confidence
-                "confidence_score": facts.confidence_score,
-                "location_score": facts.location_score,
-                "location_strengths": facts.location_strengths,
-                "location_weaknesses": facts.location_weaknesses,
-                "investment_outlook": facts.investment_outlook,
-            }
-            
-            # Get dynamic task snapshot from planner
-            tasks = task_planner.get_tasks_snapshot()
-            
-            return {
-                "success": True,
-                "message": ai_message,
-                "intent": intent.value,  # Expose detected intent
-                "dashboard": dashboard if dashboard.get('title') or dashboard.get('cards') else None,
-                "ui_actions": ui_actions,
-                "simulation": simulation_data,
-                "digital_twin_state": digital_twin_state,
-                "user_credits": credit_resp if credit_resp.get('success') else None,
-                "facts": facts_data,  # Full facts for explainability panel
-                "facts_summary": {  # Expose key facts for transparency
-                    "location": facts.location_name,
-                    "poi_count": facts.poi_count,
-                    "accessibility": facts.accessibility_score,
-                    "walkability": facts.walkability_score,
-                    "avg_price_sqft": facts.avg_price_per_sqft,
-                    "active_listings": facts.active_listings,
-                },
-                "reasoning_trace": reasoning_trace,  # Chain-of-thought visibility
-                "chain_of_thought": chain_of_thought,  # DeepSeek R1 thinking process
-                "tasks": tasks if tasks else None,  # Task list for UI
-                "usage": result.get('usage', {})
-            }
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+    # Manage credits (deduct 1 for chat)
+    user_id = context.get('user_id', 'user_demo')
+    credit_resp = await manage_credits(CreditAction(user_id=user_id, action='deduct', reason='chat'))
+    
+    # Add simulation and twin state to response
+    # Build full facts object for frontend explainability
+    facts_data = {
+        "location_name": facts.location_name,
+        "lat": facts.lat,
+        "lng": facts.lng,
+        "poi_count": facts.poi_count,
+        "transport_count": facts.transport_count,
+        "accessibility_score": facts.accessibility_score,
+        "walkability_score": facts.walkability_score,
+        "amenity_density": facts.amenity_density,
+        "avg_price_per_sqft": facts.avg_price_per_sqft,
+        "price_trend_pct": facts.price_trend_pct,
+        "active_listings": facts.active_listings,
+        "demand_level": facts.demand_level,
+        "elevation_m": facts.elevation_m,
+        "flood_risk": facts.flood_risk,
+        "sky_view_factor": facts.sky_view_factor,
+        "view_quality": facts.view_quality,
+        "skyline_character": facts.skyline_character,
+        "optimal_floor": facts.optimal_floor,
+        "locality_archetype": facts.locality_archetype,
+        "locality_growth_stage": facts.locality_growth_stage,
+        "locality_tagline": facts.locality_tagline,
+        "locality_personality": facts.locality_personality,
+        "overall_risk_score": facts.overall_risk_score,
+        "risk_level": facts.risk_level,
+        "risk_profile": facts.risk_profile,
+        "risk_warnings": facts.risk_warnings,
+        "causal_analysis": facts.causal_analysis,
+        "confidence_score": facts.confidence_score,
+        "location_score": facts.location_score,
+        "location_strengths": facts.location_strengths,
+        "location_weaknesses": facts.location_weaknesses,
+        "investment_outlook": facts.investment_outlook,
+    }
+    
+    # Get dynamic task snapshot from planner
+    tasks = task_planner.get_tasks_snapshot()
+    
+    return {
+        "success": True,
+        "message": ai_message,
+        "intent": intent.value,
+        "dashboard": dashboard if dashboard.get('title') or dashboard.get('cards') else None,
+        "ui_actions": ui_actions,
+        "simulation": simulation_data,
+        "digital_twin_state": digital_twin_state,
+        "user_credits": credit_resp if credit_resp.get('success') else None,
+        "facts": facts_data,
+        "facts_summary": {
+            "location": facts.location_name,
+            "poi_count": facts.poi_count,
+            "accessibility": facts.accessibility_score,
+            "walkability": facts.walkability_score,
+            "avg_price_sqft": facts.avg_price_per_sqft,
+            "active_listings": facts.active_listings,
+        },
+        "reasoning_trace": reasoning_trace,
+        "chain_of_thought": chain_of_thought,
+        "tasks": tasks if tasks else None,
+        "cached": cached_response is not None
+    }
 
 # ============================================================================
 # TERRAIN ENDPOINTS

@@ -4,7 +4,7 @@ import AnalysisPanel from './AnalysisPanel'
 import ChatPanel from './ChatPanel'
 import AdminPanel from './AdminPanel'
 import ScrapeController from './ScrapeController'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -13,11 +13,12 @@ export default function MainApp() {
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true)
   const [isChatOpen, setIsChatOpen] = useState(true)
   const [activeTab, setActiveTab] = useState('insights')
-  const [analysisWidth, setAnalysisWidth] = useState('narrow') // narrow or wide
+  const [analysisWidth, setAnalysisWidth] = useState('narrow') // narrow, wide, or fullscreen
   const [chatWidth, setChatWidth] = useState('narrow') // narrow or wide
   const [credits, setCredits] = useState(null)
   const [isAdminOpen, setIsAdminOpen] = useState(false)
   const [liveAnalysis, setLiveAnalysis] = useState(null) // Real-time analysis from AI
+  const [isAnalysisFullscreen, setIsAnalysisFullscreen] = useState(false) // Fullscreen mode for deep analysis
 
   // Font size persistence
   const [analysisFontSize, setAnalysisFontSize] = useState(() => {
@@ -95,6 +96,24 @@ export default function MainApp() {
         if ((value || panel) === 'analysis' || (value || panel) === 'insights') setIsAnalysisOpen(false)
         if ((value || panel) === 'chat') setIsChatOpen(false)
       }
+
+      // Agent-controlled fullscreen expansion for deep analysis
+      if (action === 'expandAnalysis' || action === 'fullscreenAnalysis') {
+        setIsAnalysisFullscreen(true)
+        setIsAnalysisOpen(true)
+        setActiveTab(targetTab || 'insights')
+      }
+
+      if (action === 'collapseAnalysis' || action === 'exitFullscreen') {
+        setIsAnalysisFullscreen(false)
+      }
+
+      // Toggle comparison mode
+      if (action === 'showComparison') {
+        setActiveTab('insights')
+        setIsAnalysisOpen(true)
+        setIsAnalysisFullscreen(true) // Expand for better comparison view
+      }
     }
 
     window.addEventListener('valora-ui-command', handleUICommand)
@@ -113,6 +132,28 @@ export default function MainApp() {
 
   const toggleChatWidth = () => {
     setChatWidth(prev => prev === 'narrow' ? 'wide' : 'narrow')
+  }
+
+  const toggleAnalysisFullscreen = () => {
+    setIsAnalysisFullscreen(prev => !prev)
+  }
+
+  // Calculate panel widths based on fullscreen state
+  const getAnalysisWidth = () => {
+    if (isAnalysisFullscreen) return 'calc(100% - 64px)' // Nearly full width, leave room for collapse button
+    if (!isAnalysisOpen) return '32px'
+    return analysisWidth === 'wide' ? 'calc(50% - 160px)' : 'calc(33% - 107px)'
+  }
+
+  const getChatWidth = () => {
+    if (isAnalysisFullscreen) return '32px' // Minimize when analysis is fullscreen
+    if (!isChatOpen) return '32px'
+    return chatWidth === 'wide' ? 'calc(40% - 128px)' : 'calc(25% - 80px)'
+  }
+
+  const getMapWidth = () => {
+    if (isAnalysisFullscreen) return '0px' // Hide map in fullscreen
+    return 'flex-1'
   }
 
   return (
@@ -152,12 +193,10 @@ export default function MainApp() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Analysis Panel */}
         <div 
-          className="h-full bg-slate-800 border-r border-slate-700 flex flex-col transition-all duration-300 shrink-0"
+          className={`h-full bg-slate-800 border-r border-slate-700 flex flex-col transition-all duration-300 shrink-0 ${isAnalysisFullscreen ? 'z-10' : ''}`}
           style={{
-            width: isAnalysisOpen 
-              ? (analysisWidth === 'wide' ? 'calc(50% - 160px)' : 'calc(33% - 107px)')
-              : '32px',
-            minWidth: isAnalysisOpen ? '280px' : '0px'
+            width: getAnalysisWidth(),
+            minWidth: isAnalysisOpen ? (isAnalysisFullscreen ? '600px' : '280px') : '0px'
           }}
         >
           {isAnalysisOpen ? (
@@ -198,15 +237,24 @@ export default function MainApp() {
                       <span className="text-xs font-bold">+</span>
                     </button>
                   </div>
+                  {!isAnalysisFullscreen && (
+                    <button 
+                      onClick={toggleAnalysisWidth} 
+                      className="p-1 text-slate-500 hover:text-white transition rounded hover:bg-slate-700"
+                      title={analysisWidth === 'narrow' ? 'Expand' : 'Shrink'}
+                    >
+                      {analysisWidth === 'narrow' ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+                    </button>
+                  )}
                   <button 
-                    onClick={toggleAnalysisWidth} 
-                    className="p-1 text-slate-500 hover:text-white transition rounded hover:bg-slate-700"
-                    title={analysisWidth === 'narrow' ? 'Expand' : 'Shrink'}
+                    onClick={toggleAnalysisFullscreen} 
+                    className={`p-1 transition rounded hover:bg-slate-700 ${isAnalysisFullscreen ? 'text-purple-400 hover:text-purple-300' : 'text-slate-500 hover:text-white'}`}
+                    title={isAnalysisFullscreen ? 'Exit Fullscreen' : 'Deep Analysis Mode'}
                   >
-                    {analysisWidth === 'narrow' ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+                    {isAnalysisFullscreen ? <Shrink className="w-3.5 h-3.5" /> : <Expand className="w-3.5 h-3.5" />}
                   </button>
                   <button 
-                    onClick={() => setIsAnalysisOpen(false)} 
+                    onClick={() => { setIsAnalysisOpen(false); setIsAnalysisFullscreen(false); }} 
                     className="p-1 text-slate-500 hover:text-white transition rounded hover:bg-slate-700"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -221,6 +269,7 @@ export default function MainApp() {
                   setActiveTab={setActiveTab}
                   fontSize={analysisFontSize}
                   liveAnalysis={liveAnalysis}
+                  isFullscreen={isAnalysisFullscreen}
                 />
               </div>
             </>
@@ -235,7 +284,9 @@ export default function MainApp() {
         </div>
 
         {/* Center Map */}
-        <div className="flex-1 h-full min-w-0">
+        <div 
+          className={`h-full min-w-0 transition-all duration-300 ${isAnalysisFullscreen ? 'w-0 overflow-hidden' : 'flex-1'}`}
+        >
           <OnlineOSMMap
             onAnalysisUpdate={handleAnalysisUpdate}
             agentData={agentData}
@@ -247,10 +298,8 @@ export default function MainApp() {
         <div 
           className="h-full bg-slate-800 border-l border-slate-700 flex flex-col transition-all duration-300 shrink-0"
           style={{
-            width: isChatOpen 
-              ? (chatWidth === 'wide' ? 'calc(40% - 128px)' : 'calc(25% - 80px)')
-              : '32px',
-            minWidth: isChatOpen ? '280px' : '0px'
+            width: getChatWidth(),
+            minWidth: (isChatOpen && !isAnalysisFullscreen) ? '280px' : '0px'
           }}
         >
           {isChatOpen ? (

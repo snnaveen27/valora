@@ -240,14 +240,80 @@ function InvestmentLeaderboard({ localities }) {
   )
 }
 
-export default function AnalysisPanel({ agentData, setAgentData, activeTab, setActiveTab, fontSize = 100, liveAnalysis = null }) {
+export default function AnalysisPanel({ agentData, setAgentData, activeTab, setActiveTab, fontSize = 100, liveAnalysis = null, isFullscreen = false }) {
   const [notes, setNotes] = useState([])
   const [currentNote, setCurrentNote] = useState({ title: '', content: '' })
   const [viewportAnalysis, setViewportAnalysis] = useState(null)
   const [viewportLoading, setViewportLoading] = useState(false)
   const [exportingPDF, setExportingPDF] = useState(false)
+  const [exportingCSV, setExportingCSV] = useState(false)
   const lastFetchedCenter = useRef(null)
   const analysisPanelRef = useRef(null)
+
+  // Export analysis to CSV
+  const exportToCSV = () => {
+    setExportingCSV(true)
+    try {
+      const areaName = viewportAnalysis?.area_name || agentData?.explainability?.locality?.name || 'Analysis'
+      const timestamp = new Date().toISOString().split('T')[0]
+      
+      // Build CSV data
+      const rows = [
+        ['Valora AI Analysis Report'],
+        ['Area', areaName],
+        ['Generated', new Date().toLocaleString()],
+        [''],
+        ['=== Market Overview ==='],
+        ['Metric', 'Value'],
+        ['Avg Price/sqft', `₹${viewportAnalysis?.market?.avg_price_per_sqft || agentData?.dashboard?.market?.avgPricePerSqft || 'N/A'}`],
+        ['Price Trend', `${viewportAnalysis?.market?.price_trend_pct || agentData?.dashboard?.market?.growth1y || 'N/A'}%`],
+        ['Demand Level', viewportAnalysis?.market?.demand_level || 'N/A'],
+        ['Active Listings', viewportAnalysis?.market?.active_listings || viewportAnalysis?.properties?.count || 'N/A'],
+        [''],
+        ['=== Spatial Analysis ==='],
+        ['POIs Nearby', viewportAnalysis?.spatial?.poi_count || 'N/A'],
+        ['Transport Hubs', viewportAnalysis?.spatial?.transport_count || 'N/A'],
+        ['Accessibility Score', `${viewportAnalysis?.spatial?.accessibility_score || 'N/A'}/100`],
+        ['Walkability Score', `${viewportAnalysis?.spatial?.walkability_score || 'N/A'}/100`],
+        [''],
+        ['=== Terrain & Risk ==='],
+        ['Elevation', `${viewportAnalysis?.terrain?.elevation_m || 'N/A'}m`],
+        ['Flood Risk', viewportAnalysis?.terrain?.flood_risk || 'N/A'],
+      ]
+      
+      // Add properties if available
+      if (agentData?.properties?.length > 0) {
+        rows.push([''], ['=== Properties ==='])
+        rows.push(['Name', 'Price', 'Area', 'Type', 'Locality'])
+        agentData.properties.slice(0, 20).forEach(p => {
+          rows.push([
+            p.title || p.name || 'Property',
+            `₹${(p.price / 100000).toFixed(1)}L`,
+            `${p.area_sqft || p.area} sqft`,
+            p.property_type || p.type || 'N/A',
+            p.locality || 'N/A'
+          ])
+        })
+      }
+      
+      const csvContent = rows.map(row => row.join(',')).join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `valora-analysis-${areaName.replace(/\s+/g, '-').toLowerCase()}-${timestamp}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      console.log('📊 CSV exported successfully')
+    } catch (err) {
+      console.error('CSV export failed:', err)
+    } finally {
+      setExportingCSV(false)
+    }
+  }
 
   // Export analysis to PDF (HTML-based for proper formatting)
   const exportToPDF = async () => {
@@ -706,19 +772,35 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
 
             {/* Export & Map Stats Row */}
             <div className="flex items-center gap-2">
-              {/* Export Button */}
-              <button
-                onClick={exportToPDF}
-                disabled={exportingPDF}
-                className="flex items-center gap-1 px-2 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white text-[10px] rounded transition"
-              >
-                {exportingPDF ? (
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <Download className="w-3 h-3" />
-                )}
-                Export Report
-              </button>
+              {/* Export Buttons */}
+              <div className="flex gap-1">
+                <button
+                  onClick={exportToPDF}
+                  disabled={exportingPDF}
+                  className="flex items-center gap-1 px-2 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white text-[10px] rounded transition"
+                  title="Export as PDF"
+                >
+                  {exportingPDF ? (
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <Download className="w-3 h-3" />
+                  )}
+                  PDF
+                </button>
+                <button
+                  onClick={exportToCSV}
+                  disabled={exportingCSV}
+                  className="flex items-center gap-1 px-2 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white text-[10px] rounded transition"
+                  title="Export as CSV"
+                >
+                  {exportingCSV ? (
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <FileText className="w-3 h-3" />
+                  )}
+                  CSV
+                </button>
+              </div>
               
               {/* Map Stats - Compact */}
               <div className="flex-1 bg-slate-800/40 rounded-lg p-1.5 border border-slate-700/50">

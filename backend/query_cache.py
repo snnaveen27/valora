@@ -150,6 +150,7 @@ class QueryCache:
 # Global cache instances
 _rag_cache: Optional[QueryCache] = None
 _property_cache: Optional[QueryCache] = None
+_chat_cache: Optional[QueryCache] = None
 
 
 def get_rag_cache() -> QueryCache:
@@ -166,3 +167,12 @@ def get_property_cache() -> QueryCache:
     if _property_cache is None:
         _property_cache = QueryCache(max_size=1000, ttl_seconds=180)  # 3 min TTL
     return _property_cache
+
+
+def get_chat_cache() -> QueryCache:
+    """Get or create chat response cache for LLM responses."""
+    global _chat_cache
+    if _chat_cache is None:
+        # Longer TTL for chat since LLM responses are expensive
+        _chat_cache = QueryCache(max_size=200, ttl_seconds=600)  # 10 min TTL
+    return _chat_cache
