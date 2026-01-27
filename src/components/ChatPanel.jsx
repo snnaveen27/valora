@@ -269,12 +269,19 @@ function ThinkingPanel({ trace, intent, factsSummary }) {
                 {stepTypeIcons[step.type] || '→'}
               </span>
               <div className="flex-1">
-                <span className="text-slate-300">{step.description}</span>
+                <span className="text-slate-300">
+                  {typeof step.description === 'string' 
+                    ? step.description 
+                    : typeof step.description === 'object'
+                      ? JSON.stringify(step.description, null, 0).slice(0, 100)
+                      : String(step.description)}
+                </span>
                 {step.data && typeof step.data === 'object' && (
                   <div className="mt-1 text-slate-500 bg-slate-800/50 rounded px-2 py-1">
                     {Object.entries(step.data).slice(0, 3).map(([k, v]) => (
                       <span key={k} className="mr-2">
-                        <span className="text-slate-400">{k}:</span> {String(v).slice(0, 30)}
+                        <span className="text-slate-400">{k}:</span>{' '}
+                        {typeof v === 'object' ? JSON.stringify(v).slice(0, 30) : String(v).slice(0, 30)}
                       </span>
                     ))}
                   </div>

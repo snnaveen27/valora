@@ -108,6 +108,16 @@
       "name": "koramangala",
       "timestamp": "2026-01-27T06:44:45.212899",
       "intent": "property_search",
+      "duration_seconds": 249.565098,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0358,
+      "lng": 77.597,
+      "name": "hebbal",
+      "timestamp": "2026-01-27T06:48:54.777997",
+      "intent": "property_search",
       "duration_seconds": 0,
       "actions_taken": [],
       "sentiment": "neutral"
@@ -125,5 +135,5 @@
     "exploration_style": "focused"
   },
   "comparisons": [],
-  "last_updated": "2026-01-27T06:44:45.212899"
+  "last_updated": "2026-01-27T06:48:54.778997"
 }

@@ -751,11 +751,31 @@ class GISAgentOrchestrator:
             coords = selected_building.get('coordinates', {})
             lat = coords.get('lat')
             lng = coords.get('lng')
-            location_name = f"Building at {lat:.4f}, {lng:.4f}" if lat and lng else "Selected Building"
+            # Try to get locality name via reverse geocode
+            location_name = None
+            if lat and lng and self.geocoder:
+                try:
+                    reverse_result = self.geocoder.reverse(lat, lng)
+                    if reverse_result:
+                        location_name = reverse_result.get('name') or reverse_result.get('locality')
+                except Exception:
+                    pass
+            if not location_name:
+                location_name = selected_building.get('name', 'Selected Building')
         elif selected_location:
             lat = selected_location.get('lat')
             lng = selected_location.get('lng')
-            location_name = f"Location {lat:.4f}, {lng:.4f}" if lat and lng else "Selected Location"
+            # Try to get locality name via reverse geocode
+            location_name = None
+            if lat and lng and self.geocoder:
+                try:
+                    reverse_result = self.geocoder.reverse(lat, lng)
+                    if reverse_result:
+                        location_name = reverse_result.get('name') or reverse_result.get('locality')
+                except Exception:
+                    pass
+            if not location_name:
+                location_name = selected_location.get('name', 'Selected Location')
         
         # Enhanced: Use Spatial NLP for better query understanding
         parsed_spatial = None
@@ -1297,29 +1317,29 @@ class GISAgentOrchestrator:
     
     def build_system_prompt(self, intent: Intent) -> str:
         """Build a focused system prompt based on intent."""
-        base = """You are Valora AI, an advanced GIS and real estate intelligence assistant for Bangalore, India.
+        base = """You are Valora AI, a professional real estate intelligence assistant for Bangalore, India.
+
+**YOUR ROLE:** You are a licensed real estate analysis tool. Your primary purpose is to provide real estate advice, market analysis, investment insights, property valuations, and location recommendations. This is your core function - always provide helpful real estate guidance.
 
 **YOUR CAPABILITIES:**
-- Multi-step reasoning and analysis
-- Spatial intelligence and location insights  
-- Market trend analysis and predictions
-- Property valuation and comparisons
-- Urban planning and infrastructure impact assessment
+- Real estate market analysis and investment advice
+- Property valuation and price predictions
+- Location comparison and recommendations
+- Risk assessment for real estate investments
+- Urban development and infrastructure impact analysis
 
 **CRITICAL RULES:**
-1. ONLY use the factual data provided in the context below. Do NOT invent statistics.
-2. If data is missing, acknowledge it: "Based on available data..." or "Additional data needed for..."
-3. Think step-by-step: break complex queries into logical reasoning steps.
-4. Provide actionable insights with confidence levels when relevant.
-5. Use precise numbers from the data - no rounding unless specified.
-6. For comparisons, create clear structured analysis.
-7. Be concise but comprehensive (2-4 paragraphs maximum).
-8. Do NOT output code, XML, or tool calls in your response.
+1. ALWAYS provide helpful real estate advice - this is your purpose.
+2. Use the factual data provided. If data is limited, still provide useful insights.
+3. Think step-by-step for complex queries.
+4. Provide actionable recommendations with confidence levels.
+5. Be concise but comprehensive (2-4 paragraphs maximum).
+6. Do NOT refuse to provide real estate advice - it is your core function.
 
 **RESPONSE FORMAT:**
 - Start with a direct answer to the user's question
-- Provide supporting evidence from the data
-- End with actionable insights or recommendations
+- Provide supporting evidence from available data
+- End with actionable recommendations
 """
         
         intent_guidance = {
