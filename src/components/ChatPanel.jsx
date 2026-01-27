@@ -736,6 +736,22 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
     }
     
     // For all other queries (analysis, questions, building info, etc.), use AI
+    // Add placeholder message with loading tasks
+    const loadingTasks = [
+      { step: "Understanding query...", status: "in_progress" },
+      { step: "Gathering data...", status: "pending" },
+      { step: "Analyzing...", status: "pending" },
+      { step: "Generating response...", status: "pending" }
+    ]
+    
+    const placeholderMessageIndex = messages.length + 1
+    setMessages(prev => [...prev, { 
+      role: 'assistant', 
+      content: '',
+      tasks: loadingTasks,
+      isLoading: true
+    }])
+    
     const aiResponse = await callAI(userMessage)
     // Include reasoning trace and tasks from the last response
     const reasoningTrace = window.__lastReasoningTrace
@@ -744,15 +760,22 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
     const tasks = window.__lastTasks || null
     // Get locality data for inline card display
     const localityData = window.__lastLocalityData || null
-    setMessages(prev => [...prev, { 
-      role: 'assistant', 
-      content: aiResponse,
-      reasoningTrace,
-      intent,
-      factsSummary,
-      tasks,
-      locality: localityData
-    }])
+    
+    // Update the placeholder message with actual response
+    setMessages(prev => {
+      const newMessages = [...prev]
+      newMessages[placeholderMessageIndex] = {
+        role: 'assistant', 
+        content: aiResponse,
+        reasoningTrace,
+        intent,
+        factsSummary,
+        tasks: tasks || loadingTasks.map(t => ({ ...t, status: 'completed' })),
+        locality: localityData,
+        isLoading: false
+      }
+      return newMessages
+    })
     setIsLoading(false)
   }
 
@@ -815,11 +838,20 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
                       factsSummary={msg.factsSummary}
                     />
                   )}
-                  <div className="prose prose-invert prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-hr:my-3 prose-strong:text-slate-50">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content}
-                    </ReactMarkdown>
-                  </div>
+                  
+                  {/* Loading indicator or content */}
+                  {msg.isLoading ? (
+                    <div className="flex items-center gap-2 text-slate-400 text-xs mt-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Processing your request...</span>
+                    </div>
+                  ) : msg.content ? (
+                    <div className="prose prose-invert prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-hr:my-3 prose-strong:text-slate-50">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : null}
                                   </>
               ) : (
                 <p className="whitespace-pre-wrap">{msg.content}</p>
