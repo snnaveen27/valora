@@ -725,25 +725,33 @@ async def get_database_tile(tile_id: str):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT osm_id, name, building_type, height, levels, 
-                   latitude as lat, longitude as lng, polygon_coords
+                   latitude as lat, longitude as lng
             FROM buildings
-            WHERE polygon_coords IS NOT NULL
+            WHERE latitude IS NOT NULL
+              AND longitude IS NOT NULL
               AND latitude BETWEEN ? AND ?
               AND longitude BETWEEN ? AND ?
+            LIMIT 5000
         """, (min_lat, max_lat, min_lng, max_lng))
         buildings = [dict(row) for row in cursor.fetchall()]
         conn.close()
         
-        # Convert to GeoJSON
+        # Convert to GeoJSON - create building footprints from point data
         features = []
         for b in (buildings or []):
+            lat = b.get('lat')
+            lng = b.get('lng')
+            if not lat or not lng:
+                continue
+                
             height = b.get('height') or 10
             
-            try:
-                coords = json.loads(b['polygon_coords'])
-                geometry = {'type': 'Polygon', 'coordinates': [coords]}
-            except:
-                continue
+            # Create building footprint from point (~15m x 15m square)
+            size = 0.00015  # ~15m in degrees
+            geometry = {
+                'type': 'Point',
+                'coordinates': [lng, lat]
+            }
             
             features.append({
                 'type': 'Feature',
