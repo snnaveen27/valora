@@ -1,6 +1,6 @@
 {
   "session_id": "default",
-  "session_start": "2026-01-27T14:33:26.529314",
+  "session_start": "2026-01-27T19:39:05.245878",
   "visits": [
     {
       "lat": 12.95601896,
@@ -311,6 +311,26 @@
       "duration_seconds": 0,
       "actions_taken": [],
       "sentiment": "neutral"
+    },
+    {
+      "lat": 12.98963642307692,
+      "lng": 77.65301288461538,
+      "name": "Nuclear Power Research Corporation of India",
+      "timestamp": "2026-01-27T19:39:05.274575",
+      "intent": "property_search",
+      "duration_seconds": 81.287909,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.993062457142855,
+      "lng": 77.64934487142857,
+      "name": "Building",
+      "timestamp": "2026-01-27T19:40:26.562484",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
     }
   ],
   "preferences": {
@@ -328,5 +348,5 @@
     "exploration_style": "balanced"
   },
   "comparisons": [],
-  "last_updated": "2026-01-27T14:48:55.984191"
+  "last_updated": "2026-01-27T19:40:26.563021"
 }

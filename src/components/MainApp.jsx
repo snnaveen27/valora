@@ -203,7 +203,7 @@ export default function MainApp() {
             <>
               <div className="p-2 border-b border-slate-700 flex items-center justify-between shrink-0">
                 <div className="flex gap-1">
-                  {['insights', 'explain', 'docs', 'notes'].map(tab => (
+                  {['insights', 'docs', 'notes'].map(tab => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -212,10 +212,9 @@ export default function MainApp() {
                       }`}
                     >
                       {tab === 'insights' && <TrendingUp className="w-3 h-3" />}
-                      {tab === 'explain' && <Brain className="w-3 h-3" />}
                       {tab === 'docs' && <FileText className="w-3 h-3" />}
                       {tab === 'notes' && <StickyNote className="w-3 h-3" />}
-                      {tab === 'explain' ? 'Why?' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
                     </button>
                   ))}
                 </div>

@@ -242,8 +242,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       })
     })
     
-    // Update globe shadows
-    if (viewer.scene) {
+    // Update shadow map and globe lighting
+    if (viewer.scene && viewer.shadowMap) {
+      viewer.shadowMap.enabled = showShadows
       viewer.scene.globe.enableLighting = showShadows
       viewer.shadows = showShadows
     }
@@ -867,15 +868,23 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           vrButton: false,
           infoBox: false,
           selectionIndicator: false,
-          shadows: false,
-          shouldAnimate: false,
+          shadows: true,
+          shouldAnimate: true,
           imageryProvider: false,
-          terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+          terrainProvider: new Cesium.CesiumTerrainProvider({
+            url: Cesium.IonResource.fromAssetId(1)
+          }),
           skyBox: false,
           skyAtmosphere: false
         })
 
         viewerRef.current = viewer
+
+        // Configure shadow map
+        viewer.shadowMap.enabled = true
+        viewer.shadowMap.darkness = 0.6
+        viewer.shadowMap.size = 2048
+        viewer.shadowMap.softShadows = true
 
         // Remove default layers and add OSM tiles
         viewer.imageryLayers.removeAll(true)
@@ -886,9 +895,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         viewer.imageryLayers.addImageryProvider(osmProvider)
         console.log('🗺️ Using OSM tiles')
 
-        // Configure globe
+        // Configure globe with lighting for shadows
         viewer.scene.globe.show = true
-        viewer.scene.globe.enableLighting = false
+        viewer.scene.globe.enableLighting = true
         viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#f0f0f0')
         viewer.scene.globe.depthTestAgainstTerrain = false
 
