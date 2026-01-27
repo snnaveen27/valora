@@ -1,7 +1,10 @@
 {
-  "provider": "local",
+  "provider": "openrouter",
   "openrouter_model": "meta-llama/llama-3.3-70b-instruct:free",
   "local_url": "http://127.0.0.1:11434/v1/chat/completions",
-  "local_model": "qwen3-vl:8b",
+  "local_model": "qwen3-vl:4b",
+  "local_model_fast": "qwen3-vl:4b",
+  "local_model_reasoning": "qwen3-vl:4b",
+  "active_model_type": "fast",
   "openrouter_api_key": "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"
 }

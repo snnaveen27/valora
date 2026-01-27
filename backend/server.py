@@ -1173,13 +1173,13 @@ async def analyze_location(request: LocationAnalyzeRequest):
         else:
             recommendations.append("Consider long-term hold strategy for this location")
     
-    if result.get("micro_economics", {}).get("rental_yield_estimate", 0) > 5:
+    if (result.get("micro_economics") or {}).get("rental_yield_estimate", 0) > 5:
         recommendations.append(f"Strong rental yield potential: {result['micro_economics']['rental_yield_estimate']}%")
     
-    if result.get("spatial", {}).get("transport_count", 0) > 5:
+    if (result.get("spatial") or {}).get("transport_count", 0) > 5:
         recommendations.append("Excellent public transport connectivity")
     
-    if result.get("market", {}).get("demand_level") == "High":
+    if (result.get("market") or {}).get("demand_level") == "High":
         recommendations.append("High demand area - good for quick resale")
     
     result["recommendations"] = recommendations[:4]

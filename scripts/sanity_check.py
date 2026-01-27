@@ -162,7 +162,7 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
       tests.append(_make_result('Chat Orchestration', t0, True, 'Skipped (include_chat=false)', skipped=True))
     else:
       try:
-        payload = {"message": "Analyze Koramangala for investment and explain why.", "session_id": "sanity"}
+        payload = {"messages": [{"role": "user", "content": "Analyze Koramangala for investment"}], "session_id": "sanity"}
         data = _ok_json(client.post('/api/chat', json=payload))
         ok = bool(data.get('success')) and isinstance(data.get('message'), str)
         tests.append(_make_result('Chat Orchestration', t0, ok, 'POST /api/chat', details={
