@@ -9,11 +9,27 @@
 | pois | 29,240 | ✅ Active (spatial) |
 | transport_stops | 5,384 | ✅ Active |
 | places | 1,081 | 🔶 Partial |
-| terrain_grid | 9,090 | 🔶 Partial |
-| gov_data | 12,767 | ❌ Not Used |
+| terrain_grid | 9,090 | ✅ Active (flood risk) |
+| gov_data | 12,767 | 🔶 Partial (enhanced data service) |
 | price_history | 0 | ❌ Empty |
 | property_analytics | 0 | ❌ Empty |
 | roads | 0 | ❌ Empty |
+
+---
+
+## ✨ Recent Enhancements (Jan 2026)
+
+### AI-Driven Panel Orchestration
+- **Chat Panel**: Locality cards inline with Explore/Ask buttons
+- **Analysis Panel**: "Ask about this" buttons on insights
+- **Map Panel**: Animated storytelling with narration overlay
+- **Why? Tab**: SHAP-style explainability (feature bars, confidence gauge)
+
+### City Intelligence Integration
+- Locality profiling (10 archetypes)
+- Growth stage detection (mature/maturing/growing/emerging)
+- Risk index calculation (hazard + infrastructure + speculation)
+- Causal reasoning for what-if scenarios
 
 ---
 

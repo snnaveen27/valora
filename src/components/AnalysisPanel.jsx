@@ -1,11 +1,32 @@
 import { useState, useRef, useEffect } from 'react'
-import { TrendingUp, MapPin, BarChart2, FileText, StickyNote, Zap, Building2, Layers, Ruler, MapPinned, Sparkles, Download, Star, Navigation, Wallet, AlertTriangle, CheckCircle, Eye, Compass, Brain } from 'lucide-react'
+import { TrendingUp, MapPin, BarChart2, FileText, StickyNote, Zap, Building2, Layers, Ruler, MapPinned, Sparkles, Download, Star, Navigation, Wallet, AlertTriangle, CheckCircle, Eye, Compass, Brain, MessageCircle } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import PropertyTypeScraper from './PropertyTypeScraper'
 import ExplainabilityPanel from './ExplainabilityPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+// "Ask about this" button component
+function AskAboutButton({ query, label }) {
+  const handleClick = () => {
+    // Dispatch event to chat panel to ask the question
+    window.dispatchEvent(new CustomEvent('valora-ask-question', { 
+      detail: { query } 
+    }))
+  }
+  
+  return (
+    <button
+      onClick={handleClick}
+      className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded transition"
+      title={`Ask: ${query}`}
+    >
+      <MessageCircle className="w-3 h-3" />
+      {label || 'Ask about this'}
+    </button>
+  )
+}
 
 export default function AnalysisPanel({ agentData, setAgentData, activeTab, setActiveTab, fontSize = 100, liveAnalysis = null }) {
   const [notes, setNotes] = useState([])
@@ -152,9 +173,15 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
             {/* Market Overview - Dense & Professional */}
             {agentData?.dashboard?.market && (
               <div className="bg-slate-800/40 rounded-lg p-2.5 border border-blue-500/20">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <BarChart2 className="w-3.5 h-3.5 text-blue-400" />
-                  <span className="text-blue-400 font-bold text-xs uppercase tracking-tight">Market Overview</span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <BarChart2 className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="text-blue-400 font-bold text-xs uppercase tracking-tight">Market Overview</span>
+                  </div>
+                  <AskAboutButton 
+                    query="What's driving the market trends in this area? Is it a good time to invest?"
+                    label="Why?"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
                   <div className="flex items-center justify-between border-b border-slate-700/30 pb-1">
@@ -184,9 +211,17 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
                   <h4 className="text-cyan-400 font-semibold text-xs flex items-center gap-2">
                     <Eye className="w-3 h-3" /> Current View
                   </h4>
-                  {viewportLoading && (
-                    <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {viewportAnalysis?.area_name && (
+                      <AskAboutButton 
+                        query={`Tell me about ${viewportAnalysis.area_name} - what's special about this area?`}
+                        label="Explore"
+                      />
+                    )}
+                    {viewportLoading && (
+                      <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                  </div>
                 </div>
                 
                 {viewportAnalysis?.area_name && (

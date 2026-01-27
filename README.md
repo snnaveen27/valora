@@ -145,6 +145,29 @@ npm run dev
 - **Caching**: LRU cache with TTL for fast repeated queries
 - **Location-Aware**: Filters by coordinates and radius
 
+### 4. AI-Driven Panel Orchestration (NEW Jan 2026)
+The AI automatically updates all three panels based on user queries:
+
+| Panel | Auto-Updates |
+|-------|--------------|
+| **Chat** | Conversational response + locality cards |
+| **Analysis** | Market data, insights, "Ask about this" buttons |
+| **Map** | Fly-to, orbit animations, storytelling sequences |
+
+### 5. SHAP-Style Explainability (NEW Jan 2026)
+The "Why?" tab in Analysis Panel shows:
+- **Feature Impact Bars**: Positive/negative contribution of each factor
+- **Confidence Gauge**: Visual confidence meter with color coding
+- **Reasoning Chain**: Step-by-step AI thought process
+- **Causal Analysis**: Cause → Effect → Confidence for what-if queries
+- **Risk Breakdown**: Hazard, Infrastructure, Speculation meters
+
+### 6. Animated Storytelling (NEW Jan 2026)
+For simulation queries, the map plays cinematic storyboards:
+- Camera flies through affected areas
+- Narration overlay explains impacts
+- Stop button to cancel playback
+
 ### Intent Types
 | Intent | Example Query |
 |--------|--------------|
@@ -1468,6 +1491,7 @@ For support or inquiries, contact the development team.
 
 ## 📚 Related Documents
 
+- [QUERIES_LIST.md](./QUERIES_LIST.md) - **Complete test query suite** (NEW)
 - [INVESTOR_PITCH.md](./INVESTOR_PITCH.md) - Investor deck and funding ask
 - [DATABASE_OPPORTUNITIES.md](./DATABASE_OPPORTUNITIES.md) - Data utilization analysis
 - [backend/city_intelligence/](./backend/city_intelligence/) - City Intelligence Engine modules

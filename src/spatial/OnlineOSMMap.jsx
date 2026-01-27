@@ -1262,6 +1262,148 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     return () => clearTimeout(timer)
   }, [])
 
+  // Storyboard state for animated storytelling
+  const [storyboardPlaying, setStoryboardPlaying] = useState(false)
+  const [currentNarration, setCurrentNarration] = useState(null)
+  const storyboardAbortRef = useRef(false)
+
+  // Animated storytelling - play storyboard sequences
+  const playStoryboard = async (storyboard) => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed() || !storyboard?.scenes) return
+
+    setStoryboardPlaying(true)
+    storyboardAbortRef.current = false
+
+    for (const scene of storyboard.scenes) {
+      if (storyboardAbortRef.current) break
+
+      // Show narration
+      if (scene.narration) {
+        setCurrentNarration(scene.narration)
+        window.dispatchEvent(new CustomEvent('valora-narration', { 
+          detail: { text: scene.narration, duration: scene.duration || 4000 }
+        }))
+      }
+
+      // Animate camera
+      if (scene.camera) {
+        const { lat, lng, height, heading, pitch, duration } = scene.camera
+        const destination = Cesium.Cartesian3.fromDegrees(
+          lng || DEFAULT_LOCATION.lng,
+          lat || DEFAULT_LOCATION.lat,
+          height || 500
+        )
+
+        await new Promise((resolve) => {
+          viewer.camera.flyTo({
+            destination,
+            orientation: {
+              heading: Cesium.Math.toRadians(heading || 0),
+              pitch: Cesium.Math.toRadians(pitch || -35),
+              roll: 0
+            },
+            duration: (duration || 3000) / 1000,
+            complete: resolve
+          })
+        })
+      }
+
+      // Wait for scene duration
+      const waitTime = scene.duration || 3000
+      await new Promise(resolve => setTimeout(resolve, waitTime))
+    }
+
+    setStoryboardPlaying(false)
+    setCurrentNarration(null)
+  }
+
+  // Stop storyboard playback
+  const stopStoryboard = () => {
+    storyboardAbortRef.current = true
+    setStoryboardPlaying(false)
+    setCurrentNarration(null)
+  }
+
+  // Listen for storyboard events from AI
+  useEffect(() => {
+    const handleStoryboard = (e) => {
+      if (e.detail) {
+        playStoryboard(e.detail)
+      }
+    }
+
+    const handleFlyToLocality = async (e) => {
+      const viewer = viewerRef.current
+      if (!viewer || viewer.isDestroyed()) return
+
+      const localityName = e.detail?.locality
+      if (!localityName) return
+
+      // Fetch locality coordinates from API
+      try {
+        const resp = await fetch(`${API_BASE}/api/city-intelligence/locality/${encodeURIComponent(localityName)}`)
+        if (resp.ok) {
+          const data = await resp.json()
+          if (data.profile?.coordinates) {
+            const { lat, lng } = data.profile.coordinates
+            
+            // Fly to locality with storytelling animation
+            viewer.camera.flyTo({
+              destination: Cesium.Cartesian3.fromDegrees(lng, lat, 800),
+              orientation: {
+                heading: Cesium.Math.toRadians(45),
+                pitch: Cesium.Math.toRadians(-35),
+                roll: 0
+              },
+              duration: 2.0,
+              complete: () => {
+                // Orbit around locality
+                const target = Cesium.Cartesian3.fromDegrees(lng, lat, 50)
+                rotationTargetRef.current = target
+                
+                // Start gentle orbit
+                let orbitHeading = 45
+                const orbitInterval = setInterval(() => {
+                  if (!viewer || viewer.isDestroyed()) {
+                    clearInterval(orbitInterval)
+                    return
+                  }
+                  orbitHeading += 0.3
+                  viewer.camera.lookAt(
+                    target,
+                    new Cesium.HeadingPitchRange(
+                      Cesium.Math.toRadians(orbitHeading),
+                      Cesium.Math.toRadians(-35),
+                      600
+                    )
+                  )
+                  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+                }, 50)
+
+                // Stop after 8 seconds
+                setTimeout(() => clearInterval(orbitInterval), 8000)
+              }
+            })
+
+            // Load buildings for this area
+            setTimeout(loadTilesForViewport, 2500)
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fly to locality:', err)
+      }
+    }
+
+    window.addEventListener('valora-storyboard', handleStoryboard)
+    window.addEventListener('valora-fly-to-locality', handleFlyToLocality)
+    
+    return () => {
+      window.removeEventListener('valora-storyboard', handleStoryboard)
+      window.removeEventListener('valora-fly-to-locality', handleFlyToLocality)
+    }
+  }, [])
+
   return (
     <div className="relative w-full h-full">
       <div
@@ -1356,6 +1498,36 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           <div className="bg-white rounded-lg p-4 shadow-lg">
             <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
             <p className="text-sm text-gray-600">Loading Map...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Storyboard Narration Overlay */}
+      {storyboardPlaying && currentNarration && (
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-50 max-w-2xl">
+          <div className="bg-slate-900/90 backdrop-blur-sm rounded-xl px-6 py-4 shadow-2xl border border-blue-500/30">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-white text-sm leading-relaxed">{currentNarration}</p>
+              </div>
+              <button 
+                onClick={stopStoryboard}
+                className="text-slate-400 hover:text-white transition p-1"
+                title="Stop"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-full bg-blue-500 animate-pulse" style={{ width: '100%' }}></div>
+            </div>
           </div>
         </div>
       )}
