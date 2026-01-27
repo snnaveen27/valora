@@ -327,7 +327,10 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
   const [showModelSelector, setShowModelSelector] = useState(false)
   const [llmConfig, setLlmConfig] = useState({
     provider: 'local', // 'local' or 'openrouter'
-    local_model: 'llama3.2',
+    local_model: 'qwen3-vl:8b',  // Primary chat
+    local_model_fast: 'llama3.2',  // Quick responses
+    local_model_reasoning: 'deepseek-r1:8b',  // Simulation/reasoning
+    active_model_type: 'primary',  // 'primary', 'fast', 'reasoning'
     openrouter_model: 'meta-llama/llama-3.3-70b-instruct:free'
   })
   const [availableModels, setAvailableModels] = useState({ openrouter: [], local: [], loading: false })
@@ -812,23 +815,65 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
 
       {/* Input */}
       <div className="p-3 border-t border-slate-700">
-        {/* Model Selector */}
+        {/* Model Selector - 3 Model Types */}
         <div className="relative mb-2">
-          <button
-            onClick={() => setShowModelSelector(!showModelSelector)}
-            className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-300 transition-colors"
-          >
-            {llmConfig.provider === 'local' ? (
-              <><HardDrive className="w-3 h-3" /> Local: {llmConfig.local_model}</>
-            ) : (
-              <><Cloud className="w-3 h-3" /> Cloud: {llmConfig.openrouter_model.split('/').pop()}</>
-            )}
-            <ChevronDown className={`w-3 h-3 transition-transform ${showModelSelector ? 'rotate-180' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Model Type Quick Selector */}
+            <div className="flex bg-slate-700/50 rounded-lg p-0.5">
+              <button
+                onClick={() => saveLlmConfig({ ...llmConfig, active_model_type: 'primary' })}
+                className={`px-2 py-1 text-[10px] rounded transition-all ${
+                  llmConfig.active_model_type === 'primary'
+                    ? 'bg-purple-500 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Primary: qwen3-vl:8b - Best quality"
+              >
+                🎯 Quality
+              </button>
+              <button
+                onClick={() => saveLlmConfig({ ...llmConfig, active_model_type: 'fast' })}
+                className={`px-2 py-1 text-[10px] rounded transition-all ${
+                  llmConfig.active_model_type === 'fast'
+                    ? 'bg-green-500 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Fast: llama3.2 - Quick responses"
+              >
+                ⚡ Fast
+              </button>
+              <button
+                onClick={() => saveLlmConfig({ ...llmConfig, active_model_type: 'reasoning' })}
+                className={`px-2 py-1 text-[10px] rounded transition-all ${
+                  llmConfig.active_model_type === 'reasoning'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Reasoning: deepseek-r1:8b - Complex analysis"
+              >
+                🧠 Deep
+              </button>
+            </div>
+            
+            {/* Settings Button */}
+            <button
+              onClick={() => setShowModelSelector(!showModelSelector)}
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              <span className="text-[10px]">
+                {llmConfig.active_model_type === 'primary' ? llmConfig.local_model :
+                 llmConfig.active_model_type === 'fast' ? llmConfig.local_model_fast :
+                 llmConfig.local_model_reasoning}
+              </span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${showModelSelector ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
           
           {showModelSelector && (
-            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-xl z-50 min-w-[280px]">
-              <div className="text-xs text-slate-400 mb-2 font-medium">LLM Provider</div>
+            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-xl z-50 min-w-[320px]">
+              <div className="text-xs text-slate-400 mb-2 font-medium">Model Configuration</div>
+              
+              {/* Provider Toggle */}
               <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => saveLlmConfig({ ...llmConfig, provider: 'local' })}
@@ -838,7 +883,7 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
                       : 'bg-slate-700 text-slate-400 border border-slate-600 hover:border-slate-500'
                   }`}
                 >
-                  <HardDrive className="w-3.5 h-3.5" /> Local (Offline)
+                  <HardDrive className="w-3.5 h-3.5" /> Local (Ollama)
                 </button>
                 <button
                   onClick={() => saveLlmConfig({ ...llmConfig, provider: 'openrouter' })}
@@ -852,67 +897,92 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
                 </button>
               </div>
               
-              {availableModels.loading ? (
-                <div className="text-center py-3">
-                  <div className="text-xs text-slate-400">Loading available models...</div>
-                </div>
-              ) : llmConfig.provider === 'local' ? (
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">
-                    Local Model {availableModels.local.length > 0 && <span className="text-green-400">({availableModels.local.length} available)</span>}
-                  </label>
-                  {availableModels.local_error ? (
-                    <div className="text-xs text-red-400 bg-red-500/10 rounded p-2 mb-2">{availableModels.local_error}</div>
-                  ) : null}
-                  <select
-                    value={llmConfig.local_model}
-                    onChange={(e) => saveLlmConfig({ ...llmConfig, local_model: e.target.value })}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white"
-                  >
-                    {availableModels.local.length > 0 ? (
-                      availableModels.local.map(m => (
-                        <option key={m.id} value={m.id}>{m.id} {m.size ? `(${(m.size / 1e9).toFixed(1)}GB)` : ''}</option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="llama3.2">llama3.2 (pull with: ollama pull llama3.2)</option>
-                        <option value="llama3.1">llama3.1</option>
-                        <option value="mistral">mistral</option>
-                      </>
-                    )}
-                  </select>
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    {availableModels.local.length > 0 ? '✓ Ollama connected' : 'Start Ollama to see available models'}
+              {llmConfig.provider === 'local' && (
+                <div className="space-y-2">
+                  <div className="text-[10px] text-slate-500 mb-1">Configure models for each mode:</div>
+                  
+                  {/* Primary Model */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-400 text-[10px] w-16">🎯 Quality</span>
+                    <select
+                      value={llmConfig.local_model}
+                      onChange={(e) => saveLlmConfig({ ...llmConfig, local_model: e.target.value })}
+                      className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white"
+                    >
+                      {availableModels.local.length > 0 ? (
+                        availableModels.local.map(m => (
+                          <option key={m.id} value={m.id}>{m.id}</option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="qwen3-vl:8b">qwen3-vl:8b</option>
+                          <option value="qwen3-vl:4b">qwen3-vl:4b</option>
+                          <option value="llama3.2">llama3.2</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                  
+                  {/* Fast Model */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-400 text-[10px] w-16">⚡ Fast</span>
+                    <select
+                      value={llmConfig.local_model_fast}
+                      onChange={(e) => saveLlmConfig({ ...llmConfig, local_model_fast: e.target.value })}
+                      className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white"
+                    >
+                      {availableModels.local.length > 0 ? (
+                        availableModels.local.map(m => (
+                          <option key={m.id} value={m.id}>{m.id}</option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="llama3.2">llama3.2</option>
+                          <option value="qwen3-vl:4b">qwen3-vl:4b</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                  
+                  {/* Reasoning Model */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-400 text-[10px] w-16">🧠 Deep</span>
+                    <select
+                      value={llmConfig.local_model_reasoning}
+                      onChange={(e) => saveLlmConfig({ ...llmConfig, local_model_reasoning: e.target.value })}
+                      className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white"
+                    >
+                      {availableModels.local.length > 0 ? (
+                        availableModels.local.map(m => (
+                          <option key={m.id} value={m.id}>{m.id}</option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="deepseek-r1:8b">deepseek-r1:8b</option>
+                          <option value="qwen3-vl:8b">qwen3-vl:8b</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                  
+                  <p className="text-[10px] text-slate-500 mt-2">
+                    {availableModels.local.length > 0 ? '✓ Ollama connected' : 'Run: ollama serve'}
                   </p>
                 </div>
-              ) : (
+              )}
+              
+              {llmConfig.provider === 'openrouter' && (
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">
-                    Cloud Model {availableModels.openrouter.length > 0 && <span className="text-blue-400">({availableModels.openrouter.length} free)</span>}
-                  </label>
-                  {availableModels.openrouter_error ? (
-                    <div className="text-xs text-red-400 bg-red-500/10 rounded p-2 mb-2">{availableModels.openrouter_error}</div>
-                  ) : null}
+                  <label className="text-xs text-slate-400 block mb-1">Cloud Model</label>
                   <select
                     value={llmConfig.openrouter_model}
                     onChange={(e) => saveLlmConfig({ ...llmConfig, openrouter_model: e.target.value })}
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white max-h-48 overflow-y-auto"
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white"
                   >
-                    {availableModels.openrouter.length > 0 ? (
-                      availableModels.openrouter.slice(0, 20).map(m => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
-                        <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
-                        <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 (Free)</option>
-                      </>
-                    )}
+                    <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
+                    <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+                    <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 (Free)</option>
                   </select>
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    {availableModels.openrouter.length > 0 ? '✓ OpenRouter connected' : 'Add API key in Admin Panel'}
-                  </p>
                 </div>
               )}
               

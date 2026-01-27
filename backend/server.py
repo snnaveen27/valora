@@ -346,11 +346,15 @@ LLM_CONFIG_FILE = Path(__file__).parent / 'llm_config.json'
 def load_llm_config():
     """Load LLM config from file or return defaults."""
     defaults = {
-        'provider': 'openrouter',  # 'openrouter' or 'local'
+        'provider': 'local',  # 'openrouter' or 'local'
         'openrouter_api_key': os.getenv('OPENROUTER_API_KEY', ''),
         'openrouter_model': os.getenv('OPENROUTER_MODEL', 'meta-llama/llama-3.2-3b-instruct:free'),
         'local_url': os.getenv('LOCAL_LLM_URL', 'http://127.0.0.1:11434/v1/chat/completions'),
-        'local_model': os.getenv('LOCAL_LLM_MODEL', 'llama3.2')
+        # Multi-model config for different use cases
+        'local_model': os.getenv('LOCAL_LLM_MODEL', 'qwen3-vl:8b'),  # Primary chat (best quality)
+        'local_model_fast': os.getenv('LOCAL_LLM_MODEL_FAST', 'llama3.2'),  # Quick responses
+        'local_model_reasoning': os.getenv('LOCAL_LLM_MODEL_REASONING', 'deepseek-r1:8b'),  # Simulation/reasoning
+        'active_model_type': 'primary',  # 'primary', 'fast', or 'reasoning'
     }
     if LLM_CONFIG_FILE.exists():
         try:
@@ -3394,6 +3398,265 @@ async def get_city_intelligence_status():
             "/api/city-intelligence/knowledge-graph/stats",
         ]
     }
+
+
+# ============== STORYBOARD GENERATION API ==============
+
+class StoryboardRequest(BaseModel):
+    scenario: str
+    locality: Optional[str] = None
+    duration_seconds: Optional[int] = 30
+
+@app.post("/api/storyboard/generate")
+async def generate_storyboard(request: StoryboardRequest):
+    """Generate a cinematic storyboard for map storytelling."""
+    try:
+        # Get locality coordinates
+        model = get_locality_personality_model() if CITY_INTELLIGENCE_AVAILABLE else None
+        
+        scenes = []
+        localities_involved = []
+        
+        # Parse scenario to extract localities
+        scenario_lower = request.scenario.lower()
+        bangalore_areas = [
+            "koramangala", "indiranagar", "whitefield", "hsr layout", "jayanagar",
+            "marathahalli", "electronic city", "hebbal", "yelahanka", "sarjapur",
+            "jp nagar", "btm layout", "banashankari", "malleshwaram", "rajajinagar"
+        ]
+        
+        for area in bangalore_areas:
+            if area in scenario_lower:
+                localities_involved.append(area.title())
+        
+        if not localities_involved and request.locality:
+            localities_involved = [request.locality]
+        
+        if not localities_involved:
+            localities_involved = ["Koramangala"]  # Default
+        
+        # Build storyboard scenes
+        duration_per_scene = request.duration_seconds // max(len(localities_involved) + 2, 3)
+        
+        # Opening scene - overview
+        scenes.append({
+            "scene_id": 1,
+            "type": "overview",
+            "title": "Bangalore Overview",
+            "narration": f"Let's explore: {request.scenario}",
+            "camera": {
+                "lat": 12.9716,
+                "lng": 77.5946,
+                "height": 15000,
+                "heading": 0,
+                "pitch": -45
+            },
+            "duration_ms": duration_per_scene * 1000,
+            "animation": "fly_in"
+        })
+        
+        # Locality scenes
+        for i, locality_name in enumerate(localities_involved):
+            profile = model.get_profile(locality_name) if model else None
+            lat = profile.lat if profile else 12.9716 + (i * 0.02)
+            lng = profile.lng if profile else 77.5946 + (i * 0.02)
+            tagline = profile.tagline if profile else f"Exploring {locality_name}"
+            
+            scenes.append({
+                "scene_id": i + 2,
+                "type": "locality_focus",
+                "title": locality_name,
+                "narration": tagline,
+                "camera": {
+                    "lat": lat,
+                    "lng": lng,
+                    "height": 800,
+                    "heading": 45 + (i * 30),
+                    "pitch": -30
+                },
+                "duration_ms": duration_per_scene * 1000,
+                "animation": "orbit",
+                "locality_data": profile.to_dict() if profile else None
+            })
+        
+        # Closing scene - conclusion
+        scenes.append({
+            "scene_id": len(scenes) + 1,
+            "type": "conclusion",
+            "title": "Analysis Complete",
+            "narration": f"This concludes our exploration of {', '.join(localities_involved)}.",
+            "camera": {
+                "lat": 12.9716,
+                "lng": 77.5946,
+                "height": 5000,
+                "heading": 180,
+                "pitch": -35
+            },
+            "duration_ms": duration_per_scene * 1000,
+            "animation": "pull_back"
+        })
+        
+        return {
+            "success": True,
+            "storyboard": {
+                "scenario": request.scenario,
+                "total_duration_ms": sum(s["duration_ms"] for s in scenes),
+                "scene_count": len(scenes),
+                "scenes": scenes,
+                "localities": localities_involved
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== INVESTMENT LEADERBOARD API ==============
+
+@app.get("/api/investment/leaderboard")
+async def get_investment_leaderboard(limit: int = 10):
+    """Get top localities ranked by investment score."""
+    try:
+        localities_data = []
+        
+        if CITY_INTELLIGENCE_AVAILABLE:
+            model = get_locality_personality_model()
+            risk_calc = get_risk_index_calculator()
+            profiles = model.get_all_profiles()
+            
+            for profile in profiles[:limit * 2]:  # Get more to filter
+                try:
+                    risk = risk_calc.get_risk_profile(profile.name, profile.lat, profile.lng)
+                    
+                    # Calculate investment score (0-100)
+                    # Higher growth potential + lower risk = better score
+                    growth_factor = profile.personality.get("investment_appeal", 70) if hasattr(profile, 'personality') else 70
+                    risk_factor = 100 - risk.investment_risk_score
+                    infrastructure_bonus = 10 if profile.growth_stage.value in ["mature", "maturing"] else 0
+                    
+                    investment_score = int((growth_factor * 0.4 + risk_factor * 0.4 + infrastructure_bonus * 0.2))
+                    
+                    localities_data.append({
+                        "name": profile.name,
+                        "investment_score": min(investment_score, 100),
+                        "archetype": profile.archetype.value,
+                        "growth_stage": profile.growth_stage.value,
+                        "risk_level": risk.investment_risk_level.value,
+                        "price_trend": 5 + (investment_score % 10),  # Simulated trend
+                        "lat": profile.lat,
+                        "lng": profile.lng,
+                        "tagline": profile.tagline,
+                        "grade": "A+" if investment_score >= 85 else ("A" if investment_score >= 75 else ("B+" if investment_score >= 65 else "B"))
+                    })
+                except:
+                    continue
+        else:
+            # Fallback with sample data
+            sample_localities = [
+                {"name": "Koramangala", "investment_score": 88, "archetype": "tech_hub", "growth_stage": "mature", "lat": 12.9352, "lng": 77.6245},
+                {"name": "Indiranagar", "investment_score": 85, "archetype": "premium_residential", "growth_stage": "mature", "lat": 12.9784, "lng": 77.6408},
+                {"name": "Whitefield", "investment_score": 82, "archetype": "tech_hub", "growth_stage": "maturing", "lat": 12.9698, "lng": 77.7500},
+                {"name": "HSR Layout", "investment_score": 80, "archetype": "tech_hub", "growth_stage": "maturing", "lat": 12.9116, "lng": 77.6389},
+                {"name": "Sarjapur", "investment_score": 78, "archetype": "emerging", "growth_stage": "growing", "lat": 12.8600, "lng": 77.7870},
+            ]
+            for loc in sample_localities:
+                loc["risk_level"] = "low"
+                loc["price_trend"] = 8
+                loc["tagline"] = f"Bangalore's {loc['archetype'].replace('_', ' ')}"
+                loc["grade"] = "A+" if loc["investment_score"] >= 85 else "A"
+            localities_data = sample_localities
+        
+        # Sort by investment score
+        localities_data.sort(key=lambda x: x["investment_score"], reverse=True)
+        
+        return {
+            "success": True,
+            "leaderboard": localities_data[:limit],
+            "total_analyzed": len(localities_data),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== COMPARE PROPERTIES API ==============
+
+class PropertyCompareRequest(BaseModel):
+    property_ids: List[int] = []
+    localities: List[str] = []
+
+@app.post("/api/compare/properties")
+async def compare_properties(request: PropertyCompareRequest):
+    """Compare multiple properties or localities."""
+    try:
+        from database.query_service import get_query_service
+        db = get_query_service()
+        comparison_data = []
+        
+        if request.localities and len(request.localities) >= 2:
+            # Compare localities using direct SQL
+            for locality_name in request.localities[:4]:  # Max 4
+                try:
+                    result = db.db.execute("""
+                        SELECT 
+                            COUNT(*) as count,
+                            AVG(price) as avg_price,
+                            AVG(price_per_sqft) as avg_price_per_sqft,
+                            MIN(price) as min_price,
+                            MAX(price) as max_price
+                        FROM properties 
+                        WHERE LOWER(locality) LIKE LOWER(?)
+                    """, (f"%{locality_name}%",))
+                    
+                    if result and len(result) > 0:
+                        row = result[0]
+                        comparison_data.append({
+                            "locality": locality_name,
+                            "avg_price": int(row.get("avg_price") or 0),
+                            "avg_price_per_sqft": int(row.get("avg_price_per_sqft") or 0),
+                            "total_listings": row.get("count", 0),
+                            "price_range": {
+                                "min": int(row.get("min_price") or 0),
+                                "max": int(row.get("max_price") or 0)
+                            }
+                        })
+                    else:
+                        comparison_data.append({
+                            "locality": locality_name,
+                            "avg_price": 0,
+                            "avg_price_per_sqft": 0,
+                            "total_listings": 0,
+                            "price_range": {"min": 0, "max": 0}
+                        })
+                except Exception as e:
+                    comparison_data.append({
+                        "locality": locality_name,
+                        "avg_price": 0,
+                        "error": str(e)
+                    })
+        
+        if request.property_ids and len(request.property_ids) >= 2:
+            # Compare specific properties
+            for pid in request.property_ids[:4]:
+                prop = db.get_property_by_id(str(pid))
+                if prop:
+                    comparison_data.append({
+                        "property_id": pid,
+                        "title": prop.get("title", ""),
+                        "locality": prop.get("locality", ""),
+                        "price": prop.get("price", 0),
+                        "area_sqft": prop.get("area_sqft", 0),
+                        "price_per_sqft": prop.get("price_per_sqft", 0),
+                        "bedrooms": prop.get("bedrooms"),
+                        "property_type": prop.get("property_type", "")
+                    })
+        
+        return {
+            "success": True,
+            "comparison": comparison_data,
+            "count": len(comparison_data)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

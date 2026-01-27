@@ -1,0 +1,26 @@
+{
+  "session_id": "default",
+  "session_start": "2026-01-27T06:03:01.023563",
+  "visits": [
+    {
+      "lat": 12.95601896,
+      "lng": 77.64164452,
+      "name": "Building at 12.9560, 77.6416",
+      "timestamp": "2026-01-27T06:03:01.027566",
+      "intent": "analyze_building",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    }
+  ],
+  "preferences": {
+    "preferred_areas": [],
+    "preferred_property_types": [],
+    "budget_range": null,
+    "preferred_amenities": [],
+    "avoid_areas": [],
+    "exploration_style": "exploratory"
+  },
+  "comparisons": [],
+  "last_updated": "2026-01-27T06:03:01.027566"
+}

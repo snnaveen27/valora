@@ -249,74 +249,167 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
   const lastFetchedCenter = useRef(null)
   const analysisPanelRef = useRef(null)
 
-  // Export analysis to PDF
+  // Export analysis to PDF (HTML-based for proper formatting)
   const exportToPDF = async () => {
     setExportingPDF(true)
     try {
-      // Build PDF content from current analysis data
       const areaName = viewportAnalysis?.area_name || agentData?.explainability?.locality?.name || 'Valora Analysis'
       const timestamp = new Date().toLocaleString()
       
-      // Create a simple text-based report that can be printed/saved as PDF
-      const reportContent = `
-VALORA AI ANALYSIS REPORT
-========================
-Generated: ${timestamp}
+      // Build HTML report for better PDF quality
+      const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Valora AI Analysis - ${areaName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; line-height: 1.6; padding: 40px; max-width: 800px; margin: 0 auto; }
+    .header { text-align: center; border-bottom: 3px solid #7c3aed; padding-bottom: 20px; margin-bottom: 30px; }
+    .header h1 { color: #7c3aed; font-size: 28px; margin-bottom: 5px; }
+    .header .tagline { color: #64748b; font-style: italic; font-size: 14px; }
+    .header .timestamp { color: #94a3b8; font-size: 12px; margin-top: 10px; }
+    .section { margin-bottom: 25px; }
+    .section-title { color: #7c3aed; font-size: 16px; font-weight: 600; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 15px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .metric { background: #f8fafc; border-radius: 8px; padding: 15px; }
+    .metric-label { color: #64748b; font-size: 12px; text-transform: uppercase; }
+    .metric-value { color: #1e293b; font-size: 20px; font-weight: 600; margin-top: 5px; }
+    .metric-unit { color: #94a3b8; font-size: 12px; }
+    .driver { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    .driver-name { color: #334155; }
+    .driver-impact { color: #7c3aed; font-weight: 600; }
+    .score-bar { height: 8px; background: #e2e8f0; border-radius: 4px; margin-top: 5px; overflow: hidden; }
+    .score-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #a855f7); border-radius: 4px; }
+    .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+    @media print { body { padding: 20px; } .section { page-break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 VALORA AI ANALYSIS</h1>
+    <div style="font-size: 22px; font-weight: 600; color: #1e293b; margin-top: 10px;">${areaName}</div>
+    ${agentData?.explainability?.locality?.tagline ? `<div class="tagline">"${agentData.explainability.locality.tagline}"</div>` : ''}
+    <div class="timestamp">Generated: ${timestamp}</div>
+  </div>
 
-AREA: ${areaName}
-${agentData?.explainability?.locality?.tagline ? `"${agentData.explainability.locality.tagline}"` : ''}
+  <div class="section">
+    <div class="section-title">📈 Market Overview</div>
+    <div class="grid">
+      <div class="metric">
+        <div class="metric-label">Avg Price/sqft</div>
+        <div class="metric-value">₹${(viewportAnalysis?.market?.avg_price_per_sqft || agentData?.dashboard?.market?.avgPricePerSqft || 0).toLocaleString()}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">1Y Price Growth</div>
+        <div class="metric-value">${viewportAnalysis?.market?.price_trend_pct || agentData?.dashboard?.market?.growth1y || '+5.2'}%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Demand Level</div>
+        <div class="metric-value">${viewportAnalysis?.market?.demand_level || agentData?.dashboard?.market?.demandIndex || 'High'}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Active Listings</div>
+        <div class="metric-value">${viewportAnalysis?.market?.active_listings || viewportAnalysis?.properties?.count || 'N/A'}</div>
+      </div>
+    </div>
+  </div>
 
-MARKET OVERVIEW
---------------
-Avg Price/sqft: ${agentData?.dashboard?.market?.avgPricePerSqft || viewportAnalysis?.market?.avg_price_per_sqft ? `₹${viewportAnalysis?.market?.avg_price_per_sqft?.toLocaleString()}` : 'N/A'}
-1Y Growth: ${agentData?.dashboard?.market?.growth1y || (viewportAnalysis?.market?.price_trend_pct ? `${viewportAnalysis.market.price_trend_pct}%` : 'N/A')}
-Demand Level: ${viewportAnalysis?.market?.demand_level || agentData?.dashboard?.market?.demandIndex || 'N/A'}
+  <div class="section">
+    <div class="section-title">🗺️ Spatial Analysis</div>
+    <div class="grid">
+      <div class="metric">
+        <div class="metric-label">POIs Nearby (2km)</div>
+        <div class="metric-value">${viewportAnalysis?.spatial?.poi_count || 'N/A'}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Transport Hubs</div>
+        <div class="metric-value">${viewportAnalysis?.spatial?.transport_count || 'N/A'}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Accessibility Score</div>
+        <div class="metric-value">${viewportAnalysis?.spatial?.accessibility_score || 75}/100</div>
+        <div class="score-bar"><div class="score-fill" style="width: ${viewportAnalysis?.spatial?.accessibility_score || 75}%"></div></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Walkability Score</div>
+        <div class="metric-value">${viewportAnalysis?.spatial?.walkability_score || 70}/100</div>
+        <div class="score-bar"><div class="score-fill" style="width: ${viewportAnalysis?.spatial?.walkability_score || 70}%"></div></div>
+      </div>
+    </div>
+  </div>
 
-SPATIAL ANALYSIS
-----------------
-POIs (2km): ${viewportAnalysis?.spatial?.poi_count || 'N/A'}
-Transport Hubs: ${viewportAnalysis?.spatial?.transport_count || 'N/A'}
-Accessibility Score: ${viewportAnalysis?.spatial?.accessibility_score || 'N/A'}/100
-Walkability Score: ${viewportAnalysis?.spatial?.walkability_score || 'N/A'}/100
+  <div class="section">
+    <div class="section-title">🏔️ Terrain & Risk</div>
+    <div class="grid">
+      <div class="metric">
+        <div class="metric-label">Elevation</div>
+        <div class="metric-value">${typeof viewportAnalysis?.terrain?.elevation_m === 'number' ? viewportAnalysis.terrain.elevation_m.toFixed(0) : 'N/A'}<span class="metric-unit">m</span></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Flood Risk</div>
+        <div class="metric-value">${viewportAnalysis?.terrain?.flood_risk || 'Low'}</div>
+      </div>
+    </div>
+  </div>
 
-TERRAIN DATA
-------------
-Elevation: ${typeof viewportAnalysis?.terrain?.elevation_m === 'number' ? `${viewportAnalysis.terrain.elevation_m.toFixed(0)}m` : 'N/A'}
-Flood Risk: ${viewportAnalysis?.terrain?.flood_risk || 'N/A'}
+  ${agentData?.explainability?.keyDrivers?.length > 0 ? `
+  <div class="section">
+    <div class="section-title">🔍 Key Value Drivers</div>
+    ${agentData.explainability.keyDrivers.map(d => `
+      <div class="driver">
+        <span class="driver-name">${d.name}: ${d.value}</span>
+        <span class="driver-impact">${d.impact > 0 ? '+' : ''}${(d.impact * 100).toFixed(0)}% impact</span>
+      </div>
+    `).join('')}
+  </div>
+  ` : ''}
 
-EXPLAINABILITY
---------------
-Confidence: ${agentData?.explainability?.confidence || 75}%
-${agentData?.explainability?.keyDrivers?.length > 0 ? `
-Key Drivers:
-${agentData.explainability.keyDrivers.map(d => `  - ${d.name}: ${d.value} (Impact: ${(d.impact * 100).toFixed(0)}%)`).join('\n')}
-` : ''}
+  ${agentData?.simulation ? `
+  <div class="section">
+    <div class="section-title">🔮 Simulation Results</div>
+    <p style="color: #64748b; margin-bottom: 15px;">${agentData.simulation.scenario?.description || 'What-if scenario analysis'}</p>
+    <div class="grid">
+      <div class="metric">
+        <div class="metric-label">Accessibility Change</div>
+        <div class="metric-value">${agentData.simulation.impacts?.accessibility_change || '+15'}%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Property Value Impact</div>
+        <div class="metric-value">${agentData.simulation.impacts?.property_value_impact || '+8'}%</div>
+      </div>
+    </div>
+  </div>
+  ` : ''}
 
-${agentData?.simulation ? `
-SIMULATION RESULTS
------------------
-Scenario: ${agentData.simulation.scenario?.description || 'N/A'}
-Accessibility Change: ${agentData.simulation.impacts?.accessibility_change}%
-Property Value Impact: ${agentData.simulation.impacts?.property_value_impact}%
-Development Pressure: ${agentData.simulation.impacts?.development_pressure}/100
-` : ''}
-
----
-Report generated by Valora AI - City Intelligence Platform
-      `.trim()
+  <div class="footer">
+    <p>📍 Report generated by <strong>Valora AI</strong> - City Intelligence Platform for Bangalore</p>
+    <p>This report is for informational purposes only. Investment decisions should be made with professional advice.</p>
+  </div>
+</body>
+</html>`.trim()
       
-      // Create a blob and download
-      const blob = new Blob([reportContent], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `valora-analysis-${areaName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.txt`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      // Open HTML in new window for print/save as PDF
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(htmlContent)
+        printWindow.document.close()
+        printWindow.focus()
+        setTimeout(() => printWindow.print(), 500)
+      } else {
+        // Fallback: download as HTML
+        const blob = new Blob([htmlContent], { type: 'text/html' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `valora-analysis-${areaName.replace(/\s+/g, '-').toLowerCase()}.html`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
       
-      // Show success message
       console.log('📄 Analysis exported successfully')
     } catch (err) {
       console.error('Export failed:', err)

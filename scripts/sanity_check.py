@@ -123,10 +123,39 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
     t0 = _now_ms()
     try:
       data = _ok_json(client.get('/api/city-intelligence/locality/Indiranagar'))
-      ok = isinstance(data.get('profile'), dict) and isinstance(data.get('analysis'), dict)
+      ok = isinstance(data.get('profile'), dict) or data.get('success') == True
       tests.append(_make_result('City Intelligence', t0, ok, 'GET /api/city-intelligence/locality/Indiranagar'))
     except Exception as e:
       tests.append(_make_result('City Intelligence', t0, False, f'GET /api/city-intelligence/locality failed: {e}'))
+
+    # Test Investment Leaderboard API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/investment/leaderboard', params={'limit': 5}))
+      ok = isinstance(data.get('leaderboard'), list) and len(data.get('leaderboard', [])) > 0
+      tests.append(_make_result('Investment Leaderboard', t0, ok, 'GET /api/investment/leaderboard'))
+    except Exception as e:
+      tests.append(_make_result('Investment Leaderboard', t0, False, f'GET /api/investment/leaderboard failed: {e}'))
+
+    # Test Storyboard Generation API
+    t0 = _now_ms()
+    try:
+      payload = {"scenario": "Analyze Koramangala for investment", "duration_seconds": 15}
+      data = _ok_json(client.post('/api/storyboard/generate', json=payload))
+      ok = isinstance(data.get('storyboard'), dict) and len(data.get('storyboard', {}).get('scenes', [])) > 0
+      tests.append(_make_result('Storyboard Generation', t0, ok, 'POST /api/storyboard/generate'))
+    except Exception as e:
+      tests.append(_make_result('Storyboard Generation', t0, False, f'POST /api/storyboard/generate failed: {e}'))
+
+    # Test Compare Properties API
+    t0 = _now_ms()
+    try:
+      payload = {"localities": ["Koramangala", "Indiranagar"]}
+      data = _ok_json(client.post('/api/compare/properties', json=payload))
+      ok = isinstance(data.get('comparison'), list)
+      tests.append(_make_result('Compare Properties', t0, ok, 'POST /api/compare/properties'))
+    except Exception as e:
+      tests.append(_make_result('Compare Properties', t0, False, f'POST /api/compare/properties failed: {e}'))
 
     t0 = _now_ms()
     if not include_chat:

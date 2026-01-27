@@ -538,6 +538,29 @@ async def run_realtime_sanity_check(request: SanityCheckRequest) -> Dict[str, An
                 "has_storyboard": bool(data.get("storyboard")),
             }
 
+        async def investment_leaderboard():
+            r = await client.get(f"{base_url}/api/investment/leaderboard", params={"limit": 5})
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict) and isinstance(data.get("leaderboard"), list)
+            return ok, "GET /api/investment/leaderboard", {"count": len(data.get("leaderboard", []))}
+
+        async def storyboard_gen():
+            payload = {"scenario": "Analyze Koramangala", "duration_seconds": 15}
+            r = await client.post(f"{base_url}/api/storyboard/generate", json=payload)
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict) and isinstance(data.get("storyboard"), dict)
+            return ok, "POST /api/storyboard/generate", {"scenes": len(data.get("storyboard", {}).get("scenes", []))}
+
+        async def compare_props():
+            payload = {"localities": ["Koramangala", "Indiranagar"]}
+            r = await client.post(f"{base_url}/api/compare/properties", json=payload)
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict) and isinstance(data.get("comparison"), list)
+            return ok, "POST /api/compare/properties", {"count": len(data.get("comparison", []))}
+
         await _run("Backend Health", health)
         await _run("Admin Status", admin_status)
         await _run("Tileset Index", tileset)
@@ -545,6 +568,9 @@ async def run_realtime_sanity_check(request: SanityCheckRequest) -> Dict[str, An
         await _run("Viewport Analyze", viewport_analyze)
         await _run("Location Analyze", location_analyze)
         await _run("City Intelligence", city_intel)
+        await _run("Investment Leaderboard", investment_leaderboard)
+        await _run("Storyboard Generation", storyboard_gen)
+        await _run("Compare Properties", compare_props)
 
         if request.include_chat:
             await _run("Chat Orchestration", chat)
