@@ -718,14 +718,14 @@ async def get_database_tile(tile_id: str):
         min_lat = lat_start
         max_lat = lat_start + tile_size
         
-        # Direct query - NO LIMIT - get ALL buildings in tile bounds
+        # Direct query - get ALL buildings in tile bounds with polygon data
         db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("""
             SELECT osm_id, name, building_type, height, levels, 
-                   latitude as lat, longitude as lng
+                   latitude as lat, longitude as lng, polygon_coords
             FROM buildings
             WHERE latitude IS NOT NULL
               AND longitude IS NOT NULL
@@ -736,7 +736,7 @@ async def get_database_tile(tile_id: str):
         buildings = [dict(row) for row in cursor.fetchall()]
         conn.close()
         
-        # Convert to GeoJSON - create building footprints from point data
+        # Convert to GeoJSON with proper polygon geometry
         features = []
         for b in (buildings or []):
             lat = b.get('lat')
@@ -746,12 +746,25 @@ async def get_database_tile(tile_id: str):
                 
             height = b.get('height') or 10
             
-            # Create building footprint from point (~15m x 15m square)
-            size = 0.00015  # ~15m in degrees
-            geometry = {
-                'type': 'Point',
-                'coordinates': [lng, lat]
-            }
+            # Use polygon if available, otherwise create point
+            if b.get('polygon_coords'):
+                try:
+                    coords = json.loads(b['polygon_coords'])
+                    geometry = {
+                        'type': 'Polygon',
+                        'coordinates': [coords]
+                    }
+                except:
+                    # Fallback to point
+                    geometry = {
+                        'type': 'Point',
+                        'coordinates': [lng, lat]
+                    }
+            else:
+                geometry = {
+                    'type': 'Point',
+                    'coordinates': [lng, lat]
+                }
             
             features.append({
                 'type': 'Feature',

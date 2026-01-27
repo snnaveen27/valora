@@ -52,10 +52,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const [clickRipple, setClickRipple] = useState(null)
   const [canGoBack, setCanGoBack] = useState(false)
   
-  // Layer visibility - all visible by default
-  const [showBuildings] = useState(true)
-  const [showPlaces] = useState(true)
-  const [showTransport] = useState(true)
+  // Enhanced layer visibility controls
+  const [showBuildings, setShowBuildings] = useState(true)
+  const [showShadows, setShowShadows] = useState(false)
+  const [showTerrain, setShowTerrain] = useState(true)
+  const [buildingQuality, setBuildingQuality] = useState('high') // low, medium, high
 
 
   const applyPlaceLabelStyle = (entity, subtype) => {
@@ -224,18 +225,39 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     }
   }, [agentData?.buildingAnalysisLoading, agentData?.locationAnalysisLoading])
 
-  // Apply layer visibility on load
+  // Apply layer visibility controls
   useEffect(() => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed()) return
     
-    // Apply buildings visibility
+    // Apply buildings visibility and shadow settings
     Object.values(tileEntitiesRef.current).forEach(entities => {
       entities.forEach(e => {
-        if (e && e.polygon) e.show = showBuildings
+        if (e && e.polygon) {
+          e.show = showBuildings
+          if (e.polygon.shadows) {
+            e.polygon.shadows = showShadows ? Cesium.ShadowMode.ENABLED : Cesium.ShadowMode.DISABLED
+          }
+        }
       })
     })
-  }, [showBuildings])
+    
+    // Update globe shadows
+    if (viewer.scene) {
+      viewer.scene.globe.enableLighting = showShadows
+      viewer.shadows = showShadows
+    }
+  }, [showBuildings, showShadows])
+
+  // Apply terrain visibility
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    
+    if (viewer.scene && viewer.scene.globe) {
+      viewer.scene.globe.show = showTerrain
+    }
+  }, [showTerrain])
 
   // Place labels disabled - AI handles labels
   // useEffect(() => {
@@ -456,25 +478,47 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           continue // Skip invalid geometry
         }
 
-        // Color by height for attractive visualization
-        let color = '#e8e8e8'
-        if (height > 50) color = '#9ca3af'
-        else if (height > 30) color = '#a8a8a8'
-        else if (height > 15) color = '#c4c4c4'
-        else if (height > 8) color = '#d4d4d4'
-
+        // Enhanced color scheme by building type and height
         const buildingType = props.building || props.type || 'building'
         const levels = props.levels || Math.round(height / 3)
+        
+        let color = '#d1d5db' // Default gray
+        let alpha = 0.95
+        
+        // Color by building type first, then refine by height
+        if (buildingType.includes('residential') || buildingType.includes('apartments') || buildingType.includes('house')) {
+          // Residential: warm tones
+          if (height > 30) color = '#9ca3af' // High-rise apartments
+          else if (height > 15) color = '#bfbfbf' // Mid-rise
+          else color = '#d4d4d4' // Low-rise houses
+        } else if (buildingType.includes('commercial') || buildingType.includes('retail') || buildingType.includes('shop')) {
+          // Commercial: blue-gray
+          color = '#94a3b8'
+        } else if (buildingType.includes('office')) {
+          // Office: darker gray
+          color = '#64748b'
+        } else if (buildingType.includes('industrial')) {
+          // Industrial: brownish
+          color = '#92857c'
+        } else {
+          // Generic by height
+          if (height > 50) color = '#8b92a0'
+          else if (height > 30) color = '#a1a8b5'
+          else if (height > 15) color = '#b8bfc9'
+          else if (height > 8) color = '#cbd2db'
+        }
 
         const entity = viewer.entities.add({
           name: props.name || `Building`,
           polygon: {
             hierarchy: polygonHierarchy,
-            material: Cesium.Color.fromCssColorString(color).withAlpha(0.9),
-            outline: false,
+            material: Cesium.Color.fromCssColorString(color).withAlpha(alpha),
+            outline: true,
+            outlineColor: Cesium.Color.fromCssColorString('#ffffff').withAlpha(0.15),
+            outlineWidth: 1,
             extrudedHeight: height,
             height: 0,
-            shadows: Cesium.ShadowMode.DISABLED
+            shadows: showBuildings ? Cesium.ShadowMode.ENABLED : Cesium.ShadowMode.DISABLED
           },
           properties: {
             height: height,
@@ -1490,6 +1534,79 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           </button>
         </div>
 
+      </div>
+
+      {/* Enhanced Map Controls - Bottom Right */}
+      <div className="absolute bottom-4 right-4 z-30 flex flex-col gap-2">
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 p-2">
+          <div className="text-xs font-semibold text-gray-700 mb-2 px-1">Map Layers</div>
+          
+          <button
+            onClick={() => setShowBuildings(!showBuildings)}
+            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+              showBuildings ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+            title="Toggle Buildings"
+          >
+            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+              showBuildings ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+            }`}>
+              {showBuildings && (
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <span className="flex-1 text-left">Buildings</span>
+          </button>
+
+          <button
+            onClick={() => setShowShadows(!showShadows)}
+            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors mt-1 ${
+              showShadows ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+            title="Toggle Shadows"
+          >
+            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+              showShadows ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+            }`}>
+              {showShadows && (
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <span className="flex-1 text-left">Shadows</span>
+          </button>
+
+          <button
+            onClick={() => setShowTerrain(!showTerrain)}
+            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors mt-1 ${
+              showTerrain ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+            title="Toggle Terrain"
+          >
+            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+              showTerrain ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+            }`}>
+              {showTerrain && (
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <span className="flex-1 text-left">Terrain</span>
+          </button>
+        </div>
+
+        {buildingsLoaded && (
+          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 px-3 py-2 text-xs text-gray-600">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="font-medium">{buildingsCount.toLocaleString()} buildings</span>
+            </div>
+          </div>
+        )}
       </div>
 
 

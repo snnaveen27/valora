@@ -374,7 +374,7 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
       tests.append(_make_result('Locality Brain', t0, False, f'Locality brain check failed: {e}'))
 
     # ============== 3D BUILDINGS TESTS ==============
-    # Test 3D Buildings - Tile Data Loading
+    # Test 3D Buildings - Tile Data Loading with Polygon Geometry
     t0 = _now_ms()
     try:
       # Test a specific tile in Koramangala area
@@ -382,14 +382,21 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
       features = data.get('features', [])
       total = data.get('total', 0)
       has_error = 'error' in data
-      # Must have buildings AND no errors (catches column name issues)
-      ok = total > 0 and not has_error
+      
+      # Count polygon vs point geometries
+      polygon_count = sum(1 for f in features if f.get('geometry', {}).get('type') == 'Polygon')
+      point_count = sum(1 for f in features if f.get('geometry', {}).get('type') == 'Point')
+      
+      # Must have buildings AND no errors AND proper polygon geometry
+      ok = total > 0 and not has_error and polygon_count > 0
       if has_error:
         tests.append(_make_result('3D Buildings Tile', t0, False, f'Tile error: {data.get("error")}'))
       else:
-        tests.append(_make_result('3D Buildings Tile', t0, ok, f'Tile 7762_1293: {total} buildings', details={
+        tests.append(_make_result('3D Buildings Tile', t0, ok, f'Tile 7762_1293: {total} buildings ({polygon_count} polygons)', details={
           'features_count': len(features),
-          'total': total
+          'total': total,
+          'polygon_count': polygon_count,
+          'point_count': point_count
         }))
     except Exception as e:
       tests.append(_make_result('3D Buildings Tile', t0, False, f'3D tile load failed: {e}'))
