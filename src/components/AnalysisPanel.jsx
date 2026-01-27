@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { TrendingUp, MapPin, BarChart2, FileText, StickyNote, Zap, Building2, Layers, Ruler, MapPinned, Sparkles, Download, Star, Navigation, Wallet, AlertTriangle, CheckCircle, Eye, Compass, Brain, MessageCircle } from 'lucide-react'
+import { TrendingUp, MapPin, BarChart2, FileText, StickyNote, Zap, Building2, Layers, Ruler, MapPinned, Sparkles, Download, Star, Navigation, Wallet, AlertTriangle, CheckCircle, Eye, Compass, Brain, MessageCircle, Trophy, ArrowUpRight, ArrowDownRight, Scale } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import PropertyTypeScraper from './PropertyTypeScraper'
@@ -10,7 +10,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 // "Ask about this" button component
 function AskAboutButton({ query, label }) {
   const handleClick = () => {
-    // Dispatch event to chat panel to ask the question
     window.dispatchEvent(new CustomEvent('valora-ask-question', { 
       detail: { query } 
     }))
@@ -28,12 +27,303 @@ function AskAboutButton({ query, label }) {
   )
 }
 
+// Locality Card Component (moved from ChatPanel)
+function LocalityCard({ locality, onExplore, onAskAbout }) {
+  if (!locality || !locality.archetype) return null
+  
+  const archetypeColors = {
+    'tech_hub': 'from-blue-500 to-cyan-500',
+    'premium_residential': 'from-purple-500 to-pink-500',
+    'family_residential': 'from-green-500 to-emerald-500',
+    'commercial_district': 'from-orange-500 to-amber-500',
+    'emerging': 'from-yellow-500 to-lime-500',
+    'transit_oriented': 'from-indigo-500 to-blue-500',
+  }
+  
+  const archetypeIcons = {
+    'tech_hub': '💻',
+    'premium_residential': '🏠',
+    'family_residential': '👨‍👩‍👧',
+    'commercial_district': '🏪',
+    'emerging': '🚀',
+    'transit_oriented': '🚇',
+  }
+  
+  const bgColor = archetypeColors[locality.archetype] || 'from-slate-500 to-slate-600'
+  const icon = archetypeIcons[locality.archetype] || '📍'
+  
+  const handleExplore = () => {
+    window.dispatchEvent(new CustomEvent('valora-fly-to-locality', { 
+      detail: { locality: locality.name } 
+    }))
+  }
+  
+  const handleAskAbout = () => {
+    window.dispatchEvent(new CustomEvent('valora-ask-question', { 
+      detail: { query: `Tell me more about ${locality.name} - investment potential, risk factors, and who should consider buying here.` } 
+    }))
+  }
+  
+  return (
+    <div className="bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden">
+      <div className={`bg-gradient-to-r ${bgColor} px-3 py-2 flex items-center gap-2`}>
+        <span className="text-lg">{icon}</span>
+        <span className="text-white font-medium text-xs">{locality.name}</span>
+        {locality.growth_stage && (
+          <span className="ml-auto text-[10px] bg-white/20 px-2 py-0.5 rounded-full text-white">
+            {locality.growth_stage.replace('_', ' ')}
+          </span>
+        )}
+      </div>
+      <div className="p-2">
+        {locality.tagline && (
+          <p className="text-[10px] text-slate-300 mb-1.5 italic">"{locality.tagline}"</p>
+        )}
+        <div className="grid grid-cols-2 gap-1.5 text-[10px] mb-2">
+          {locality.personality?.tech_orientation !== undefined && (
+            <div className="flex items-center gap-1">
+              <span className="text-slate-400">Tech:</span>
+              <span className="text-blue-400 font-medium">{locality.personality.tech_orientation}/100</span>
+            </div>
+          )}
+          {locality.personality?.family_friendliness !== undefined && (
+            <div className="flex items-center gap-1">
+              <span className="text-slate-400">Family:</span>
+              <span className="text-green-400 font-medium">{locality.personality.family_friendliness}/100</span>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-1.5">
+          <button
+            onClick={handleExplore}
+            className="flex-1 text-[10px] bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded transition flex items-center justify-center gap-1"
+          >
+            <MapPin className="w-2.5 h-2.5" /> Explore
+          </button>
+          <button
+            onClick={handleAskAbout}
+            className="flex-1 text-[10px] bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition flex items-center justify-center gap-1"
+          >
+            <MessageCircle className="w-2.5 h-2.5" /> Ask
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Property Comparison Card Component
+function PropertyComparisonCard({ properties, onCompare }) {
+  if (!properties || properties.length < 2) return null
+  
+  const [prop1, prop2] = properties.slice(0, 2)
+  
+  const compareValue = (v1, v2, higherIsBetter = true) => {
+    if (v1 === v2) return 'tie'
+    if (higherIsBetter) return v1 > v2 ? 'win' : 'lose'
+    return v1 < v2 ? 'win' : 'lose'
+  }
+  
+  const getColor = (result) => {
+    if (result === 'win') return 'text-green-400'
+    if (result === 'lose') return 'text-red-400'
+    return 'text-slate-400'
+  }
+  
+  return (
+    <div className="bg-slate-800/50 rounded-lg border border-purple-500/30 overflow-hidden">
+      <div className="bg-purple-600/20 px-3 py-2 flex items-center gap-2">
+        <Scale className="w-3.5 h-3.5 text-purple-400" />
+        <span className="text-purple-400 font-bold text-xs uppercase">Property Comparison</span>
+      </div>
+      <div className="p-2">
+        <div className="grid grid-cols-3 gap-1 text-[10px] mb-2">
+          <div className="font-medium text-slate-400">Metric</div>
+          <div className="font-medium text-center truncate">{prop1.locality || 'Property 1'}</div>
+          <div className="font-medium text-center truncate">{prop2.locality || 'Property 2'}</div>
+        </div>
+        
+        {/* Price comparison */}
+        <div className="grid grid-cols-3 gap-1 text-[10px] border-t border-slate-700/50 py-1">
+          <div className="text-slate-400">Price</div>
+          <div className={`text-center ${getColor(compareValue(prop2.price, prop1.price, false))}`}>
+            ₹{(prop1.price / 100000).toFixed(1)}L
+          </div>
+          <div className={`text-center ${getColor(compareValue(prop1.price, prop2.price, false))}`}>
+            ₹{(prop2.price / 100000).toFixed(1)}L
+          </div>
+        </div>
+        
+        {/* Area comparison */}
+        <div className="grid grid-cols-3 gap-1 text-[10px] border-t border-slate-700/50 py-1">
+          <div className="text-slate-400">Area</div>
+          <div className={`text-center ${getColor(compareValue(prop1.area_sqft, prop2.area_sqft))}`}>
+            {prop1.area_sqft} sqft
+          </div>
+          <div className={`text-center ${getColor(compareValue(prop2.area_sqft, prop1.area_sqft))}`}>
+            {prop2.area_sqft} sqft
+          </div>
+        </div>
+        
+        {/* Price/sqft comparison */}
+        <div className="grid grid-cols-3 gap-1 text-[10px] border-t border-slate-700/50 py-1">
+          <div className="text-slate-400">₹/sqft</div>
+          <div className={`text-center ${getColor(compareValue(prop2.price_per_sqft || 0, prop1.price_per_sqft || 0, false))}`}>
+            ₹{Math.round(prop1.price_per_sqft || prop1.price / prop1.area_sqft)}
+          </div>
+          <div className={`text-center ${getColor(compareValue(prop1.price_per_sqft || 0, prop2.price_per_sqft || 0, false))}`}>
+            ₹{Math.round(prop2.price_per_sqft || prop2.price / prop2.area_sqft)}
+          </div>
+        </div>
+        
+        <button
+          onClick={() => onCompare?.(prop1, prop2)}
+          className="w-full mt-2 text-[10px] bg-purple-600 hover:bg-purple-500 text-white px-2 py-1.5 rounded transition"
+        >
+          Detailed Comparison
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Investment Score Leaderboard Component
+function InvestmentLeaderboard({ localities }) {
+  if (!localities || localities.length === 0) return null
+  
+  // Sort by investment score
+  const sorted = [...localities].sort((a, b) => (b.investment_score || 0) - (a.investment_score || 0)).slice(0, 5)
+  
+  const getMedalColor = (idx) => {
+    if (idx === 0) return 'text-yellow-400'
+    if (idx === 1) return 'text-slate-300'
+    if (idx === 2) return 'text-amber-600'
+    return 'text-slate-500'
+  }
+  
+  const getTrendIcon = (trend) => {
+    if (trend > 0) return <ArrowUpRight className="w-3 h-3 text-green-400" />
+    if (trend < 0) return <ArrowDownRight className="w-3 h-3 text-red-400" />
+    return null
+  }
+  
+  return (
+    <div className="bg-slate-800/50 rounded-lg border border-yellow-500/30 overflow-hidden">
+      <div className="bg-yellow-600/20 px-3 py-2 flex items-center gap-2">
+        <Trophy className="w-3.5 h-3.5 text-yellow-400" />
+        <span className="text-yellow-400 font-bold text-xs uppercase">Investment Leaders</span>
+      </div>
+      <div className="p-2 space-y-1">
+        {sorted.map((loc, idx) => (
+          <button
+            key={loc.name}
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('valora-fly-to-locality', { 
+                detail: { locality: loc.name } 
+              }))
+            }}
+            className="w-full flex items-center gap-2 p-1.5 rounded hover:bg-slate-700/50 transition text-left"
+          >
+            <span className={`font-bold text-sm ${getMedalColor(idx)}`}>#{idx + 1}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-white text-[11px] font-medium truncate">{loc.name}</div>
+              <div className="text-[9px] text-slate-400">{loc.archetype?.replace('_', ' ') || 'Area'}</div>
+            </div>
+            <div className="flex items-center gap-1">
+              {getTrendIcon(loc.price_trend)}
+              <span className="text-xs font-bold text-blue-400">{loc.investment_score || 75}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function AnalysisPanel({ agentData, setAgentData, activeTab, setActiveTab, fontSize = 100, liveAnalysis = null }) {
   const [notes, setNotes] = useState([])
   const [currentNote, setCurrentNote] = useState({ title: '', content: '' })
   const [viewportAnalysis, setViewportAnalysis] = useState(null)
   const [viewportLoading, setViewportLoading] = useState(false)
+  const [exportingPDF, setExportingPDF] = useState(false)
   const lastFetchedCenter = useRef(null)
+  const analysisPanelRef = useRef(null)
+
+  // Export analysis to PDF
+  const exportToPDF = async () => {
+    setExportingPDF(true)
+    try {
+      // Build PDF content from current analysis data
+      const areaName = viewportAnalysis?.area_name || agentData?.explainability?.locality?.name || 'Valora Analysis'
+      const timestamp = new Date().toLocaleString()
+      
+      // Create a simple text-based report that can be printed/saved as PDF
+      const reportContent = `
+VALORA AI ANALYSIS REPORT
+========================
+Generated: ${timestamp}
+
+AREA: ${areaName}
+${agentData?.explainability?.locality?.tagline ? `"${agentData.explainability.locality.tagline}"` : ''}
+
+MARKET OVERVIEW
+--------------
+Avg Price/sqft: ${agentData?.dashboard?.market?.avgPricePerSqft || viewportAnalysis?.market?.avg_price_per_sqft ? `₹${viewportAnalysis?.market?.avg_price_per_sqft?.toLocaleString()}` : 'N/A'}
+1Y Growth: ${agentData?.dashboard?.market?.growth1y || (viewportAnalysis?.market?.price_trend_pct ? `${viewportAnalysis.market.price_trend_pct}%` : 'N/A')}
+Demand Level: ${viewportAnalysis?.market?.demand_level || agentData?.dashboard?.market?.demandIndex || 'N/A'}
+
+SPATIAL ANALYSIS
+----------------
+POIs (2km): ${viewportAnalysis?.spatial?.poi_count || 'N/A'}
+Transport Hubs: ${viewportAnalysis?.spatial?.transport_count || 'N/A'}
+Accessibility Score: ${viewportAnalysis?.spatial?.accessibility_score || 'N/A'}/100
+Walkability Score: ${viewportAnalysis?.spatial?.walkability_score || 'N/A'}/100
+
+TERRAIN DATA
+------------
+Elevation: ${typeof viewportAnalysis?.terrain?.elevation_m === 'number' ? `${viewportAnalysis.terrain.elevation_m.toFixed(0)}m` : 'N/A'}
+Flood Risk: ${viewportAnalysis?.terrain?.flood_risk || 'N/A'}
+
+EXPLAINABILITY
+--------------
+Confidence: ${agentData?.explainability?.confidence || 75}%
+${agentData?.explainability?.keyDrivers?.length > 0 ? `
+Key Drivers:
+${agentData.explainability.keyDrivers.map(d => `  - ${d.name}: ${d.value} (Impact: ${(d.impact * 100).toFixed(0)}%)`).join('\n')}
+` : ''}
+
+${agentData?.simulation ? `
+SIMULATION RESULTS
+-----------------
+Scenario: ${agentData.simulation.scenario?.description || 'N/A'}
+Accessibility Change: ${agentData.simulation.impacts?.accessibility_change}%
+Property Value Impact: ${agentData.simulation.impacts?.property_value_impact}%
+Development Pressure: ${agentData.simulation.impacts?.development_pressure}/100
+` : ''}
+
+---
+Report generated by Valora AI - City Intelligence Platform
+      `.trim()
+      
+      // Create a blob and download
+      const blob = new Blob([reportContent], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `valora-analysis-${areaName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.txt`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      // Show success message
+      console.log('📄 Analysis exported successfully')
+    } catch (err) {
+      console.error('Export failed:', err)
+    } finally {
+      setExportingPDF(false)
+    }
+  }
 
   // Auto-fetch viewport analysis when mapCenter changes
   useEffect(() => {
@@ -293,22 +583,64 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
               </div>
             )}
 
-            {/* Map Stats - Compact */}
-            <div className="bg-slate-800/40 rounded-lg p-1.5 border border-slate-700/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400 text-[9px]">Loaded Buildings</span>
-                  <span className="text-white font-bold text-sm">
-                    {agentData?.buildingsCount ? agentData.buildingsCount.toLocaleString() : '0'}
-                  </span>
-                </div>
-                {agentData?.loadingBuildings && (
-                  <div className="w-2.5 h-2.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+            {/* Locality Card - Shows current area profile */}
+            {agentData?.explainability?.locality?.archetype && (
+              <LocalityCard locality={{
+                name: agentData.explainability.locality.name || viewportAnalysis?.area_name || 'Current Area',
+                archetype: agentData.explainability.locality.archetype,
+                growth_stage: agentData.explainability.locality.growth_stage,
+                tagline: agentData.explainability.locality.tagline,
+                personality: agentData.explainability.locality.personality,
+              }} />
+            )}
+
+            {/* Investment Score Leaderboard */}
+            {agentData?.dashboard?.hotLocalities && agentData.dashboard.hotLocalities.length > 0 && (
+              <InvestmentLeaderboard localities={agentData.dashboard.hotLocalities} />
+            )}
+
+            {/* Property Comparison Card */}
+            {agentData?.comparisonProperties && agentData.comparisonProperties.length >= 2 && (
+              <PropertyComparisonCard 
+                properties={agentData.comparisonProperties}
+                onCompare={(p1, p2) => {
+                  window.dispatchEvent(new CustomEvent('valora-ask-question', { 
+                    detail: { query: `Compare ${p1.locality || 'first property'} vs ${p2.locality || 'second property'} in detail - which is the better investment?` } 
+                  }))
+                }}
+              />
+            )}
+
+            {/* Export & Map Stats Row */}
+            <div className="flex items-center gap-2">
+              {/* Export Button */}
+              <button
+                onClick={exportToPDF}
+                disabled={exportingPDF}
+                className="flex items-center gap-1 px-2 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white text-[10px] rounded transition"
+              >
+                {exportingPDF ? (
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <Download className="w-3 h-3" />
                 )}
+                Export Report
+              </button>
+              
+              {/* Map Stats - Compact */}
+              <div className="flex-1 bg-slate-800/40 rounded-lg p-1.5 border border-slate-700/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400 text-[9px]">Buildings</span>
+                    <span className="text-white font-bold text-xs">
+                      {agentData?.buildingsCount ? agentData.buildingsCount.toLocaleString() : '0'}
+                    </span>
+                  </div>
+                  {agentData?.loadingBuildings && (
+                    <div className="w-2.5 h-2.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                </div>
               </div>
-              {agentData?.loadingBuildings && (
-                <p className="text-blue-400 text-[9px] mt-0.5">Analysing area...</p>
-              )}
             </div>
 
             {agentData?.dashboard?.title && (

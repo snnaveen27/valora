@@ -1489,7 +1489,20 @@ For support or inquiries, contact the development team.
 
 ---
 
-## 📚 Related Documents
+## � Data Improvements (Pending)
+
+These data enhancements are planned for future updates:
+
+| Data Need | Impact | How to Get |
+|-----------|--------|------------|
+| Historical prices | Enables time-series forecasting | Portal partnership |
+| School ratings | Better family area scoring | Scrape from reviews |
+| Traffic data | Commute time predictions | Google Maps API (paid) |
+| Construction permits | Supply forecasting | BBMP RTI requests |
+
+---
+
+## �📚 Related Documents
 
 - [QUERIES_LIST.md](./QUERIES_LIST.md) - **Complete test query suite** (NEW)
 - [INVESTOR_PITCH.md](./INVESTOR_PITCH.md) - Investor deck and funding ask

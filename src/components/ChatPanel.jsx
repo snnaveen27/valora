@@ -161,85 +161,6 @@ function detectNavigationIntent(message) {
   return { isNavigation: false, placeName: null }
 }
 
-// Inline Locality Card Component
-function LocalityCard({ locality, onExplore, onAskAbout }) {
-  if (!locality || !locality.archetype) return null
-  
-  const archetypeColors = {
-    'tech_hub': 'from-blue-500 to-cyan-500',
-    'premium_residential': 'from-purple-500 to-pink-500',
-    'family_residential': 'from-green-500 to-emerald-500',
-    'commercial_district': 'from-orange-500 to-amber-500',
-    'emerging': 'from-yellow-500 to-lime-500',
-    'transit_oriented': 'from-indigo-500 to-blue-500',
-  }
-  
-  const archetypeIcons = {
-    'tech_hub': '💻',
-    'premium_residential': '🏠',
-    'family_residential': '👨‍👩‍👧',
-    'commercial_district': '🏪',
-    'emerging': '🚀',
-    'transit_oriented': '🚇',
-  }
-  
-  const bgColor = archetypeColors[locality.archetype] || 'from-slate-500 to-slate-600'
-  const icon = archetypeIcons[locality.archetype] || '📍'
-  
-  return (
-    <div className="my-2 bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden">
-      <div className={`bg-gradient-to-r ${bgColor} px-3 py-2 flex items-center gap-2`}>
-        <span className="text-lg">{icon}</span>
-        <span className="text-white font-medium text-sm">{locality.name}</span>
-        {locality.growth_stage && (
-          <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded-full text-white">
-            {locality.growth_stage.replace('_', ' ')}
-          </span>
-        )}
-      </div>
-      <div className="p-3">
-        {locality.tagline && (
-          <p className="text-xs text-slate-300 mb-2 italic">"{locality.tagline}"</p>
-        )}
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          {locality.personality?.tech_orientation && (
-            <div className="flex items-center gap-1">
-              <span className="text-slate-400">Tech:</span>
-              <span className="text-blue-400 font-medium">{locality.personality.tech_orientation}/100</span>
-            </div>
-          )}
-          {locality.personality?.family_friendliness && (
-            <div className="flex items-center gap-1">
-              <span className="text-slate-400">Family:</span>
-              <span className="text-green-400 font-medium">{locality.personality.family_friendliness}/100</span>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={() => onExplore?.(locality.name)}
-            className="flex-1 text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition flex items-center justify-center gap-1"
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-            Explore
-          </button>
-          <button
-            onClick={() => onAskAbout?.(locality.name)}
-            className="flex-1 text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition flex items-center justify-center gap-1"
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Ask About
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Collapsible Thinking/Reasoning Panel Component
 function ThinkingPanel({ trace, intent, factsSummary }) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -761,35 +682,6 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
     setIsLoading(false)
   }
 
-  // Handle exploring a locality (fly to it on map)
-  const handleExploreLocality = (localityName) => {
-    window.dispatchEvent(new CustomEvent('valora-fly-to-locality', { 
-      detail: { locality: localityName } 
-    }))
-  }
-
-  // Handle asking about a locality (trigger AI query)
-  const handleAskAboutLocality = async (localityName) => {
-    const query = `Tell me more about ${localityName} - investment potential, risk factors, and who should consider buying here.`
-    setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: query }])
-    setIsLoading(true)
-    const aiResponse = await callAI(query)
-    const reasoningTrace = window.__lastReasoningTrace
-    const intent = window.__lastIntent
-    const factsSummary = window.__lastFactsSummary
-    const localityData = window.__lastLocalityData || null
-    setMessages(prev => [...prev, { 
-      role: 'assistant', 
-      content: aiResponse,
-      reasoningTrace,
-      intent,
-      factsSummary,
-      locality: localityData
-    }])
-    setIsLoading(false)
-  }
-
   // Handle selecting a place from disambiguation list
   const handleSelectPlace = async (place) => {
     setDisambiguationCandidates(null) // Clear disambiguation UI
@@ -849,15 +741,7 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
                       {msg.content}
                     </ReactMarkdown>
                   </div>
-                  {/* Inline Locality Card */}
-                  {msg.locality && (
-                    <LocalityCard 
-                      locality={msg.locality}
-                      onExplore={handleExploreLocality}
-                      onAskAbout={handleAskAboutLocality}
-                    />
-                  )}
-                </>
+                                  </>
               ) : (
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               )}
