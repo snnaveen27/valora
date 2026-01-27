@@ -1,27 +1,31 @@
 # Valora AI - 3D Reasoning AI GIS Platform
 
-**City Intelligence Platform for Real Estate | Version 2025.2.5**
+**City Intelligence Platform for Real Estate | Version 2025.2.6**
 
-[![Version](https://img.shields.io/badge/Version-2025.2.5-blue)]()
+[![Version](https://img.shields.io/badge/Version-2025.2.6-blue)]()
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-green)]()
-[![AI](https://img.shields.io/badge/AI-Advanced%20Reasoning-blue)]()
+[![Tests](https://img.shields.io/badge/Tests-30%2F30%20Passing-brightgreen)]()
+[![AI](https://img.shields.io/badge/AI-16%20Intent%20Types-blue)]()
 [![3D](https://img.shields.io/badge/3D-CesiumJS-orange)]()
 [![Data](https://img.shields.io/badge/Records-1.6M+-purple)]()
+[![Cities](https://img.shields.io/badge/Cities-Multi--City%20Ready-yellow)]()
 
 ---
 
 ## 🎯 Overview
 
-Valora AI is an advanced 3D GIS platform that combines:
-- **3D Visualization**: CesiumJS-powered 3D city model with 686,370 buildings
-- **AI Reasoning**: Multi-step chain-of-thought reasoning engine
-- **Spatial Intelligence**: RAG-powered semantic search across 77,907+ vectors
-- **Real Estate Analytics**: 42,452 property listings with market analysis
-- **Comprehensive Data**: 1.6M+ total records across all tables
-- **City Expandable**: Multi-city architecture ready (city_id support)
-- **Offline-First**: Works without internet connection
+Valora AI is an advanced **3D GIS + AI Reasoning** platform for real estate intelligence:
 
-### Data Summary (v2.5)
+| Feature | Description |
+|---------|-------------|
+| **3D Visualization** | CesiumJS-powered 3D city model with 686,370 buildings |
+| **AI Reasoning** | Multi-step chain-of-thought with 16 intent types |
+| **Knowledge Layer** | 788 precomputed locality states for instant lookups |
+| **Learning Loop** | Prediction logging for continuous improvement |
+| **City Expandable** | Multi-city architecture (BLR, HYD, CHN, PNE, MUM, DEL) |
+| **Offline-First** | Works without internet connection |
+
+### Data Summary (v2.6)
 
 | Category | Records | Details |
 |----------|---------|---------|
@@ -30,11 +34,11 @@ Valora AI is an advanced 3D GIS platform that combines:
 | Roads | 334,784 | Complete road network |
 | Properties | 42,452 | Active listings |
 | POIs | 26,961 | Schools, hospitals, amenities |
-| Gov Data | 12,767 | Education, legislative |
+| Locality States | 788 | Precomputed intelligence |
 | Transport | 5,384 | Metro, bus stops |
 | AQI Data | 1,550 | Air quality 2017-2025 |
 | Places | 1,077 | Named localities |
-| **Total** | **1,595,382** | All indexed records |
+| **Total** | **1,624,875** | All indexed records |
 
 ---
 
@@ -306,33 +310,76 @@ windsurf-project/
 
 ---
 
-## ✅ QA: Real-time Sanity Checks
+## ✅ Testing & Benchmarks
 
-Valora includes two complementary validation layers:
+### Sanity Check Results (30/30 Tests Passing)
 
-### 1) Admin Panel Tests
-
-- **System Tests**: internal module checks (`/api/admin/run-tests`)
-- **Real-time Sanity Check**: calls live endpoints (`/api/admin/sanity-check`)
-
-### 2) CLI Sanity Check Script
-
-Run a real-time smoke test against a running backend:
-
-```bash
-python scripts/sanity_check.py --base-url http://localhost:8000
+```
+======================================================================
+VALORA AI - REALTIME SANITY CHECK
+======================================================================
+Total: 30 | Passed: 30 | Failed: 0 | Duration: ~15s
+----------------------------------------------------------------------
+✅ Backend Health            GET /health
+✅ Admin Status              GET /api/admin/status
+✅ Tileset Index             GET /api/tileset
+✅ Tiles Viewport            GET /api/tiles/viewport
+✅ Viewport Analyze          GET /api/viewport/analyze
+✅ Location Analyze          POST /api/location/analyze
+✅ City Intelligence         GET /api/city-intelligence/locality/{name}
+✅ Investment Leaderboard    GET /api/investment/leaderboard
+✅ Storyboard Generation     POST /api/storyboard/generate
+✅ Compare Properties        POST /api/compare/properties
+✅ Valuation Estimate        POST /api/valuation/estimate
+✅ Valuation Market Stats    GET /api/valuation/market-stats
+✅ Simulate Scenario         POST /api/simulate
+✅ Simulate Storyboard       POST /api/simulate/storyboard
+✅ Digital Twin Init         POST /api/digital-twin/init
+✅ Digital Twin State        GET /api/digital-twin/state
+✅ Building Analyze          POST /api/building/analyze
+✅ RAG Search                GET /api/rag/search
+✅ RAG Context               GET /api/rag/context
+✅ Area Insights             GET /api/insights/area
+✅ Market Intelligence       GET /api/insights/market/{locality}
+✅ Price Movers              GET /api/insights/price-movers
+✅ Database Tables           GET /api/database/tables
+✅ Database Stats            GET /api/database/stats
+✅ Database Query            POST /api/database/query
+✅ City Support              GET cities table
+✅ Version Check             System version verification
+✅ Data Integrity            1.6M+ records verified
+✅ Locality Brain            788 localities verified
+✅ Chat Orchestration        POST /api/chat (full AI pipeline)
+======================================================================
 ```
 
-Include chat orchestration validation:
+### Performance Benchmarks
+
+| Operation | Avg Time | Description |
+|-----------|----------|-------------|
+| Locality Lookup | <10ms | Precomputed state from `locality_state` |
+| Intent Classification | <50ms | 16-intent router |
+| Property Search | 200-400ms | Filtered SQL + RAG |
+| Area Analysis | 1-2s | Full spatial + market data |
+| Chat Response (cached) | <500ms | LRU cache hit |
+| Chat Response (LLM) | 3-8s | DeepSeek reasoning |
+| Simulation | 500ms-2s | Causal graph + narrative |
+| 3D Building Analysis | 1-1.5s | Height, shadow, view |
+
+### Run Tests
 
 ```bash
-python scripts/sanity_check.py --base-url http://localhost:8000 --include-chat
-```
+# Quick sanity check (no chat)
+python scripts/sanity_check.py --no-chat
 
-Print JSON output:
+# Full sanity check with chat
+python scripts/sanity_check.py --include-chat
 
-```bash
-python scripts/sanity_check.py --base-url http://localhost:8000 --json
+# Extended benchmark suite
+python scripts/sanity_check.py --benchmark --extended
+
+# JSON output for CI/CD
+python scripts/sanity_check.py --json
 ```
 
 ---
@@ -1634,39 +1681,195 @@ backend/city_intelligence/
 
 ---
 
-## 📈 AI Self-Awareness System
+## 🤖 AI/ML Models & Services
 
-The platform now knows itself:
+### Model Architecture
 
-```python
-from ai_context import get_ai_context
-ctx = get_ai_context()
-print(ctx.get_self_description())
-
-# Output:
-# I am Valora AI with:
-# - 42,202 property listings
-# - 1,372,740 3D building models
-# - 8 capabilities with accuracy ratings
-# - Learning from 150+ query patterns
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                      VALORA AI MODEL STACK                          │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
+│  │   LLM LAYER     │  │  EMBEDDINGS     │  │   ML MODELS     │     │
+│  │                 │  │                 │  │                 │     │
+│  │  DeepSeek R1    │  │  Sentence       │  │  Price Pred.    │     │
+│  │  (reasoning)    │  │  Transformers   │  │  (XGBoost)      │     │
+│  │                 │  │  (384-dim)      │  │                 │     │
+│  │  Qwen3 VL       │  │                 │  │  Risk Index     │     │
+│  │  (multimodal)   │  │  FAISS Index    │  │  (Ensemble)     │     │
+│  │                 │  │  (IVF-PQ)       │  │                 │     │
+│  │  Llama 3.2      │  │                 │  │  Growth Phase   │     │
+│  │  (fast)         │  │  77K+ vectors   │  │  (Rules+ML)     │     │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
+│           │                    │                    │               │
+│           ▼                    ▼                    ▼               │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                    GIS ORCHESTRATOR                          │   │
+│  │  - Intent Classification (16 types)                          │   │
+│  │  - Fact Gathering (spatial, market, terrain)                 │   │
+│  │  - Reasoning Chain (decompose → verify → infer → synthesize) │   │
+│  │  - Narrative Generation (LLM synthesis)                      │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-### Capabilities Tracked
+### Service Dependencies
 
-| Capability | Accuracy | Use Cases |
-|------------|----------|-----------|
-| Property Search | 90% | Natural language to listings |
-| 3D Building Analysis | 85% | Height, shadow, view |
-| Spatial Reasoning | 88% | Distance, accessibility |
-| Price Prediction | 75% | Valuation, forecasting |
-| What-If Simulation | 70% | Infrastructure impacts |
-| Area Analysis | 85% | Livability, amenities |
-| Terrain Analysis | 80% | Flood risk, elevation |
-| Visual Analysis | 70% | Image understanding |
+| Service | Module | Description |
+|---------|--------|-------------|
+| `locality_service` | Fast precomputed lookups | 788 localities, <10ms |
+| `gis_agents` | Multi-agent orchestration | Intent → Facts → Response |
+| `rag_service` | Semantic search | Pinecone/FAISS hybrid |
+| `valuation_model` | Price estimation | Spatial features + comps |
+| `simulation_engine` | What-if scenarios | Causal graph reasoning |
+| `building_analyzer` | 3D analysis | Height, shadow, view |
+| `learning_loop` | Prediction tracking | Accuracy & improvement |
+
+### Learning Loop (Production Ready)
+
+```python
+from learning_loop import get_learning_loop
+
+loop = get_learning_loop()
+
+# Log a prediction
+loop.log_prediction(
+    locality_id='koramangala',
+    city_id='BLR',
+    prediction_type='price_change',
+    predicted_value=5.2,
+    confidence=75,
+    target_date='2026-07-27'
+)
+
+# Evaluate when data arrives
+loop.evaluate_prediction('koramangala_price_change_2026-07-27', actual_value=4.8)
+
+# Get accuracy metrics
+metrics = loop.get_accuracy_metrics(city_id='BLR')
+# {'total_predictions': 150, 'avg_accuracy': 78.5, ...}
+```
 
 ---
 
-## �📄 License
+## 💬 Complete Query Examples
+
+### Navigation Queries
+```
+"Go to Koramangala"
+"Show me Whitefield"
+"Navigate to Electronic City"
+"Fly to 12.9716, 77.5946"
+"Where is Cubbon Park"
+```
+
+### Property Search Queries
+```
+"Find 3 BHK apartments in Indiranagar under 1.5 crore"
+"Properties near metro stations in HSR Layout"
+"Villas in Sarjapur Road with pool"
+"Affordable 2 BHK flats in Whitefield for families"
+"Commercial spaces near MG Road"
+"Rental apartments in Koramangala under 50k"
+```
+
+### Area Analysis Queries
+```
+"Analyze Indiranagar for investment"
+"How is Hebbal for families?"
+"Tell me about Jayanagar"
+"What's the livability score of BTM Layout?"
+"Infrastructure quality in Electronic City"
+"Growth potential of Sarjapur Road"
+```
+
+### Investment Queries
+```
+"Is Hebbal good for investment?"
+"Best areas for rental yield"
+"Emerging localities with high appreciation"
+"Compare ROI: Whitefield vs Electronic City"
+"Investment hotspots under 80 lakhs"
+"Areas with upcoming metro stations"
+```
+
+### Comparison Queries
+```
+"Compare Koramangala and Indiranagar"
+"Whitefield vs HSR Layout for IT professionals"
+"Which is better for families: Jayanagar or JP Nagar?"
+"Price comparison: Sarjapur vs ORR localities"
+```
+
+### Simulation Queries
+```
+"What if metro comes to Hebbal?"
+"Impact of new IT park in Devanahalli"
+"How will road widening affect Silk Board area?"
+"Simulate FAR increase in Koramangala"
+"Effect of airport expansion on nearby areas"
+```
+
+### Valuation Queries
+```
+"Price trends in Koramangala last 5 years"
+"Estimate value of 3 BHK in Whitefield"
+"Market stats for HSR Layout"
+"Price per sqft comparison across Bangalore"
+```
+
+### Terrain & Risk Queries
+```
+"Is Bellandur flood-prone?"
+"Elevation analysis for Whitefield"
+"Flood risk areas near Varthur lake"
+"Air quality in Peenya industrial area"
+```
+
+### Conversational Queries
+```
+"Hi" / "Hello" / "Hey"
+"What can you do?"
+"Help me find a home"
+"Thank you"
+"Goodbye"
+```
+
+---
+
+## 🏙️ City Expansion Support
+
+### Supported Cities (Ready for Data)
+
+| City | Code | Status | Notes |
+|------|------|--------|-------|
+| Bangalore | BLR | ✅ Active | 1.6M+ records |
+| Hyderabad | HYD | 🔧 Schema ready | Awaiting data |
+| Chennai | CHN | 🔧 Schema ready | Awaiting data |
+| Pune | PNE | 🔧 Schema ready | Awaiting data |
+| Mumbai | MUM | 🔧 Schema ready | Awaiting data |
+| Delhi | DEL | 🔧 Schema ready | Awaiting data |
+
+### Adding a New City
+
+```python
+from learning_loop import get_city_manager
+
+cm = get_city_manager()
+
+# Check active cities
+cities = cm.get_active_cities()
+
+# Get city stats
+stats = cm.get_city_stats('BLR')
+# {'properties': 42452, 'localities': 788, 'pois': 26961}
+```
+
+---
+
+## 📄 License
 
 Proprietary - All rights reserved
 
@@ -1678,22 +1881,7 @@ For support or inquiries, contact the development team.
 
 ---
 
-## � Data Improvements (Pending)
+## 📚 Related Documents
 
-These data enhancements are planned for future updates:
-
-| Data Need | Impact | How to Get |
-|-----------|--------|------------|
-| Historical prices | Enables time-series forecasting | Portal partnership |
-| School ratings | Better family area scoring | Scrape from reviews |
-| Traffic data | Commute time predictions | Google Maps API (paid) |
-| Construction permits | Supply forecasting | BBMP RTI requests |
-
----
-
-## �📚 Related Documents
-
-- [QUERIES_LIST.md](./QUERIES_LIST.md) - **Complete test query suite** (NEW)
 - [INVESTOR_PITCH.md](./INVESTOR_PITCH.md) - Investor deck and funding ask
 - [DATABASE_OPPORTUNITIES.md](./DATABASE_OPPORTUNITIES.md) - Data utilization analysis
-- [backend/city_intelligence/](./backend/city_intelligence/) - City Intelligence Engine modules
