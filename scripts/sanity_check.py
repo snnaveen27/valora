@@ -373,6 +373,136 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
     except Exception as e:
       tests.append(_make_result('Locality Brain', t0, False, f'Locality brain check failed: {e}'))
 
+    # ============== 3D BUILDINGS TESTS ==============
+    # Test 3D Buildings - Tile Data Loading
+    t0 = _now_ms()
+    try:
+      # Test a specific tile in Koramangala area
+      data = _ok_json(client.get('/api/tiles/db/7762_1293'))
+      features = data.get('features', [])
+      total = data.get('total', 0)
+      has_error = 'error' in data
+      # Must have buildings AND no errors (catches column name issues)
+      ok = total > 0 and not has_error
+      if has_error:
+        tests.append(_make_result('3D Buildings Tile', t0, False, f'Tile error: {data.get("error")}'))
+      else:
+        tests.append(_make_result('3D Buildings Tile', t0, ok, f'Tile 7762_1293: {total} buildings', details={
+          'features_count': len(features),
+          'total': total
+        }))
+    except Exception as e:
+      tests.append(_make_result('3D Buildings Tile', t0, False, f'3D tile load failed: {e}'))
+
+    # Test 3D Buildings - Data Integrity (has height, coordinates)
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/tiles/db/7763_1297'))
+      features = data.get('features', [])
+      valid_buildings = 0
+      has_height = 0
+      has_coords = 0
+      for f in features[:100]:  # Check first 100
+        props = f.get('properties', {})
+        geom = f.get('geometry', {})
+        if props.get('height') and props.get('height') > 0:
+          has_height += 1
+        if geom.get('coordinates'):
+          has_coords += 1
+        if props.get('height') and geom.get('coordinates'):
+          valid_buildings += 1
+      ok = valid_buildings >= 50 and has_height >= 50 and has_coords >= 50
+      tests.append(_make_result('3D Buildings Data', t0, ok, f'{valid_buildings} valid buildings (height+coords)', details={
+        'has_height': has_height,
+        'has_coords': has_coords,
+        'valid': valid_buildings
+      }))
+    except Exception as e:
+      tests.append(_make_result('3D Buildings Data', t0, False, f'3D data integrity failed: {e}'))
+
+    # Test 3D Buildings - Database Count
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.post('/api/database/query', json={'query': 'SELECT COUNT(*) as cnt FROM buildings WHERE latitude IS NOT NULL'}))
+      rows = data.get('rows', [])
+      cnt = rows[0]['cnt'] if rows else 0
+      ok = cnt >= 500000  # Should have 500k+ buildings
+      tests.append(_make_result('3D Buildings Count', t0, ok, f'buildings table: {cnt:,} records'))
+    except Exception as e:
+      tests.append(_make_result('3D Buildings Count', t0, False, f'Building count failed: {e}'))
+
+    # Test 3D Buildings - Height Distribution
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.post('/api/database/query', json={
+        'query': 'SELECT COUNT(*) as cnt, AVG(height) as avg_h, MAX(height) as max_h FROM buildings WHERE height > 0'
+      }))
+      rows = data.get('rows', [])
+      if rows:
+        cnt = rows[0]['cnt'] or 0
+        avg_h = rows[0]['avg_h'] or 0
+        max_h = rows[0]['max_h'] or 0
+        ok = cnt > 100000 and avg_h > 5 and max_h > 20  # Reasonable height distribution
+        tests.append(_make_result('3D Heights Valid', t0, ok, f'{cnt:,} buildings with height (avg={avg_h:.1f}m, max={max_h:.1f}m)'))
+      else:
+        tests.append(_make_result('3D Heights Valid', t0, False, 'No height data returned'))
+    except Exception as e:
+      tests.append(_make_result('3D Heights Valid', t0, False, f'Height check failed: {e}'))
+
+    # Test POIs Data Integrity
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.post('/api/database/query', json={
+        'query': 'SELECT COUNT(*) as cnt FROM pois WHERE latitude IS NOT NULL AND category IS NOT NULL'
+      }))
+      rows = data.get('rows', [])
+      cnt = rows[0]['cnt'] if rows else 0
+      ok = cnt >= 20000  # Should have 20k+ POIs
+      tests.append(_make_result('POIs Data', t0, ok, f'pois table: {cnt:,} valid records'))
+    except Exception as e:
+      tests.append(_make_result('POIs Data', t0, False, f'POIs check failed: {e}'))
+
+    # Test Transport Data Integrity
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.post('/api/database/query', json={
+        'query': "SELECT COUNT(*) as cnt, SUM(CASE WHEN transport_type = 'metro' THEN 1 ELSE 0 END) as metro FROM transport_stops"
+      }))
+      rows = data.get('rows', [])
+      cnt = rows[0]['cnt'] if rows else 0
+      metro = rows[0]['metro'] if rows else 0
+      ok = cnt >= 5000  # Should have 5k+ stops
+      tests.append(_make_result('Transport Data', t0, ok, f'transport: {cnt:,} stops ({metro} metro)'))
+    except Exception as e:
+      tests.append(_make_result('Transport Data', t0, False, f'Transport check failed: {e}'))
+
+    # Test Properties Data Integrity
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.post('/api/database/query', json={
+        'query': 'SELECT COUNT(*) as cnt, AVG(price) as avg_price FROM properties WHERE price > 0 AND latitude IS NOT NULL'
+      }))
+      rows = data.get('rows', [])
+      cnt = rows[0]['cnt'] if rows else 0
+      avg_price = rows[0]['avg_price'] if rows else 0
+      ok = cnt >= 20000 and avg_price > 1000000  # 20k+ properties, avg > 10L
+      tests.append(_make_result('Properties Data', t0, ok, f'properties: {cnt:,} with valid price (avg=₹{avg_price/100000:.1f}L)'))
+    except Exception as e:
+      tests.append(_make_result('Properties Data', t0, False, f'Properties check failed: {e}'))
+
+    # Test Locality Service Fast Lookup
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/locality/Koramangala'))
+      ok = data.get('success') and isinstance(data.get('state'), dict)
+      state = data.get('state', {})
+      tests.append(_make_result('Locality Fast Lookup', t0, ok, f'Koramangala: {state.get("growth_phase", "?")} phase', details={
+        'hotspot_score': state.get('hotspot_score'),
+        'poi_count': state.get('poi_count')
+      }))
+    except Exception as e:
+      tests.append(_make_result('Locality Fast Lookup', t0, False, f'Locality lookup failed: {e}'))
+
     t0 = _now_ms()
     if not include_chat:
       tests.append(_make_result('Chat Orchestration', t0, False, 'Skipped (--no-chat flag)', skipped=True))
