@@ -1,8 +1,8 @@
 {
   "name": "valora-ai",
-  "version": "1.0.0",
+  "version": "2025.2.5",
   "type": "module",
-  "description": "Valora AI - Map view with AI chat assistant",
+  "description": "Valora AI - 3D Reasoning AI GIS Platform for Real Estate",
   "scripts": {
     "dev": "concurrently -k -s first -n backend,frontend \"python scripts/start_dev.py\" \"vite\"",
     "dev:frontend": "vite",

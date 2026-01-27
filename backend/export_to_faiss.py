@@ -311,10 +311,28 @@ def export_transport(rag: RAGService, local_store, batch_size: int):
     return total
 
 
-def main():
-    """Main export process."""
+def parse_args():
+    """Parse command line arguments."""
+    import argparse
+    parser = argparse.ArgumentParser(description="Export database to FAISS vectors")
+    parser.add_argument("--full", action="store_true", help="Full rebuild (clear existing)")
+    parser.add_argument("--incremental", action="store_true", default=True, help="Incremental update (default)")
+    return parser.parse_args()
+
+
+def main(incremental: bool = True):
+    """Main export process.
+    
+    Args:
+        incremental: If True, only add new vectors (skip existing IDs).
+                    If False, clear and rebuild from scratch.
+    """
+    import time
+    start_time = time.time()
+    
     print("\n" + "="*70)
-    print("EXPORTING DATABASE TO FAISS (OFFLINE BACKUP)")
+    mode = "INCREMENTAL" if incremental else "FULL REBUILD"
+    print(f"EXPORTING DATABASE TO FAISS ({mode})")
     print("="*70)
     
     if not FAISS_AVAILABLE:
@@ -326,10 +344,13 @@ def main():
     rag = RAGService(data_dir)
     local_store = get_local_store(data_dir)
     
-    # CLEAR EXISTING FAISS INDEXES TO PREVENT DUPLICATES
-    print("\n[INFO] Clearing existing FAISS indexes to prevent duplicates...")
-    local_store.clear_all_namespaces()
-    print("[OK] FAISS store cleared")
+    if not incremental:
+        # CLEAR EXISTING FAISS INDEXES FOR FULL REBUILD
+        print("\n[INFO] Clearing existing FAISS indexes for full rebuild...")
+        local_store.clear_all_namespaces()
+        print("[OK] FAISS store cleared")
+    else:
+        print("\n[INFO] Incremental mode: will skip existing vector IDs")
     
     # Export all namespaces
     namespaces = ["properties", "pois", "places", "transport"]
@@ -362,4 +383,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(incremental=not args.full)

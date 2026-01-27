@@ -74,32 +74,61 @@ class LocalVectorStore:
         print(f"[OK] Created FAISS index for namespace: {namespace}")
         return index
     
+    def has_vector(self, vector_id: str, namespace: str = "default") -> bool:
+        """Check if a vector ID exists in the namespace."""
+        if namespace not in self.id_maps:
+            return False
+        return vector_id in self.id_maps[namespace]
+    
+    def get_existing_ids(self, namespace: str = "default") -> set:
+        """Get all existing vector IDs in a namespace."""
+        if namespace not in self.id_maps:
+            return set()
+        return set(self.id_maps[namespace])
+    
     def add_vectors(
         self,
         vectors: List[Dict[str, Any]],
-        namespace: str = "default"
-    ) -> bool:
+        namespace: str = "default",
+        skip_duplicates: bool = True
+    ) -> int:
         """
         Add vectors to the index.
         
         Args:
             vectors: List of dicts with 'id', 'values', 'metadata'
             namespace: Namespace to add to
+            skip_duplicates: If True, skip vectors with existing IDs
+            
+        Returns:
+            Number of vectors actually added
         """
         if namespace not in self.indexes:
             self.create_index(namespace)
         
         index = self.indexes[namespace]
+        existing_ids = self.get_existing_ids(namespace) if skip_duplicates else set()
         
-        # Extract embeddings and metadata
+        # Extract embeddings and metadata, skipping duplicates
         embeddings = []
         ids = []
         metadata = []
+        skipped = 0
         
         for vec in vectors:
+            vec_id = vec['id']
+            if skip_duplicates and vec_id in existing_ids:
+                skipped += 1
+                continue
             embeddings.append(vec['values'])
-            ids.append(vec['id'])
+            ids.append(vec_id)
             metadata.append(vec.get('metadata', {}))
+        
+        # Return early if nothing to add
+        if not embeddings:
+            if skipped > 0:
+                print(f"[INFO] Skipped {skipped} duplicate vectors (no new vectors to add)")
+            return 0
         
         # Convert to numpy array and normalize for cosine similarity
         embeddings_np = np.array(embeddings).astype('float32')
@@ -112,8 +141,12 @@ class LocalVectorStore:
         self.metadata_stores[namespace].extend(metadata)
         self.id_maps[namespace].extend(ids)
         
-        print(f"[OK] Added {len(vectors)} vectors to namespace: {namespace}")
-        return True
+        added = len(ids)
+        msg = f"[OK] Added {added} vectors to namespace: {namespace}"
+        if skipped > 0:
+            msg += f" (skipped {skipped} duplicates)"
+        print(msg)
+        return added
     
     def search(
         self,

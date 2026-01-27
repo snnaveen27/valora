@@ -1,6 +1,6 @@
 {
   "session_id": "default",
-  "session_start": "2026-01-27T13:15:42.993340",
+  "session_start": "2026-01-27T14:33:26.529314",
   "visits": [
     {
       "lat": 12.95601896,
@@ -261,6 +261,56 @@
       "duration_seconds": 0,
       "actions_taken": [],
       "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97799512,
+      "lng": 77.64172418000001,
+      "name": "Building",
+      "timestamp": "2026-01-27T14:35:36.481163",
+      "intent": "analyze_building",
+      "duration_seconds": 156.686206,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "Indiranagar",
+      "timestamp": "2026-01-27T14:38:13.167369",
+      "intent": "navigate",
+      "duration_seconds": 3.663915,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9782379,
+      "lng": 77.64322254,
+      "name": "Building",
+      "timestamp": "2026-01-27T14:38:16.831284",
+      "intent": "property_search",
+      "duration_seconds": 86.266756,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.75,
+      "name": "whitefield",
+      "timestamp": "2026-01-27T14:39:43.098040",
+      "intent": "property_search",
+      "duration_seconds": 552.883629,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "koramangala",
+      "timestamp": "2026-01-27T14:48:55.981669",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
     }
   ],
   "preferences": {
@@ -268,8 +318,8 @@
       "building at 12.9560, 77.6416",
       "koramangala",
       "hebbal",
-      "indiranagar",
-      "whitefield"
+      "building",
+      "indiranagar"
     ],
     "preferred_property_types": [],
     "budget_range": null,
@@ -278,5 +328,5 @@
     "exploration_style": "balanced"
   },
   "comparisons": [],
-  "last_updated": "2026-01-27T13:16:52.297155"
+  "last_updated": "2026-01-27T14:48:55.984191"
 }

@@ -243,18 +243,18 @@ def load_tileset_index():
     """Load tileset index - prefer database, fallback to files"""
     global tileset_index
     
-    # Try database first (check if buildings have polygon data)
+    # Try database first (check if buildings exist)
     try:
         from database.query_service import get_query_service
         query_service = get_query_service()
         
-        # Check if database has polygon data
+        # Check if database has buildings with coordinates
         test_query = query_service.db.execute(
-            "SELECT COUNT(*) as cnt FROM buildings WHERE polygon_coords IS NOT NULL LIMIT 1"
+            "SELECT COUNT(*) as cnt FROM buildings WHERE latitude IS NOT NULL AND longitude IS NOT NULL LIMIT 1"
         )
-        has_polygons = test_query[0]['cnt'] > 0 if test_query else False
+        has_buildings = test_query[0]['cnt'] > 0 if test_query else False
         
-        if has_polygons:
+        if has_buildings:
             # Load tileset structure from data.zip or generate grid
             tileset_path = Path(__file__).parent.parent / 'src' / 'data' / 'data.zip'
             if tileset_path.exists():
@@ -2103,6 +2103,108 @@ async def train_valuation_model():
         raise HTTPException(status_code=500, detail=f"Training error: {str(e)}")
 
 
+# ============== ADVANCED INSIGHTS ENDPOINTS ==============
+
+try:
+    from advanced_insights import get_insights_service, AdvancedInsightsService
+    INSIGHTS_AVAILABLE = True
+    insights_service = get_insights_service()
+    print("[OK] Advanced Insights Service initialized")
+except Exception as e:
+    INSIGHTS_AVAILABLE = False
+    insights_service = None
+    print(f"[WARNING] Advanced Insights not available: {e}")
+
+
+@app.get("/api/insights/area")
+async def get_area_insights(lat: float, lng: float, locality: str = None, radius_m: float = 1000):
+    """
+    Get comprehensive advanced insights for a location.
+    Combines price trends, market intelligence, infrastructure, terrain, and AI analysis.
+    """
+    if not INSIGHTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Insights service not available")
+    
+    try:
+        insight = insights_service.get_advanced_insights(lat, lng, locality, radius_m)
+        return {"success": True, "data": insights_service.to_dict(insight)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Insights error: {str(e)}")
+
+
+@app.get("/api/insights/price-trend/{property_id}")
+async def get_property_price_trend(property_id: str):
+    """Get price trend analysis for a specific property."""
+    if not INSIGHTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Insights service not available")
+    
+    try:
+        trend = insights_service.get_price_trend(property_id)
+        if not trend:
+            raise HTTPException(status_code=404, detail="Property not found")
+        return {"success": True, "data": insights_service.to_dict(trend)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Price trend error: {str(e)}")
+
+
+@app.get("/api/insights/locality-trend")
+async def get_locality_price_trend(locality: str, days: int = 30):
+    """Get price trends for a locality over time."""
+    if not INSIGHTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Insights service not available")
+    
+    try:
+        trend = insights_service.get_locality_price_trend(locality, days)
+        return {"success": True, "data": trend}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Locality trend error: {str(e)}")
+
+
+@app.get("/api/insights/price-movers")
+async def get_top_price_movers(days: int = 30, limit: int = 20):
+    """Get properties with biggest price changes."""
+    if not INSIGHTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Insights service not available")
+    
+    try:
+        movers = insights_service.get_top_price_movers(days, limit)
+        return {"success": True, "data": movers}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Price movers error: {str(e)}")
+
+
+@app.get("/api/insights/market/{locality}")
+async def get_market_intelligence(locality: str):
+    """Get comprehensive market intelligence for a locality."""
+    if not INSIGHTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Insights service not available")
+    
+    try:
+        market = insights_service.get_market_intelligence(locality)
+        return {"success": True, "data": insights_service.to_dict(market)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Market intelligence error: {str(e)}")
+
+
+@app.get("/api/insights/investment/{property_id}")
+async def get_investment_insight(property_id: str):
+    """Get investment analysis for a specific property."""
+    if not INSIGHTS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Insights service not available")
+    
+    try:
+        insight = insights_service.get_investment_insight(property_id)
+        if not insight:
+            raise HTTPException(status_code=404, detail="Property not found")
+        return {"success": True, "data": insights_service.to_dict(insight)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Investment insight error: {str(e)}")
+
+
 # ============== PHASE 1: RAG ENDPOINTS ==============
 
 @app.get("/api/rag/search")
@@ -3001,6 +3103,143 @@ async def get_scrape_history():
 async def get_scrape_stats():
     """Get statistics about scraped data."""
     return multi_source_scraper.get_data_stats()
+
+
+# ============== DATABASE PANEL ENDPOINTS ==============
+
+@app.get("/api/database/tables")
+async def get_database_tables():
+    """Get list of all tables with row counts."""
+    try:
+        import sqlite3
+        db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        tables = []
+        for row in cursor.fetchall():
+            table_name = row[0]
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cursor.fetchone()[0]
+            tables.append({"name": table_name, "count": count})
+        
+        conn.close()
+        return {"success": True, "tables": tables}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/database/stats")
+async def get_database_stats():
+    """Get database statistics."""
+    try:
+        import sqlite3
+        db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        
+        stats = {}
+        tables = ["properties", "pois", "buildings", "transport_stops", "places", 
+                  "roads", "terrain_grid", "price_history", "real_estate_agents"]
+        
+        for table in tables:
+            try:
+                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                stats[table] = cursor.fetchone()[0]
+            except:
+                pass
+        
+        # Database size
+        import os
+        stats["db_size_mb"] = round(os.path.getsize(str(db_path)) / (1024 * 1024), 1)
+        
+        # Add open_datasets count
+        try:
+            cursor.execute("SELECT COUNT(*) FROM open_datasets")
+            stats["open_datasets"] = cursor.fetchone()[0]
+        except:
+            pass
+        
+        # Calculate total records
+        total_records = sum(v for k, v in stats.items() if isinstance(v, int))
+        
+        conn.close()
+        return {"success": True, "stats": stats, "total_records": total_records}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/database/table/{table_name}")
+async def get_table_data(table_name: str, limit: int = 50, offset: int = 0):
+    """Get data from a specific table."""
+    try:
+        import sqlite3
+        
+        # Whitelist allowed tables for security
+        allowed_tables = ["properties", "pois", "buildings", "transport_stops", "places",
+                         "roads", "terrain_grid", "gov_data", "price_history", 
+                         "real_estate_agents", "ingestion_log", "location_analytics"]
+        
+        if table_name not in allowed_tables:
+            return {"success": False, "error": f"Table '{table_name}' not accessible"}
+        
+        db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get columns
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        # Get data
+        cursor.execute(f"SELECT * FROM {table_name} LIMIT ? OFFSET ?", (limit, offset))
+        rows = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        return {"success": True, "columns": columns, "rows": rows, "table": table_name}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/database/query")
+async def execute_database_query(request: dict):
+    """Execute a read-only SQL query."""
+    try:
+        import sqlite3
+        
+        query = request.get("query", "").strip()
+        limit = min(request.get("limit", 100), 1000)  # Max 1000 rows
+        
+        # Security: Only allow SELECT queries
+        if not query.upper().startswith("SELECT"):
+            return {"success": False, "error": "Only SELECT queries are allowed"}
+        
+        # Block dangerous keywords
+        dangerous = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE", ";--"]
+        query_upper = query.upper()
+        for kw in dangerous:
+            if kw in query_upper:
+                return {"success": False, "error": f"Query contains forbidden keyword: {kw}"}
+        
+        db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Add LIMIT if not present
+        if "LIMIT" not in query_upper:
+            query = f"{query} LIMIT {limit}"
+        
+        cursor.execute(query)
+        rows = [dict(row) for row in cursor.fetchall()]
+        columns = [desc[0] for desc in cursor.description] if cursor.description else []
+        
+        conn.close()
+        return {"success": True, "columns": columns, "rows": rows, "results": rows, "row_count": len(rows)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @app.post("/api/scrape/config/save")
 async def save_scraper_config(config: dict):

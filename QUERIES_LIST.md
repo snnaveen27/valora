@@ -283,7 +283,271 @@ What if land prices double in Yelahanka?
 
 ---
 
-## 🏗️ Building Analysis Queries
+## � 3D Spatial Reasoning Queries
+
+### Sky View & Openness Analysis
+```
+What is the sky view factor at Koramangala?
+How open is the view from a 10th floor apartment in Indiranagar?
+Analyze vertical openness at 12.9716, 77.5946
+Which directions have clear views from this building?
+```
+
+**Expected:**
+- Facts include `sky_view_factor` (0-1 range)
+- Facts include `open_view_directions` (list of directions like N, NE, E, etc.)
+- Chat describes view quality and openness
+
+### Optimal Floor Recommendation
+```
+What's the best floor to buy in Whitefield for good views?
+Recommend optimal floor for a building at this location
+Which floor has the best sky view factor here?
+Find the ideal floor level for maximum sunlight
+```
+
+**Expected:**
+- Facts include `optimal_floor` with recommended floor number
+- Chat explains reasoning (taller neighbors, shadow analysis)
+- Why? tab shows floor optimization factors
+
+### Shadow Analysis
+```
+How much shadow does this building get in the morning?
+Shadow impact analysis for 10 AM at Koramangala
+Will this apartment get good sunlight?
+Analyze shadow patterns at this location
+```
+
+**Expected:**
+- Facts include `shadow_analysis` with hour-based shadow data
+- Chat describes shadow impact and sunlight availability
+- Map may show shadow visualization if supported
+
+### Skyline Character
+```
+What's the skyline character of Whitefield?
+Describe the urban density around this location
+Is this area high-rise or low-rise dominated?
+Analyze building heights in 200m radius
+```
+
+**Expected:**
+- Facts include `skyline_character` (e.g., "high-rise", "mixed", "low-rise")
+- Facts include `spatial_3d_analysis` with building counts above/below
+- Chat provides urban density context
+
+### 3D Building Context
+```
+How many taller buildings are near this location?
+What's the average building height around Indiranagar?
+Analyze vertical urban context at this point
+Show me the 3D density score for this area
+```
+
+**Expected:**
+- Facts include `spatial_3d_analysis` with `buildings_above`, `buildings_below`, `avg_height`, `max_height`, `density_score`
+- Chat summarizes the 3D urban environment
+
+---
+
+## 🏙️ Digital Twin Queries
+
+### Digital Twin Initialization
+```
+Initialize digital twin for Koramangala
+Create a city simulation model for Whitefield
+Start digital twin at 12.9716, 77.5946
+Load digital twin state for this area
+```
+
+**Expected:**
+- Digital twin state returned in response
+- State includes location, timestamp, metrics
+- Chat confirms initialization
+
+### Digital Twin State Queries
+```
+What's the current digital twin state?
+Show me the city model metrics
+Get digital twin population and building count
+What does the simulation model say about this area?
+```
+
+**Expected:**
+- Response includes `digital_twin_state` with metrics
+- Metrics include: building_count, population_estimate, avg_property_price, infrastructure_score
+- Chat summarizes current state
+
+### Digital Twin Updates
+```
+Update digital twin with new metro station at Sarjapur
+Add a school to the digital twin simulation
+Modify the city model to include new infrastructure
+Simulate adding 500 residential units to this area
+```
+
+**Expected:**
+- Digital twin state updates with changes
+- Response shows before/after comparison
+- Chat explains impact of changes
+
+### Digital Twin History
+```
+Show digital twin change history
+What changes have been simulated?
+List all modifications to the city model
+Get simulation history for this session
+```
+
+**Expected:**
+- Returns list of state changes with timestamps
+- Each entry shows what was modified
+- Chat summarizes simulation history
+
+---
+
+## 💰 Dynamic Valuation Queries
+
+### Property Value Estimation
+```
+Estimate value of a 2BHK 1200 sqft in Koramangala
+What's the price for 3BHK 1800 sqft in Whitefield?
+Valuation for 1500 sqft apartment in Indiranagar
+How much is a 4BHK villa worth in HSR Layout?
+```
+
+**Expected:**
+- Facts include `estimated_value` with price
+- Response includes confidence range (±15-30%)
+- Chat explains valuation factors
+- Why? tab shows price drivers
+
+### Comparative Valuation
+```
+Compare property values: Koramangala vs Indiranagar for 2BHK
+Which area offers better value for 80 lakhs budget?
+Price difference between Whitefield and Electronic City
+Value comparison for same property type across areas
+```
+
+**Expected:**
+- Side-by-side valuation comparison
+- Price per sqft comparison
+- Chat explains value drivers for each area
+
+### Valuation Factors
+```
+What factors affect property prices in Koramangala?
+Why is Indiranagar more expensive than Marathahalli?
+Explain the valuation model for this property
+What's driving prices up in Whitefield?
+```
+
+**Expected:**
+- Facts include valuation breakdown
+- Response lists key factors: location, connectivity, amenities, demand
+- Why? tab shows feature importance bars
+
+### Market-Adjusted Valuation
+```
+Fair market value for 2BHK in current market conditions
+Is 1.5 crore overpriced for this property?
+What's a reasonable offer for this listing?
+Market-adjusted price estimate for 1000 sqft in Sarjapur
+```
+
+**Expected:**
+- Valuation considers current market trends
+- Response includes `price_trend_pct` context
+- Chat provides negotiation guidance
+
+### Rental Yield Estimation
+```
+What rental yield can I expect in Koramangala?
+Estimate monthly rent for 2BHK in Whitefield
+ROI analysis for investment property in HSR
+Rental income potential for this property
+```
+
+**Expected:**
+- Estimated rental value
+- Yield percentage calculation
+- Comparison with area averages
+
+---
+
+## 🔮 Advanced Simulation Queries
+
+### Infrastructure Impact Simulation
+```
+Simulate metro station impact on Sarjapur Road property prices
+What if Peripheral Ring Road opens near Whitefield?
+Impact of new flyover on Electronic City connectivity
+Simulate highway expansion effect on Hebbal
+```
+
+**Expected:**
+- Causal analysis with impact percentages
+- Response includes `simulation` data
+- Map shows storytelling animation
+- Chat explains cause-effect chain
+
+### Zoning & Policy Simulation
+```
+What if FAR increases in Koramangala?
+Simulate commercial zoning change in Indiranagar
+Impact of height restriction removal in CBD
+What if parking requirements change for new buildings?
+```
+
+**Expected:**
+- Policy impact analysis
+- Price and density projections
+- Chat explains regulatory implications
+
+### Development Scenario Simulation
+```
+Simulate new IT park development in Devanahalli
+What if 1000 new apartments are built in Sarjapur?
+Impact of new shopping mall on local property values
+Simulate mixed-use development near metro station
+```
+
+**Expected:**
+- Development impact on prices, traffic, amenities
+- Population and infrastructure strain analysis
+- Chat provides development feasibility insights
+
+### Multi-Factor Simulation
+```
+Simulate metro + IT park + residential development in Whitefield
+What if both water supply and roads improve in Sarjapur?
+Combined impact of school + hospital + park on property values
+Simulate complete infrastructure upgrade for this area
+```
+
+**Expected:**
+- Combined effect analysis
+- Synergy or conflict identification
+- Comprehensive impact summary
+
+### Time-Based Projection
+```
+Project property values in 5 years for Koramangala
+What will prices be after metro completion in 2027?
+Long-term appreciation forecast for Whitefield
+3-year investment outlook for HSR Layout
+```
+
+**Expected:**
+- Time-series projection
+- Confidence intervals
+- Key assumptions stated
+
+---
+
+## �🏗️ Building Analysis Queries
 
 ### Click-Based Analysis
 1. Click on any building on the map
@@ -311,6 +575,33 @@ Estimate the property value for a 2BHK here
 **Expected:**
 - No crash if building context is missing; asks user to click/select a building
 - When a building is selected, answers reference that building’s location
+
+### 3D Building Intelligence
+```
+Analyze 3D context of this building
+What's the view quality from this building?
+How does this building compare to neighbors?
+Vertical analysis of selected building
+```
+
+**Expected:**
+- Facts include `building_3d_analysis` with neighbor counts
+- Facts include `view_quality`, `shadow_impact`
+- Chat describes 3D building context
+- Why? tab shows building analysis factors
+
+### Building Investment Analysis
+```
+Is this building a good investment?
+Analyze investment potential of selected building
+What's the appreciation outlook for this property?
+ROI analysis for this building
+```
+
+**Expected:**
+- Combined valuation + 3D + market analysis
+- Investment score or recommendation
+- Risk factors identified
 
 ---
 
@@ -611,15 +902,134 @@ After running queries, verify:
 
 ---
 
-## 📊 Performance Benchmarks
+## � RAG & Semantic Search Queries
+
+### Semantic Property Search
+```
+Find properties similar to luxury apartments
+Search for family-friendly homes with gardens
+Properties matching "modern amenities near tech park"
+Semantic search: quiet neighborhood with good schools
+```
+
+**Expected:**
+- RAG-enhanced search results
+- Relevance scores for matches
+- Chat explains matching criteria
+
+### Context-Aware Queries
+```
+What properties match my previous search criteria?
+Find more like the last property I viewed
+Similar areas to Koramangala for investment
+Recommendations based on my preferences
+```
+
+**Expected:**
+- Uses session context and history
+- Personalized recommendations
+- Chat references previous interactions
+
+---
+
+## 🧪 3D Facts Validation Tests
+
+### Verify 3D Spatial Facts
+```
+Analyze Koramangala with full 3D context
+Get complete spatial analysis for Whitefield
+Full 3D reasoning for this location
+```
+
+**Expected Facts Fields:**
+- `sky_view_factor`: float 0-1
+- `open_view_directions`: list of cardinal directions
+- `skyline_character`: string ("high-rise", "mixed", "low-rise")
+- `optimal_floor`: integer
+- `shadow_analysis`: dict with hour-based data
+- `view_quality`: string rating
+- `spatial_3d_analysis`: dict with density metrics
+
+### Verify Digital Twin Facts
+```
+Initialize and query digital twin state
+Get simulation model metrics
+```
+
+**Expected Facts Fields:**
+- `digital_twin_state`: dict with city metrics
+- `building_count`, `population_estimate`, `avg_property_price`
+
+### Verify Valuation Facts
+```
+Estimate property value with full breakdown
+Complete valuation analysis for 2BHK
+```
+
+**Expected Facts Fields:**
+- `estimated_value`: float
+- `price_per_sqft`: float
+- `confidence`: float 0-1
+- `price_range`: tuple (low, high)
+
+---
+
+## �📊 Performance Benchmarks
 
 | Query Type | Expected Response Time |
 |------------|------------------------|
 | Navigation | < 2 seconds |
 | Property Search | < 3 seconds |
 | Area Analysis | < 5 seconds |
+| 3D Spatial Analysis | < 4 seconds |
 | Simulation | < 8 seconds |
+| Digital Twin Init | < 3 seconds |
+| Valuation | < 4 seconds |
 | Comparison | < 6 seconds |
+| RAG Search | < 3 seconds |
+
+---
+
+## 🎯 Extended Benchmark Suite
+
+### Core Functionality Tests
+| Test | Query | Expected Intent | Validate Facts |
+|------|-------|-----------------|----------------|
+| Nav-1 | Go to Indiranagar | navigate | lat, lng |
+| Nav-2 | Fly to 12.9716, 77.5946 | navigate | lat, lng |
+| Prop-1 | Find 2BHK in Whitefield | property_search | nearby_properties |
+| Prop-2 | Properties under 80 lakhs near metro | property_search | nearby_properties |
+| Area-1 | Analyze Koramangala | analyze_area | poi_count, walkability_score |
+| Area-2 | Tell me about HSR Layout | analyze_area | accessibility_score |
+
+### 3D Reasoning Tests
+| Test | Query | Expected Facts |
+|------|-------|----------------|
+| 3D-1 | Sky view analysis at Indiranagar | sky_view_factor |
+| 3D-2 | Optimal floor recommendation | optimal_floor |
+| 3D-3 | Shadow analysis for morning | shadow_analysis |
+| 3D-4 | Skyline character of Whitefield | skyline_character |
+
+### Simulation Tests
+| Test | Query | Expected Response |
+|------|-------|-------------------|
+| Sim-1 | Metro impact on Sarjapur | simulation data, causal_analysis |
+| Sim-2 | What if IT park in Devanahalli | impact percentages |
+| Sim-3 | Zoning change simulation | policy impact |
+
+### Valuation Tests
+| Test | Query | Expected Facts |
+|------|-------|----------------|
+| Val-1 | Estimate 2BHK 1200 sqft Koramangala | estimated_value |
+| Val-2 | Price comparison Whitefield vs EC | price_per_sqft |
+| Val-3 | Rental yield analysis | rental estimates |
+
+### Digital Twin Tests
+| Test | Query | Expected Response |
+|------|-------|-------------------|
+| DT-1 | Initialize digital twin | digital_twin_state |
+| DT-2 | Get twin state | metrics dict |
+| DT-3 | Update with metro | state changes |
 
 ---
 

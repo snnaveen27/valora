@@ -26,13 +26,26 @@ We address the key pain points in Indian real estate – from lack of transparen
 
 | Asset | Count | Status |
 |-------|-------|--------|
-| Property Listings | 42,202 | ✅ Live |
-| 3D Building Models | 1,372,740 | ✅ Live |
-| Points of Interest | 29,240 | ✅ Categorized |
-| Transport Stops | 5,384 | ✅ Typed (Metro/Bus) |
-| Terrain Grid Cells | 9,090 | ✅ Flood Risk |
-| Vector Embeddings | 77,907 | ✅ Searchable |
-| Named Places | 1,081 | ✅ Indexed |
+| Property Listings | 42,452 | ✅ Live |
+| 3D Building Models | 686,370 | ✅ Live |
+| Points of Interest | 26,961 | ✅ Categorized |
+| **Open Datasets** | **453,144** | ✅ **NEW** |
+| Roads Network | 334,784 | ✅ Complete |
+| Transport Stops | 4,253 | ✅ Metro/Bus |
+| AQI Records | 1,550 | ✅ 2017-2025 |
+| Watersheds | 607 | ✅ Environmental |
+| Real Estate Agents | 51 | ✅ With Contacts |
+| Vector Embeddings | 77,907+ | ✅ Searchable |
+
+### Data Sources (516+ Datasets)
+
+| Source | Datasets | Data Types |
+|--------|----------|------------|
+| **OpenCity.in** | 516 | Ward maps, cadastral, census, infrastructure |
+| **Google Maps** | POIs | Schools, hospitals, restaurants with ratings |
+| **Apify Scrapers** | Properties | MagicBricks, 99acres, Housing, NoBroker |
+| **Government** | GIS | BDA Master Plan, BBMP Wards, BWSSB |
+| **OpenStreetMap** | Base | Roads, buildings, POIs |
 
 ### AI Capabilities Implemented
 

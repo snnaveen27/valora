@@ -25,6 +25,8 @@ class BenchmarkCase:
   expected_intents: Tuple[str, ...]
   require_message: bool = True
   require_facts: bool = False
+  require_3d_facts: bool = False
+  require_valuation: bool = False
 
 
 def _now_ms() -> int:
@@ -189,6 +191,177 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
     except Exception as e:
       tests.append(_make_result('Compare Properties', t0, False, f'POST /api/compare/properties failed: {e}'))
 
+    # Test Valuation Estimate API
+    t0 = _now_ms()
+    try:
+      payload = {"lat": 12.9352, "lng": 77.6245, "bedrooms": 2, "covered_area": 1200, "property_type": "residential"}
+      data = _ok_json(client.post('/api/valuation/estimate', json=payload))
+      ok = data.get('success') == True or isinstance(data.get('estimated_price'), (int, float))
+      tests.append(_make_result('Valuation Estimate', t0, ok, 'POST /api/valuation/estimate'))
+    except Exception as e:
+      tests.append(_make_result('Valuation Estimate', t0, False, f'POST /api/valuation/estimate failed: {e}'))
+
+    # Test Valuation Market Stats API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/valuation/market-stats', params={'lat': 12.9352, 'lng': 77.6245, 'radius': 2}))
+      ok = data.get('success') == True or isinstance(data.get('stats'), dict)
+      tests.append(_make_result('Valuation Market Stats', t0, ok, 'GET /api/valuation/market-stats'))
+    except Exception as e:
+      tests.append(_make_result('Valuation Market Stats', t0, False, f'GET /api/valuation/market-stats failed: {e}'))
+
+    # Test Simulate API
+    t0 = _now_ms()
+    try:
+      payload = {"scenario_type": "metro_station", "description": "New metro station at Sarjapur", "lat": 12.9081, "lng": 77.6476, "parameters": {}}
+      data = _ok_json(client.post('/api/simulate', json=payload))
+      ok = data.get('success') == True or isinstance(data.get('impact'), dict)
+      tests.append(_make_result('Simulate Scenario', t0, ok, 'POST /api/simulate'))
+    except Exception as e:
+      tests.append(_make_result('Simulate Scenario', t0, False, f'POST /api/simulate failed: {e}'))
+
+    # Test Simulate Storyboard API
+    t0 = _now_ms()
+    try:
+      payload = {"scenario_type": "metro_station", "description": "New metro station at Sarjapur Road", "lat": 12.9081, "lng": 77.6476}
+      data = _ok_json(client.post('/api/simulate/storyboard', json=payload))
+      ok = data.get('success') == True or isinstance(data.get('storyboard'), dict)
+      tests.append(_make_result('Simulate Storyboard', t0, ok, 'POST /api/simulate/storyboard'))
+    except Exception as e:
+      tests.append(_make_result('Simulate Storyboard', t0, False, f'POST /api/simulate/storyboard failed: {e}'))
+
+    # Test Digital Twin Init API
+    t0 = _now_ms()
+    try:
+      payload = {"lat": 12.9352, "lng": 77.6245, "radius_m": 1000}
+      data = _ok_json(client.post('/api/digital-twin/init', json=payload))
+      ok = data.get('success') == True or isinstance(data.get('state'), dict)
+      tests.append(_make_result('Digital Twin Init', t0, ok, 'POST /api/digital-twin/init'))
+    except Exception as e:
+      tests.append(_make_result('Digital Twin Init', t0, False, f'POST /api/digital-twin/init failed: {e}'))
+
+    # Test Digital Twin State API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/digital-twin/state'))
+      ok = data.get('success') == True or isinstance(data.get('state'), dict) or data.get('state') is None
+      tests.append(_make_result('Digital Twin State', t0, ok, 'GET /api/digital-twin/state'))
+    except Exception as e:
+      tests.append(_make_result('Digital Twin State', t0, False, f'GET /api/digital-twin/state failed: {e}'))
+
+    # Test Building Analyze API
+    t0 = _now_ms()
+    try:
+      payload = {"lat": 12.9352, "lng": 77.6245, "building_id": "test_building"}
+      data = _ok_json(client.post('/api/building/analyze', json=payload))
+      ok = data.get('success') == True or isinstance(data.get('analysis'), dict) or 'error' not in str(data).lower()
+      tests.append(_make_result('Building Analyze', t0, ok, 'POST /api/building/analyze'))
+    except Exception as e:
+      tests.append(_make_result('Building Analyze', t0, False, f'POST /api/building/analyze failed: {e}'))
+
+    # Test RAG Search API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/rag/search', params={'q': 'properties near metro', 'top_k': 5}))
+      ok = data.get('success') == True or isinstance(data.get('results'), list)
+      tests.append(_make_result('RAG Search', t0, ok, 'GET /api/rag/search'))
+    except Exception as e:
+      # RAG may not be available - mark as skipped not failed
+      tests.append(_make_result('RAG Search', t0, False, f'GET /api/rag/search: {e}', skipped=True))
+
+    # Test RAG Context API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/rag/context', params={'q': 'investment in Koramangala', 'lat': 12.9352, 'lng': 77.6245}))
+      ok = data.get('success') == True or isinstance(data.get('context'), str)
+      tests.append(_make_result('RAG Context', t0, ok, 'GET /api/rag/context'))
+    except Exception as e:
+      tests.append(_make_result('RAG Context', t0, False, f'GET /api/rag/context: {e}', skipped=True))
+
+    # Test Advanced Insights - Area Insights API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/insights/area', params={'lat': 12.9716, 'lng': 77.5946, 'locality': 'Indiranagar'}))
+      ok = data.get('success') == True and isinstance(data.get('data'), dict)
+      tests.append(_make_result('Area Insights', t0, ok, 'GET /api/insights/area'))
+    except Exception as e:
+      tests.append(_make_result('Area Insights', t0, False, f'GET /api/insights/area failed: {e}'))
+
+    # Test Advanced Insights - Market Intelligence API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/insights/market/Koramangala'))
+      ok = data.get('success') == True and isinstance(data.get('data'), dict)
+      tests.append(_make_result('Market Intelligence', t0, ok, 'GET /api/insights/market/{locality}'))
+    except Exception as e:
+      tests.append(_make_result('Market Intelligence', t0, False, f'GET /api/insights/market failed: {e}'))
+
+    # Test Advanced Insights - Price Movers API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/insights/price-movers', params={'days': 30, 'limit': 10}))
+      ok = data.get('success') == True and isinstance(data.get('data'), list)
+      tests.append(_make_result('Price Movers', t0, ok, 'GET /api/insights/price-movers'))
+    except Exception as e:
+      tests.append(_make_result('Price Movers', t0, False, f'GET /api/insights/price-movers failed: {e}'))
+
+    # Test Database Panel - Tables List API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/database/tables'))
+      ok = data.get('success') == True and isinstance(data.get('tables'), list) and len(data.get('tables', [])) > 5
+      tests.append(_make_result('Database Tables', t0, ok, 'GET /api/database/tables'))
+    except Exception as e:
+      tests.append(_make_result('Database Tables', t0, False, f'GET /api/database/tables failed: {e}'))
+
+    # Test Database Panel - Stats API
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/database/stats'))
+      ok = data.get('success') == True and data.get('total_records', 0) > 100000
+      tests.append(_make_result('Database Stats', t0, ok, 'GET /api/database/stats'))
+    except Exception as e:
+      tests.append(_make_result('Database Stats', t0, False, f'GET /api/database/stats failed: {e}'))
+
+    # Test Database Panel - Query API (Real Estate Agents)
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.post('/api/database/query', json={'query': 'SELECT COUNT(*) as cnt FROM real_estate_agents'}))
+      ok = data.get('success') == True and len(data.get('results', [])) > 0
+      tests.append(_make_result('Database Query', t0, ok, 'POST /api/database/query'))
+    except Exception as e:
+      tests.append(_make_result('Database Query', t0, False, f'POST /api/database/query failed: {e}'))
+
+    # Test City Support - Cities Table (v2.5)
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.post('/api/database/query', json={'query': 'SELECT city_id, name FROM cities'}))
+      ok = data.get('success') == True and len(data.get('results', [])) > 0
+      tests.append(_make_result('City Support', t0, ok, 'GET cities table (v2.5)'))
+    except Exception as e:
+      tests.append(_make_result('City Support', t0, False, f'City support check failed: {e}'))
+
+    # Test System Metadata - Version Check (v2.5)
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.post('/api/database/query', json={'query': "SELECT value FROM system_metadata WHERE key='version'"}))
+      ok = data.get('success') == True and len(data.get('results', [])) > 0
+      version = data.get('results', [{}])[0].get('value', '')
+      tests.append(_make_result('Version Check', t0, ok, f'System version: {version}'))
+    except Exception as e:
+      tests.append(_make_result('Version Check', t0, False, f'Version check failed: {e}'))
+
+    # Test Data Integrity - Record Counts
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/database/stats'))
+      stats = data.get('stats', {})
+      total = data.get('total_records', 0)
+      ok = total > 1000000  # Should have 1M+ records
+      tests.append(_make_result('Data Integrity', t0, ok, f'Total records: {total:,}'))
+    except Exception as e:
+      tests.append(_make_result('Data Integrity', t0, False, f'Data integrity check failed: {e}'))
+
     t0 = _now_ms()
     if not include_chat:
       tests.append(_make_result('Chat Orchestration', t0, False, 'Skipped (include_chat=false) - NOT PRODUCTION READY', skipped=True))
@@ -220,18 +393,48 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
   }
 
 
-def run_benchmark(base_url: str, timeout_s: float = 180.0) -> Dict[str, Any]:
+# Extended benchmark cases for comprehensive testing
+EXTENDED_CASES: List[BenchmarkCase] = [
+  # Additional Navigation
+  BenchmarkCase('Nav Coords', 'Fly to 12.9716, 77.5946', ('navigate',), require_facts=True),
+  BenchmarkCase('Nav Landmark', 'Go to Cubbon Park', ('navigate',), require_facts=True),
+  # Additional Property Search
+  BenchmarkCase('Prop Filtered', 'Properties under 80 lakhs near metro in HSR', ('property_search',), require_facts=True),
+  BenchmarkCase('Prop Amenity', 'Homes near good schools in Jayanagar', ('property_search',)),
+  # Additional Area Analysis
+  BenchmarkCase('Area POI', 'What are the top amenities around Indiranagar?', ('analyze_area', 'general')),
+  BenchmarkCase('Area Risk', 'Is Silk Board area flood-prone?', ('terrain', 'analyze_area', 'general')),
+  # Additional 3D
+  BenchmarkCase('3D Floor', 'What floor is best for views in Whitefield?', ('analyze_area', 'property_search', 'general'), require_3d_facts=True),
+  BenchmarkCase('3D Shadow', 'Shadow analysis at Koramangala in the morning', ('analyze_area', 'general')),
+  # Additional Simulation
+  BenchmarkCase('Sim Infra', 'Impact of new IT park in Devanahalli', ('simulate',), require_message=False),
+  BenchmarkCase('Sim Zoning', 'What if FAR increases in Koramangala?', ('simulate',), require_message=False),
+  # Additional Valuation
+  BenchmarkCase('Val Compare', 'Price difference between Whitefield and Electronic City', ('valuation', 'comparison', 'general')),
+  # Building
+  BenchmarkCase('Building', 'Analyze this building for investment', ('analyze_building', 'general')),
+]
+
+
+def run_benchmark(base_url: str, timeout_s: float = 180.0, extended: bool = False) -> Dict[str, Any]:
   start_all = _now_ms()
   tests: List[Dict[str, Any]] = []
 
   cases: List[BenchmarkCase] = [
     BenchmarkCase('Navigation', 'Go to Indiranagar', ('navigate',), require_facts=True),
     BenchmarkCase('Property Search', 'Find 2BHK in Whitefield', ('property_search',), require_facts=True),
-    BenchmarkCase('Area Analysis', 'Analyze Koramangala', ('analyze_area', 'general')),
+    BenchmarkCase('Area Analysis', 'Analyze Koramangala', ('analyze_area', 'general'), require_3d_facts=True),
     BenchmarkCase('Simulation', 'What if a metro opens near Sarjapur?', ('simulate',), require_message=False),
     BenchmarkCase('Terrain', 'Is Bellandur flood-prone?', ('terrain', 'analyze_area', 'general')),
     BenchmarkCase('Comparison', 'Compare Whitefield vs Electronic City', ('comparison', 'general')),
+    BenchmarkCase('3D Spatial', 'What is the sky view factor at Whitefield?', ('analyze_area', 'general', 'valuation'), require_3d_facts=True),
+    BenchmarkCase('Valuation', 'Estimate value of 2BHK 1200 sqft in Koramangala', ('valuation', 'property_search', 'general'), require_valuation=True),
   ]
+
+  # Add extended cases if requested
+  if extended:
+    cases.extend(EXTENDED_CASES)
 
   with httpx.Client(base_url=base_url, timeout=timeout_s) as client:
     # Preflight: if backend is not reachable, fail fast with a clear error.
@@ -271,19 +474,42 @@ def run_benchmark(base_url: str, timeout_s: float = 180.0) -> Dict[str, Any]:
         if c.require_facts:
           ok_facts = isinstance(facts, dict) and bool(facts.get('lat')) and bool(facts.get('lng'))
 
-        ok = bool(data.get('success')) and ok_intent and ok_message and ok_facts
+        # Validate 3D facts if required
+        ok_3d = True
+        if c.require_3d_facts and isinstance(facts, dict):
+          has_sky_view = facts.get('sky_view_factor') is not None
+          has_skyline = facts.get('skyline_character') is not None
+          has_view_quality = facts.get('view_quality') is not None
+          ok_3d = has_sky_view or has_skyline or has_view_quality
+
+        # Validate valuation if required
+        ok_val = True
+        if c.require_valuation and isinstance(facts, dict):
+          # Check for estimated_value in facts or avg_price_per_sqft
+          ok_val = facts.get('avg_price_per_sqft') is not None
+
+        ok = bool(data.get('success')) and ok_intent and ok_message and ok_facts and ok_3d and ok_val
+
+        # Build details with 3D facts info
+        details = {
+          'intent': intent,
+          'expected_intents': list(c.expected_intents),
+          'message_len': len(message),
+          'message_preview': message_preview,
+        }
+        if c.require_3d_facts and isinstance(facts, dict):
+          details['sky_view_factor'] = facts.get('sky_view_factor')
+          details['skyline_character'] = facts.get('skyline_character')
+          details['optimal_floor'] = facts.get('optimal_floor')
+        if c.require_valuation and isinstance(facts, dict):
+          details['avg_price_per_sqft'] = facts.get('avg_price_per_sqft')
 
         tests.append(_make_result(
           f"{c.category}",
           t0,
           ok,
           f"/api/chat: {c.query} (intent={intent})",
-          details={
-            'intent': intent,
-            'expected_intents': list(c.expected_intents),
-            'message_len': len(message),
-            'message_preview': message_preview,
-          },
+          details=details,
         ))
       except Exception as e:
         tests.append(_make_result(
@@ -312,12 +538,13 @@ def main() -> int:
   parser.add_argument('--base-url', default='http://localhost:8000')
   parser.add_argument('--include-chat', action='store_true', default=False)
   parser.add_argument('--benchmark', action='store_true', default=False)
+  parser.add_argument('--extended', action='store_true', default=False, help='Run extended benchmark suite')
   parser.add_argument('--timeout', type=float, default=180.0)
   parser.add_argument('--json', action='store_true', default=False)
   args = parser.parse_args()
 
   if args.benchmark:
-    report = run_benchmark(args.base_url, timeout_s=args.timeout)
+    report = run_benchmark(args.base_url, timeout_s=args.timeout, extended=args.extended)
     if args.json:
       print(json.dumps(report, indent=2))
     else:

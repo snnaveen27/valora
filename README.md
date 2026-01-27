@@ -1,10 +1,12 @@
 # Valora AI - 3D Reasoning AI GIS Platform
 
-**City Intelligence Platform for Bangalore Real Estate**
+**City Intelligence Platform for Real Estate | Version 2025.2.5**
 
+[![Version](https://img.shields.io/badge/Version-2025.2.5-blue)]()
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-green)]()
 [![AI](https://img.shields.io/badge/AI-Advanced%20Reasoning-blue)]()
 [![3D](https://img.shields.io/badge/3D-CesiumJS-orange)]()
+[![Data](https://img.shields.io/badge/Records-1.6M+-purple)]()
 
 ---
 
@@ -13,8 +15,26 @@
 Valora AI is an advanced 3D GIS platform that combines:
 - **3D Visualization**: CesiumJS-powered 3D city model with 686,370 buildings
 - **AI Reasoning**: Multi-step chain-of-thought reasoning engine
-- **Spatial Intelligence**: RAG-powered semantic search across 77,907 vectors
-- **Real Estate Analytics**: 42,202 property listings with market analysis
+- **Spatial Intelligence**: RAG-powered semantic search across 77,907+ vectors
+- **Real Estate Analytics**: 42,452 property listings with market analysis
+- **Comprehensive Data**: 1.6M+ total records across all tables
+- **City Expandable**: Multi-city architecture ready (city_id support)
+- **Offline-First**: Works without internet connection
+
+### Data Summary (v2.5)
+
+| Category | Records | Details |
+|----------|---------|---------|
+| Buildings | 686,370 | 3D models with height data |
+| Open Datasets | 455,066 | OpenCity.in Bengaluru data |
+| Roads | 334,784 | Complete road network |
+| Properties | 42,452 | Active listings |
+| POIs | 26,961 | Schools, hospitals, amenities |
+| Gov Data | 12,767 | Education, legislative |
+| Transport | 5,384 | Metro, bus stops |
+| AQI Data | 1,550 | Air quality 2017-2025 |
+| Places | 1,077 | Named localities |
+| **Total** | **1,595,382** | All indexed records |
 
 ---
 
@@ -407,7 +427,18 @@ CREATE INDEX idx_buildings_polygon ON buildings(polygon_coords) WHERE polygon_co
 ---
 
 ### POIs Table (Points of Interest)
-**Records**: 29,240 | **Purpose**: Amenities, landmarks, businesses
+**Records**: 26,961+ | **Purpose**: Amenities, landmarks, businesses
+
+| Category | Count | Source |
+|----------|-------|--------|
+| Schools | 2,007 | OpenCity + Google Maps |
+| Hospitals | 150 | OpenCity + Google Maps |
+| Restaurants | 288 | Google Maps |
+| Banks/ATMs | 102 | Google Maps |
+| Public Toilets | 479 | OpenCity |
+| Indira Canteens | 177 | OpenCity |
+| Parks, Gyms, etc | 500+ | Google Maps |
+| Other | 23,000+ | OSM |
 
 ```sql
 CREATE TABLE pois (
@@ -730,16 +761,73 @@ curl "http://localhost:8000/api/agent/capabilities"
 
 ## 🔄 Data Management
 
-### Incremental Pinecone Updates
+### Data Sources & Scripts
+
+| Source | Script | Data Type |
+|--------|--------|-----------|
+| **OpenCity.in** | `scripts/smart_opencity_downloader.py` | 516 Bengaluru datasets |
+| **Google Maps** | `scripts/google_maps_scraper.py` | POIs with reviews |
+| **Apify** | `scripts/scrape_all_bangalore_data.py` | Comprehensive POIs |
+| **Real Estate Agents** | `scripts/scrape_agents_reviews.py` | 51 agents with contacts |
+| **AQI Data** | `scripts/ingest_extra_data.py` | Air quality 2017-2025 |
+| **GIS Layers** | `scripts/download_priority_gis.py` | Ward, cadastral, land use |
+
+### Data Ingestion Commands
+
 ```bash
-# Only index new/updated records
-python backend/incremental_indexer.py
+# Download all OpenCity datasets (516 datasets with anti-ban)
+python scripts/smart_opencity_downloader.py
+
+# Download priority GIS layers (ward boundaries, cadastral, etc.)
+python scripts/download_priority_gis.py
+
+# Ingest extra data (AQI, watersheds, crime)
+python scripts/ingest_extra_data.py
+
+# Ingest OpenCity data into database
+python scripts/ingest_opencity_data.py
+
+# Organize and enhance data
+python scripts/organize_and_enhance_data.py
+
+# Scrape POIs with Google Maps
+python scripts/scrape_all_bangalore_data.py
+
+# Scrape real estate agents
+python scripts/scrape_agents_reviews.py
 ```
 
-### Full Reindex
+### Vector Index Updates
+
 ```bash
-# Complete reindex from database
+# Update FAISS indexes
+python backend/export_to_faiss.py
+
+# Update Pinecone
+python scripts/update_pinecone.py
+
+# Incremental Pinecone update
+python backend/incremental_indexer.py
+
+# Full reindex
 python backend/database/index_to_pinecone.py
+```
+
+### Database Panel
+
+Access database via API for viewing and querying:
+
+```bash
+# List all tables
+curl http://localhost:8000/api/database/tables
+
+# Get table data
+curl http://localhost:8000/api/database/table/pois?limit=100
+
+# Execute SQL query (SELECT only)
+curl -X POST http://localhost:8000/api/database/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT * FROM real_estate_agents WHERE rating >= 4.5"}'
 ```
 
 ---

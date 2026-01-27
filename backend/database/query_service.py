@@ -197,11 +197,13 @@ class DatabaseQueryService:
         return results
     
     def get_all_pois(self, limit: Optional[int] = None) -> List[Dict]:
-        """Get all POIs."""
-        query = "SELECT * FROM pois ORDER BY poi_id"
+        """Get all POIs with lat/lng aliases for spatial service compatibility."""
+        query = """SELECT poi_id, name, category, subcategory, 
+                   latitude as lat, longitude as lng, source_data
+                   FROM pois ORDER BY poi_id"""
         if limit:
             query += f" LIMIT {limit}"
-        return self.db.execute(query)
+        return self.db.execute(query) or []
     
     # =========================================================================
     # PLACES
@@ -237,11 +239,13 @@ class DatabaseQueryService:
         return self.db.execute(query, tuple(params)) or []
     
     def get_all_places(self, limit: Optional[int] = None) -> List[Dict]:
-        """Get all places."""
-        query = "SELECT * FROM places ORDER BY place_id"
+        """Get all places with lat/lng aliases for spatial service compatibility."""
+        query = """SELECT place_id, name, place_type as type,
+                   center_latitude as lat, center_longitude as lng
+                   FROM places ORDER BY place_id"""
         if limit:
             query += f" LIMIT {limit}"
-        return self.db.execute(query)
+        return self.db.execute(query) or []
     
     # =========================================================================
     # TRANSPORT
@@ -290,11 +294,13 @@ class DatabaseQueryService:
         return results
     
     def get_all_transport(self, limit: Optional[int] = None) -> List[Dict]:
-        """Get all transport stops."""
-        query = "SELECT * FROM transport_stops ORDER BY stop_id"
+        """Get all transport stops with lat/lng aliases for spatial service compatibility."""
+        query = """SELECT stop_id, name, transport_type as type,
+                   latitude as lat, longitude as lng, line_name
+                   FROM transport_stops ORDER BY stop_id"""
         if limit:
             query += f" LIMIT {limit}"
-        return self.db.execute(query)
+        return self.db.execute(query) or []
     
     def get_metro_stations(self) -> List[Dict]:
         """Get metro stations specifically."""
