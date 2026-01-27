@@ -1573,12 +1573,12 @@ async def chat_with_ai(request: ChatRequest):
             
             # Build task list for complex queries
             tasks = []
-            if intent in [Intent.PROPERTY_SEARCH, Intent.COMPARE, Intent.SIMULATE]:
+            if intent in [Intent.PROPERTY_SEARCH, Intent.COMPARISON, Intent.SIMULATE]:
                 tasks.append({"step": "Understand user query", "status": "completed"})
                 tasks.append({"step": "Gather spatial and market data", "status": "completed"})
                 if intent == Intent.PROPERTY_SEARCH:
                     tasks.append({"step": f"Search properties in {facts.location_name or 'area'}", "status": "completed"})
-                elif intent == Intent.COMPARE:
+                elif intent == Intent.COMPARISON:
                     tasks.append({"step": "Compare localities", "status": "completed"})
                 elif intent == Intent.SIMULATE:
                     tasks.append({"step": "Run simulation", "status": "completed"})
