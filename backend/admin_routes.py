@@ -71,6 +71,11 @@ class LLMConfigRequest(BaseModel):
     local_model: Optional[str] = "llama3.2"
 
 
+class SanityCheckRequest(BaseModel):
+    base_url: Optional[str] = "http://localhost:8000"
+    include_chat: Optional[bool] = False
+
+
 @router.get("/status")
 async def get_system_status() -> Dict[str, Any]:
     """Get comprehensive system status."""
@@ -428,6 +433,136 @@ async def run_system_tests() -> Dict[str, Any]:
         "passed": passed,
         "failed": failed,
         "duration": int((time.time() - start_time) * 1000)
+    }
+
+
+@router.post("/sanity-check")
+async def run_realtime_sanity_check(request: SanityCheckRequest) -> Dict[str, Any]:
+    tests = []
+    start_time = time.time()
+
+    base_url = (request.base_url or "http://localhost:8000").rstrip("/")
+
+    async def _run(name: str, fn):
+        t0 = time.time()
+        try:
+            passed, description, details = await fn()
+            tests.append({
+                "name": name,
+                "description": description,
+                "passed": bool(passed),
+                "duration": int((time.time() - t0) * 1000),
+                "details": details,
+                "skipped": False,
+            })
+        except Exception as e:
+            tests.append({
+                "name": name,
+                "description": f"{name} failed: {e}",
+                "passed": False,
+                "duration": int((time.time() - t0) * 1000),
+                "details": None,
+                "skipped": False,
+            })
+
+    async def _skip(name: str, description: str):
+        tests.append({
+            "name": name,
+            "description": description,
+            "passed": True,
+            "duration": 0,
+            "details": None,
+            "skipped": True,
+        })
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        async def health():
+            r = await client.get(f"{base_url}/health")
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict) and bool(data)
+            return ok, "GET /health", {"status": data.get("status"), "nominatim": data.get("nominatim")}
+
+        async def admin_status():
+            r = await client.get(f"{base_url}/api/admin/status")
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict) and isinstance(data.get("backend"), dict) and isinstance(data.get("database"), dict)
+            return ok, "GET /api/admin/status", {"backend": data.get("backend"), "database": data.get("database")}
+
+        async def tileset():
+            r = await client.get(f"{base_url}/api/tileset")
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict)
+            return ok, "GET /api/tileset", {"keys": list(data.keys())[:10]}
+
+        async def tiles_viewport():
+            params = {"min_lng": 77.55, "min_lat": 12.90, "max_lng": 77.70, "max_lat": 13.05}
+            r = await client.get(f"{base_url}/api/tiles/viewport", params=params)
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict) and isinstance(data.get("tiles"), list)
+            return ok, "GET /api/tiles/viewport", {"total": data.get("total"), "tiles": len(data.get("tiles") or [])}
+
+        async def viewport_analyze():
+            r = await client.get(f"{base_url}/api/viewport/analyze", params={"lat": 12.9716, "lng": 77.5946})
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict) and isinstance(data.get("spatial"), dict)
+            return ok, "GET /api/viewport/analyze", {"area_name": data.get("area_name")}
+
+        async def location_analyze():
+            r = await client.post(f"{base_url}/api/location/analyze", json={"lat": 12.9716, "lng": 77.5946})
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict) and (data.get("success") is True or "market" in data or "spatial" in data)
+            return ok, "POST /api/location/analyze", {"keys": list(data.keys())[:10]}
+
+        async def city_intel():
+            r = await client.get(f"{base_url}/api/city-intelligence/locality/Indiranagar")
+            r.raise_for_status()
+            data = r.json()
+            ok = isinstance(data, dict) and isinstance(data.get("profile"), dict)
+            return ok, "GET /api/city-intelligence/locality/Indiranagar", {"has_profile": bool(data.get("profile"))}
+
+        async def chat():
+            payload = {"message": "Analyze Koramangala for investment and explain why.", "session_id": "admin_sanity"}
+            r = await client.post(f"{base_url}/api/chat", json=payload)
+            r.raise_for_status()
+            data = r.json()
+            ok = bool(data.get("success")) and isinstance(data.get("message"), str)
+            return ok, "POST /api/chat", {
+                "intent": data.get("intent"),
+                "has_facts": isinstance(data.get("facts"), dict),
+                "has_storyboard": bool(data.get("storyboard")),
+            }
+
+        await _run("Backend Health", health)
+        await _run("Admin Status", admin_status)
+        await _run("Tileset Index", tileset)
+        await _run("Tiles Viewport", tiles_viewport)
+        await _run("Viewport Analyze", viewport_analyze)
+        await _run("Location Analyze", location_analyze)
+        await _run("City Intelligence", city_intel)
+
+        if request.include_chat:
+            await _run("Chat Orchestration", chat)
+        else:
+            await _skip("Chat Orchestration", "Skipped (include_chat=false)")
+
+    passed = sum(1 for t in tests if t.get("passed") and not t.get("skipped"))
+    failed = sum(1 for t in tests if (not t.get("passed")) and not t.get("skipped"))
+    skipped = sum(1 for t in tests if t.get("skipped"))
+
+    return {
+        "base_url": base_url,
+        "tests": tests,
+        "total": len(tests),
+        "passed": passed,
+        "failed": failed,
+        "skipped": skipped,
+        "duration_ms": int((time.time() - start_time) * 1000),
     }
 
 

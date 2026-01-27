@@ -226,9 +226,41 @@ windsurf-project/
 │       └── valora.db          # SQLite database
 │
 ├── scripts/
-│   └── sanity_check.py        # System verification
+│   ├── sanity_check.py        # Real-time E2E sanity checks (API smoke)
+│   └── verify_system.py       # Offline/local DB verification
 │
 └── .env                       # Environment variables
+```
+
+---
+
+## ✅ QA: Real-time Sanity Checks
+
+Valora includes two complementary validation layers:
+
+### 1) Admin Panel Tests
+
+- **System Tests**: internal module checks (`/api/admin/run-tests`)
+- **Real-time Sanity Check**: calls live endpoints (`/api/admin/sanity-check`)
+
+### 2) CLI Sanity Check Script
+
+Run a real-time smoke test against a running backend:
+
+```bash
+python scripts/sanity_check.py --base-url http://localhost:8000
+```
+
+Include chat orchestration validation:
+
+```bash
+python scripts/sanity_check.py --base-url http://localhost:8000 --include-chat
+```
+
+Print JSON output:
+
+```bash
+python scripts/sanity_check.py --base-url http://localhost:8000 --json
 ```
 
 ---

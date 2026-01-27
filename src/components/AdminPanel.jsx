@@ -14,6 +14,9 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [vectorBackend, setVectorBackend] = useState('pinecone') // pinecone or faiss
   const [testResults, setTestResults] = useState(null)
   const [runningTest, setRunningTest] = useState(false)
+  const [sanityResults, setSanityResults] = useState(null)
+  const [runningSanity, setRunningSanity] = useState(false)
+  const [sanityIncludeChat, setSanityIncludeChat] = useState(false)
   const [processingStatus, setProcessingStatus] = useState(null)
   const [llmConfig, setLlmConfig] = useState({
     provider: 'openrouter', // 'openrouter' or 'local'
@@ -90,6 +93,29 @@ export default function AdminPanel({ isOpen, onClose }) {
       setTestResults({ error: 'Failed to run tests' })
     }
     setRunningTest(false)
+  }
+
+  const runSanityCheck = async () => {
+    setRunningSanity(true)
+    setSanityResults(null)
+    try {
+      const resp = await fetch(`${API_URL}/api/admin/sanity-check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base_url: API_URL, include_chat: sanityIncludeChat })
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        setSanityResults(data)
+      } else {
+        const err = await resp.json().catch(() => null)
+        setSanityResults({ error: err?.detail || 'Failed to run sanity check' })
+      }
+    } catch (err) {
+      console.error('Failed to run sanity check:', err)
+      setSanityResults({ error: 'Failed to run sanity check' })
+    }
+    setRunningSanity(false)
   }
 
   const fetchProcessingStatus = async () => {
@@ -551,6 +577,96 @@ export default function AdminPanel({ isOpen, onClose }) {
                 <div className="text-center py-12 text-slate-400">
                   <TestTube className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>Click "Run All Tests" to check system health</p>
+                </div>
+              )}
+
+              <div className="border-t border-slate-700 pt-4"></div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-white font-semibold">Real-time Sanity Check</h3>
+                  <p className="text-slate-400 text-xs mt-1">Calls live endpoints to validate end-to-end behavior</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-xs text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={sanityIncludeChat}
+                      onChange={(e) => setSanityIncludeChat(e.target.checked)}
+                      className="rounded border-slate-600 bg-slate-800"
+                    />
+                    Include /api/chat
+                  </label>
+                  <button
+                    onClick={runSanityCheck}
+                    disabled={runningSanity}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition disabled:opacity-50"
+                  >
+                    {runningSanity ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Running...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4" />
+                        Run Sanity
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {sanityResults?.error ? (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400">
+                  {sanityResults.error}
+                </div>
+              ) : sanityResults ? (
+                <div className="space-y-3">
+                  {sanityResults.tests?.map((test, i) => (
+                    <div key={i} className="bg-slate-700/50 rounded-lg p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {test.skipped ? (
+                          <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                        ) : test.passed ? (
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-400" />
+                        )}
+                        <div>
+                          <p className="text-white text-sm font-medium">{test.name}</p>
+                          <p className="text-slate-400 text-xs">{test.description}</p>
+                        </div>
+                      </div>
+                      <span className={`text-xs ${test.skipped ? 'text-yellow-400' : test.passed ? 'text-green-400' : 'text-red-400'}`}>
+                        {test.duration_ms ?? test.duration}ms
+                      </span>
+                    </div>
+                  ))}
+
+                  <div className="bg-slate-700/30 rounded-lg p-4 mt-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-300">Total Checks</span>
+                      <span className="text-white font-medium">{sanityResults.total}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm mt-2">
+                      <span className="text-slate-300">Passed</span>
+                      <span className="text-green-400 font-medium">{sanityResults.passed}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm mt-2">
+                      <span className="text-slate-300">Failed</span>
+                      <span className="text-red-400 font-medium">{sanityResults.failed}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm mt-2">
+                      <span className="text-slate-300">Skipped</span>
+                      <span className="text-yellow-400 font-medium">{sanityResults.skipped}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-10 text-slate-400">
+                  <Activity className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p>Run sanity check to validate live APIs</p>
                 </div>
               )}
             </div>

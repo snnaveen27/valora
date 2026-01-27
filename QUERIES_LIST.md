@@ -33,6 +33,7 @@ Where is Jayanagar?
 ### Landmark Navigation
 ```
 Show me Bangalore Palace
+
 Go to Cubbon Park
 Navigate to Vidhana Soudha
 Where is Lalbagh Garden?
