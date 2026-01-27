@@ -1481,14 +1481,8 @@ async def chat_with_ai(request: ChatRequest):
                     }
                 )
             else:
-                # Local LLM (offline) - use single active model based on type
-                active_model_type = current_llm_config.get('active_model_type', 'fast')
-                if active_model_type == 'reasoning':
-                    model_name = current_llm_config.get('local_model_reasoning', 'deepseek-r1:8b')
-                elif active_model_type == 'fast':
-                    model_name = current_llm_config.get('local_model_fast', 'llama3.2')
-                else:
-                    model_name = current_llm_config.get('local_model', 'llama3.2')
+                # Local LLM (offline) - use single model
+                model_name = current_llm_config.get('local_model', 'llama3.2')
                 
                 response = await client.post(
                     current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions'),

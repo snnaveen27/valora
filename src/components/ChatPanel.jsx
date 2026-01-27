@@ -891,58 +891,20 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
 
       {/* Input */}
       <div className="p-3 border-t border-slate-700">
-        {/* Model Selector - 3 Model Types */}
+        {/* Model Selector - Single Model */}
         <div className="relative mb-2">
           <div className="flex items-center gap-2">
-            {/* Model Type Quick Selector */}
-            <div className="flex bg-slate-700/50 rounded-lg p-0.5">
-              <button
-                onClick={() => saveLlmConfig({ ...llmConfig, active_model_type: 'primary' })}
-                className={`px-2 py-1 text-[10px] rounded transition-all ${
-                  llmConfig.active_model_type === 'primary'
-                    ? 'bg-purple-500 text-white'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Primary: qwen3-vl:8b - Best quality"
-              >
-                🎯 Quality
-              </button>
-              <button
-                onClick={() => saveLlmConfig({ ...llmConfig, active_model_type: 'fast' })}
-                className={`px-2 py-1 text-[10px] rounded transition-all ${
-                  llmConfig.active_model_type === 'fast'
-                    ? 'bg-green-500 text-white'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Fast: llama3.2 - Quick responses"
-              >
-                ⚡ Fast
-              </button>
-              <button
-                onClick={() => saveLlmConfig({ ...llmConfig, active_model_type: 'reasoning' })}
-                className={`px-2 py-1 text-[10px] rounded transition-all ${
-                  llmConfig.active_model_type === 'reasoning'
-                    ? 'bg-blue-500 text-white'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="Reasoning: deepseek-r1:8b - Complex analysis"
-              >
-                🧠 Deep
-              </button>
-            </div>
-            
             {/* Active Model Display */}
             <button
               onClick={() => setShowModelSelector(!showModelSelector)}
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-300 transition-colors px-2 py-1 rounded hover:bg-slate-700/50"
             >
+              <Settings className="w-3 h-3" />
               <span className="text-[10px]">
                 {llmConfig.provider === 'local' ? (
-                  llmConfig.active_model_type === 'reasoning' ? llmConfig.local_model_reasoning :
-                  llmConfig.active_model_type === 'fast' ? llmConfig.local_model_fast :
-                  llmConfig.local_model
+                  llmConfig.local_model || 'llama3.2'
                 ) : (
-                  llmConfig.openrouter_model.split('/').pop().split(':')[0]
+                  llmConfig.openrouter_model?.split('/').pop().split(':')[0] || 'llama-3.3-70b'
                 )}
               </span>
               <ChevronDown className={`w-3 h-3 transition-transform ${showModelSelector ? 'rotate-180' : ''}`} />
@@ -978,73 +940,25 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
               </div>
               
               {llmConfig.provider === 'local' && (
-                <div className="space-y-2">
-                  <div className="text-[10px] text-slate-500 mb-1">Configure models for each mode:</div>
-                  
-                  {/* Primary Model */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-purple-400 text-[10px] w-16">🎯 Quality</span>
-                    <select
-                      value={llmConfig.local_model}
-                      onChange={(e) => saveLlmConfig({ ...llmConfig, local_model: e.target.value })}
-                      className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white"
-                    >
-                      {availableModels.local.length > 0 ? (
-                        availableModels.local.map(m => (
-                          <option key={m.id} value={m.id}>{m.id}</option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="qwen3-vl:8b">qwen3-vl:8b</option>
-                          <option value="qwen3-vl:4b">qwen3-vl:4b</option>
-                          <option value="llama3.2">llama3.2</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-                  
-                  {/* Fast Model */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-400 text-[10px] w-16">⚡ Fast</span>
-                    <select
-                      value={llmConfig.local_model_fast}
-                      onChange={(e) => saveLlmConfig({ ...llmConfig, local_model_fast: e.target.value })}
-                      className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white"
-                    >
-                      {availableModels.local.length > 0 ? (
-                        availableModels.local.map(m => (
-                          <option key={m.id} value={m.id}>{m.id}</option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="llama3.2">llama3.2</option>
-                          <option value="qwen3-vl:4b">qwen3-vl:4b</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-                  
-                  {/* Reasoning Model */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-blue-400 text-[10px] w-16">🧠 Deep</span>
-                    <select
-                      value={llmConfig.local_model_reasoning}
-                      onChange={(e) => saveLlmConfig({ ...llmConfig, local_model_reasoning: e.target.value })}
-                      className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white"
-                    >
-                      {availableModels.local.length > 0 ? (
-                        availableModels.local.map(m => (
-                          <option key={m.id} value={m.id}>{m.id}</option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="deepseek-r1:8b">deepseek-r1:8b</option>
-                          <option value="qwen3-vl:8b">qwen3-vl:8b</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-                  
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Local Model</label>
+                  <select
+                    value={llmConfig.local_model}
+                    onChange={(e) => saveLlmConfig({ ...llmConfig, local_model: e.target.value })}
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white"
+                  >
+                    {availableModels.local.length > 0 ? (
+                      availableModels.local.map(m => (
+                        <option key={m.id} value={m.id}>{m.id}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="llama3.2">llama3.2</option>
+                        <option value="qwen3-vl:4b">qwen3-vl:4b</option>
+                        <option value="deepseek-r1:8b">deepseek-r1:8b</option>
+                      </>
+                    )}
+                  </select>
                   <p className="text-[10px] text-slate-500 mt-2">
                     {availableModels.local.length > 0 ? '✓ Ollama connected' : 'Run: ollama serve'}
                   </p>
