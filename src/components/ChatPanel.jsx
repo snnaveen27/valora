@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, MapPin, Navigation, Settings, Cloud, HardDrive, ChevronDown, ChevronRight, Brain, Loader2 } from 'lucide-react'
+import { Send, Bot, User, MapPin, Navigation, Settings, Cloud, HardDrive, ChevronDown, ChevronRight, Brain, Loader2, Sparkles, Search, Building2, TrendingUp, Compass, Zap, MessageCircle, Target, BarChart3 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -161,155 +161,98 @@ function detectNavigationIntent(message) {
   return { isNavigation: false, placeName: null }
 }
 
-// DeepSeek Chain-of-Thought Display Component
-function ChainOfThoughtPanel({ thought, isLoading }) {
-  const [expanded, setExpanded] = useState(true)
+// Intent Configuration with icons and colors
+const INTENT_CONFIG = {
+  greeting: { icon: MessageCircle, label: 'Chat', color: 'emerald', bg: 'from-emerald-500/20 to-emerald-600/10' },
+  help: { icon: Sparkles, label: 'Help', color: 'blue', bg: 'from-blue-500/20 to-blue-600/10' },
+  thanks: { icon: MessageCircle, label: 'Chat', color: 'emerald', bg: 'from-emerald-500/20 to-emerald-600/10' },
+  farewell: { icon: MessageCircle, label: 'Chat', color: 'emerald', bg: 'from-emerald-500/20 to-emerald-600/10' },
+  smalltalk: { icon: MessageCircle, label: 'Chat', color: 'emerald', bg: 'from-emerald-500/20 to-emerald-600/10' },
+  navigate: { icon: Compass, label: 'Exploring', color: 'cyan', bg: 'from-cyan-500/20 to-cyan-600/10' },
+  property_search: { icon: Search, label: 'Finding Properties', color: 'blue', bg: 'from-blue-500/20 to-blue-600/10' },
+  analyze_area: { icon: Target, label: 'Analyzing', color: 'purple', bg: 'from-purple-500/20 to-purple-600/10' },
+  analyze_building: { icon: Building2, label: 'Building Analysis', color: 'indigo', bg: 'from-indigo-500/20 to-indigo-600/10' },
+  investment: { icon: TrendingUp, label: 'Investment Analysis', color: 'green', bg: 'from-green-500/20 to-green-600/10' },
+  recommendation: { icon: Sparkles, label: 'Recommending', color: 'amber', bg: 'from-amber-500/20 to-amber-600/10' },
+  market_trend: { icon: BarChart3, label: 'Market Analysis', color: 'rose', bg: 'from-rose-500/20 to-rose-600/10' },
+  valuation: { icon: TrendingUp, label: 'Valuation', color: 'green', bg: 'from-green-500/20 to-green-600/10' },
+  comparison: { icon: BarChart3, label: 'Comparing', color: 'orange', bg: 'from-orange-500/20 to-orange-600/10' },
+  simulate: { icon: Zap, label: 'Simulating', color: 'yellow', bg: 'from-yellow-500/20 to-yellow-600/10' },
+  terrain: { icon: Compass, label: 'Terrain Analysis', color: 'teal', bg: 'from-teal-500/20 to-teal-600/10' },
+  general: { icon: Brain, label: 'Thinking', color: 'slate', bg: 'from-slate-500/20 to-slate-600/10' },
+}
+
+// Modern Intent Bubble Component
+function IntentBubble({ intent, isLoading }) {
+  const config = INTENT_CONFIG[intent] || INTENT_CONFIG.general
+  const Icon = config.icon
+  
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r ${config.bg} border border-${config.color}-500/30`}>
+      {isLoading ? (
+        <Loader2 className={`w-3 h-3 text-${config.color}-400 animate-spin`} />
+      ) : (
+        <Icon className={`w-3 h-3 text-${config.color}-400`} />
+      )}
+      <span className={`text-${config.color}-300`}>{config.label}</span>
+    </div>
+  )
+}
+
+// DeepSeek Thinking Display - Clean inference-style UI
+function ThinkingDisplay({ thought, isLoading }) {
+  const [expanded, setExpanded] = useState(false)
   
   if (!thought && !isLoading) return null
   
   return (
-    <div className="mb-3 rounded-lg overflow-hidden border border-violet-500/30 bg-gradient-to-br from-violet-950/40 to-slate-900/60">
+    <div className="mb-3">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-violet-500/10 transition-colors"
+        className="flex items-center gap-2 text-xs text-violet-400 hover:text-violet-300 transition-colors"
       >
-        <div className="flex items-center gap-2 flex-1">
-          <div className="relative">
-            <Brain className={`w-4 h-4 ${isLoading ? 'text-violet-400 animate-pulse' : 'text-violet-500'}`} />
-            {isLoading && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-violet-400 rounded-full animate-ping" />}
-          </div>
-          <span className="text-violet-300 font-medium text-xs uppercase tracking-wide">DeepSeek Reasoning</span>
+        <div className="relative">
+          <Brain className={`w-3.5 h-3.5 ${isLoading ? 'animate-pulse' : ''}`} />
+          {isLoading && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-violet-400 rounded-full animate-ping" />}
         </div>
-        {expanded ? <ChevronDown className="w-3.5 h-3.5 text-violet-400" /> : <ChevronRight className="w-3.5 h-3.5 text-violet-400" />}
+        <span className="font-medium">{isLoading ? 'Reasoning...' : 'View reasoning'}</span>
+        {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
       </button>
       
-      {expanded && (
-        <div className="px-3 pb-3">
-          {isLoading ? (
-            <div className="flex items-center gap-2 text-violet-300/70 text-xs py-2">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span className="animate-pulse">AI is reasoning through your query...</span>
-            </div>
-          ) : (
-            <div className="text-xs text-violet-200/80 leading-relaxed whitespace-pre-wrap font-mono bg-slate-900/50 rounded p-2 max-h-32 overflow-y-auto border border-violet-500/20">
-              {thought}
-            </div>
-          )}
+      {expanded && thought && (
+        <div className="mt-2 p-3 bg-gradient-to-br from-violet-950/40 to-slate-900/60 rounded-lg border border-violet-500/20">
+          <div className="text-xs text-violet-200/80 leading-relaxed whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">
+            {thought}
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-// Professional Real-Time Task Execution Panel
-function ThinkingTasksPanel({ tasks, isLoading = false, intent, chainOfThought }) {
-  const [expanded, setExpanded] = useState(true)
-  
-  if (!tasks || tasks.length === 0) return null
-  
-  const completedCount = tasks.filter(t => t.status === 'completed').length
-  const inProgressTask = tasks.find(t => t.status === 'in_progress')
-  const progress = Math.round((completedCount / tasks.length) * 100)
-  
-  // Intent labels for professional display
-  const intentLabels = {
-    'navigate': { label: 'Navigation', color: 'emerald' },
-    'property_search': { label: 'Property Search', color: 'blue' },
-    'analyze_area': { label: 'Area Analysis', color: 'purple' },
-    'simulate': { label: 'Simulation', color: 'amber' },
-    'comparison': { label: 'Comparison', color: 'cyan' },
-    'analyze_building': { label: 'Building Analysis', color: 'indigo' },
-    'valuation': { label: 'Valuation', color: 'green' },
-    'terrain': { label: 'Terrain Analysis', color: 'orange' },
-    'general': { label: 'General Query', color: 'slate' }
-  }
-  
-  const intentInfo = intentLabels[intent] || intentLabels.general
-  
+// Typing Indicator - Human-like dots
+function TypingIndicator() {
   return (
-    <div className="mb-3 rounded-lg overflow-hidden border border-slate-700/60 bg-slate-900/80 shadow-xl">
-      {/* Compact Professional Header */}
-      <div 
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-slate-800/50 transition-colors border-b border-slate-700/40"
-      >
-        <div className="flex items-center gap-2">
-          {/* Status indicator */}
-          <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-blue-400 animate-pulse' : progress === 100 ? 'bg-green-400' : 'bg-amber-400'}`} />
-          
-          {/* Title */}
-          <span className="text-slate-200 font-medium text-xs">
-            {isLoading ? 'Processing' : progress === 100 ? 'Complete' : 'Working'}
-          </span>
-          
-          {/* Intent badge */}
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide bg-${intentInfo.color}-500/20 text-${intentInfo.color}-300 border border-${intentInfo.color}-500/30`}>
-            {intentInfo.label}
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {/* Progress text */}
-          <span className="text-slate-500 text-[10px] font-mono">{completedCount}/{tasks.length}</span>
-          
-          {/* Progress ring */}
-          <div className="relative w-5 h-5">
-            <svg className="w-5 h-5 -rotate-90" viewBox="0 0 20 20">
-              <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-700" />
-              <circle 
-                cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" 
-                strokeDasharray={`${progress * 0.502} 50.2`}
-                className={`${progress === 100 ? 'text-green-400' : 'text-blue-400'} transition-all duration-500`}
-              />
-            </svg>
-            {isLoading && <Loader2 className="absolute inset-0 w-5 h-5 text-blue-400 animate-spin opacity-50" />}
-          </div>
-          
-          {expanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-500" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-500" />}
-        </div>
-      </div>
-      
-      {/* Task list */}
-      {expanded && (
-        <div className="divide-y divide-slate-800/50">
-          {tasks.map((task, idx) => {
-            const isActive = task.status === 'in_progress'
-            const isComplete = task.status === 'completed'
-            
-            return (
-              <div 
-                key={task.id || idx}
-                className={`flex items-center gap-2 px-3 py-1.5 text-xs transition-all ${
-                  isActive ? 'bg-blue-500/10' : ''
-                }`}
-              >
-                {/* Step indicator */}
-                <div className="w-4 flex-shrink-0">
-                  {isComplete ? (
-                    <span className="text-green-400 text-[10px]">✓</span>
-                  ) : isActive ? (
-                    <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />
-                  ) : (
-                    <span className="text-slate-600 text-[10px]">{String(idx + 1).padStart(2, '0')}</span>
-                  )}
-                </div>
-                
-                {/* Task text */}
-                <span className={`flex-1 truncate ${
-                  isComplete ? 'text-slate-500' :
-                  isActive ? 'text-blue-300' : 
-                  'text-slate-600'
-                }`}>
-                  {task.step || task.content}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
+    <div className="flex items-center gap-1 py-1">
+      <span className="w-2 h-2 bg-blue-400/60 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }} />
+      <span className="w-2 h-2 bg-blue-400/60 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }} />
+      <span className="w-2 h-2 bg-blue-400/60 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }} />
     </div>
   )
 }
+
+// Simplified Status Display (no task list)
+function StatusDisplay({ intent, isLoading }) {
+  if (!isLoading && !intent) return null
+  
+  return (
+    <div className="mb-2">
+      <IntentBubble intent={intent} isLoading={isLoading} />
+    </div>
+  )
+}
+
+// REMOVED: ThinkingTasksPanel - replaced with cleaner StatusDisplay
 
 // Collapsible Thinking/Reasoning Panel Component
 function ThinkingPanel({ trace, intent, factsSummary }) {
@@ -443,39 +386,19 @@ function ThinkingPanel({ trace, intent, factsSummary }) {
 
 export default function ChatPanel({ agentData, setAgentData, fontSize = 100 }) {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: `# 🏙️ Welcome to Valora AI
+    { role: 'assistant', content: `Hey there! 👋 I'm **Valora**, your AI assistant for Bangalore real estate.
 
-Your intelligent city assistant for **Bangalore real estate & urban intelligence**.
+I can help you with:
 
----
+🏠 **Finding properties** — "3BHK in Whitefield under 1.5Cr"
+📍 **Exploring areas** — "Tell me about Koramangala"
+💰 **Investment advice** — "Is Hebbal a good investment?"
+📊 **Market trends** — "Price trends in HSR Layout"
+🔮 **What-if scenarios** — "What if metro comes to Sarjapur?"
 
-## 🎯 What I Can Do
+Just ask naturally — I understand casual conversation too!
 
-### 🗺️ Navigation & Exploration
-- **"Go to Koramangala"** — Fly to any neighborhood
-- **"Show me Hebbal Lake"** — Navigate to landmarks
-- **"Where is Indiranagar Metro?"** — Find transport stops
-
-### 🏢 Property Intelligence
-- **"Find 3BHK apartments in Whitefield under 1.5Cr"**
-- **"Compare properties in HSR Layout vs BTM"**
-- **"What's the price trend in Electronic City?"**
-
-### 📊 Area Analysis
-- **Click any building** on the map for instant analysis
-- **"Analyze this area"** — Get walkability, POIs, transport scores
-- **"What's nearby?"** — Discover amenities around you
-
-### 🔮 Simulations
-- **"What if a metro station opens near Sarjapur?"**
-- **"Simulate infrastructure impact on property values"**
-
----
-
-## 🚀 Quick Start
-Try: **"Show me the best areas for investment"** or click anywhere on the map!
-
-*Powered by local data — works completely offline* ✨` }
+*Try: "Hi" or "What can you do?"*`, isFastResponse: true }
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -718,12 +641,12 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
         }))
       }
       
-      // Store reasoning trace, chain-of-thought, and tasks for UI display
+      // Store reasoning trace, chain-of-thought for UI display
       window.__lastReasoningTrace = data.reasoning_trace || null
       window.__lastIntent = data.intent || null
       window.__lastFactsSummary = data.facts_summary || null
-      window.__lastTasks = data.tasks || null
       window.__lastChainOfThought = data.chain_of_thought || null
+      window.__lastFastResponse = data.fast_response || false  // Conversational responses (no LLM)
       
       // Store locality data for inline card display
       if (data.facts?.locality_archetype) {
@@ -907,63 +830,30 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
       return 'general'
     }
     
-    const loadingTasks = generateSmartLoadingTasks(userMessage)
     const loadingIntent = detectLoadingIntent(userMessage)
     
     const placeholderMessageIndex = messages.length + 1
+    // Clean loading state - just intent bubble, no task list
     setMessages(prev => [...prev, { 
       role: 'assistant', 
       content: '',
-      tasks: loadingTasks,
       intent: loadingIntent,
       isLoading: true
     }])
     
-    // Simulate real-time task progression while waiting
-    let taskProgressIndex = 0
-    const progressInterval = setInterval(() => {
-      if (taskProgressIndex < loadingTasks.length - 1) {
-        setMessages(prev => {
-          const newMessages = [...prev]
-          const msgIndex = newMessages.length - 1
-          if (newMessages[msgIndex]?.isLoading) {
-            const updatedTasks = [...newMessages[msgIndex].tasks]
-            // Complete current task
-            if (updatedTasks[taskProgressIndex]) {
-              updatedTasks[taskProgressIndex] = { ...updatedTasks[taskProgressIndex], status: 'completed' }
-            }
-            // Start next task
-            taskProgressIndex++
-            if (updatedTasks[taskProgressIndex]) {
-              updatedTasks[taskProgressIndex] = { ...updatedTasks[taskProgressIndex], status: 'in_progress' }
-            }
-            newMessages[msgIndex] = { ...newMessages[msgIndex], tasks: updatedTasks }
-          }
-          return newMessages
-        })
-      }
-    }, 600) // Progress every 600ms
-    
     const aiResponse = await callAI(userMessage)
-    clearInterval(progressInterval)
     
-    // Include reasoning trace, chain-of-thought and tasks from the last response
+    // Include reasoning trace, chain-of-thought from the last response
     const reasoningTrace = window.__lastReasoningTrace
     const intent = window.__lastIntent
     const factsSummary = window.__lastFactsSummary
-    const tasks = window.__lastTasks || null
     const chainOfThought = window.__lastChainOfThought || null
-    // Get locality data for inline card display
     const localityData = window.__lastLocalityData || null
+    const isFastResponse = window.__lastFastResponse || false
     
     // Update the placeholder message with actual response
     setMessages(prev => {
       const newMessages = [...prev]
-      // Mark all tasks as completed if using backend tasks, or fallback to loading tasks
-      const finalTasks = tasks && tasks.length > 0 
-        ? tasks.map(t => ({ ...t, status: 'completed' }))
-        : loadingTasks.map(t => ({ ...t, status: 'completed' }))
-      
       newMessages[placeholderMessageIndex] = {
         role: 'assistant', 
         content: aiResponse,
@@ -971,8 +861,8 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
         chainOfThought,
         intent: intent || loadingIntent,
         factsSummary,
-        tasks: finalTasks,
         locality: localityData,
+        isFastResponse,
         isLoading: false
       }
       return newMessages
@@ -1019,53 +909,41 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
                 <Bot className="w-4 h-4 text-blue-400" />
               </div>
             )}
-            <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+            <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
               msg.role === 'user' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-slate-800/70 text-slate-100 border border-slate-700/60'
+                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20' 
+                : 'bg-slate-800/80 text-slate-100 border border-slate-700/50 shadow-lg'
             }`}>
               {msg.role === 'assistant' ? (
-                <>
-                  {/* Real-Time Task Execution Panel */}
-                  {msg.tasks && msg.tasks.length > 0 && (
-                    <ThinkingTasksPanel 
-                      tasks={msg.tasks} 
-                      isLoading={msg.isLoading} 
-                      intent={msg.intent}
-                    />
+                <div className="space-y-2">
+                  {/* Modern Intent Bubble - Shows what AI is doing */}
+                  {msg.intent && !msg.isFastResponse && (
+                    <StatusDisplay intent={msg.intent} isLoading={msg.isLoading} />
                   )}
                   
-                  {/* DeepSeek Chain-of-Thought Display */}
-                  {(msg.chainOfThought || msg.isLoading) && (
-                    <ChainOfThoughtPanel 
-                      thought={msg.chainOfThought}
-                      isLoading={msg.isLoading && !msg.chainOfThought}
-                    />
-                  )}
-                  
-                  {/* Collapsible Reasoning Steps UI */}
-                  {msg.reasoningTrace && msg.reasoningTrace.steps && msg.reasoningTrace.steps.length > 0 && (
-                    <ThinkingPanel 
-                      trace={msg.reasoningTrace} 
-                      intent={msg.intent}
-                      factsSummary={msg.factsSummary}
-                    />
-                  )}
-                  
-                  {/* Loading indicator or content */}
+                  {/* Loading state - Clean typing indicator */}
                   {msg.isLoading ? (
-                    <div className="flex items-center gap-2 text-slate-400 text-xs mt-2">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Processing your request...</span>
+                    <div className="py-2">
+                      <TypingIndicator />
                     </div>
-                  ) : msg.content ? (
-                    <div className="prose prose-invert prose-sm max-w-none prose-headings:mt-2 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-hr:my-3 prose-strong:text-slate-50">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                  ) : null}
-                                  </>
+                  ) : (
+                    <>
+                      {/* Main content */}
+                      {msg.content && (
+                        <div className="prose prose-invert prose-sm max-w-none prose-headings:mt-3 prose-headings:mb-2 prose-headings:font-semibold prose-p:my-2 prose-ul:my-2 prose-li:my-0.5 prose-hr:my-3 prose-strong:text-white prose-a:text-blue-400">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                      
+                      {/* DeepSeek Thinking - Collapsible */}
+                      {msg.chainOfThought && (
+                        <ThinkingDisplay thought={msg.chainOfThought} />
+                      )}
+                    </>
+                  )}
+                </div>
               ) : (
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               )}
@@ -1241,7 +1119,7 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask about locations..."
+            placeholder="Ask me anything about Bangalore real estate..."
             className="flex-1 bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
           />
           <button
