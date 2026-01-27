@@ -364,7 +364,7 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
 
     t0 = _now_ms()
     if not include_chat:
-      tests.append(_make_result('Chat Orchestration', t0, False, 'Skipped (include_chat=false) - NOT PRODUCTION READY', skipped=True))
+      tests.append(_make_result('Chat Orchestration', t0, False, 'Skipped (--no-chat flag)', skipped=True))
     else:
       try:
         payload = {"messages": [{"role": "user", "content": "Analyze Koramangala for investment"}], "session_id": "sanity"}
@@ -536,7 +536,8 @@ def run_benchmark(base_url: str, timeout_s: float = 180.0, extended: bool = Fals
 def main() -> int:
   parser = argparse.ArgumentParser()
   parser.add_argument('--base-url', default='http://localhost:8000')
-  parser.add_argument('--include-chat', action='store_true', default=False)
+  parser.add_argument('--include-chat', action='store_true', default=True, help='Include chat test (default: enabled)')
+  parser.add_argument('--no-chat', action='store_true', default=False, help='Skip chat test for faster runs')
   parser.add_argument('--benchmark', action='store_true', default=False)
   parser.add_argument('--extended', action='store_true', default=False, help='Run extended benchmark suite')
   parser.add_argument('--timeout', type=float, default=180.0)
@@ -551,7 +552,8 @@ def main() -> int:
       _print_benchmark_summary(report)
     return 0 if report.get('failed', 0) == 0 else 1
 
-  report = run_sanity(args.base_url, include_chat=args.include_chat)
+  include_chat = args.include_chat and not args.no_chat
+  report = run_sanity(args.base_url, include_chat=include_chat)
 
   if args.json:
     print(json.dumps(report, indent=2))
