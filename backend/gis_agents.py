@@ -459,9 +459,9 @@ class AgentFacts:
                     parts.append(f"  - Hazard Risk: {rp['hazard']:.0f}/100")
                 if rp.get('infrastructure'):
                     parts.append(f"  - Infrastructure Stress: {rp['infrastructure']:.0f}/100")
-                if rp.get('speculation') and rp['speculation'] > 40:
+                if rp.get('speculation') is not None and rp['speculation'] > 40:
                     parts.append(f"  - Speculation Index: {rp['speculation']:.0f}/100")
-                if rp.get('bubble_probability') and rp['bubble_probability'] > 0.3:
+                if rp.get('bubble_probability') is not None and rp['bubble_probability'] > 0.3:
                     parts.append(f"  - ⚠️ Bubble Probability: {rp['bubble_probability']:.0%}")
             if self.risk_warnings:
                 for warning in self.risk_warnings[:3]:
@@ -708,6 +708,7 @@ class GISAgentOrchestrator:
         query: str,
         context: Dict[str, Any],
         intent: Intent = None,
+        task_planner = None,
     ) -> Tuple[AgentFacts, Intent, List[Dict[str, Any]], Optional[Dict[str, Any]], Optional[Dict]]:
         """
         Gather grounded facts from all relevant agents.
@@ -717,6 +718,16 @@ class GISAgentOrchestrator:
         ui_actions = []
         digital_twin_state = None
         reasoning_trace = None
+        
+        # Task tracking helpers
+        task_idx = 0
+        def next_task(result: str = None):
+            nonlocal task_idx
+            if task_planner and task_idx > 0:
+                task_planner.complete_task(f"task_{task_idx-1}", result)
+            if task_planner and task_idx < len(task_planner.tasks):
+                task_planner.start_task(f"task_{task_idx}")
+            task_idx += 1
         
         # Phase 2.2: Spatial Memory - track exploration
         session_id = context.get('session_id', 'default')
@@ -731,6 +742,9 @@ class GISAgentOrchestrator:
         selected_building = context.get('selectedBuilding')
         selected_location = context.get('selectedLocation')
         selected_place = context.get('selectedPlace')
+        
+        # Start first task: understanding query
+        next_task()
         
         # Detect intent if not provided
         if intent is None:
@@ -807,6 +821,7 @@ class GISAgentOrchestrator:
         
         # Fallback: If navigate or property_search intent, try to geocode location from query
         if intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH] and not lat:
+            next_task(f"Geocoded location")
             place_name = IntentRouter.extract_place_name(query)
             if place_name and self.geocoder:
                 results = self.geocoder.search(place_name, limit=1)
@@ -857,6 +872,7 @@ class GISAgentOrchestrator:
 
         # Gather spatial facts
         if lat and lng and self.spatial_service:
+            next_task(f"Gathered spatial data")
             try:
                 summary = self.spatial_service.get_summary(lat, lng, radius_m=1000)
                 # handle both dict and object types
@@ -904,6 +920,7 @@ class GISAgentOrchestrator:
         
         # Gather terrain facts
         if lat and lng and self.terrain_service and intent in [Intent.TERRAIN, Intent.ANALYZE_AREA, Intent.VALUATION]:
+            next_task(f"Analyzed terrain and flood risk")
             try:
                 terrain = self.terrain_service.get_terrain_analysis(lat, lng)
                 if terrain:
@@ -1042,7 +1059,7 @@ class GISAgentOrchestrator:
                 
                 # Add confidence factors
                 confidence_factors = []
-                if facts.poi_count and facts.poi_count > 10:
+                if facts.poi_count is not None and facts.poi_count > 10:
                     confidence_factors.append("Rich POI data available")
                 if facts.area_landmarks:
                     confidence_factors.append(f"{len(facts.area_landmarks)} landmarks identified")
@@ -1055,6 +1072,7 @@ class GISAgentOrchestrator:
         
         # Gather market facts (deterministic from property data)
         if lat and lng and self.property_service:
+            next_task(f"Retrieved market data and trends")
             try:
                 market = _compute_market_facts(self.property_service, lat, lng, 1500)
                 if market:
@@ -1067,6 +1085,7 @@ class GISAgentOrchestrator:
         
         # Gather property facts for property search
         if lat and lng and self.property_service and intent == Intent.PROPERTY_SEARCH:
+            next_task(f"Searched properties in database")
             try:
                 props = self.property_service.search(lat=lat, lng=lng, radius_m=2000, limit=10)
                 facts.nearby_properties = [
@@ -1150,6 +1169,7 @@ class GISAgentOrchestrator:
         
         # Phase 3: City Intelligence Engine
         if location_name and CITY_INTELLIGENCE_AVAILABLE:
+            next_task(f"Generated locality intelligence profile")
             try:
                 # Get locality personality profile
                 personality_model = get_locality_personality_model()
@@ -1217,6 +1237,7 @@ class GISAgentOrchestrator:
         
         # Simulation facts
         if intent == Intent.SIMULATE and lat and lng:
+            next_task(f"Running simulation engine")
             try:
                 # Basic context for simulation
                 sim_context = {

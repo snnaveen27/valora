@@ -161,53 +161,150 @@ function detectNavigationIntent(message) {
   return { isNavigation: false, placeName: null }
 }
 
-// Task List Component - Windsurf-style task progress display
-function TaskListPanel({ tasks, isExpanded = true }) {
-  const [expanded, setExpanded] = useState(isExpanded)
+// DeepSeek Chain-of-Thought Display Component
+function ChainOfThoughtPanel({ thought, isLoading }) {
+  const [expanded, setExpanded] = useState(true)
+  
+  if (!thought && !isLoading) return null
+  
+  return (
+    <div className="mb-3 rounded-lg overflow-hidden border border-violet-500/30 bg-gradient-to-br from-violet-950/40 to-slate-900/60">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-violet-500/10 transition-colors"
+      >
+        <div className="flex items-center gap-2 flex-1">
+          <div className="relative">
+            <Brain className={`w-4 h-4 ${isLoading ? 'text-violet-400 animate-pulse' : 'text-violet-500'}`} />
+            {isLoading && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-violet-400 rounded-full animate-ping" />}
+          </div>
+          <span className="text-violet-300 font-medium text-xs uppercase tracking-wide">DeepSeek Reasoning</span>
+        </div>
+        {expanded ? <ChevronDown className="w-3.5 h-3.5 text-violet-400" /> : <ChevronRight className="w-3.5 h-3.5 text-violet-400" />}
+      </button>
+      
+      {expanded && (
+        <div className="px-3 pb-3">
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-violet-300/70 text-xs py-2">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              <span className="animate-pulse">AI is reasoning through your query...</span>
+            </div>
+          ) : (
+            <div className="text-xs text-violet-200/80 leading-relaxed whitespace-pre-wrap font-mono bg-slate-900/50 rounded p-2 max-h-32 overflow-y-auto border border-violet-500/20">
+              {thought}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Professional Real-Time Task Execution Panel
+function ThinkingTasksPanel({ tasks, isLoading = false, intent, chainOfThought }) {
+  const [expanded, setExpanded] = useState(true)
   
   if (!tasks || tasks.length === 0) return null
   
   const completedCount = tasks.filter(t => t.status === 'completed').length
   const inProgressTask = tasks.find(t => t.status === 'in_progress')
+  const progress = Math.round((completedCount / tasks.length) * 100)
+  
+  // Intent labels for professional display
+  const intentLabels = {
+    'navigate': { label: 'Navigation', color: 'emerald' },
+    'property_search': { label: 'Property Search', color: 'blue' },
+    'analyze_area': { label: 'Area Analysis', color: 'purple' },
+    'simulate': { label: 'Simulation', color: 'amber' },
+    'comparison': { label: 'Comparison', color: 'cyan' },
+    'analyze_building': { label: 'Building Analysis', color: 'indigo' },
+    'valuation': { label: 'Valuation', color: 'green' },
+    'terrain': { label: 'Terrain Analysis', color: 'orange' },
+    'general': { label: 'General Query', color: 'slate' }
+  }
+  
+  const intentInfo = intentLabels[intent] || intentLabels.general
   
   return (
-    <div className="mb-3 bg-slate-800/50 rounded-lg border border-slate-700/50 overflow-hidden">
-      <button
+    <div className="mb-3 rounded-lg overflow-hidden border border-slate-700/60 bg-slate-900/80 shadow-xl">
+      {/* Compact Professional Header */}
+      <div 
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-700/30 transition-colors"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-slate-800/50 transition-colors border-b border-slate-700/40"
       >
         <div className="flex items-center gap-2">
-          <span className="text-purple-400">📋</span>
-          <span className="text-slate-300 font-medium">Tasks</span>
-          <span className="text-slate-500">({completedCount}/{tasks.length})</span>
+          {/* Status indicator */}
+          <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-blue-400 animate-pulse' : progress === 100 ? 'bg-green-400' : 'bg-amber-400'}`} />
+          
+          {/* Title */}
+          <span className="text-slate-200 font-medium text-xs">
+            {isLoading ? 'Processing' : progress === 100 ? 'Complete' : 'Working'}
+          </span>
+          
+          {/* Intent badge */}
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide bg-${intentInfo.color}-500/20 text-${intentInfo.color}-300 border border-${intentInfo.color}-500/30`}>
+            {intentInfo.label}
+          </span>
         </div>
-        {expanded ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
-      </button>
+        
+        <div className="flex items-center gap-2">
+          {/* Progress text */}
+          <span className="text-slate-500 text-[10px] font-mono">{completedCount}/{tasks.length}</span>
+          
+          {/* Progress ring */}
+          <div className="relative w-5 h-5">
+            <svg className="w-5 h-5 -rotate-90" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-700" />
+              <circle 
+                cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" 
+                strokeDasharray={`${progress * 0.502} 50.2`}
+                className={`${progress === 100 ? 'text-green-400' : 'text-blue-400'} transition-all duration-500`}
+              />
+            </svg>
+            {isLoading && <Loader2 className="absolute inset-0 w-5 h-5 text-blue-400 animate-spin opacity-50" />}
+          </div>
+          
+          {expanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-500" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-500" />}
+        </div>
+      </div>
       
+      {/* Task list */}
       {expanded && (
-        <div className="px-3 pb-3 space-y-1.5">
-          {tasks.map((task, idx) => (
-            <div 
-              key={idx} 
-              className={`flex items-start gap-2 text-xs ${
-                task.status === 'in_progress' ? 'bg-blue-500/10 rounded px-2 py-1.5 -mx-2' : ''
-              }`}
-            >
-              {task.status === 'completed' ? (
-                <span className="text-green-400 mt-0.5">✓</span>
-              ) : task.status === 'in_progress' ? (
-                <Loader2 className="w-3 h-3 text-blue-400 animate-spin mt-0.5" />
-              ) : (
-                <span className="w-3 h-3 rounded border border-slate-600 mt-0.5" />
-              )}
-              <span className={`flex-1 ${
-                task.status === 'completed' ? 'text-slate-500 line-through' :
-                task.status === 'in_progress' ? 'text-blue-300' : 'text-slate-400'
-              }`}>
-                {task.content || task.step}
-              </span>
-            </div>
-          ))}
+        <div className="divide-y divide-slate-800/50">
+          {tasks.map((task, idx) => {
+            const isActive = task.status === 'in_progress'
+            const isComplete = task.status === 'completed'
+            
+            return (
+              <div 
+                key={task.id || idx}
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs transition-all ${
+                  isActive ? 'bg-blue-500/10' : ''
+                }`}
+              >
+                {/* Step indicator */}
+                <div className="w-4 flex-shrink-0">
+                  {isComplete ? (
+                    <span className="text-green-400 text-[10px]">✓</span>
+                  ) : isActive ? (
+                    <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />
+                  ) : (
+                    <span className="text-slate-600 text-[10px]">{String(idx + 1).padStart(2, '0')}</span>
+                  )}
+                </div>
+                
+                {/* Task text */}
+                <span className={`flex-1 truncate ${
+                  isComplete ? 'text-slate-500' :
+                  isActive ? 'text-blue-300' : 
+                  'text-slate-600'
+                }`}>
+                  {task.step || task.content}
+                </span>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -621,11 +718,12 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
         }))
       }
       
-      // Store reasoning trace and tasks for UI display
+      // Store reasoning trace, chain-of-thought, and tasks for UI display
       window.__lastReasoningTrace = data.reasoning_trace || null
       window.__lastIntent = data.intent || null
       window.__lastFactsSummary = data.facts_summary || null
       window.__lastTasks = data.tasks || null
+      window.__lastChainOfThought = data.chain_of_thought || null
       
       // Store locality data for inline card display
       if (data.facts?.locality_archetype) {
@@ -743,41 +841,137 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
     }
     
     // For all other queries (analysis, questions, building info, etc.), use AI
-    // Add placeholder message with loading tasks
-    const loadingTasks = [
-      { step: "Understanding query...", status: "in_progress" },
-      { step: "Gathering data...", status: "pending" },
-      { step: "Analyzing...", status: "pending" },
-      { step: "Generating response...", status: "pending" }
-    ]
+    // Generate smart loading tasks based on query content
+    const generateSmartLoadingTasks = (query) => {
+      const q = query.toLowerCase()
+      const tasks = []
+      
+      // Always start with understanding
+      tasks.push({ id: 'task_0', step: `Understanding: "${query.slice(0, 40)}${query.length > 40 ? '...' : ''}"`, status: 'in_progress' })
+      
+      // Property search queries
+      if (q.includes('property') || q.includes('apartment') || q.includes('flat') || q.includes('bhk') || q.includes('house') || q.includes('villa')) {
+        const location = query.match(/in\s+([A-Za-z\s]+)/i)?.[1] || 'area'
+        tasks.push({ id: 'task_1', step: `Geocoding location: ${location.trim()}`, status: 'pending' })
+        tasks.push({ id: 'task_2', step: 'Searching property database', status: 'pending' })
+        if (q.includes('under') || q.includes('below') || q.includes('budget')) {
+          tasks.push({ id: 'task_3', step: 'Applying budget filters', status: 'pending' })
+        }
+        tasks.push({ id: 'task_4', step: 'Calculating distances & amenities', status: 'pending' })
+        tasks.push({ id: 'task_5', step: 'Ranking by relevance', status: 'pending' })
+      }
+      // Analysis queries
+      else if (q.includes('analyze') || q.includes('analysis') || q.includes('tell me about') || q.includes('how is')) {
+        tasks.push({ id: 'task_1', step: 'Gathering spatial data (POIs, transport)', status: 'pending' })
+        tasks.push({ id: 'task_2', step: 'Calculating accessibility scores', status: 'pending' })
+        tasks.push({ id: 'task_3', step: 'Fetching market data & trends', status: 'pending' })
+        tasks.push({ id: 'task_4', step: 'Analyzing risk factors', status: 'pending' })
+        tasks.push({ id: 'task_5', step: 'Generating locality profile', status: 'pending' })
+      }
+      // Simulation queries
+      else if (q.includes('what if') || q.includes('simulate') || q.includes('impact')) {
+        tasks.push({ id: 'task_1', step: 'Gathering baseline data', status: 'pending' })
+        tasks.push({ id: 'task_2', step: 'Running causal reasoning engine', status: 'pending' })
+        tasks.push({ id: 'task_3', step: 'Simulating infrastructure impact', status: 'pending' })
+        tasks.push({ id: 'task_4', step: 'Calculating price changes', status: 'pending' })
+        tasks.push({ id: 'task_5', step: 'Generating visualization', status: 'pending' })
+      }
+      // Comparison queries
+      else if (q.includes('compare') || q.includes('vs') || q.includes('versus') || q.includes('better')) {
+        const locations = query.match(/([A-Z][a-z]+)/g) || ['Location 1', 'Location 2']
+        tasks.push({ id: 'task_1', step: `Analyzing ${locations[0] || 'first area'}`, status: 'pending' })
+        tasks.push({ id: 'task_2', step: `Analyzing ${locations[1] || 'second area'}`, status: 'pending' })
+        tasks.push({ id: 'task_3', step: 'Computing comparative metrics', status: 'pending' })
+      }
+      // Default for other queries
+      else {
+        tasks.push({ id: 'task_1', step: 'Gathering relevant context', status: 'pending' })
+        tasks.push({ id: 'task_2', step: 'Processing spatial data', status: 'pending' })
+        tasks.push({ id: 'task_3', step: 'Analyzing information', status: 'pending' })
+      }
+      
+      // Always end with synthesis
+      tasks.push({ id: `task_${tasks.length}`, step: 'Synthesizing AI response', status: 'pending' })
+      
+      return tasks
+    }
+    
+    // Detect intent for loading UI
+    const detectLoadingIntent = (query) => {
+      const q = query.toLowerCase()
+      if (q.includes('property') || q.includes('apartment') || q.includes('flat') || q.includes('bhk')) return 'property_search'
+      if (q.includes('analyze') || q.includes('tell me about')) return 'analyze_area'
+      if (q.includes('what if') || q.includes('simulate')) return 'simulate'
+      if (q.includes('compare') || q.includes('vs')) return 'comparison'
+      if (q.includes('go to') || q.includes('show me') || q.includes('navigate')) return 'navigate'
+      return 'general'
+    }
+    
+    const loadingTasks = generateSmartLoadingTasks(userMessage)
+    const loadingIntent = detectLoadingIntent(userMessage)
     
     const placeholderMessageIndex = messages.length + 1
     setMessages(prev => [...prev, { 
       role: 'assistant', 
       content: '',
       tasks: loadingTasks,
+      intent: loadingIntent,
       isLoading: true
     }])
     
+    // Simulate real-time task progression while waiting
+    let taskProgressIndex = 0
+    const progressInterval = setInterval(() => {
+      if (taskProgressIndex < loadingTasks.length - 1) {
+        setMessages(prev => {
+          const newMessages = [...prev]
+          const msgIndex = newMessages.length - 1
+          if (newMessages[msgIndex]?.isLoading) {
+            const updatedTasks = [...newMessages[msgIndex].tasks]
+            // Complete current task
+            if (updatedTasks[taskProgressIndex]) {
+              updatedTasks[taskProgressIndex] = { ...updatedTasks[taskProgressIndex], status: 'completed' }
+            }
+            // Start next task
+            taskProgressIndex++
+            if (updatedTasks[taskProgressIndex]) {
+              updatedTasks[taskProgressIndex] = { ...updatedTasks[taskProgressIndex], status: 'in_progress' }
+            }
+            newMessages[msgIndex] = { ...newMessages[msgIndex], tasks: updatedTasks }
+          }
+          return newMessages
+        })
+      }
+    }, 600) // Progress every 600ms
+    
     const aiResponse = await callAI(userMessage)
-    // Include reasoning trace and tasks from the last response
+    clearInterval(progressInterval)
+    
+    // Include reasoning trace, chain-of-thought and tasks from the last response
     const reasoningTrace = window.__lastReasoningTrace
     const intent = window.__lastIntent
     const factsSummary = window.__lastFactsSummary
     const tasks = window.__lastTasks || null
+    const chainOfThought = window.__lastChainOfThought || null
     // Get locality data for inline card display
     const localityData = window.__lastLocalityData || null
     
     // Update the placeholder message with actual response
     setMessages(prev => {
       const newMessages = [...prev]
+      // Mark all tasks as completed if using backend tasks, or fallback to loading tasks
+      const finalTasks = tasks && tasks.length > 0 
+        ? tasks.map(t => ({ ...t, status: 'completed' }))
+        : loadingTasks.map(t => ({ ...t, status: 'completed' }))
+      
       newMessages[placeholderMessageIndex] = {
         role: 'assistant', 
         content: aiResponse,
         reasoningTrace,
-        intent,
+        chainOfThought,
+        intent: intent || loadingIntent,
         factsSummary,
-        tasks: tasks || loadingTasks.map(t => ({ ...t, status: 'completed' })),
+        tasks: finalTasks,
         locality: localityData,
         isLoading: false
       }
@@ -832,12 +1026,24 @@ Try: **"Show me the best areas for investment"** or click anywhere on the map!
             }`}>
               {msg.role === 'assistant' ? (
                 <>
-                  {/* Task List - Windsurf style */}
+                  {/* Real-Time Task Execution Panel */}
                   {msg.tasks && msg.tasks.length > 0 && (
-                    <TaskListPanel tasks={msg.tasks} isExpanded={true} />
+                    <ThinkingTasksPanel 
+                      tasks={msg.tasks} 
+                      isLoading={msg.isLoading} 
+                      intent={msg.intent}
+                    />
                   )}
                   
-                  {/* Collapsible Thinking/Reasoning UI */}
+                  {/* DeepSeek Chain-of-Thought Display */}
+                  {(msg.chainOfThought || msg.isLoading) && (
+                    <ChainOfThoughtPanel 
+                      thought={msg.chainOfThought}
+                      isLoading={msg.isLoading && !msg.chainOfThought}
+                    />
+                  )}
+                  
+                  {/* Collapsible Reasoning Steps UI */}
                   {msg.reasoningTrace && msg.reasoningTrace.steps && msg.reasoningTrace.steps.length > 0 && (
                     <ThinkingPanel 
                       trace={msg.reasoningTrace} 

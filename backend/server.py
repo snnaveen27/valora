@@ -1067,14 +1067,14 @@ async def analyze_location(request: LocationAnalyzeRequest):
             market = _compute_market_facts(property_service, lat, lng, radius)
             if market:
                 result["market"] = {
-                    "avg_price_per_sqft": round(market.get('avg_price_per_sqft', 0)),
-                    "median_price": round(market.get('median_price', 0)),
-                    "price_trend_pct": round(market.get('price_trend_pct', 0), 1),
-                    "active_listings": market.get('active_listings', 0),
-                    "demand_level": market.get('demand_level', 'Medium'),
+                    "avg_price_per_sqft": round(market.get('avg_price_per_sqft') or 0) if market.get('avg_price_per_sqft') is not None else 0,
+                    "median_price": round(market.get('median_price') or 0) if market.get('median_price') is not None else 0,
+                    "price_trend_pct": round(market.get('price_trend_pct') or 0, 1) if market.get('price_trend_pct') is not None else 0.0,
+                    "active_listings": market.get('active_listings') or 0,
+                    "demand_level": market.get('demand_level') or 'Medium',
                     "price_range": {
-                        "min": round(market.get('min_price', 0)),
-                        "max": round(market.get('max_price', 0))
+                        "min": round(market.get('min_price') or 0) if market.get('min_price') is not None else 0,
+                        "max": round(market.get('max_price') or 0) if market.get('max_price') is not None else 0
                     }
                 }
                 
@@ -1136,13 +1136,13 @@ async def analyze_location(request: LocationAnalyzeRequest):
                 covered_area=1200,
                 property_type='residential'
             )
-            if val_result.get('success'):
+            if val_result and hasattr(val_result, 'estimated_price'):
                 result["valuation"] = {
-                    "estimated_price_2bhk_1200sqft": val_result.get('estimated_price'),
-                    "price_per_sqft": val_result.get('price_per_sqft'),
-                    "confidence": val_result.get('confidence', 'medium'),
-                    "price_range": val_result.get('price_range'),
-                    "key_factors": val_result.get('factors', [])[:5]
+                    "estimated_price_2bhk_1200sqft": val_result.estimated_price,
+                    "price_per_sqft": val_result.price_per_sqft,
+                    "confidence": val_result.confidence if hasattr(val_result, 'confidence') else 'medium',
+                    "price_range": val_result.price_range if hasattr(val_result, 'price_range') else None,
+                    "key_factors": list(val_result.factors.keys())[:5] if hasattr(val_result, 'factors') and val_result.factors else []
                 }
         except Exception as e:
             print(f"Location valuation error: {e}")
@@ -1408,11 +1408,33 @@ async def chat_with_ai(request: ChatRequest):
     context = request.context or {}
     
     # =========================================================================
-    # PHASE 2: Multi-Agent Fact Gathering (all deterministic, no LLM)
+    # PHASE 2: Dynamic Task Planning & Multi-Agent Fact Gathering
     # =========================================================================
+    from task_planner import reset_task_planner
+    
+    # Create dynamic task planner for this query
+    task_planner = reset_task_planner()
+    
+    # Classify intent first for task plan generation
+    from gis_agents import IntentRouter
+    selected_building = context.get('selectedBuilding')
+    selected_location = context.get('selectedLocation')
+    selected_place = context.get('selectedPlace')
+    intent = IntentRouter.classify(
+        user_query,
+        has_building=bool(selected_building),
+        has_location=bool(selected_location or selected_place),
+    )
+    
+    # Generate query-specific task plan
+    task_planner.generate_plan(user_query, intent.value, context)
+    
+    # Gather facts with real-time task tracking
     facts, intent, ui_actions, digital_twin_state, reasoning_trace = gis_orchestrator.gather_facts(
         query=user_query,
         context=context,
+        intent=intent,
+        task_planner=task_planner,
     )
     
     # Build dashboard from grounded facts
@@ -1462,8 +1484,10 @@ async def chat_with_ai(request: ChatRequest):
         })
     
     # Call LLM for narrative synthesis only (supports OpenRouter or Local LLM)
+    # DeepSeek R1 needs longer timeout for chain-of-thought reasoning
+    chain_of_thought = None
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=180.0) as client:  # 3 min timeout for reasoning models
             if llm_provider == 'openrouter':
                 # OpenRouter (cloud)
                 response = await client.post(
@@ -1501,6 +1525,14 @@ async def chat_with_ai(request: ChatRequest):
             
             result = response.json()
             ai_message = result['choices'][0]['message']['content']
+            
+            # Extract DeepSeek R1 chain-of-thought from <think> tags
+            if "<think>" in ai_message:
+                think_match = re_module.search(r"<think>(.*?)</think>", ai_message, re_module.DOTALL)
+                if think_match:
+                    chain_of_thought = think_match.group(1).strip()
+                    # Remove <think> block from final message
+                    ai_message = re_module.sub(r"<think>.*?</think>", "", ai_message, flags=re_module.DOTALL).strip()
             
             # Extract SIDEBAR content if present
             sidebar_content = ""
@@ -1565,18 +1597,8 @@ async def chat_with_ai(request: ChatRequest):
                 "investment_outlook": facts.investment_outlook,
             }
             
-            # Build task list for complex queries
-            tasks = []
-            if intent in [Intent.PROPERTY_SEARCH, Intent.COMPARISON, Intent.SIMULATE]:
-                tasks.append({"step": "Understand user query", "status": "completed"})
-                tasks.append({"step": "Gather spatial and market data", "status": "completed"})
-                if intent == Intent.PROPERTY_SEARCH:
-                    tasks.append({"step": f"Search properties in {facts.location_name or 'area'}", "status": "completed"})
-                elif intent == Intent.COMPARISON:
-                    tasks.append({"step": "Compare localities", "status": "completed"})
-                elif intent == Intent.SIMULATE:
-                    tasks.append({"step": "Run simulation", "status": "completed"})
-                tasks.append({"step": "Synthesize AI response", "status": "completed"})
+            # Get dynamic task snapshot from planner
+            tasks = task_planner.get_tasks_snapshot()
             
             return {
                 "success": True,
@@ -1597,6 +1619,7 @@ async def chat_with_ai(request: ChatRequest):
                     "active_listings": facts.active_listings,
                 },
                 "reasoning_trace": reasoning_trace,  # Chain-of-thought visibility
+                "chain_of_thought": chain_of_thought,  # DeepSeek R1 thinking process
                 "tasks": tasks if tasks else None,  # Task list for UI
                 "usage": result.get('usage', {})
             }
@@ -2403,25 +2426,42 @@ Calculate ALL metrics from the data provided:
                 {"role": "user", "content": "\n\n".join(context_parts)}
             ]
             
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    OPENROUTER_URL,
-                    headers={
-                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                        "HTTP-Referer": "http://localhost:3000",
-                        "X-Title": "Valora AI - Building Analysis"
-                    },
-                    json={
-                        "model": OPENROUTER_MODEL,
-                        "messages": messages,
-                        "temperature": 0.5,  # Lower temp for more consistent JSON
-                        "max_tokens": 1200  # Increased for full JSON response
-                    }
-                )
+            # Use configured LLM provider (local or OpenRouter)
+            current_llm_config = _load_llm_config()
+            llm_provider = current_llm_config.get('provider', 'local')
+            
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                if llm_provider == 'openrouter':
+                    response = await client.post(
+                        OPENROUTER_URL,
+                        headers={
+                            "Authorization": f"Bearer {current_llm_config.get('openrouter_api_key', OPENROUTER_API_KEY)}",
+                            "HTTP-Referer": "http://localhost:3000",
+                            "X-Title": "Valora AI - Building Analysis"
+                        },
+                        json={
+                            "model": current_llm_config.get('openrouter_model', OPENROUTER_MODEL),
+                            "messages": messages,
+                            "temperature": 0.5,
+                            "max_tokens": 1200
+                        }
+                    )
+                else:
+                    # Local LLM (Ollama)
+                    response = await client.post(
+                        current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions'),
+                        json={
+                            "model": current_llm_config.get('local_model', 'llama3.2'),
+                            "messages": messages,
+                            "temperature": 0.5,
+                            "max_tokens": 1200,
+                            "stream": False
+                        }
+                    )
                 
                 if response.status_code == 200:
                     ai_result = response.json()
-                    ai_content = ai_result['choices'][0]['message']['content'].strip()
+                    ai_content = ai_result.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
                     
                     # Try to parse JSON response from AI
                     try:

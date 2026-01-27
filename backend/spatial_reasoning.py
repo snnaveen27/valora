@@ -574,6 +574,29 @@ class SpatialReasoningService:
         
         return result
     
+    def get_nearby(
+        self,
+        lat: float,
+        lng: float,
+        radius_m: float = 1000,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Get nearby features as list of dicts (API-friendly wrapper for query_nearby).
+        """
+        results = self.query_nearby(lat, lng, radius_m, limit=limit)
+        return [
+            {
+                'type': r.type,
+                'name': r.name,
+                'lat': r.lat,
+                'lng': r.lng,
+                'distance_m': r.distance_m,
+                **r.properties
+            }
+            for r in results
+        ]
+    
     def get_h3_index(self, lat: float, lng: float, resolution: int = 9) -> Optional[str]:
         """Get H3 index for a point."""
         if not H3_AVAILABLE:

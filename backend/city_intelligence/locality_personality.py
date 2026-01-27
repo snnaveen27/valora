@@ -402,12 +402,12 @@ class LocalityPersonalityModel:
             if not lat or not lng:
                 # Try to find coordinates from places table
                 cursor.execute("""
-                    SELECT latitude, longitude FROM places 
+                    SELECT center_latitude, center_longitude FROM places 
                     WHERE name LIKE ? LIMIT 1
                 """, (f"%{profile.name}%",))
                 row = cursor.fetchone()
                 if row:
-                    lat, lng = row['latitude'], row['longitude']
+                    lat, lng = row['center_latitude'], row['center_longitude']
                     profile.lat, profile.lng = lat, lng
             
             if lat and lng:

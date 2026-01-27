@@ -627,6 +627,19 @@ class PropertyValuationModel:
         
         return comparables
     
+    def estimate(
+        self,
+        lat: float,
+        lng: float,
+        bedrooms: int = 2,
+        bathrooms: int = 2,
+        covered_area: float = 1000,
+        floors: int = 1,
+        property_type: str = 'residential'
+    ) -> ValuationResult:
+        """Alias for valuate() method for API compatibility."""
+        return self.valuate(lat, lng, bedrooms, bathrooms, covered_area, floors, property_type)
+    
     def get_market_stats(
         self,
         lat: float,

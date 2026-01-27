@@ -106,6 +106,112 @@ class LocalGeocoder:
                 'lat': 12.8456, 'lng': 77.6603,
                 'type': 'tech_hub', 'source': 'static', 'importance': 0.95
             },
+            
+            # Additional Major Neighborhoods
+            {
+                'name': 'Sarjapur Road',
+                'aliases': ['sarjapur', 'sarjapura', 'sarjapur bangalore', 'sarjapura road'],
+                'lat': 12.9100, 'lng': 77.6800,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'HSR Layout',
+                'aliases': ['hsr', 'hsr layout bangalore'],
+                'lat': 12.9116, 'lng': 77.6474,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'BTM Layout',
+                'aliases': ['btm', 'btm layout bangalore'],
+                'lat': 12.9166, 'lng': 77.6101,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'Bellandur',
+                'aliases': ['bellandur bangalore', 'bellundur'],
+                'lat': 12.9260, 'lng': 77.6762,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'Marathahalli',
+                'aliases': ['marathalli', 'marathahalli bangalore'],
+                'lat': 12.9591, 'lng': 77.7010,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'Yelahanka',
+                'aliases': ['yelahanka bangalore', 'yalahanka'],
+                'lat': 13.1007, 'lng': 77.5963,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'JP Nagar',
+                'aliases': ['jp nagar bangalore', 'jayaprakash nagar'],
+                'lat': 12.9063, 'lng': 77.5857,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'Banashankari',
+                'aliases': ['banashankari bangalore', 'bsk'],
+                'lat': 12.9255, 'lng': 77.5468,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'Mahadevapura',
+                'aliases': ['mahadevpura', 'mahadevapura bangalore'],
+                'lat': 12.9914, 'lng': 77.6940,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'Silk Board',
+                'aliases': ['silk board junction', 'silkboard'],
+                'lat': 12.9177, 'lng': 77.6238,
+                'type': 'junction', 'source': 'static', 'importance': 0.95
+            },
+            {
+                'name': 'Basavanagudi',
+                'aliases': ['basavanagudi bangalore', 'bull temple road'],
+                'lat': 12.9422, 'lng': 77.5755,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'Rajajinagar',
+                'aliases': ['rajaji nagar', 'rajajinagar bangalore'],
+                'lat': 12.9914, 'lng': 77.5521,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.98
+            },
+            {
+                'name': 'Devanahalli',
+                'aliases': ['devanahalli bangalore', 'devanhalli'],
+                'lat': 13.2473, 'lng': 77.7135,
+                'type': 'neighborhood', 'source': 'static', 'importance': 0.95
+            },
+            
+            # Major Landmarks
+            {
+                'name': 'Cubbon Park',
+                'aliases': ['cubbon park bangalore'],
+                'lat': 12.9763, 'lng': 77.5929,
+                'type': 'park', 'source': 'static', 'importance': 0.95
+            },
+            {
+                'name': 'Lalbagh Garden',
+                'aliases': ['lalbagh', 'lal bagh', 'lalbagh botanical garden'],
+                'lat': 12.9507, 'lng': 77.5848,
+                'type': 'park', 'source': 'static', 'importance': 0.95
+            },
+            {
+                'name': 'Bangalore Palace',
+                'aliases': ['palace grounds', 'bangalore palace grounds'],
+                'lat': 12.9988, 'lng': 77.5922,
+                'type': 'landmark', 'source': 'static', 'importance': 0.95
+            },
+            {
+                'name': 'Vidhana Soudha',
+                'aliases': ['vidhan soudha', 'vidhana soudha bangalore'],
+                'lat': 12.9795, 'lng': 77.5912,
+                'type': 'landmark', 'source': 'static', 'importance': 0.95
+            },
         ]
         
     def load_data(self):

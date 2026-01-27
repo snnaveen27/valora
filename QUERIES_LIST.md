@@ -46,6 +46,31 @@ Show me HSR Sector 7
 Take me to JP Nagar Phase 6
 ```
 
+### Coordinate Navigation
+```
+Go to 12.9716, 77.5946
+Fly to 12.9352 77.6245
+Navigate to coordinates 12.8456,77.6603
+```
+
+**Expected:**
+- Map flies to exact coordinates
+- Chat confirms lat/lng and provides nearby area name if available
+- Facts include `lat`/`lng`
+
+### Disambiguation & Spelling Robustness
+```
+Go to Koramangla
+Navigate to Indira Nagar
+Take me to Sarjapura Road
+Go to Malleshwaram
+Take me to Mahadevpura
+```
+
+**Expected:**
+- Correct best-match geocode (with safe fallback / clarification if uncertain)
+- Map flyTo + Insights refresh
+
 ---
 
 ## 🏠 Property Search Queries
@@ -72,6 +97,31 @@ Gated community apartments in Electronic City
 New construction in Hebbal
 ```
 
+### Nearby / Radius Search
+```
+Properties within 1 km of Indiranagar
+Apartments near Sarjapur Road (within 2 km)
+Show properties near 12.9716, 77.5946 within 1500 meters
+Find homes near metro within 800m in MG Road
+```
+
+**Expected:**
+- Chat lists results and clearly states radius used
+- Map highlights/marks results
+- If no results, show graceful “0 results” with suggestions (expand radius / change filters)
+
+### Conflicting / Strict Filters (Robustness)
+```
+2BHK under 10 lakhs in Indiranagar
+5BHK under 50 lakhs in Koramangala
+Studio apartment with 4 bathrooms
+Properties under 30 lakhs with 5000 sqft covered area
+```
+
+**Expected:**
+- No crash
+- Chat explains constraints are too strict / unrealistic and suggests alternatives
+
 ### Investment-Focused
 ```
 Best investment properties in Bangalore
@@ -79,6 +129,18 @@ High appreciation areas for buying
 Properties with rental yield potential
 Affordable areas with growth potential
 ```
+
+### Amenity-Driven Search (POI constraints)
+```
+Homes near good restaurants in Indiranagar
+Properties near parks in Jayanagar
+Apartments near hospitals in Hebbal
+Homes near tech parks in Whitefield
+```
+
+**Expected:**
+- Chat describes nearby amenity evidence used (POIs/transport counts)
+- Why? tab shows the factors used when applicable
 
 ---
 
@@ -91,6 +153,29 @@ Tell me about Whitefield market trends
 What's the walkability score of Indiranagar?
 How is the connectivity in HSR Layout?
 ```
+
+### POI / Amenity Deep-Dive
+```
+What are the top amenities around Koramangala?
+How many POIs are near Indiranagar?
+Show nearby transport options around Hebbal
+Nearest metro and bus stops near MG Road
+```
+
+**Expected:**
+- Chat references POI/transport counts and nearest items
+- Facts include relevant counts (POIs/transport)
+
+### Micro-Risk & Livability
+```
+Is Bellandur safe from flooding?
+What are the key risks in Silk Board area?
+Which areas have low flood risk and good connectivity?
+```
+
+**Expected:**
+- Chat provides risk summary and mitigation suggestions
+- Why? tab risk meters populated when available
 
 **Expected:**
 - Chat: Detailed analysis with recommendations
@@ -118,6 +203,18 @@ IT professional-friendly neighborhoods
 Senior-friendly localities in Bangalore
 Pet-friendly apartments in South Bangalore
 ```
+
+### Follow-up Within Same Area (Context Carry)
+```
+Analyze Koramangala
+What are the transport options there?
+How is the flood risk?
+Now compare it with Indiranagar
+```
+
+**Expected:**
+- Follow-ups reuse the last selected location without forcing the user to repeat it
+- Map/Insights stay aligned to the same location unless user switches
 
 ---
 
@@ -203,6 +300,18 @@ What type of building is this?
 Height and floor count of this building
 ```
 
+### Building Context Follow-ups
+```
+Analyze this building
+Is this building in a flood-prone zone?
+What are the nearest POIs from this building?
+Estimate the property value for a 2BHK here
+```
+
+**Expected:**
+- No crash if building context is missing; asks user to click/select a building
+- When a building is selected, answers reference that building’s location
+
 ---
 
 ## 🗺️ Terrain & Environmental Queries
@@ -222,6 +331,17 @@ Is Mahadevapura flood-prone?
 Safe areas from flooding near Koramangala
 Drainage quality in HSR Layout
 ```
+
+### Terrain Robustness
+```
+What's the slope in Sarjapur Road?
+Is this area suitable for construction?
+Which areas have low flood risk but good access to metro?
+```
+
+**Expected:**
+- Terrain fields present (elevation/slope/aspect/flood risk) where supported
+- If some terrain metrics are missing, response should explain limitations (no crash)
 
 **Expected:**
 - Chat: Terrain insights
@@ -246,6 +366,28 @@ What's a fair price for 2BHK in Indiranagar?
 Is 1.2 crore reasonable for 3BHK in HSR?
 Price estimate for 1500 sqft in Electronic City
 ```
+
+### Valuation Parameter Coverage
+```
+Estimate price for 1BHK 650 sqft in Whitefield
+Estimate price for 3BHK 1800 sqft in Koramangala
+Estimate price for 2BHK 1200 sqft in Sarjapur Road
+Price per sqft estimate in Indiranagar for 1000 sqft
+```
+
+**Expected:**
+- Chat includes estimated price + price/sqft + confidence/range (if model provides)
+- If valuation cannot be computed, return a clear reason + fallback suggestions
+
+### Market Stats Consistency
+```
+How many active listings are near Koramangala?
+Show median price near Whitefield
+What is the price trend percentage in Electronic City?
+```
+
+**Expected:**
+- Fields should be numeric and never crash on `None` values
 
 ---
 
@@ -322,6 +464,14 @@ Navigate to New York
 ```
 **Expected:** Graceful error with suggestion to try Bangalore areas
 
+### Outside-Scope India Locations (Graceful)
+```
+Go to Chennai
+Analyze Delhi real estate
+Show me properties in Hyderabad
+```
+**Expected:** Clear “offline Bangalore-only dataset” limitation + suggestions
+
 ### Ambiguous Queries
 ```
 Best area
@@ -330,6 +480,15 @@ Nice place
 ```
 **Expected:** Follow-up question for clarification
 
+### Ambiguity With Follow-up (Must Resolve)
+```
+Best area
+For a family, budget 90 lakhs, near metro
+```
+
+**Expected:**
+- Second message should trigger a concrete shortlist (not another vague question)
+
 ### Invalid Data Requests
 ```
 Properties from 1800s
@@ -337,6 +496,17 @@ Future prices in 2050
 Historical data from 1900
 ```
 **Expected:** Explain data limitations
+
+### Conflicting Intents (Router Robustness)
+```
+Go to Whitefield and show me 2BHK under 80 lakhs
+Compare Koramangala vs Indiranagar and tell me where to invest
+Analyze Bellandur and simulate a new metro station there
+```
+
+**Expected:**
+- System either executes a combined workflow or asks a single clarifying question
+- No intent misfire that drops critical actions (map flyTo + results)
 
 ---
 
@@ -375,6 +545,30 @@ Historical data from 1900
 
 ---
 
+## 🧾 Grounding / No-Hallucination Tests
+
+### Force the System to Stay Grounded
+```
+Give me exact price trend % for Koramangala and cite the source
+How many POIs are there within 1km of Indiranagar? Provide the number used.
+What is the elevation of Whitefield? If unknown, say unknown.
+```
+
+**Expected:**
+- If a number is not available from deterministic agents, AI explicitly says it’s unavailable
+- No invented statistics
+
+### Consistency Across Repeats
+```
+Analyze Koramangala
+Analyze Koramangala again
+```
+
+**Expected:**
+- Deterministic fields should be consistent (counts/scores) unless the underlying data changes
+
+---
+
 ## ✅ Validation Checklist
 
 After running queries, verify:
@@ -408,6 +602,12 @@ After running queries, verify:
 - [ ] Map responds to flyTo commands
 - [ ] Locality cards trigger map fly-to
 - [ ] "Ask about this" triggers chat query
+
+### Response Contract (API/UI)
+- [ ] `intent` matches the user request type
+- [ ] `ui_actions` is present for map actions when applicable
+- [ ] `dashboard` is populated for the active panel
+- [ ] `facts`/`facts_summary` are populated for deterministic agent outputs
 
 ---
 

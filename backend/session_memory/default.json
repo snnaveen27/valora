@@ -1,6 +1,6 @@
 {
   "session_id": "default",
-  "session_start": "2026-01-27T06:41:04.301701",
+  "session_start": "2026-01-27T13:15:42.993340",
   "visits": [
     {
       "lat": 12.95601896,
@@ -121,19 +121,162 @@
       "duration_seconds": 0,
       "actions_taken": [],
       "sentiment": "neutral"
+    },
+    {
+      "lat": 12.987575414285715,
+      "lng": 77.6470931,
+      "name": "Building",
+      "timestamp": "2026-01-27T07:13:23.303369",
+      "intent": "analyze_building",
+      "duration_seconds": 137.078285,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-01-27T07:15:40.381654",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-01-27T12:49:05.610915",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "Indiranagar",
+      "timestamp": "2026-01-27T12:55:10.297215",
+      "intent": "navigate",
+      "duration_seconds": 70.586979,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-01-27T12:56:20.884194",
+      "intent": "navigate",
+      "duration_seconds": 68.805756,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.8456,
+      "lng": 77.6603,
+      "name": "Electronic City",
+      "timestamp": "2026-01-27T12:57:29.689950",
+      "intent": "navigate",
+      "duration_seconds": 68.343139,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.925,
+      "lng": 77.58,
+      "name": "Jayanagar",
+      "timestamp": "2026-01-27T12:58:38.033089",
+      "intent": "navigate",
+      "duration_seconds": 67.072691,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.75,
+      "name": "whitefield",
+      "timestamp": "2026-01-27T12:59:45.105780",
+      "intent": "property_search",
+      "duration_seconds": 68.088764,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9784,
+      "lng": 77.6408,
+      "name": "indiranagar",
+      "timestamp": "2026-01-27T13:00:53.194544",
+      "intent": "property_search",
+      "duration_seconds": 67.42183,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "whitefield under 80 lakhs",
+      "timestamp": "2026-01-27T13:02:00.616374",
+      "intent": "property_search",
+      "duration_seconds": 66.269333,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.91,
+      "lng": 77.68,
+      "name": "sarjapur road",
+      "timestamp": "2026-01-27T13:03:06.885707",
+      "intent": "property_search",
+      "duration_seconds": 199.450136,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9116,
+      "lng": 77.6389,
+      "name": "hsr layout?",
+      "timestamp": "2026-01-27T13:06:26.335843",
+      "intent": "analyze_area",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "Indiranagar",
+      "timestamp": "2026-01-27T13:15:43.269554",
+      "intent": "navigate",
+      "duration_seconds": 69.027601,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.75,
+      "name": "whitefield",
+      "timestamp": "2026-01-27T13:16:52.297155",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
     }
   ],
   "preferences": {
     "preferred_areas": [
       "building at 12.9560, 77.6416",
-      "koramangala"
+      "koramangala",
+      "hebbal",
+      "indiranagar",
+      "whitefield"
     ],
     "preferred_property_types": [],
     "budget_range": null,
     "preferred_amenities": [],
     "avoid_areas": [],
-    "exploration_style": "focused"
+    "exploration_style": "balanced"
   },
   "comparisons": [],
-  "last_updated": "2026-01-27T06:48:54.778997"
+  "last_updated": "2026-01-27T13:16:52.297155"
 }

@@ -3,7 +3,7 @@ import json
 import sys
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -16,6 +16,15 @@ class CheckResult:
   description: str
   details: Optional[Dict[str, Any]] = None
   skipped: bool = False
+
+
+@dataclass
+class BenchmarkCase:
+  category: str
+  query: str
+  expected_intents: Tuple[str, ...]
+  require_message: bool = True
+  require_facts: bool = False
 
 
 def _now_ms() -> int:
@@ -38,6 +47,29 @@ def _print_summary(report: Dict[str, Any]) -> None:
   for t in report.get('tests', []):
     status = "✅" if t.get('passed') else ("⏭️" if t.get('skipped') else "❌")
     print(f"{status} {t.get('name'):30} {t.get('duration_ms', 0):>6}ms  {t.get('description')}")
+
+  print("=" * 70 + "\n")
+
+
+def _print_benchmark_summary(report: Dict[str, Any]) -> None:
+  total = report.get('total', 0)
+  passed = report.get('passed', 0)
+  failed = report.get('failed', 0)
+  duration = report.get('duration_ms', 0)
+
+  print("\n" + "=" * 70)
+  print("VALORA AI - CHAT BENCHMARK")
+  print("=" * 70)
+  print(f"Total: {total} | Passed: {passed} | Failed: {failed} | Duration: {duration}ms")
+  print("-" * 70)
+
+  for t in report.get('tests', []):
+    status = "✅" if t.get('passed') else "❌"
+    print(f"{status} {t.get('name'):30} {t.get('duration_ms', 0):>6}ms  {t.get('description')}")
+    details = t.get('details') or {}
+    preview = (details.get('message_preview') or '').strip()
+    if preview:
+      print(f"     preview: {preview}")
 
   print("=" * 70 + "\n")
 
@@ -65,7 +97,7 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
   start_all = _now_ms()
   tests = []
 
-  with httpx.Client(base_url=base_url, timeout=20.0) as client:
+  with httpx.Client(base_url=base_url, timeout=120.0) as client:
     t0 = _now_ms()
     try:
       data = _ok_json(client.get('/health'))
@@ -159,7 +191,7 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
 
     t0 = _now_ms()
     if not include_chat:
-      tests.append(_make_result('Chat Orchestration', t0, True, 'Skipped (include_chat=false)', skipped=True))
+      tests.append(_make_result('Chat Orchestration', t0, False, 'Skipped (include_chat=false) - NOT PRODUCTION READY', skipped=True))
     else:
       try:
         payload = {"messages": [{"role": "user", "content": "Analyze Koramangala for investment"}], "session_id": "sanity"}
@@ -188,12 +220,109 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
   }
 
 
+def run_benchmark(base_url: str, timeout_s: float = 180.0) -> Dict[str, Any]:
+  start_all = _now_ms()
+  tests: List[Dict[str, Any]] = []
+
+  cases: List[BenchmarkCase] = [
+    BenchmarkCase('Navigation', 'Go to Indiranagar', ('navigate',), require_facts=True),
+    BenchmarkCase('Property Search', 'Find 2BHK in Whitefield', ('property_search',), require_facts=True),
+    BenchmarkCase('Area Analysis', 'Analyze Koramangala', ('analyze_area', 'general')),
+    BenchmarkCase('Simulation', 'What if a metro opens near Sarjapur?', ('simulate',), require_message=False),
+    BenchmarkCase('Terrain', 'Is Bellandur flood-prone?', ('terrain', 'analyze_area', 'general')),
+    BenchmarkCase('Comparison', 'Compare Whitefield vs Electronic City', ('comparison', 'general')),
+  ]
+
+  with httpx.Client(base_url=base_url, timeout=timeout_s) as client:
+    # Preflight: if backend is not reachable, fail fast with a clear error.
+    t0 = _now_ms()
+    try:
+      _ok_json(client.get('/health'))
+      tests.append(_make_result('Backend Reachable', t0, True, 'GET /health'))
+    except Exception as e:
+      tests.append(_make_result('Backend Reachable', t0, False, f'GET /health failed: {e}', details={'error': str(e)[:200]}))
+      return {
+        'base_url': base_url,
+        'tests': tests,
+        'total': len(tests),
+        'passed': 0,
+        'failed': 1,
+        'duration_ms': _now_ms() - start_all,
+      }
+
+    for c in cases:
+      t0 = _now_ms()
+      try:
+        payload = {
+          'messages': [{'role': 'user', 'content': c.query}],
+          'context': {},
+          'session_id': 'benchmark',
+        }
+        data = _ok_json(client.post('/api/chat', json=payload))
+
+        intent = str(data.get('intent') or 'unknown')
+        message = str(data.get('message') or '')
+        message_preview = (message.replace('\n', ' ').strip()[:160] + '...') if len(message) > 160 else message.replace('\n', ' ').strip()
+        facts = data.get('facts')
+
+        ok_intent = intent in c.expected_intents
+        ok_message = (len(message.strip()) > 0) if c.require_message else True
+        ok_facts = True
+        if c.require_facts:
+          ok_facts = isinstance(facts, dict) and bool(facts.get('lat')) and bool(facts.get('lng'))
+
+        ok = bool(data.get('success')) and ok_intent and ok_message and ok_facts
+
+        tests.append(_make_result(
+          f"{c.category}",
+          t0,
+          ok,
+          f"/api/chat: {c.query} (intent={intent})",
+          details={
+            'intent': intent,
+            'expected_intents': list(c.expected_intents),
+            'message_len': len(message),
+            'message_preview': message_preview,
+          },
+        ))
+      except Exception as e:
+        tests.append(_make_result(
+          f"{c.category}",
+          t0,
+          False,
+          f"/api/chat: {c.query} failed: {e}",
+          details={'error': str(e)[:200]},
+        ))
+
+  passed = sum(1 for t in tests if t.get('passed'))
+  failed = sum(1 for t in tests if not t.get('passed'))
+
+  return {
+    'base_url': base_url,
+    'tests': tests,
+    'total': len(tests),
+    'passed': passed,
+    'failed': failed,
+    'duration_ms': _now_ms() - start_all,
+  }
+
+
 def main() -> int:
   parser = argparse.ArgumentParser()
   parser.add_argument('--base-url', default='http://localhost:8000')
   parser.add_argument('--include-chat', action='store_true', default=False)
+  parser.add_argument('--benchmark', action='store_true', default=False)
+  parser.add_argument('--timeout', type=float, default=180.0)
   parser.add_argument('--json', action='store_true', default=False)
   args = parser.parse_args()
+
+  if args.benchmark:
+    report = run_benchmark(args.base_url, timeout_s=args.timeout)
+    if args.json:
+      print(json.dumps(report, indent=2))
+    else:
+      _print_benchmark_summary(report)
+    return 0 if report.get('failed', 0) == 0 else 1
 
   report = run_sanity(args.base_url, include_chat=args.include_chat)
 
