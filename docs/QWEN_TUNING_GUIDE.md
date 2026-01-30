@@ -2,7 +2,7 @@
 
 ## Current Setup
 
-Valora uses **Qwen 2.5 (7B)** as the default local LLM via Ollama for:
+Valora uses **Qwen3-VL (8B)** as the default local LLM via Ollama for:
 - Real estate query understanding
 - Spatial reasoning narratives
 - Investment analysis responses
@@ -32,7 +32,7 @@ Copy and paste this prompt to ask another AI (like Claude, GPT-4, etc.) for help
 ### 🔧 PROMPT TO COPY:
 
 ```
-I need help fine-tuning Qwen 2.5 (7B) for a real estate AI assistant called "Valora" that operates in Bangalore, India. Here are the requirements:
+I need help fine-tuning Qwen3-VL (8B) for a real estate AI assistant called "Valora" that operates in Bangalore, India. Here are the requirements:
 
 ## Use Case
 Valora is an offline-first city intelligence platform that:
@@ -103,12 +103,13 @@ Based on current market data:
 Both are within your ₹90L budget. Prestige Lakeside offers more space at ₹4,722/sqft."
 
 ## Questions
-1. What's the best fine-tuning approach for Qwen 2.5 7B? (LoRA, QLoRA, full fine-tune?)
+1. What's the best fine-tuning approach for Qwen3-VL 8B? (LoRA, QLoRA, full fine-tune?)
 2. How many training examples should I prepare?
 3. What format should the training data be in? (ChatML, Alpaca, ShareGPT?)
 4. How do I ensure the model stays grounded and doesn't hallucinate?
 5. Can you generate 20 example training pairs for these use cases?
 6. What hyperparameters work best for real estate domain adaptation?
+7. How can I leverage the vision capabilities of Qwen3-VL for property images?
 ```
 
 ---
@@ -119,6 +120,7 @@ Both are within your ₹90L budget. Prestige Lakeside offers more space at ₹4,
 - Low memory requirement
 - Fast training (1-2 hours)
 - Good for domain adaptation
+- Works well with Qwen3-VL's multimodal architecture
 
 ```bash
 # Using Unsloth for fast LoRA
@@ -185,17 +187,18 @@ for locality, avg_price, avg_area, count in properties:
     })
 ```
 
-## Ollama Modelfile for Custom Qwen
+## Ollama Modelfile for Custom Qwen3-VL
 
 After fine-tuning, create a custom Modelfile:
 
 ```dockerfile
-FROM qwen2.5:7b
+FROM qwen3-vl:8b
 
 # Set system prompt
 SYSTEM """You are Valora, an expert real estate AI for Bangalore, India.
 You ONLY use provided factual data. Never invent statistics.
-Respond in concise markdown with clear sections."""
+Respond in concise markdown with clear sections.
+You can analyze property images when provided."""
 
 # Tune parameters
 PARAMETER temperature 0.3
@@ -203,7 +206,7 @@ PARAMETER top_p 0.9
 PARAMETER num_ctx 8192
 ```
 
-Then: `ollama create valora-qwen -f Modelfile`
+Then: `ollama create valora-qwen3-vl -f Modelfile`
 
 ## Recommended Training Scale
 
@@ -225,20 +228,39 @@ Then: `ollama create valora-qwen -f Modelfile`
 
 ## Quick Start
 
-1. Ensure Ollama is running with Qwen:
+1. Ensure Ollama is running with Qwen3-VL:
    ```bash
-   ollama pull qwen2.5:7b
-   ollama run qwen2.5:7b
+   ollama pull qwen3-vl:8b
+   ollama run qwen3-vl:8b
    ```
 
-2. Valora is configured to use Qwen by default at:
+2. Valora is configured to use Qwen3-VL by default at:
    - URL: `http://127.0.0.1:11434/v1/chat/completions`
-   - Model: `qwen2.5:7b`
+   - Model: `qwen3-vl:8b`
 
 3. Test the setup:
    ```bash
    curl http://localhost:8000/api/admin/llm-config
    ```
+
+## Vision Capabilities (Qwen3-VL)
+
+Qwen3-VL can analyze property images for:
+- Building condition assessment
+- Interior quality evaluation
+- Amenity verification
+- Neighborhood visual analysis
+
+Example usage:
+```python
+# Send image with query
+response = llm_client.chat(
+    model="qwen3-vl:8b",
+    messages=[
+        {"role": "user", "content": "Analyze this property image", "images": ["property.jpg"]}
+    ]
+)
+```
 
 ## Contact
 
