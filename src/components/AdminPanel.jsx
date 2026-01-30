@@ -6,6 +6,7 @@ import {
   Users, MapPin, Clock, Download, Trash2, Eye, UserPlus, Edit, Crown, Shield
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import PricingManager from './PricingManager'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -366,6 +367,7 @@ export default function AdminPanel({ isOpen, onClose }) {
   const tabs = [
     { id: 'status', label: 'System Status', icon: Activity },
     { id: 'accounts', label: 'User Accounts', icon: Shield },
+    { id: 'pricing', label: 'Pricing Config', icon: BarChart3 },
     { id: 'data', label: 'Data', icon: Database },
     { id: 'processing', label: 'Processing', icon: Cpu },
     { id: 'tests', label: 'Tests', icon: TestTube },
@@ -621,6 +623,11 @@ export default function AdminPanel({ isOpen, onClose }) {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Pricing Config Tab */}
+          {activeTab === 'pricing' && (
+            <PricingManager />
           )}
 
           {/* System Status Tab */}
