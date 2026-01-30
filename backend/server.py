@@ -21,9 +21,9 @@ from collections import OrderedDict
 import time
 import os
 from dotenv import load_dotenv
-from area_analyzer import AreaAnalyzer
-from local_geocoder import get_local_geocoder
-import multi_source_scraper
+from analyzers.area_analyzer import AreaAnalyzer
+from spatial.local_geocoder import get_local_geocoder
+from scrapers import multi_source_scraper
 
 # Load environment variables
 load_dotenv()
@@ -50,7 +50,7 @@ except Exception as e:
 
 # Import and initialize terrain service (optional - terrain folder may not exist)
 try:
-    from terrain_service import TerrainService
+    from spatial.terrain_service import TerrainService
     terrain_service = TerrainService(terrain_dir)
     print("[OK] Terrain service initialized")
 except Exception as e:
@@ -59,7 +59,7 @@ except Exception as e:
 
 # Import and initialize property service (uses database, folder is optional)
 try:
-    from property_service import get_property_service
+    from services.property_service import get_property_service
     property_service = get_property_service(properties_dir)
     print("[OK] Property service initialized (uses database)")
 except Exception as e:
@@ -70,7 +70,7 @@ except Exception as e:
 data_dir = Path(__file__).parent.parent / 'src' / 'data'
 
 try:
-    from rag_service import get_rag_service
+    from ai.rag_service import get_rag_service
     rag_service = get_rag_service(data_dir)
     RAG_AVAILABLE = True
 except Exception as e:
@@ -80,9 +80,9 @@ except Exception as e:
 
 # Import and initialize simulation & digital twin
 try:
-    from simulation_engine import get_simulation_engine, ScenarioInput
-    from narrative_generator import get_narrative_generator
-    from digital_twin import get_digital_twin, StateChange
+    from intelligence.simulation_engine import get_simulation_engine, ScenarioInput
+    from intelligence.narrative_generator import get_narrative_generator
+    from engines.digital_twin import get_digital_twin, StateChange
     simulation_engine = get_simulation_engine()
     narrative_generator = get_narrative_generator()
     digital_twin = get_digital_twin(data_dir)
@@ -96,7 +96,7 @@ except Exception as e:
     SIMULATION_AVAILABLE = False
 
 try:
-    from valuation_model import get_valuation_model
+    from intelligence.valuation_model import get_valuation_model
     valuation_model = get_valuation_model(data_dir)
     VALUATION_AVAILABLE = True
 except Exception as e:
@@ -105,7 +105,7 @@ except Exception as e:
     VALUATION_AVAILABLE = False
 
 try:
-    from spatial_reasoning import get_spatial_service
+    from spatial.spatial_reasoning import get_spatial_service
     spatial_service = get_spatial_service(data_dir)
     SPATIAL_AVAILABLE = True
 except Exception as e:
@@ -114,8 +114,8 @@ except Exception as e:
     SPATIAL_AVAILABLE = False
 
 # Phase 2: GIS Multi-Agent Orchestrator
-from gis_agents import get_gis_orchestrator, IntentRouter, Intent, _compute_market_facts
-from query_cache import get_chat_cache
+from ai.gis_agents import get_gis_orchestrator, IntentRouter, Intent, _compute_market_facts
+from search.query_cache import get_chat_cache
 
 # Phase 3: City Intelligence Engine
 try:
@@ -1488,7 +1488,7 @@ async def city_brain_insights():
 
 def _generate_fallback_response(intent, facts) -> str:
     """Generate a response from grounded facts when LLM returns empty content."""
-    from gis_agents import Intent
+    from ai.gis_agents import Intent
     
     name = facts.location_name or "this area"
     parts = []
@@ -1566,7 +1566,7 @@ async def chat_with_ai(request: ChatRequest):
     """
     import re as re_module
     from routes.admin_routes import get_active_llm_config
-    from response_templates import get_conversational_response, get_system_prompt
+    from ai.response_templates import get_conversational_response, get_system_prompt
     
     # Extract user query
     user_query = ""
@@ -1576,7 +1576,7 @@ async def chat_with_ai(request: ChatRequest):
     context = request.context or {}
     
     # Classify intent first
-    from gis_agents import IntentRouter
+    from ai.gis_agents import IntentRouter
     selected_building = context.get('selectedBuilding')
     selected_location = context.get('selectedLocation')
     selected_place = context.get('selectedPlace')
@@ -3574,7 +3574,7 @@ async def train_valuation_model():
 # ============== ADVANCED INSIGHTS ENDPOINTS ==============
 
 try:
-    from advanced_insights import get_insights_service, AdvancedInsightsService
+    from intelligence.advanced_insights import get_insights_service, AdvancedInsightsService
     INSIGHTS_AVAILABLE = True
     insights_service = get_insights_service()
     print("[OK] Advanced Insights Service initialized")
@@ -4141,9 +4141,9 @@ Calculate ALL metrics from the data provided:
 # ============== PHASE 4: SIMULATION & STORYBOARD ENDPOINTS ==============
 
 try:
-    from simulation_engine import get_simulation_engine, ScenarioInput
-    from narrative_generator import get_narrative_generator
-    from digital_twin import get_digital_twin, StateChange
+    from intelligence.simulation_engine import get_simulation_engine, ScenarioInput
+    from intelligence.narrative_generator import get_narrative_generator
+    from engines.digital_twin import get_digital_twin, StateChange
     from dataclasses import asdict
     simulation_engine = get_simulation_engine()
     narrative_generator = get_narrative_generator()
@@ -4536,7 +4536,7 @@ async def get_topup_packs():
         "currency": "INR",
     }
 
-from insight_cache import (
+from data.insight_cache import (
     get_cached_insight, cache_insight, check_user_charged, 
     record_user_charge, get_card_cost, card_has_simulation,
     INSIGHT_CARD_TYPES, get_cache_stats, append_training_sample
@@ -5199,7 +5199,7 @@ async def phase1_status():
 
 # Import locality service for fast lookups
 try:
-    from locality_service import get_locality_service, get_locality_state, get_top_hotspots
+    from services.locality_service import get_locality_service, get_locality_state, get_top_hotspots
     LOCALITY_SERVICE_AVAILABLE = True
     print("[OK] Locality service initialized")
 except Exception as e:

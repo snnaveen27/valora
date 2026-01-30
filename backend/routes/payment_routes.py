@@ -13,7 +13,7 @@ from datetime import datetime
 
 from auth.user_auth import get_user_database, User, SubscriptionTier
 from routes.auth_routes import require_auth
-from payment_service import (
+from services.payment_service import (
     get_payment_service,
     PaymentGateway,
     PLANS,

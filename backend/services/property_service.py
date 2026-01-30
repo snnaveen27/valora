@@ -45,8 +45,8 @@ class PropertyService:
                 from backend.hybrid_search import get_hybrid_search
                 from backend.query_cache import get_property_cache
             except ImportError:
-                from hybrid_search import get_hybrid_search
-                from query_cache import get_property_cache
+                from search.hybrid_search import get_hybrid_search
+                from search.query_cache import get_property_cache
             self._hybrid_search = get_hybrid_search(self._db, None)
             self._cache = get_property_cache()
             print("[OK] PropertyService: Hybrid search & caching enabled")
