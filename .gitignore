@@ -50,6 +50,9 @@ tmp/
 *.sqlite
 *.sqlite3
 
+# Pricing database (contains sensitive pricing config)
+backend/database/pricing.db
+
 # IDE
 *.swp
 *.swo

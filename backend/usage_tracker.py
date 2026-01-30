@@ -20,35 +20,33 @@ logger = logging.getLogger(__name__)
 TRAINING_DATA_DIR = Path(__file__).parent / "training_data"
 TRAINING_DATA_DIR.mkdir(exist_ok=True)
 
-# Pricing configuration file
-PRICING_CONFIG_FILE = Path(__file__).parent / "config" / "pricing_config.json"
-
 def _load_pricing_config() -> Dict:
-    """Load pricing configuration from JSON file."""
+    """
+    Load pricing configuration from DATABASE (not JSON).
+    SECURITY: Database storage prevents direct file manipulation.
+    """
     try:
-        if PRICING_CONFIG_FILE.exists():
-            with open(PRICING_CONFIG_FILE, 'r') as f:
-                return json.load(f)
-        else:
-            logger.warning(f"[UsageTracker] Pricing config not found at {PRICING_CONFIG_FILE}, using defaults")
-            return {}
+        from database.pricing_db import get_pricing_db
+        pricing_db = get_pricing_db()
+        return pricing_db.get_config()
     except Exception as e:
-        logger.error(f"[UsageTracker] Failed to load pricing config: {e}")
+        logger.error(f"[UsageTracker] Failed to load pricing config from database: {e}")
         return {}
 
-def _save_pricing_config(config: Dict) -> bool:
-    """Save pricing configuration to JSON file."""
+def _save_pricing_config(config: Dict, updated_by: str = "system") -> bool:
+    """
+    Save pricing configuration to DATABASE.
+    SECURITY: All changes logged in audit trail.
+    """
     try:
-        PRICING_CONFIG_FILE.parent.mkdir(exist_ok=True)
-        with open(PRICING_CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=2)
-        logger.info(f"[UsageTracker] Pricing config saved")
-        return True
+        from database.pricing_db import get_pricing_db
+        pricing_db = get_pricing_db()
+        return pricing_db.save_config(config, updated_by)
     except Exception as e:
-        logger.error(f"[UsageTracker] Failed to save pricing config: {e}")
+        logger.error(f"[UsageTracker] Failed to save pricing config to database: {e}")
         return False
 
-# Load pricing from config file
+# Load pricing from database
 _pricing_config = _load_pricing_config()
 
 # Compute costs per action type (in units)

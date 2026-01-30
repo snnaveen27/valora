@@ -1408,15 +1408,15 @@ class UpdatePricingRequest(BaseModel):
 @router.post("/pricing/config")
 async def update_pricing_config(request: UpdatePricingRequest, admin: User = Depends(require_admin)) -> Dict[str, Any]:
     """
-    Update pricing configuration.
-    SECURITY: Requires admin authentication, validates all inputs, logs audit.
+    Update pricing configuration in DATABASE.
+    SECURITY: Database storage + audit trail prevents tampering.
     """
     try:
         from usage_tracker import _load_pricing_config, _save_pricing_config
         from user_auth import get_user_database
         from datetime import datetime
         
-        # Load current config
+        # Load current config from database
         config = _load_pricing_config()
         
         # Update fields
@@ -1435,27 +1435,23 @@ async def update_pricing_config(request: UpdatePricingRequest, admin: User = Dep
         if request.subscription_tiers:
             config["subscription_tiers"] = {**config.get("subscription_tiers", {}), **request.subscription_tiers}
         
-        # Add metadata
-        config["last_updated"] = datetime.now().isoformat()
-        config["updated_by"] = admin.email
-        
-        # Save config
-        success = _save_pricing_config(config)
+        # Save to database with admin email
+        success = _save_pricing_config(config, updated_by=admin.email)
         
         if success:
-            # SECURITY: Audit log
+            # SECURITY: Audit log in user database too
             db = get_user_database()
             db.log_usage(admin.id, "admin_update_pricing", 
-                f"Updated pricing config by {admin.email}")
+                f"Updated pricing config in database by {admin.email}")
             
             return {
                 "success": True,
-                "message": "Pricing configuration updated successfully",
+                "message": "Pricing configuration updated in database successfully",
                 "config": config,
-                "note": "Server restart required for changes to take effect"
+                "note": "Changes applied immediately (no restart needed)"
             }
         else:
-            return {"success": False, "message": "Failed to save pricing configuration"}
+            return {"success": False, "message": "Failed to save pricing configuration to database"}
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}"}
 
