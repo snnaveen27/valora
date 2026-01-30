@@ -180,7 +180,7 @@ def get_intent_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from gis_agents import IntentRouter, Intent
+        from ai.gis_agents import IntentRouter, Intent
         INTENT_OK = True
     except ImportError:
         INTENT_OK = False
@@ -244,7 +244,7 @@ def get_spatial_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from spatial_3d_reasoning import get_spatial_3d_reasoning
+        from spatial.spatial_3d_reasoning import get_spatial_3d_reasoning
         SPATIAL_OK = True
     except ImportError:
         SPATIAL_OK = False
@@ -307,7 +307,7 @@ def get_occlusion_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from occlusion_engine import get_occlusion_engine
+        from engines.occlusion_engine import get_occlusion_engine
         OCCLUSION_OK = True
     except ImportError:
         OCCLUSION_OK = False
@@ -359,7 +359,7 @@ def get_solar_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from solar_engine import get_solar_engine
+        from engines.solar_engine import get_solar_engine
         SOLAR_OK = True
     except ImportError:
         SOLAR_OK = False
@@ -422,7 +422,7 @@ def get_graph_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from spatial_memory_graph import get_spatial_graph, initialize_spatial_graph
+        from spatial.spatial_memory_graph import get_spatial_graph, initialize_spatial_graph
         GRAPH_OK = True
     except ImportError:
         GRAPH_OK = False
@@ -521,7 +521,7 @@ def get_property_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from property_service import PropertyService
+        from services.property_service import PropertyService
         PROP_OK = True
     except ImportError:
         PROP_OK = False
@@ -565,7 +565,7 @@ def get_locality_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from locality_service import get_locality_service
+        from services.locality_service import get_locality_service
         LOC_OK = True
     except ImportError:
         LOC_OK = False
@@ -752,7 +752,7 @@ def get_gis_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from gis_agents import IntentRouter, Intent, AgentFacts
+        from ai.gis_agents import IntentRouter, Intent, AgentFacts
         GIS_OK = True
     except ImportError:
         GIS_OK = False
@@ -806,7 +806,7 @@ def get_transaction_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from transaction_intelligence import get_transaction_intelligence
+        from intelligence.transaction_intelligence import get_transaction_intelligence
         TRANS_OK = True
     except ImportError:
         TRANS_OK = False
@@ -855,7 +855,7 @@ def get_regulatory_tests() -> List[Tuple[str, str, str, Callable]]:
     tests = []
     
     try:
-        from regulatory_intelligence import get_regulatory_intelligence
+        from intelligence.regulatory_intelligence import get_regulatory_intelligence
         REG_OK = True
     except ImportError:
         REG_OK = False
