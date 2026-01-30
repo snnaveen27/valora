@@ -146,16 +146,16 @@ print("[OK] GIS Multi-Agent Orchestrator initialized")
 app = FastAPI(title="Valora AI Backend", version="2.0.0")
 
 # Include admin routes
-from admin_routes import router as admin_router, get_active_llm_config
+from routes.admin_routes import router as admin_router, get_active_llm_config
 app.include_router(admin_router)
 
 # Include auth routes
-from auth_routes import router as auth_router
+from routes.auth_routes import router as auth_router
 app.include_router(auth_router)
 print("[OK] Auth routes initialized")
 
 # Include payment routes
-from payment_routes import router as payment_router
+from routes.payment_routes import router as payment_router
 app.include_router(payment_router)
 print("[OK] Payment routes initialized (Razorpay + Cashfree)")
 
@@ -1565,7 +1565,7 @@ async def chat_with_ai(request: ChatRequest):
     Supports both OpenRouter (cloud) and Local LLM (offline) providers.
     """
     import re as re_module
-    from admin_routes import get_active_llm_config
+    from routes.admin_routes import get_active_llm_config
     from response_templates import get_conversational_response, get_system_prompt
     
     # Extract user query
@@ -4406,7 +4406,7 @@ async def update_digital_twin_state(request: StateUpdateRequest):
 # ============== PHASE 5: USAGE UNITS SYSTEM (replaces credits) ==============
 # Monthly units with per-action costs - Hard limit + Top-up model
 
-from user_auth import get_user_database, SubscriptionTier
+from auth.user_auth import get_user_database, SubscriptionTier
 
 # Unit costs for different operations (higher = more expensive)
 UNIT_COSTS = {

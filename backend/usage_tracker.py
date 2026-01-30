@@ -178,7 +178,7 @@ class UsageTracker:
     RATE_LIMIT_MAX_REQUESTS = 100  # max requests per window
     
     def __init__(self, db_path: str = None):
-        from user_auth import get_user_database
+        from auth.user_auth import get_user_database
         self.user_db = get_user_database()
         self.db = DatabaseService(db_path) if db_path else DatabaseService()
         self._rate_limit_cache = {}  # {user_id: [(timestamp, count)]}

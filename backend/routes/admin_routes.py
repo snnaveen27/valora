@@ -18,8 +18,8 @@ import json
 import re
 from pathlib import Path
 
-from auth_routes import require_admin
-from user_auth import User
+from routes.auth_routes import require_admin
+from auth.user_auth import User
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -1116,7 +1116,7 @@ async def add_units_to_user(request: AddUnitsRequest, admin: User = Depends(requ
     """
     try:
         from usage_tracker import get_usage_tracker
-        from user_auth import get_user_database
+        from auth.user_auth import get_user_database
         
         tracker = get_usage_tracker()
         
@@ -1212,7 +1212,7 @@ async def export_training_data(request: ExportTrainingDataRequest, admin: User =
     """
     try:
         from data_collector import get_data_collector
-        from user_auth import get_user_database
+        from auth.user_auth import get_user_database
         
         collector = get_data_collector()
         
@@ -1267,7 +1267,7 @@ async def clear_training_data(request: ClearTrainingDataRequest, admin: User = D
     
     try:
         from data_collector import get_data_collector
-        from user_auth import get_user_database
+        from auth.user_auth import get_user_database
         
         collector = get_data_collector()
         
@@ -1413,7 +1413,7 @@ async def update_pricing_config(request: UpdatePricingRequest, admin: User = Dep
     """
     try:
         from usage_tracker import _load_pricing_config, _save_pricing_config
-        from user_auth import get_user_database
+        from auth.user_auth import get_user_database
         from datetime import datetime
         
         # Load current config from database

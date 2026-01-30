@@ -8,7 +8,7 @@ from pydantic import BaseModel, EmailStr, validator
 from typing import Optional, List
 from datetime import datetime
 
-from user_auth import (
+from auth.user_auth import (
     get_user_database, 
     create_token, 
     decode_token,

@@ -11,8 +11,8 @@ from pydantic import BaseModel
 from typing import Optional, Dict
 from datetime import datetime
 
-from user_auth import get_user_database, User, SubscriptionTier
-from auth_routes import require_auth
+from auth.user_auth import get_user_database, User, SubscriptionTier
+from routes.auth_routes import require_auth
 from payment_service import (
     get_payment_service,
     PaymentGateway,
