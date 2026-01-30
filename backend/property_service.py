@@ -73,16 +73,31 @@ class PropertyService:
         radius_m: int = 2000,
         category: Optional[str] = None,
         property_type: Optional[str] = None,
+        listing_type: Optional[str] = None,
+        property_category: Optional[str] = None,
+        property_subtype: Optional[str] = None,
+        pg_type: Optional[str] = None,
+        bhk: Optional[str] = None,
         min_price: Optional[int] = None,
         max_price: Optional[int] = None,
         min_bedrooms: Optional[int] = None,
         max_bedrooms: Optional[int] = None,
+        locality: Optional[str] = None,
+        text_query: Optional[str] = None,
         limit: int = 50,
         query: Optional[str] = None,  # For semantic search
         use_cache: bool = True
     ) -> List[Dict[str, Any]]:
         """
-        Search properties with filters using DATABASE + optional RAG hybrid search
+        Search properties with filters using DATABASE + optional RAG hybrid search.
+        
+        Args:
+            listing_type: 'sale' or 'rent'
+            property_category: 'residential', 'commercial', 'plot', 'pg'
+            property_subtype: 'flat', 'villa', 'office', 'warehouse', etc.
+            pg_type: 'boys', 'girls', 'coed' (for PG/hostels)
+            bhk: '1BHK', '2BHK', '3BHK', etc.
+            text_query: Full-text search across title, description, locality
         """
         if not self._db:
             return []
@@ -90,11 +105,12 @@ class PropertyService:
         # Check cache first
         if use_cache and self._cache:
             cached = self._cache.get(
-                query or "search",
+                query or text_query or "search",
                 lat=lat, lng=lng, radius_m=radius_m,
-                property_type=property_type, min_price=min_price,
-                max_price=max_price, min_bedrooms=min_bedrooms,
-                max_bedrooms=max_bedrooms, limit=limit
+                property_type=property_type, listing_type=listing_type,
+                property_category=property_category, pg_type=pg_type, bhk=bhk,
+                min_price=min_price, max_price=max_price, 
+                min_bedrooms=min_bedrooms, max_bedrooms=max_bedrooms, limit=limit
             )
             if cached is not None:
                 return cached
@@ -107,6 +123,11 @@ class PropertyService:
                 lng=lng,
                 radius_m=radius_m,
                 property_type=property_type,
+                listing_type=listing_type,
+                property_category=property_category,
+                property_subtype=property_subtype,
+                pg_type=pg_type,
+                bhk=bhk,
                 min_price=min_price,
                 max_price=max_price,
                 min_bedrooms=min_bedrooms,
@@ -121,10 +142,17 @@ class PropertyService:
                 lng=lng,
                 radius_m=radius_m,
                 property_type=property_type,
+                listing_type=listing_type,
+                property_category=property_category,
+                property_subtype=property_subtype,
+                pg_type=pg_type,
+                bhk=bhk,
                 min_price=min_price,
                 max_price=max_price,
                 min_bedrooms=min_bedrooms,
                 max_bedrooms=max_bedrooms,
+                locality=locality,
+                text_query=text_query,
                 limit=limit
             )
         

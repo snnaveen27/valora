@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import './App.css'
 import ErrorBoundary from './components/ErrorBoundary'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 // Loading component
 const Loading = () => (
@@ -9,16 +10,44 @@ const Loading = () => (
   </div>
 )
 
-// Lazy load main app
+// Lazy load components
 const MainApp = lazy(() => import('./components/MainApp'))
+const LoginPage = lazy(() => import('./components/LoginPage'))
+const SignupPage = lazy(() => import('./components/SignupPage'))
+
+function AuthenticatedApp() {
+  const { isAuthenticated, loading } = useAuth();
+  const [showSignup, setShowSignup] = useState(false);
+
+  if (loading) {
+    return <Loading />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Suspense fallback={<Loading />}>
+        {showSignup ? (
+          <SignupPage onSwitchToLogin={() => setShowSignup(false)} />
+        ) : (
+          <LoginPage onSwitchToSignup={() => setShowSignup(true)} />
+        )}
+      </Suspense>
+    );
+  }
+
+  return (
+    <Suspense fallback={<Loading />}>
+      <MainApp />
+    </Suspense>
+  );
+}
 
 function App() {
-  // Clean MVP - no authentication, load MainApp directly
   return (
     <ErrorBoundary>
-      <Suspense fallback={<Loading />}>
-        <MainApp />
-      </Suspense>
+      <AuthProvider>
+        <AuthenticatedApp />
+      </AuthProvider>
     </ErrorBoundary>
   )
 }

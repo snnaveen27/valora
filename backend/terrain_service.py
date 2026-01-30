@@ -184,6 +184,105 @@ class TerrainService:
             }
         }
     
+    def get_elevation_profile(self, lat: float, lng: float, radius_km: float = 2.0, samples: int = 20) -> Optional[Dict]:
+        """Get elevation profile around a location for charting
+        
+        Args:
+            lat: Center latitude
+            lng: Center longitude
+            radius_km: Radius in kilometers to sample
+            samples: Number of sample points in each direction (N, S, E, W)
+        
+        Returns:
+            Dict with elevation profile data for charting
+        """
+        if not self.db:
+            return None
+        
+        # Convert km to degrees (approximate)
+        radius_deg = radius_km / 111.0  # 1 degree ≈ 111 km
+        step = radius_deg / samples
+        
+        # Sample points in 4 directions: North, South, East, West
+        profiles = {
+            'north': [],
+            'south': [],
+            'east': [],
+            'west': []
+        }
+        
+        # North-South profile (varying latitude)
+        for i in range(-samples, samples + 1):
+            sample_lat = lat + (i * step)
+            cell = self._get_nearest_grid_cell(sample_lat, lng)
+            if cell:
+                profiles['north' if i >= 0 else 'south'].append({
+                    'distance_km': abs(i * step * 111.0),
+                    'elevation_m': cell.get('elevation_m', 920),
+                    'lat': sample_lat,
+                    'lng': lng
+                })
+        
+        # East-West profile (varying longitude)
+        for i in range(-samples, samples + 1):
+            sample_lng = lng + (i * step)
+            cell = self._get_nearest_grid_cell(lat, sample_lng)
+            if cell:
+                profiles['east' if i >= 0 else 'west'].append({
+                    'distance_km': abs(i * step * 111.0),
+                    'elevation_m': cell.get('elevation_m', 920),
+                    'lat': lat,
+                    'lng': sample_lng
+                })
+        
+        # Combine into single profile for simplified chart
+        all_points = []
+        
+        # West to East
+        for p in reversed(profiles['west']):
+            all_points.append({
+                'distance_km': -p['distance_km'],
+                'elevation_m': p['elevation_m'],
+                'direction': 'W'
+            })
+        
+        # Center point
+        center_cell = self._get_nearest_grid_cell(lat, lng)
+        if center_cell:
+            all_points.append({
+                'distance_km': 0,
+                'elevation_m': center_cell.get('elevation_m', 920),
+                'direction': 'Center'
+            })
+        
+        # East
+        for p in profiles['east']:
+            if p['distance_km'] > 0:  # Skip center
+                all_points.append({
+                    'distance_km': p['distance_km'],
+                    'elevation_m': p['elevation_m'],
+                    'direction': 'E'
+                })
+        
+        if not all_points:
+            return None
+        
+        # Calculate statistics
+        elevations = [p['elevation_m'] for p in all_points]
+        
+        return {
+            'center': {'lat': lat, 'lng': lng},
+            'radius_km': radius_km,
+            'profile': all_points,
+            'statistics': {
+                'min_elevation': min(elevations),
+                'max_elevation': max(elevations),
+                'avg_elevation': sum(elevations) / len(elevations),
+                'elevation_range': max(elevations) - min(elevations),
+                'sample_count': len(all_points)
+            }
+        }
+    
     def get_stats(self) -> Dict:
         """Get overall terrain statistics from database"""
         if not self.db:

@@ -1,0 +1,97 @@
+{
+  "action_costs": {
+    "chat_query": 1,
+    "chat_multiagent": 1,
+    "chat_simulation": 25,
+    "area_analysis": 3,
+    "building_analysis": 3,
+    "viewport_analysis": 3,
+    "location_analysis": 3,
+    "comparison": 3,
+    "valuation": 10,
+    "investment_analysis": 10,
+    "simulation_basic": 25,
+    "simulation_advanced": 25,
+    "storyboard_generation": 15,
+    "scenario_analysis": 25,
+    "property_search": 2,
+    "poi_search": 2,
+    "map_navigation": 0,
+    "viewport_load": 0,
+    "tileset_load": 0,
+    "report_export": 20,
+    "dashboard_snapshot": 10,
+    "pdf_generation": 20,
+    "infrastructure_card": 3,
+    "investment_card": 10,
+    "livability_card": 3,
+    "market_card": 3,
+    "terrain_card": 3,
+    "spatial_card": 3,
+    "comparison_card": 3,
+    "locality_brain": 3,
+    "growth_prediction": 10,
+    "risk_assessment": 10,
+    "explainability": 1,
+    "fact_verification": 1,
+    "causal_reasoning": 10
+  },
+  "tier_monthly_limits": {
+    "free": 50,
+    "pro": 1000,
+    "team": 3000,
+    "enterprise": -1,
+    "admin": -1
+  },
+  "pricing": {
+    "promo_per_unit_inr": 2,
+    "regular_per_unit_inr": 10,
+    "promo_active": true,
+    "promo_discount_percent": 80,
+    "promo_valid_until": "2026-03-31"
+  },
+  "topup_packs": [
+    {
+      "name": "Starter",
+      "units": 100,
+      "price_inr": 59,
+      "regular_price": 299
+    },
+    {
+      "name": "Standard",
+      "units": 300,
+      "price_inr": 139,
+      "regular_price": 699
+    },
+    {
+      "name": "Bulk",
+      "units": 1000,
+      "price_inr": 399,
+      "regular_price": 1999
+    }
+  ],
+  "subscription_tiers": {
+    "free": {
+      "units": 50,
+      "price_inr": 0,
+      "regular_price": 0
+    },
+    "pro": {
+      "units": 1000,
+      "price_inr": 599,
+      "regular_price": 2999
+    },
+    "team": {
+      "units": 3000,
+      "price_inr": 999,
+      "regular_price": 4999
+    },
+    "enterprise": {
+      "units": -1,
+      "price_inr": -1,
+      "regular_price": -1
+    }
+  },
+  "last_updated": "2026-01-30T05:37:00",
+  "updated_by": "system"
+}

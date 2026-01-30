@@ -85,6 +85,17 @@ class ParsedSpatialQuery:
 class DistanceParser:
     """Parses distance expressions from text."""
     
+    # Bangalore traffic speed estimates (meters per minute)
+    # Peak hours: 150-200m/min, Off-peak: 300-400m/min, Average: 250m/min
+    BANGALORE_COMMUTE_SPEED = {
+        'peak': 150,      # Rush hour (8-10am, 5-8pm)
+        'off_peak': 350,  # Non-rush hours
+        'average': 250,   # Average city driving
+        'metro': 500,     # Metro travel speed
+        'walk': 80,       # Walking speed
+        'cycle': 200,     # Cycling speed
+    }
+    
     # Distance patterns with approximate meters
     DISTANCE_PATTERNS = [
         # Exact distances
@@ -92,20 +103,29 @@ class DistanceParser:
         (r'(\d+(?:\.\d+)?)\s*(?:m|meter|metres?)\b', lambda m: float(m.group(1))),
         (r'(\d+(?:\.\d+)?)\s*(?:feet|ft)\b', lambda m: float(m.group(1)) * 0.3048),
         
-        # Time-based distances (walking ~80m/min, driving ~500m/min in city)
+        # Time-based distances (walking ~80m/min, driving ~250m/min in Bangalore traffic)
         (r'(\d+)\s*(?:min|minute)s?\s*walk', lambda m: float(m.group(1)) * 80),
-        (r'(\d+)\s*(?:min|minute)s?\s*(?:drive|driving)', lambda m: float(m.group(1)) * 500),
-        (r'(\d+)\s*(?:min|minute)s?\s*(?:cycle|cycling|bike)', lambda m: float(m.group(1)) * 250),
+        (r'(\d+)\s*(?:min|minute)s?\s*(?:drive|driving|commute)', lambda m: float(m.group(1)) * 250),
+        (r'(\d+)\s*(?:min|minute)s?\s*(?:cycle|cycling|bike)', lambda m: float(m.group(1)) * 200),
+        (r'(\d+)\s*(?:min|minute)s?\s*(?:by\s+)?metro', lambda m: float(m.group(1)) * 500),
+        
+        # Commute-time patterns ("within 30 minutes", "30 min from")
+        (r'within\s+(\d+)\s*(?:min|minute)s?(?:\s+(?:of|from))?', lambda m: float(m.group(1)) * 250),
+        (r'(\d+)\s*(?:min|minute)s?\s+(?:away|from|to)', lambda m: float(m.group(1)) * 250),
+        (r'(\d+)\s*(?:hr|hour)s?\s+(?:commute|drive|away|from)', lambda m: float(m.group(1)) * 60 * 250),
+        (r'(?:half|0\.5)\s*(?:hr|hour)\s+(?:commute|drive|away)', lambda m: 30 * 250),
         
         # Qualitative distances
         (r'\b(?:very\s+)?close\s+(?:to|by)\b', lambda m: 300),
         (r'\bnear(?:by)?\b', lambda m: 500),
         (r'\bwalking\s+distance\b', lambda m: 800),
-        (r'\bshort\s+(?:walk|distance)\b', lambda m: 500),
+        (r'\bshort\s+(?:walk|distance|commute)\b', lambda m: 500),
         (r'\bwithin\s+reach\b', lambda m: 1000),
         (r'\bnot\s+(?:too\s+)?far\b', lambda m: 1500),
-        (r'\breasonable\s+distance\b', lambda m: 2000),
+        (r'\breasonable\s+(?:distance|commute)\b', lambda m: 2000),
         (r'\bfar\s+from\b', lambda m: 5000),
+        (r'\bquick\s+commute\b', lambda m: 3000),
+        (r'\beasy\s+commute\b', lambda m: 5000),
     ]
     
     @classmethod
@@ -126,6 +146,95 @@ class DistanceParser:
                     pass
         
         return (None, "")
+    
+    @classmethod
+    def parse_commute_time(cls, text: str) -> Tuple[Optional[int], Optional[float], str]:
+        """
+        Parse commute time from text and convert to radius.
+        
+        Returns:
+            (commute_minutes, radius_meters, mode)
+            
+        Heuristics for Bangalore:
+        - 15 min commute ≈ 3-4 km radius
+        - 30 min commute ≈ 6-8 km radius  
+        - 45 min commute ≈ 10-12 km radius
+        - 60 min commute ≈ 15-18 km radius
+        """
+        text_lower = text.lower()
+        
+        # Detect transport mode
+        mode = 'average'
+        if 'metro' in text_lower:
+            mode = 'metro'
+        elif 'walk' in text_lower:
+            mode = 'walk'
+        elif 'cycle' in text_lower or 'bike' in text_lower:
+            mode = 'cycle'
+        elif 'peak' in text_lower or 'rush' in text_lower:
+            mode = 'peak'
+        
+        speed = cls.BANGALORE_COMMUTE_SPEED.get(mode, 250)
+        
+        # Match commute time patterns
+        patterns = [
+            r'(\d+)\s*(?:min|minute)s?\s+(?:commute|from|to|away)',
+            r'within\s+(\d+)\s*(?:min|minute)s?',
+            r'(\d+)\s*(?:min|minute)s?\s+(?:drive|driving)',
+            r'(?:under|less than)\s+(\d+)\s*(?:min|minute)s?',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                minutes = int(match.group(1))
+                radius_m = minutes * speed
+                return (minutes, radius_m, mode)
+        
+        # Check for hour-based patterns
+        hour_patterns = [
+            (r'(\d+)\s*(?:hr|hour)s?\s+(?:commute|from|away)', lambda m: int(m.group(1)) * 60),
+            (r'(?:half|0\.5)\s*(?:hr|hour)', lambda m: 30),
+        ]
+        
+        for pattern, extractor in hour_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                minutes = extractor(match)
+                radius_m = minutes * speed
+                return (minutes, radius_m, mode)
+        
+        return (None, None, mode)
+    
+    @classmethod
+    def commute_time_to_radius(cls, minutes: int, mode: str = 'average') -> float:
+        """
+        Convert commute time to search radius.
+        
+        Args:
+            minutes: Commute time in minutes
+            mode: Transport mode ('average', 'peak', 'metro', 'walk', 'cycle')
+            
+        Returns:
+            Radius in meters
+        """
+        speed = cls.BANGALORE_COMMUTE_SPEED.get(mode, 250)
+        return minutes * speed
+    
+    @classmethod
+    def radius_to_commute_time(cls, radius_m: float, mode: str = 'average') -> int:
+        """
+        Estimate commute time from radius.
+        
+        Args:
+            radius_m: Distance in meters
+            mode: Transport mode
+            
+        Returns:
+            Estimated commute time in minutes
+        """
+        speed = cls.BANGALORE_COMMUTE_SPEED.get(mode, 250)
+        return int(radius_m / speed)
 
 
 class DirectionParser:
@@ -254,6 +363,46 @@ class PropertyFilterParser:
         (r'(\d+)\s*(?:to|-)\s*(\d+)\s*bhk', 'range'),
     ]
     
+    # Listing type patterns (rent vs sale)
+    LISTING_TYPE_PATTERNS = {
+        'rent': [
+            r'\bfor\s+rent\b', r'\brental\b', r'\bto\s+let\b', r'\blease\b',
+            r'\brent\b', r'\brenting\b', r'\btenants?\b', r'\bmonthly\s+rent\b',
+        ],
+        'sale': [
+            r'\bfor\s+sale\b', r'\bbuy\b', r'\bpurchase\b', r'\binvest\b',
+            r'\bsale\b', r'\bbuying\b', r'\bown\b', r'\bownership\b',
+        ],
+    }
+    
+    # Property category patterns
+    CATEGORY_PATTERNS = {
+        'residential': [r'\bresidential\b', r'\bhome\b', r'\bhouse\b', r'\bapartment\b', r'\bflat\b', r'\bvilla\b'],
+        'commercial': [r'\bcommercial\b', r'\boffice\b', r'\bshop\b', r'\bshowroom\b', r'\bretail\b', r'\bwarehouse\b'],
+        'plot': [r'\bplot\b', r'\bland\b', r'\bsite\b', r'\bground\b'],
+        'pg': [r'\bpg\b', r'\bpaying\s+guest\b', r'\bhostel\b', r'\bbachelor\b'],
+    }
+    
+    # PG type patterns (gender)
+    PG_TYPE_PATTERNS = {
+        'girls': [r'\bgirls?\b', r'\bfemale\b', r'\bladies\b', r'\bwomen\b'],
+        'boys': [r'\bboys?\b', r'\bmale\b', r'\bmen\b', r'\bgents?\b'],
+        'coed': [r'\bcoed\b', r'\bunisex\b', r'\bmixed\b', r'\bco-?ed\b'],
+    }
+    
+    # Property subtype patterns
+    SUBTYPE_PATTERNS = {
+        'flat': [r'\bflat\b', r'\bapartment\b'],
+        'villa': [r'\bvilla\b', r'\bindependent\s+house\b', r'\bbungalow\b'],
+        'penthouse': [r'\bpenthouse\b'],
+        'studio': [r'\bstudio\b'],
+        'duplex': [r'\bduplex\b'],
+        'office': [r'\boffice\b', r'\bworkspace\b'],
+        'shop': [r'\bshop\b', r'\bretail\b'],
+        'showroom': [r'\bshowroom\b'],
+        'warehouse': [r'\bwarehouse\b', r'\bgodown\b'],
+    }
+    
     TYPE_PATTERNS = {
         'apartment': [r'\bapartment\b', r'\bflat\b'],
         'villa': [r'\bvilla\b', r'\bindependent\s+house\b'],
@@ -306,6 +455,44 @@ class PropertyFilterParser:
                 if re.search(pattern, text_lower):
                     filters['property_type'] = prop_type
                     break
+        
+        # Parse listing type (rent vs sale)
+        for listing_type, patterns in cls.LISTING_TYPE_PATTERNS.items():
+            for pattern in patterns:
+                if re.search(pattern, text_lower):
+                    filters['listing_type'] = listing_type
+                    break
+            if 'listing_type' in filters:
+                break
+        
+        # Parse property category
+        for category, patterns in cls.CATEGORY_PATTERNS.items():
+            for pattern in patterns:
+                if re.search(pattern, text_lower):
+                    filters['property_category'] = category
+                    break
+            if 'property_category' in filters:
+                break
+        
+        # Parse PG type (gender) - only if PG/hostel detected
+        if filters.get('property_category') == 'pg' or re.search(r'\b(pg|hostel|paying\s+guest)\b', text_lower):
+            filters['property_category'] = 'pg'  # Ensure category is set
+            for pg_type, patterns in cls.PG_TYPE_PATTERNS.items():
+                for pattern in patterns:
+                    if re.search(pattern, text_lower):
+                        filters['pg_type'] = pg_type
+                        break
+                if 'pg_type' in filters:
+                    break
+        
+        # Parse property subtype
+        for subtype, patterns in cls.SUBTYPE_PATTERNS.items():
+            for pattern in patterns:
+                if re.search(pattern, text_lower):
+                    filters['property_subtype'] = subtype
+                    break
+            if 'property_subtype' in filters:
+                break
         
         # Parse area (sqft)
         area_match = re.search(r'(\d+)\s*(?:to|-)\s*(\d+)\s*(?:sqft|sq\.?\s*ft|sft)', text_lower)

@@ -1,21 +1,23 @@
 # Valora AI - Investor Pitch
-## AI Market Intelligence & Virtual Property Twins for India
+## Offline-First 3D Real Estate & City Intelligence for India
 
-**Version**: 2.0 | **Date**: January 2026 | **Stage**: Pre-Seed / Seed Ready
+**Version**: 3.0 | **Date**: January 2026 | **Stage**: Seed Ready
 
 ---
 
 ## 🎯 Executive Summary
 
-Valora is building India's first **Intelligence-First 3D Real Estate Platform** combining:
-- **Dynamic Market Prediction Engine (DMPE)** - AI-powered price forecasting
-- **AI-Generated Property Twins** - Immersive 3D virtual property tours
-- **City Intelligence Engine** - Cognitive urban analytics with causal reasoning
+Valora is an **offline-first 3D GIS + AI reasoning platform** that helps brokers, developers, lenders, and investors make faster real estate decisions using **grounded spatial intelligence** (not hallucinated narratives).
 
-We address the key pain points in Indian real estate – from lack of transparent data to challenges of remote property viewing – with a unified platform that helps users **predict the market** and **visualize properties** to drive faster, smarter transactions.
+We combine:
+- **3D city model + property twins** (buildings, terrain, POIs, transport)
+- **Deterministic agents** that compute facts from local data
+- **Truth Firewall (Fact Verifier)** that verifies numeric and spatial claims before the user sees them
 
-**Target Market**: India's $1 trillion real estate sector (by 2030)
-**Business Model**: B2B SaaS + Transaction-based revenue
+**Why it wins:** AI for real estate fails when it invents numbers. Valora’s system is designed so the LLM **only narrates** and every claim is backed by deterministic evidence.
+
+**Target Market**: India real estate decision workflows across brokers, developers, and lenders
+**Business Model**: B2B SaaS + Enterprise licensing + per-project developer packages
 **Ask**: $2M Seed Funding
 
 ---
@@ -27,10 +29,10 @@ We address the key pain points in Indian real estate – from lack of transparen
 | Asset | Count | Status |
 |-------|-------|--------|
 | Property Listings | 42,452 | ✅ Live |
-| 3D Building Models | 686,370 | ✅ Live |
-| Points of Interest | 26,961 | ✅ Categorized |
-| **Open Datasets** | **453,144** | ✅ **NEW** |
-| Roads Network | 334,784 | ✅ Complete |
+| 3D Building Footprints | 686,370 | ✅ Live |
+| Points of Interest (POIs) | 23,467+ | ✅ Live |
+| **Open Datasets** | **455,066** | ✅ **NEW** |
+| Roads Network (OSM layer) | 334,784 | 🔶 Ingestion in progress |
 | Transport Stops | 4,253 | ✅ Metro/Bus |
 | AQI Records | 1,550 | ✅ 2017-2025 |
 | Watersheds | 607 | ✅ Environmental |
@@ -42,32 +44,64 @@ We address the key pain points in Indian real estate – from lack of transparen
 | Source | Datasets | Data Types |
 |--------|----------|------------|
 | **OpenCity.in** | 516 | Ward maps, cadastral, census, infrastructure |
-| **Google Maps** | POIs | Schools, hospitals, restaurants with ratings |
-| **Apify Scrapers** | Properties | MagicBricks, 99acres, Housing, NoBroker |
-| **Government** | GIS | BDA Master Plan, BBMP Wards, BWSSB |
-| **OpenStreetMap** | Base | Roads, buildings, POIs |
+| **Government / Planning** | Multiple | Zoning, wards, infrastructure layers |
+| **OpenStreetMap** | Base | Buildings, roads, base geometry |
+| **Listings (Feeds/ETL)** | Multiple | Listings ingested into offline data packs |
+| **POI Providers (ETL)** | Multiple | Amenity datasets ingested into offline data packs |
 
-### AI Capabilities Implemented
+### AI Capabilities Implemented (Deterministic + Verified)
 
-| Capability | Description | Accuracy |
-|------------|-------------|----------|
-| **Property Search** | Natural language to SQL + Vector | 90% |
-| **3D Building Analysis** | Height, shadow, view quality, neighbors | 85% |
-| **Spatial Reasoning** | Distance, accessibility, walkability | 88% |
-| **Price Prediction** | ML-based valuation model | 75% |
-| **What-If Simulation** | Infrastructure impact modeling | 70% |
-| **Area Analysis** | POI density, livability scoring | 85% |
-| **Terrain Analysis** | Flood risk, elevation, suitability | 80% |
-| **Visual Analysis** | Property image understanding (Qwen VL) | 70% |
+| Capability | Description |
+|------------|-------------|
+| **Property Search** | Natural language → structured filters → DB retrieval (plus optional semantic retrieval) |
+| **Area Intelligence** | Amenities, accessibility, risk indexes, locality profiles |
+| **3D Building Analysis** | Height, shadow, view quality, neighbor context |
+| **Terrain & Risk** | Flood risk grid, elevation/suitability signals |
+| **Valuation** | ML-based valuation + transaction intelligence (comps, confidence) |
+| **Regulatory Intelligence** | Zoning classification, FAR/FSI checks, due diligence checklists |
+| **What-If Simulation** | Infrastructure/policy scenario reasoning + narrative storyboard |
+| **Visual Analysis** | Image/screenshot understanding (local multimodal model) |
 
 ### Technology Stack
 
 ```
 Frontend: React 18 + CesiumJS (3D Globe) + TailwindCSS
 Backend:  FastAPI + SQLite/PostgreSQL + FAISS Vector Store
-AI:       Qwen 3 (Local) + OpenRouter (Cloud) + Custom Reasoning
+AI:       Local LLMs via Ollama (reasoning + multimodal) + deterministic tools
 3D:       CesiumJS + OSM Building Data + Terrain Tiles
 ```
+
+---
+
+## 🔒 Trust, Security & Reliability (Key Differentiator)
+
+### Truth Firewall (Fact Verifier)
+Valora verifies claims in generated narratives against deterministic evidence before responding.
+
+**Claim types verified:** price, distance, count, percentage, spatial/view, sunlight, simulation, zoning.
+
+### Authentication & RBAC
+Role-based access with rate limiting for production deployments (superadmin/analyst/viewer/external_api).
+
+### Observability & Metrics
+Built-in metrics endpoints for latency, error rates, and verifier mismatch tracking.
+
+### Testing
+Unified test suite with **100+ tests across 16 categories** (intent, spatial, verifier, auth, observability, etc.).
+
+---
+
+## 🚀 Traction & Readiness (Bangalore MVP)
+
+- **Production-ready trust layer complete**: Truth Firewall + RBAC + observability
+- **Automated coverage**: 100+ tests across 16 categories + API endpoint sanity checks
+- **Offline-first deployment**: local DB + local models, suitable for broker offices and enterprise on-prem
+- **Dataset scale (offline Bangalore)**:
+  - Buildings: 686,370
+  - Properties: 42,452
+  - POIs: 23,467+
+  - Transport stops: 4,253
+  - Open datasets: 455,066
 
 ---
 
@@ -75,7 +109,7 @@ AI:       Qwen 3 (Local) + OpenRouter (Cloud) + Custom Reasoning
 
 ### 1. Dynamic Market Prediction Engine (DMPE)
 
-**Status**: 60% Complete | **Target**: Full MVP by Q2 2026
+**Status**: Valuation + comps live; time-series forecasting pending historical price ingestion | **Target**: Full MVP by Q2 2026
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -87,7 +121,7 @@ AI:       Qwen 3 (Local) + OpenRouter (Cloud) + Custom Reasoning
 | Scenario Simulation | ✅ | What-if infrastructure impacts |
 | Explainability (SHAP) | 🔶 | Architecture ready, needs integration |
 
-**Sample Output**:
+**Example Output (Illustrative)**:
 ```json
 {
   "locality": "Whitefield",
@@ -108,7 +142,7 @@ AI:       Qwen 3 (Local) + OpenRouter (Cloud) + Custom Reasoning
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| 3D Building Rendering | ✅ | 1.37M buildings with heights |
+| 3D Building Rendering | ✅ | 686K+ buildings with heights |
 | Click-to-Select | ✅ | Building info on click |
 | Camera Fly-To | ✅ | Smooth animations |
 | Shadow Analysis | ✅ | Sun angle calculations |
@@ -211,7 +245,7 @@ AI:       Qwen 3 (Local) + OpenRouter (Cloud) + Custom Reasoning
 |---------|-------------|----------|--------|------------|
 | Property Listings | ✅ | ✅ | ❌ | ✅ |
 | AI Valuations | Basic | ❌ | ❌ | **Advanced** |
-| Price Predictions | ❌ | ❌ | ❌ | **✅** |
+| Valuation + scenario forecasting | ❌ | ❌ | ❌ | **✅** |
 | 3D Building Models | ❌ | ❌ | ✅ | **✅** |
 | Virtual Tours | Basic | Basic | ✅ | **✅** |
 | Causal Reasoning | ❌ | ❌ | ❌ | **✅** |
@@ -220,11 +254,12 @@ AI:       Qwen 3 (Local) + OpenRouter (Cloud) + Custom Reasoning
 | Open to All Agents | ✅ | ❌ | ❌ | **✅** |
 
 ### Unique Differentiators
-1. **Intelligence-First**: Not just listings, but predictive insights
-2. **True 3D Reasoning**: AI understands buildings volumetrically
-3. **Causal Explainability**: "Why" not just "What"
-4. **Offline-First**: Works without internet (critical for India)
-5. **Platform Neutral**: Empowers brokers, doesn't replace them
+1. **Truth Firewall**: Verifies claims against deterministic evidence before responding
+2. **Intelligence-First**: Not just listings, but decision intelligence and scenarios
+3. **True 3D Reasoning**: Sky view, shadows, skyline character, building context
+4. **Explainability by design**: "Why" tab + confidence + assumptions
+5. **Offline-first deployment**: Runs locally for reliability and privacy
+6. **Platform neutral**: Empowers brokers and teams, doesn’t replace them
 
 ---
 
@@ -233,7 +268,9 @@ AI:       Qwen 3 (Local) + OpenRouter (Cloud) + Custom Reasoning
 ### Q1 2026 (Current)
 - ✅ City Intelligence Engine
 - ✅ 3D Spatial Reasoning
-- ✅ AI Self-Learning System
+- ✅ Truth Firewall (Fact Verifier)
+- ✅ Auth & RBAC
+- ✅ Observability & Metrics
 - 🔶 Bangalore MVP Launch
 
 ### Q2 2026
@@ -314,19 +351,19 @@ AI:       Qwen 3 (Local) + OpenRouter (Cloud) + Custom Reasoning
 ```
 User Query
     ↓
-Intent Router (8 intent types)
+Intent Router (16 intent types)
     ↓
 GIS Agent Orchestrator
     ├── Spatial Agent (location, proximity)
     ├── Property Agent (search, filter)
     ├── Terrain Agent (elevation, flood)
-    ├── Market Agent (prices, trends)
+    ├── Market/Valuation Agent (valuation, comps, trends when available)
     ├── Building Agent (3D analysis)
     └── Simulation Agent (what-if)
     ↓
 Fact Aggregation (AgentFacts dataclass)
     ↓
-Narrative Generator (Qwen 3 / GPT-4)
+Local LLM Narrator (Ollama) + Fact Verifier (Truth Firewall)
     ↓
 Structured Response + UI Actions
 ```
@@ -340,10 +377,10 @@ AI Response:
 
 **Scenario**: New Metro Station at Sarjapur Road
 
-**Predicted Effects** (77% confidence):
-- Property values: +15-25% within 500m
-- Commute time: -40% to city center
-- Commercial activity: +60% in 2 years
+**Illustrative Effects** (example format; values depend on local data and are verified at runtime):
+- Property value impact: +X% to +Y% within 500m
+- Commute/accessibility impact: -X% travel time to key hubs
+- Commercial activity impact: +X% over 2 years
 
 **Causal Chain**:
 1. Metro station opens → Accessibility improves

@@ -1,6 +1,6 @@
 {
   "session_id": "default",
-  "session_start": "2026-01-27T19:39:05.245878",
+  "session_start": "2026-01-30T04:05:01.947571",
   "visits": [
     {
       "lat": 12.95601896,
@@ -331,6 +331,266 @@
       "duration_seconds": 0,
       "actions_taken": [],
       "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-01-27T19:57:11.085636",
+      "intent": "navigate",
+      "duration_seconds": 3.636426,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-01-27T19:57:14.722062",
+      "intent": "analyze_area",
+      "duration_seconds": 175.33412,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "indiranagar under 2 cr",
+      "timestamp": "2026-01-27T20:00:10.056182",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-01-27T20:04:50.002673",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-01-27T20:09:01.165337",
+      "intent": "investment",
+      "duration_seconds": 113.843245,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "indiranagar under 2 cr",
+      "timestamp": "2026-01-27T20:10:55.008582",
+      "intent": "property_search",
+      "duration_seconds": 4.931503,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-01-27T20:10:59.940085",
+      "intent": "comparison",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976146130434786,
+      "lng": 77.62130789999999,
+      "name": "Building",
+      "timestamp": "2026-01-27T20:14:40.653437",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0358,
+      "lng": 77.597,
+      "name": "hebbal",
+      "timestamp": "2026-01-27T20:51:13.266617",
+      "intent": "property_search",
+      "duration_seconds": 273.377493,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0358,
+      "lng": 77.597,
+      "name": "hebbal",
+      "timestamp": "2026-01-27T20:55:46.644110",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-01-27T21:13:42.339436",
+      "intent": "analyze_area",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-01-27T21:21:35.179296",
+      "intent": "analyze_area",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-01-27T21:39:31.084817",
+      "intent": "analyze_area",
+      "duration_seconds": 135.836127,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-01-27T21:41:46.920944",
+      "intent": "analyze_area",
+      "duration_seconds": 259.377038,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-01-27T21:46:06.297982",
+      "intent": "analyze_area",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.75,
+      "name": "whitefield under 1.5cr",
+      "timestamp": "2026-01-27T22:56:29.826911",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978536700000001,
+      "lng": 77.63780942000001,
+      "name": "Building",
+      "timestamp": "2026-01-27T23:13:30.131710",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.981392095972163,
+      "lng": 77.63883681809268,
+      "name": "Selected Location",
+      "timestamp": "2026-01-27T23:41:58.041455",
+      "intent": "greeting",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.981265355675179,
+      "lng": 77.63897215502978,
+      "name": "Selected Location",
+      "timestamp": "2026-01-27T23:43:50.309128",
+      "intent": "analyze_area",
+      "duration_seconds": 169.354,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.981265355675179,
+      "lng": 77.63897215502978,
+      "name": "Selected Location",
+      "timestamp": "2026-01-27T23:46:39.663128",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.98124454,
+      "lng": 77.64045338000001,
+      "name": "Building",
+      "timestamp": "2026-01-27T23:51:48.210738",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "koramangala",
+      "timestamp": "2026-01-30T02:42:40.021496",
+      "intent": "property_search",
+      "duration_seconds": 11.531819,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-01-30T02:42:51.553315",
+      "intent": "navigate",
+      "duration_seconds": 44.333056,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "koramangala",
+      "timestamp": "2026-01-30T02:43:35.886371",
+      "intent": "property_search",
+      "duration_seconds": 7.293398,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-01-30T02:43:43.179769",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97815798,
+      "lng": 77.64012192000001,
+      "name": "Building",
+      "timestamp": "2026-01-30T04:06:57.320722",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
     }
   ],
   "preferences": {
@@ -345,8 +605,8 @@
     "budget_range": null,
     "preferred_amenities": [],
     "avoid_areas": [],
-    "exploration_style": "balanced"
+    "exploration_style": "focused"
   },
   "comparisons": [],
-  "last_updated": "2026-01-27T19:40:26.563021"
+  "last_updated": "2026-01-30T04:06:57.322088"
 }

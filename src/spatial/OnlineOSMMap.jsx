@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import * as Cesium from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import '../styles/cesium.css'
+import DrawingTools from '../components/DrawingTools'
 
 window.CESIUM_BASE_URL = '/cesium/'
 
 // Backend API for local 3D buildings
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const TILES_API = `${API_BASE}/api/tiles/viewport`
+const POLYGON_ANALYZE_API = `${API_BASE}/api/spatial/polygon-analyze`
+const BUFFER_ANALYZE_API = `${API_BASE}/api/spatial/buffer-analyze`
 
 // Bangalore areas for navigation
 const BANGALORE_AREAS = {
@@ -52,11 +55,140 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const [clickRipple, setClickRipple] = useState(null)
   const [canGoBack, setCanGoBack] = useState(false)
   
-  // Enhanced layer visibility controls
+  // Enhanced layer visibility controls - buildings and shadows always on
   const [showBuildings, setShowBuildings] = useState(true)
-  const [showShadows, setShowShadows] = useState(false)
+  const [showShadows, setShowShadows] = useState(true)
   const [showTerrain, setShowTerrain] = useState(false) // Start flat, enable for terrain analysis
   const [buildingQuality, setBuildingQuality] = useState('high') // low, medium, high
+  
+  // Real-time clock state
+  const [currentTime, setCurrentTime] = useState(new Date())
+  
+  // Drawing tools state
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [drawMode, setDrawMode] = useState(null) // 'polygon' or 'buffer'
+  const [polygonPoints, setPolygonPoints] = useState([])
+  const [bufferRadius, setBufferRadius] = useState(500) // meters
+  const [drawnEntities, setDrawnEntities] = useState([])
+  const drawingHandlerRef = useRef(null)
+  const bufferEntityRef = useRef(null)
+  const polygonEntityRef = useRef(null)
+
+
+  useEffect(() => {
+    const runPolygonAnalysis = async () => {
+      if (!setAgentData) return
+
+      const points = agentData?.drawnPolygon
+      if (!Array.isArray(points) || points.length < 3) {
+        setAgentData(prev => ({
+          ...prev,
+          polygonAnalysisPending: false,
+          polygonAnalysis: null,
+          polygonAnalysisError: 'Polygon has insufficient points'
+        }))
+        return
+      }
+
+      setAgentData(prev => ({
+        ...prev,
+        polygonAnalysisLoading: true,
+        polygonAnalysisError: null,
+      }))
+
+      try {
+        const coordinates = points.map(p => [p.lng, p.lat])
+        const resp = await fetch(POLYGON_ANALYZE_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ coordinates })
+        })
+
+        if (!resp.ok) {
+          throw new Error(`Polygon analyze failed: ${resp.status}`)
+        }
+
+        const data = await resp.json()
+        setAgentData(prev => ({
+          ...prev,
+          polygonAnalysisPending: false,
+          polygonAnalysisLoading: false,
+          polygonAnalysis: data?.data || null,
+          polygonAnalysisError: null,
+        }))
+      } catch (e) {
+        setAgentData(prev => ({
+          ...prev,
+          polygonAnalysisPending: false,
+          polygonAnalysisLoading: false,
+          polygonAnalysis: null,
+          polygonAnalysisError: e?.message || String(e)
+        }))
+      }
+    }
+
+    if (agentData?.polygonAnalysisPending) {
+      runPolygonAnalysis()
+    }
+  }, [agentData?.polygonAnalysisPending, agentData?.drawnPolygon, setAgentData])
+
+
+  useEffect(() => {
+    const runBufferAnalysis = async () => {
+      if (!setAgentData) return
+      const buf = agentData?.drawnBuffer
+      const center = buf?.center
+      const radius = buf?.radius
+      if (!center?.lat || !center?.lng || !radius) {
+        setAgentData(prev => ({
+          ...prev,
+          bufferAnalysisPending: false,
+          bufferAnalysis: null,
+          bufferAnalysisError: 'Buffer center or radius missing'
+        }))
+        return
+      }
+
+      setAgentData(prev => ({
+        ...prev,
+        bufferAnalysisLoading: true,
+        bufferAnalysisError: null,
+      }))
+
+      try {
+        const resp = await fetch(BUFFER_ANALYZE_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ center, radius_m: radius })
+        })
+
+        if (!resp.ok) {
+          throw new Error(`Buffer analyze failed: ${resp.status}`)
+        }
+
+        const data = await resp.json()
+        setAgentData(prev => ({
+          ...prev,
+          bufferAnalysisPending: false,
+          bufferAnalysisLoading: false,
+          bufferAnalysis: data?.data || null,
+          bufferAnalysisError: null,
+        }))
+      } catch (e) {
+        setAgentData(prev => ({
+          ...prev,
+          bufferAnalysisPending: false,
+          bufferAnalysisLoading: false,
+          bufferAnalysis: null,
+          bufferAnalysisError: e?.message || String(e)
+        }))
+      }
+    }
+
+    if (agentData?.bufferAnalysisPending) {
+      runBufferAnalysis()
+    }
+  }, [agentData?.bufferAnalysisPending, agentData?.drawnBuffer, setAgentData])
 
 
   const applyPlaceLabelStyle = (entity, subtype) => {
@@ -134,7 +266,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     }
   }
 
-  // Toggle layer visibility (no reload)
+  // Toggle layer visibility - loads buildings if enabling and none loaded
   const toggleBuildingsLayer = () => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed()) return
@@ -142,12 +274,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     const newState = !showBuildings
     setShowBuildings(newState)
     
-    // Toggle all building entities
+    // Toggle all existing building entities
     Object.values(tileEntitiesRef.current).forEach(entities => {
       entities.forEach(e => {
         if (e && e.polygon) e.show = newState
       })
     })
+    
+    // If enabling and no buildings loaded yet, trigger load
+    if (newState && buildingsCount === 0) {
+      console.log('[Buildings] Enabling - loading buildings for current viewport...')
+      loadTilesForViewport()
+    }
   }
 
   const togglePlacesLayer = () => {
@@ -250,6 +388,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     }
   }, [showBuildings, showShadows])
 
+  // Real-time clock - updates every second
+  useEffect(() => {
+    const clockInterval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+    return () => clearInterval(clockInterval)
+  }, [])
 
   // Place labels disabled - AI handles labels
   // useEffect(() => {
@@ -419,6 +564,218 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     setHeading(Math.round((headingDeg + 360) % 360))
   }
 
+  // Drawing functions
+  const startPolygonDraw = () => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    
+    setIsDrawing(true)
+    setDrawMode('polygon')
+    setPolygonPoints([])
+    
+    // Create handler for polygon drawing
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
+    drawingHandlerRef.current = handler
+    
+    handler.setInputAction((click) => {
+      const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid)
+      if (cartesian) {
+        const cartographic = Cesium.Cartographic.fromCartesian(cartesian)
+        const lng = Cesium.Math.toDegrees(cartographic.longitude)
+        const lat = Cesium.Math.toDegrees(cartographic.latitude)
+        
+        setPolygonPoints(prev => {
+          const newPoints = [...prev, { lng, lat }]
+          updatePolygonPreview(newPoints)
+          return newPoints
+        })
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+    
+    handler.setInputAction(() => {
+      finishPolygonDraw()
+    }, Cesium.ScreenSpaceEventType.RIGHT_CLICK)
+  }
+  
+  const updatePolygonPreview = (points) => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed() || points.length < 2) return
+    
+    // Remove existing preview
+    if (polygonEntityRef.current) {
+      viewer.entities.remove(polygonEntityRef.current)
+    }
+    
+    const positions = points.flatMap(p => [p.lng, p.lat])
+    
+    polygonEntityRef.current = viewer.entities.add({
+      polygon: {
+        hierarchy: Cesium.Cartesian3.fromDegreesArray(positions),
+        material: Cesium.Color.BLUE.withAlpha(0.3),
+        outline: true,
+        outlineColor: Cesium.Color.BLUE,
+        outlineWidth: 2,
+        height: 0
+      }
+    })
+  }
+  
+  const finishPolygonDraw = () => {
+    if (polygonPoints.length < 3) {
+      cancelDrawing()
+      return
+    }
+    
+    // Clean up handler
+    if (drawingHandlerRef.current) {
+      drawingHandlerRef.current.destroy()
+      drawingHandlerRef.current = null
+    }
+    
+    setIsDrawing(false)
+    setDrawMode(null)
+    
+    // Dispatch event for polygon analysis
+    window.dispatchEvent(new CustomEvent('valora-polygon-drawn', {
+      detail: { points: polygonPoints, type: 'polygon' }
+    }))
+    
+    // Update agentData with polygon
+    if (setAgentData) {
+      setAgentData(prev => ({
+        ...prev,
+        drawnPolygon: polygonPoints,
+        polygonAnalysisPending: true
+      }))
+    }
+  }
+  
+  const startBufferDraw = () => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    
+    setIsDrawing(true)
+    setDrawMode('buffer')
+    
+    // Create handler for buffer placement
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
+    drawingHandlerRef.current = handler
+    
+    handler.setInputAction((click) => {
+      const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid)
+      if (cartesian) {
+        const cartographic = Cesium.Cartographic.fromCartesian(cartesian)
+        const lng = Cesium.Math.toDegrees(cartographic.longitude)
+        const lat = Cesium.Math.toDegrees(cartographic.latitude)
+        
+        createBufferZone(lat, lng, bufferRadius)
+        finishBufferDraw(lat, lng)
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+  }
+  
+  const createBufferZone = (lat, lng, radiusMeters) => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    
+    // Remove existing buffer
+    if (bufferEntityRef.current) {
+      viewer.entities.remove(bufferEntityRef.current)
+    }
+    
+    bufferEntityRef.current = viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(lng, lat),
+      ellipse: {
+        semiMajorAxis: radiusMeters,
+        semiMinorAxis: radiusMeters,
+        material: Cesium.Color.BLUE.withAlpha(0.2),
+        outline: true,
+        outlineColor: Cesium.Color.BLUE,
+        outlineWidth: 2,
+        height: 0
+      },
+      point: {
+        pixelSize: 10,
+        color: Cesium.Color.BLUE,
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 2
+      }
+    })
+  }
+  
+  const finishBufferDraw = (lat, lng) => {
+    // Clean up handler
+    if (drawingHandlerRef.current) {
+      drawingHandlerRef.current.destroy()
+      drawingHandlerRef.current = null
+    }
+    
+    setIsDrawing(false)
+    setDrawMode(null)
+    
+    // Dispatch event for buffer analysis
+    window.dispatchEvent(new CustomEvent('valora-buffer-drawn', {
+      detail: { center: { lat, lng }, radius: bufferRadius, type: 'buffer' }
+    }))
+    
+    // Update agentData with buffer
+    if (setAgentData) {
+      setAgentData(prev => ({
+        ...prev,
+        drawnBuffer: { center: { lat, lng }, radius: bufferRadius },
+        bufferAnalysisPending: true
+      }))
+    }
+  }
+  
+  const cancelDrawing = () => {
+    if (drawingHandlerRef.current) {
+      drawingHandlerRef.current.destroy()
+      drawingHandlerRef.current = null
+    }
+    
+    // Remove preview entities
+    const viewer = viewerRef.current
+    if (viewer && !viewer.isDestroyed()) {
+      if (polygonEntityRef.current) {
+        viewer.entities.remove(polygonEntityRef.current)
+        polygonEntityRef.current = null
+      }
+    }
+    
+    setIsDrawing(false)
+    setDrawMode(null)
+    setPolygonPoints([])
+  }
+  
+  const clearDrawings = () => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    
+    // Remove all drawn entities
+    if (polygonEntityRef.current) {
+      viewer.entities.remove(polygonEntityRef.current)
+      polygonEntityRef.current = null
+    }
+    if (bufferEntityRef.current) {
+      viewer.entities.remove(bufferEntityRef.current)
+      bufferEntityRef.current = null
+    }
+    
+    setPolygonPoints([])
+    
+    // Clear from agentData
+    if (setAgentData) {
+      setAgentData(prev => ({
+        ...prev,
+        drawnPolygon: null,
+        drawnBuffer: null,
+        polygonAnalysisPending: false,
+        bufferAnalysisPending: false
+      }))
+    }
+  }
+
   // Load a single tile and add buildings to scene
   const loadTile = async (tileId, tileUrl) => {
     const viewer = viewerRef.current
@@ -510,7 +867,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
             outlineWidth: 1,
             extrudedHeight: height,
             height: 0,
-            shadows: showBuildings ? Cesium.ShadowMode.ENABLED : Cesium.ShadowMode.DISABLED
+            shadows: Cesium.ShadowMode.ENABLED
           },
           properties: {
             height: height,
@@ -890,6 +1247,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#f0f0f0')
         viewer.scene.globe.depthTestAgainstTerrain = false
 
+        // Set Cesium clock to current real time for accurate sun position & shadows
+        viewer.clock.currentTime = Cesium.JulianDate.now()
+        viewer.clock.shouldAnimate = true
+        viewer.clock.multiplier = 1 // Real-time
+
         // Performance settings
         viewer.resolutionScale = 1.0
         viewer.scene.fog.enabled = false
@@ -925,7 +1287,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         viewer.camera.moveEnd.addEventListener(() => {
           clearTimeout(cameraMoveTimeoutRef.current)
           cameraMoveTimeoutRef.current = setTimeout(() => {
-            loadTilesForViewport()
+            // Only load tiles if buildings are enabled
+            if (showBuildings) {
+              loadTilesForViewport()
+            }
             
             // Update mapCenter in agentData for viewport analysis
             if (setAgentData && viewer && !viewer.isDestroyed()) {
@@ -1126,6 +1491,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
 
             // Auto-trigger comprehensive building analysis
             analyzeBuildingAsync(buildingData)
+            
+            // Dispatch event for chat panel to auto-respond
+            window.dispatchEvent(new CustomEvent('valora-building-clicked', {
+              detail: {
+                building: buildingData,
+                query: `Analyze this ${buildingData.type || 'building'} at ${buildingData.coordinates?.lat?.toFixed(5)}, ${buildingData.coordinates?.lng?.toFixed(5)}. It's ${buildingData.height || 'unknown'}m tall with ${buildingData.levels || 'unknown'} floors. Provide deep insights on valuation, investment potential, and nearby amenities.`
+              }
+            }))
 
             return
           }
@@ -1262,8 +1635,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           }))
         }
 
-        // Load initial buildings
-        setTimeout(() => loadTilesForViewport(), 1500)
+        // Load initial buildings only when enabled
+        if (showBuildings) {
+          setTimeout(() => loadTilesForViewport(), 1500)
+        }
 
       } catch (err) {
         console.error('Cesium initialization failed:', err)
@@ -1465,6 +1840,20 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         </div>
       )}
 
+      {/* Drawing Tools - Top Left */}
+      <DrawingTools
+        isDrawing={isDrawing}
+        drawMode={drawMode}
+        onStartPolygon={startPolygonDraw}
+        onStartBuffer={startBufferDraw}
+        onClearDrawing={clearDrawings}
+        onFinishDrawing={drawMode === 'polygon' ? finishPolygonDraw : () => {}}
+        onCancelDrawing={cancelDrawing}
+        bufferRadius={bufferRadius}
+        onBufferRadiusChange={setBufferRadius}
+        polygonPoints={polygonPoints.length}
+      />
+
       {/* Navigation Controls - Top Right */}
       <div className="absolute top-4 right-4 z-40 flex flex-col gap-2">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden flex flex-col">
@@ -1534,58 +1923,44 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
 
       </div>
 
-      {/* Enhanced Map Controls - Bottom Right */}
+      {/* Real-time Clock & Status - Bottom Right */}
       <div className="absolute bottom-4 right-4 z-30 flex flex-col gap-2">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 p-2">
-          <div className="text-xs font-semibold text-gray-700 mb-2 px-1">Map Layers</div>
-          
-          <button
-            onClick={() => setShowBuildings(!showBuildings)}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
-              showBuildings ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-            title="Toggle Buildings"
-          >
-            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-              showBuildings ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
-            }`}>
-              {showBuildings && (
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </div>
-            <span className="flex-1 text-left">Buildings</span>
-          </button>
-
-          <button
-            onClick={() => setShowShadows(!showShadows)}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors mt-1 ${
-              showShadows ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-            title="Toggle Shadows"
-          >
-            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-              showShadows ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
-            }`}>
-              {showShadows && (
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </div>
-            <span className="flex-1 text-left">Shadows</span>
-          </button>
-        </div>
-
-        {buildingsLoaded && (
-          <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 px-3 py-2 text-xs text-gray-600">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="font-medium">{buildingsCount.toLocaleString()} buildings</span>
+        {/* Live Clock with Bangalore Timezone */}
+        <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="text-right">
+              <div className="text-sm font-mono font-semibold text-white">
+                {currentTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+              </div>
+              <div className="text-[10px] text-slate-400">
+                {currentTime.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' })} • IST
+              </div>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Buildings Status */}
+        <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 px-3 py-2 text-xs">
+          <div className="flex items-center gap-2">
+            {loadingBuildings ? (
+              <>
+                <svg className="w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-slate-300">Loading buildings...</span>
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-slate-300 font-medium">{buildingsCount.toLocaleString()} buildings</span>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
 

@@ -73,3 +73,35 @@ src/data/
 
 # ML model files
 backend/*.pkl
+
+# Sensitive configuration (keep templates only)
+backend/config/pricing_config.json
+backend/admin_config.json
+backend/llm_config.json
+
+# Training data (privacy-sensitive)
+backend/training_data/*.jsonl
+!backend/training_data/.gitkeep
+
+# Session memory (user-specific)
+backend/session_memory/*.json
+!backend/session_memory/.gitkeep
+
+# Cache files
+backend/cache/
+backend/*.cache
+
+# API keys and secrets
+*.key
+*.pem
+*.cert
+
+# Deprecated code
+backend/_deprecated/
+
+# Test outputs
+test_output*.txt
+
+# Windows specific
+*.lnk
+desktop.ini

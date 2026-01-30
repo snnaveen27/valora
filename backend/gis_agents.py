@@ -78,6 +78,36 @@ except ImportError:
     get_risk_index_calculator = None
     get_causal_reasoning_engine = None
 
+# Phase 4: Next-Gen Spatial Tools (Tool Executor + New Engines)
+try:
+    from tool_executor import get_tool_executor, ToolCall, ToolResult
+    TOOL_EXECUTOR_AVAILABLE = True
+except ImportError:
+    TOOL_EXECUTOR_AVAILABLE = False
+    get_tool_executor = None
+    ToolCall = None
+
+try:
+    from occlusion_engine import get_occlusion_engine
+    OCCLUSION_AVAILABLE = True
+except ImportError:
+    OCCLUSION_AVAILABLE = False
+    get_occlusion_engine = None
+
+try:
+    from solar_engine import get_solar_engine
+    SOLAR_AVAILABLE = True
+except ImportError:
+    SOLAR_AVAILABLE = False
+    get_solar_engine = None
+
+try:
+    from spatial_memory_graph import get_spatial_graph
+    SPATIAL_GRAPH_AVAILABLE = True
+except ImportError:
+    SPATIAL_GRAPH_AVAILABLE = False
+    get_spatial_graph = None
+
 
 def _parse_posted_date(value: Any) -> Optional[datetime]:
     """Parse posted_date string to datetime."""
@@ -301,6 +331,12 @@ class AgentFacts:
     risk_level: Optional[str] = None
     risk_warnings: Optional[List[str]] = None
     causal_analysis: Optional[Dict[str, Any]] = None
+    
+    # Phase 4: Next-Gen Spatial Tools
+    visibility_360: Optional[Dict[str, Any]] = None  # 360-degree visibility analysis
+    view_blockers: Optional[List[Dict[str, Any]]] = None  # Buildings blocking view
+    sunlight_analysis: Optional[Dict[str, Any]] = None  # Daylight hours, natural light score
+    facade_sunlight: Optional[Dict[str, Any]] = None  # Best facade for sunlight
     
     def get_confidence_warning(self) -> Optional[str]:
         """Get user-facing confidence warning if needed."""
@@ -767,14 +803,32 @@ class IntentRouter:
     
     @classmethod
     def extract_place_name(cls, query: str) -> Optional[str]:
-        """Extract place name from navigation query."""
+        """Extract place name from any query type."""
         q = query.strip()
         
-        # Common patterns
+        # Common patterns for different query types
         patterns = [
+            # Navigation patterns
             r'(?:show me|go to|take me to|navigate to|fly to|zoom to)\s+(.+?)(?:\s*$|\s+and\s)',
             r'(?:where is|find|locate)\s+(.+?)(?:\s*$|\s*\?)',
-            r'(?:tell me about|analyze|what.s)\s+(.+?)(?:\s+like|\s*$|\s*\?)',
+            # Analysis patterns
+            r'(?:tell me about|analyze|what.s|how is|describe)\s+(.+?)(?:\s+like|\s*$|\s*\?)',
+            # Investment patterns
+            r'(?:is|are)\s+(.+?)\s+(?:a\s+)?(?:good|bad|worth|smart|safe)\s+(?:investment|buy|area)',
+            r'(?:invest(?:ment)?|buy|purchase)\s+(?:in|at)\s+(.+?)(?:\s*$|\s*\?)',
+            r'(?:should i|can i|worth)\s+(?:invest|buy)\s+(?:in|at)\s+(.+?)(?:\s*$|\s*\?)',
+            # Property search patterns
+            r'(?:apartments?|flats?|properties|villas?|houses?|plots?)\s+(?:in|at|near)\s+(.+?)(?:\s+under|\s+below|\s*$)',
+            r'(?:\d+\s*bhk|studio)\s+(?:in|at|near)\s+(.+?)(?:\s+under|\s+below|\s*$)',
+            r'(?:in|at|near)\s+(.+?)\s+(?:under|below)\s+\d+',
+            # Comparison patterns
+            r'(?:compare|vs|versus)\s+(.+?)\s+(?:and|vs|versus|with)\s+',
+            r'(?:compare|vs|versus)\s+.+?\s+(?:and|vs|versus|with)\s+(.+?)(?:\s*$|\s*\?)',
+            # Market trend patterns
+            r'(?:price|market)\s+(?:trend|outlook|forecast)\s+(?:in|for|of)\s+(.+?)(?:\s*$|\s*\?)',
+            r'(?:trends?)\s+(?:in|for|of)\s+(.+?)(?:\s*$|\s*\?)',
+            # Generic "in [place]" pattern (lower priority)
+            r'\b(?:in|at|near|around)\s+([A-Z][a-zA-Z\s]+?)(?:\s+under|\s+below|\s+above|\s*$|\s*\?)',
         ]
         
         for pattern in patterns:
@@ -782,8 +836,29 @@ class IntentRouter:
             if match:
                 place = match.group(1).strip()
                 # Clean up common suffixes
-                place = re.sub(r'\s*(area|location|place|neighborhood|locality)$', '', place, flags=re.IGNORECASE)
-                return place.strip() if place else None
+                place = re.sub(r'\s*(area|location|place|neighborhood|locality|for investment|for families|for living)$', '', place, flags=re.IGNORECASE)
+                # Clean up leading articles
+                place = re.sub(r'^(the|a|an)\s+', '', place, flags=re.IGNORECASE)
+                if place and len(place) > 2:
+                    return place.strip()
+        
+        # Fallback: Look for capitalized words that could be place names (Bangalore localities)
+        known_localities = [
+            'Koramangala', 'Indiranagar', 'Whitefield', 'HSR Layout', 'Jayanagar', 'JP Nagar',
+            'Marathahalli', 'Sarjapur', 'Electronic City', 'Hebbal', 'Yelahanka', 'Banashankari',
+            'Rajajinagar', 'Malleshwaram', 'Basavanagudi', 'BTM Layout', 'Bellandur', 'Brookefield',
+            'KR Puram', 'Mahadevpura', 'Hennur', 'Thanisandra', 'Nagarbhavi', 'Vijayanagar',
+            'Bannerghatta', 'Kanakapura', 'Mysore Road', 'Tumkur Road', 'Old Airport Road',
+            'MG Road', 'Brigade Road', 'Commercial Street', 'Cunningham Road', 'Residency Road',
+            'Domlur', 'HAL', 'CV Raman Nagar', 'Banaswadi', 'Kalyan Nagar', 'HRBR Layout',
+            'Sadashivanagar', 'Sanjaynagar', 'RT Nagar', 'HBR Layout', 'Kasturi Nagar',
+            'Ramamurthy Nagar', 'Horamavu', 'Bagalur', 'Anekal', 'Chandapura', 'Attibele'
+        ]
+        
+        q_lower = q.lower()
+        for locality in known_localities:
+            if locality.lower() in q_lower:
+                return locality
         
         return None
 
@@ -853,6 +928,44 @@ class GISAgentOrchestrator:
         selected_building = context.get('selectedBuilding')
         selected_location = context.get('selectedLocation')
         selected_place = context.get('selectedPlace')
+        
+        # Extract analysis panel data for enhanced AI reasoning
+        viewport_analysis = context.get('viewportAnalysis', {})
+        current_analysis = context.get('currentAnalysis', {})
+        explainability = context.get('explainability', {})
+        simulation_context = context.get('simulation', {})
+        
+        # Use analysis panel data to enhance facts if available
+        if viewport_analysis or current_analysis:
+            # Pre-populate facts from analysis panel for faster response
+            if current_analysis.get('market'):
+                market_data = current_analysis['market']
+                facts.avg_price_per_sqft = market_data.get('avg_price_per_sqft')
+                facts.price_trend_pct = market_data.get('price_trend_pct')
+                facts.demand_level = market_data.get('demand_level')
+            
+            if current_analysis.get('infrastructure'):
+                infra_data = current_analysis['infrastructure']
+                facts.poi_count = infra_data.get('total_pois', 0)
+            
+            if current_analysis.get('livability'):
+                livability_data = current_analysis['livability']
+                facts.walkability_score = livability_data.get('commute_score')
+                facts.area_livability_score = livability_data.get('overall_score')
+            
+            if current_analysis.get('investment'):
+                invest_data = current_analysis['investment']
+                facts.investment_outlook = invest_data.get('growth_potential')
+                facts.risk_level = invest_data.get('risk_level')
+            
+            if current_analysis.get('terrain'):
+                terrain_data = current_analysis['terrain']
+                elev = terrain_data.get('elevation_m')
+                if isinstance(elev, dict):
+                    facts.elevation_m = elev.get('mean')
+                else:
+                    facts.elevation_m = elev
+                facts.flood_risk = terrain_data.get('flood_risk')
         
         # Start first task: understanding query
         next_task()
@@ -930,9 +1043,9 @@ class GISAgentOrchestrator:
             except Exception as e:
                 print(f"[GIS] Spatial NLP error: {e}")
         
-        # Fallback: If navigate or property_search intent, try to geocode location from query
-        if intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH] and not lat:
-            next_task(f"Geocoded location")
+        # Fallback: If navigate, property_search, or analyze_area intent, try to geocode location from query
+        if intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND, Intent.VALUATION, Intent.TERRAIN, Intent.COMPARISON] and not lat:
+            next_task(f"Geocoding location from query")
             place_name = IntentRouter.extract_place_name(query)
             if place_name and self.geocoder:
                 results = self.geocoder.search(place_name, limit=1)
@@ -941,8 +1054,11 @@ class GISAgentOrchestrator:
                     lat = top.get('lat')
                     lng = top.get('lng')
                     location_name = top.get('name', place_name)
-                    # Only add flyTo for navigation intent
+                    # Add flyTo for navigation-like intents
                     if intent == Intent.NAVIGATE:
+                        ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 15})
+                    elif intent in [Intent.ANALYZE_AREA, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND]:
+                        # For analysis, fly to location at medium zoom
                         ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 15})
                     else:
                         # For property search, fly to location at wider zoom
@@ -1188,6 +1304,71 @@ class GISAgentOrchestrator:
             except Exception as e:
                 print(f"[GIS] 3D spatial reasoning error: {e}")
         
+        # Phase 4: Enhanced Occlusion Analysis (True Line-of-Sight)
+        if lat and lng and OCCLUSION_AVAILABLE:
+            try:
+                occlusion = get_occlusion_engine()
+                floor = 5  # Default analysis floor
+                if selected_building and selected_building.get('height'):
+                    floor = max(1, int(selected_building['height'] / 3))
+                
+                visibility_360 = occlusion.get_360_visibility(lat, lng, floor=floor, radius_m=300)
+                facts.visibility_360 = {
+                    'view_quality': visibility_360.get('view_quality'),
+                    'open_directions': visibility_360.get('open_directions', []),
+                    'blocked_directions': visibility_360.get('blocked_directions', []),
+                    'openness_score': visibility_360.get('openness_score', 0),
+                }
+                
+                # Find view blockers if view is not excellent
+                if visibility_360.get('view_quality') != 'excellent':
+                    blockers = occlusion.find_view_blockers(lat, lng, floor * 3, radius_m=200)
+                    if blockers:
+                        facts.view_blockers = blockers[:5]  # Top 5 blockers
+                
+                if reasoning_trace:
+                    reasoning_trace.add_step(
+                        ReasoningStep.INFER,
+                        f"Occlusion: {visibility_360.get('view_quality')}, open={len(visibility_360.get('open_directions', []))} dirs",
+                        {"blockers": len(blockers) if 'blockers' in dir() else 0}
+                    )
+            except Exception as e:
+                print(f"[GIS] Occlusion engine error: {e}")
+        
+        # Phase 4: Solar/Sunlight Analysis
+        if lat and lng and SOLAR_AVAILABLE:
+            try:
+                solar = get_solar_engine()
+                floor = 5
+                if selected_building and selected_building.get('height'):
+                    floor = max(1, int(selected_building['height'] / 3))
+                
+                sunlight = solar.analyze_sunlight(lat, lng, floor=floor)
+                facts.sunlight_analysis = {
+                    'daylight_hours': sunlight.daylight_hours,
+                    'natural_light_score': sunlight.natural_light_score,
+                    'morning_sun': sunlight.morning_sun_quality,
+                    'evening_sun': sunlight.evening_sun_quality,
+                    'best_hours': sunlight.best_sunlight_hours,
+                }
+                
+                # Facade sunlight for property search
+                if intent in [Intent.PROPERTY_SEARCH, Intent.ANALYZE_BUILDING]:
+                    facade = solar.get_facade_sunlight(lat, lng, floor=floor)
+                    facts.facade_sunlight = {
+                        'best_facade': facade.get('best_facade'),
+                        'recommendation': facade.get('recommendation'),
+                    }
+                
+                if reasoning_trace:
+                    reasoning_trace.add_step(
+                        ReasoningStep.INFER,
+                        f"Solar: {sunlight.daylight_hours:.1f}h daylight, score={sunlight.natural_light_score:.0f}",
+                        {"best_facade": facade.get('best_facade') if 'facade' in dir() else None}
+                    )
+            except Exception as e:
+                print(f"[GIS] Solar engine error: {e}")
+        
         # Phase 2.2: AI Self-Learning Context
         if AI_CONTEXT_AVAILABLE:
             try:
@@ -1240,14 +1421,68 @@ class GISAgentOrchestrator:
         if lat and lng and self.property_service and intent == Intent.PROPERTY_SEARCH:
             next_task(f"Searched properties in database")
             try:
-                props = self.property_service.search(lat=lat, lng=lng, radius_m=2000, limit=10)
+                # Build search params from parsed spatial filters
+                search_params = {
+                    'lat': lat,
+                    'lng': lng,
+                    'radius_m': 2000,
+                    'limit': 20,
+                }
+                
+                # Apply filters from spatial NLP parsing
+                if parsed_spatial and parsed_spatial.property_filters:
+                    pf = parsed_spatial.property_filters
+                    
+                    # Listing type (rent vs sale)
+                    if pf.get('listing_type'):
+                        search_params['listing_type'] = pf['listing_type']
+                    
+                    # Property category (residential, commercial, pg, plot)
+                    if pf.get('property_category'):
+                        search_params['property_category'] = pf['property_category']
+                    
+                    # Property subtype (flat, villa, office, etc.)
+                    if pf.get('property_subtype'):
+                        search_params['property_subtype'] = pf['property_subtype']
+                    
+                    # PG type (boys, girls, coed)
+                    if pf.get('pg_type'):
+                        search_params['pg_type'] = pf['pg_type']
+                    
+                    # BHK
+                    if pf.get('bhk'):
+                        search_params['bhk'] = str(pf['bhk'])
+                    elif pf.get('bhk_min'):
+                        search_params['min_bedrooms'] = pf['bhk_min']
+                        if pf.get('bhk_max'):
+                            search_params['max_bedrooms'] = pf['bhk_max']
+                    
+                    # Budget (convert lakhs to actual price)
+                    if pf.get('budget_max'):
+                        search_params['max_price'] = int(pf['budget_max'] * 100000)
+                    if pf.get('budget_min'):
+                        search_params['min_price'] = int(pf['budget_min'] * 100000)
+                    
+                    # Text query for full-text search
+                    if pf.get('text_query'):
+                        search_params['text_query'] = pf['text_query']
+                    
+                    # Commute-time based radius adjustment
+                    if parsed_spatial.spatial_scope and parsed_spatial.spatial_scope.get('radius_m'):
+                        search_params['radius_m'] = int(parsed_spatial.spatial_scope['radius_m'])
+                
+                props = self.property_service.search(**search_params)
                 facts.nearby_properties = [
                     {
-                        "name": p.get('name', 'Property'),
+                        "name": p.get('title') or p.get('name', 'Property'),
                         "price": p.get('price'),
-                        "price_per_sqft": p.get('price_per_sq_ft'),
+                        "price_per_sqft": p.get('price_per_sqft') or p.get('price_per_sq_ft'),
                         "bedrooms": p.get('bedrooms'),
-                        "area": p.get('covered_area'),
+                        "bhk": p.get('bhk'),
+                        "area": p.get('total_area_sqft') or p.get('covered_area'),
+                        "listing_type": p.get('listing_type'),
+                        "property_type": p.get('property_type'),
+                        "locality": p.get('locality') or p.get('area_name'),
                         "distance_m": int(p.get('_distance', 0)),
                         "lat": p.get('latitude'),
                         "lng": p.get('longitude'),

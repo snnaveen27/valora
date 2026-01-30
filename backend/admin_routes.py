@@ -1,16 +1,25 @@
 """
 Admin API Routes
 System management, monitoring, and configuration endpoints
+
+SECURITY:
+- All sensitive endpoints require admin authentication
+- Input validation on all parameters
+- Audit logging for administrative actions
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 import time
 import asyncio
 import httpx
 import json
+import re
 from pathlib import Path
+
+from auth_routes import require_admin
+from user_auth import User
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -222,6 +231,28 @@ async def get_system_status() -> Dict[str, Any]:
         }
     except Exception as e:
         status["cache"] = {"status": "degraded", "entries": 0, "hitRate": 0}
+    
+    # Check insight cache
+    try:
+        from insight_cache import get_cache_stats
+        insight_stats = get_cache_stats()
+        
+        if "error" not in insight_stats:
+            status["insight_cache"] = {
+                "status": "healthy",
+                "cached_insights": insight_stats.get("total_cached_insights", 0),
+                "cache_hits": insight_stats.get("total_cache_hits", 0),
+                "unique_users": insight_stats.get("unique_users_cached", 0),
+                "total_charges": insight_stats.get("total_charges", 0),
+                "total_units": insight_stats.get("total_units_charged", 0),
+                "training_samples": insight_stats.get("training_samples", 0),
+                "ttl_days": insight_stats.get("cache_ttl_days", 30),
+                "radius_km": insight_stats.get("cache_radius_km", 2.0)
+            }
+        else:
+            status["insight_cache"] = {"status": "degraded", "error": insight_stats.get("error")}
+    except Exception as e:
+        status["insight_cache"] = {"status": "down", "error": str(e)}
     
     return status
 
@@ -979,6 +1010,476 @@ async def get_locality_brain_status() -> Dict[str, Any]:
                 "last_updated": last_updated,
                 "growth_phases": phases,
             }
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+# ============================================================================
+# USAGE TRACKING & ML TRAINING DATA
+# ============================================================================
+
+@router.get("/usage/stats")
+async def get_usage_stats(admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Get global usage statistics.
+    SECURITY: Requires admin authentication.
+    """
+    try:
+        from usage_tracker import get_usage_tracker
+        tracker = get_usage_tracker()
+        
+        stats_7d = tracker.get_global_stats(days=7)
+        stats_30d = tracker.get_global_stats(days=30)
+        
+        return {
+            "success": True,
+            "stats": {
+                "last_7_days": stats_7d,
+                "last_30_days": stats_30d
+            }
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@router.get("/usage/user/{user_id}")
+async def get_user_usage(user_id: int, days: int = 30, admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Get usage statistics for a specific user.
+    SECURITY: Requires admin authentication, validates user_id.
+    """
+    # SECURITY: Validate user_id
+    if not isinstance(user_id, int) or user_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid user_id")
+    
+    # SECURITY: Validate days parameter
+    if not isinstance(days, int) or days <= 0 or days > 365:
+        days = 30
+    
+    try:
+        from usage_tracker import get_usage_tracker
+        tracker = get_usage_tracker()
+        
+        stats = tracker.get_user_usage_stats(user_id, days=days)
+        balance = tracker.get_user_balance(user_id)
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "usage": stats,
+            "balance": balance
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+class AddUnitsRequest(BaseModel):
+    user_id: int
+    units: int
+    source: str = "admin_grant"
+    reason: str = ""
+    
+    # SECURITY: Input validation
+    @validator('user_id')
+    def validate_user_id(cls, v):
+        if not isinstance(v, int) or v <= 0:
+            raise ValueError('Invalid user_id')
+        return v
+    
+    @validator('units')
+    def validate_units(cls, v):
+        if not isinstance(v, int) or v <= 0 or v > 10000:
+            raise ValueError('Units must be between 1 and 10000')
+        return v
+    
+    @validator('source')
+    def validate_source(cls, v):
+        allowed = ['admin_grant', 'promo', 'refund', 'initial_grant']
+        if v not in allowed:
+            raise ValueError(f'Source must be one of: {allowed}')
+        return v
+    
+    @validator('reason')
+    def validate_reason(cls, v):
+        # SECURITY: Sanitize reason to prevent injection
+        if v:
+            v = re.sub(r'[<>"\']', '', v)[:200]  # Remove dangerous chars, limit length
+        return v
+
+
+@router.post("/usage/add-units")
+async def add_units_to_user(request: AddUnitsRequest, admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Add units to a user's balance.
+    SECURITY: Requires admin authentication, validates all inputs, logs audit trail.
+    """
+    try:
+        from usage_tracker import get_usage_tracker
+        from user_auth import get_user_database
+        
+        tracker = get_usage_tracker()
+        
+        success = tracker.add_units(
+            user_id=request.user_id,
+            units=request.units,
+            source=request.source,
+            transaction_id=f"admin_{admin.id}_{int(time.time())}"
+        )
+        
+        if success:
+            # SECURITY: Audit log
+            db = get_user_database()
+            db.log_usage(admin.id, "admin_add_units", 
+                f"Added {request.units} units to user {request.user_id}. Reason: {request.reason}")
+            
+            balance = tracker.get_user_balance(request.user_id)
+            return {
+                "success": True,
+                "message": f"Added {request.units} units to user {request.user_id}",
+                "new_balance": balance.get("units_available", 0),
+                "reason": request.reason,
+                "admin_id": admin.id
+            }
+        else:
+            return {"success": False, "message": "Failed to add units"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@router.get("/training-data/stats")
+async def get_training_data_stats(admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Get statistics about collected training data.
+    SECURITY: Requires admin authentication.
+    """
+    try:
+        from data_collector import get_data_collector
+        collector = get_data_collector()
+        
+        stats = collector.get_training_stats()
+        
+        total_samples = sum(s.get("count", 0) for s in stats.values())
+        total_size_mb = sum(s.get("size_mb", 0) for s in stats.values())
+        
+        return {
+            "success": True,
+            "stats": stats,
+            "summary": {
+                "total_samples": total_samples,
+                "total_size_mb": round(total_size_mb, 2),
+                "data_types": len([s for s in stats.values() if s.get("count", 0) > 0])
+            }
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+class ExportTrainingDataRequest(BaseModel):
+    data_type: str = "all"  # queries, feedback, predictions, spatial, refinements, all
+    limit: int = 1000
+    since_date: Optional[str] = None
+    
+    # SECURITY: Input validation
+    @validator('data_type')
+    def validate_data_type(cls, v):
+        allowed = ['all', 'queries', 'feedback', 'predictions', 'spatial', 'refinements']
+        if v not in allowed:
+            raise ValueError(f'data_type must be one of: {allowed}')
+        return v
+    
+    @validator('limit')
+    def validate_limit(cls, v):
+        if not isinstance(v, int) or v <= 0 or v > 10000:
+            raise ValueError('limit must be between 1 and 10000')
+        return v
+    
+    @validator('since_date')
+    def validate_since_date(cls, v):
+        if v:
+            # SECURITY: Validate date format to prevent injection
+            import re
+            if not re.match(r'^\d{4}-\d{2}-\d{2}', v):
+                raise ValueError('since_date must be in YYYY-MM-DD format')
+        return v
+
+
+@router.post("/training-data/export")
+async def export_training_data(request: ExportTrainingDataRequest, admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Export training data batch for manual ML training.
+    SECURITY: Requires admin authentication, validates inputs, logs audit.
+    """
+    try:
+        from data_collector import get_data_collector
+        from user_auth import get_user_database
+        
+        collector = get_data_collector()
+        
+        batch = collector.export_batch(
+            data_type=request.data_type,
+            limit=request.limit,
+            since_date=request.since_date
+        )
+        
+        # SECURITY: Audit log
+        db = get_user_database()
+        db.log_usage(admin.id, "admin_export_training_data", 
+            f"Exported {len(batch)} samples of type {request.data_type}")
+        
+        return {
+            "success": True,
+            "data_type": request.data_type,
+            "sample_count": len(batch),
+            "samples": batch,
+            "message": f"Exported {len(batch)} training samples. Use these for manual ML training.",
+            "exported_by": admin.id
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+class ClearTrainingDataRequest(BaseModel):
+    data_type: Optional[str] = None  # queries, feedback, predictions, spatial, refinements, or None for all
+    confirm: bool = False
+    
+    # SECURITY: Input validation
+    @validator('data_type')
+    def validate_data_type(cls, v):
+        if v:
+            allowed = ['queries', 'feedback', 'predictions', 'spatial', 'refinements']
+            if v not in allowed:
+                raise ValueError(f'data_type must be one of: {allowed}')
+        return v
+
+
+@router.post("/training-data/clear")
+async def clear_training_data(request: ClearTrainingDataRequest, admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Clear training data (privacy compliance).
+    SECURITY: Requires admin authentication, requires confirmation, logs audit.
+    """
+    if not request.confirm:
+        return {
+            "success": False,
+            "message": "Must set 'confirm: true' to clear training data. This action is irreversible."
+        }
+    
+    try:
+        from data_collector import get_data_collector
+        from user_auth import get_user_database
+        
+        collector = get_data_collector()
+        
+        collector.clear_data(data_type=request.data_type)
+        
+        message = f"Cleared all training data" if not request.data_type else f"Cleared {request.data_type} training data"
+        
+        # SECURITY: Audit log (critical action)
+        db = get_user_database()
+        db.log_usage(admin.id, "admin_clear_training_data", 
+            f"CRITICAL: {message} by admin {admin.email}")
+        
+        return {
+            "success": True,
+            "message": message,
+            "cleared_by": admin.id
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@router.get("/usage/action-costs")
+async def get_action_costs() -> Dict[str, Any]:
+    """
+    Get all action types and their compute costs.
+    NOTE: This endpoint is public as costs should be transparent.
+    """
+    try:
+        from usage_tracker import COMPUTE_COSTS, TIER_MONTHLY_LIMITS
+        
+        return {
+            "success": True,
+            "action_costs": COMPUTE_COSTS,
+            "tier_limits": TIER_MONTHLY_LIMITS,
+            "currency": "compute_units",
+            "pricing": {
+                "promo_per_unit_inr": 2,
+                "regular_per_unit_inr": 10,
+                "promo_valid_until": "2026-03-31"
+            },
+            "note": "Costs in compute units. 1 unit ≈ ₹2 (promo) to ₹10 (regular)"
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@router.get("/usage/revenue-estimate")
+async def get_revenue_estimate(days: int = 30, admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Get estimated revenue from usage.
+    SECURITY: Requires admin authentication (sensitive financial data).
+    """
+    # SECURITY: Validate days parameter
+    if not isinstance(days, int) or days <= 0 or days > 365:
+        days = 30
+    
+    try:
+        from usage_tracker import get_usage_tracker
+        tracker = get_usage_tracker()
+        
+        stats = tracker.get_global_stats(days=days)
+        total_units = stats.get("total_units_charged", 0)
+        
+        # Revenue estimates
+        promo_price_per_unit = 2  # ₹2 per unit during promo
+        regular_price_per_unit = 10  # ₹10 per unit regular
+        
+        return {
+            "success": True,
+            "period_days": days,
+            "total_units_charged": total_units,
+            "revenue_estimate": {
+                "promo_inr": total_units * promo_price_per_unit,
+                "regular_inr": total_units * regular_price_per_unit,
+                "currency": "INR"
+            },
+            "active_users": stats.get("active_users", 0),
+            "avg_units_per_user": round(total_units / stats.get("active_users", 1), 2) if stats.get("active_users", 0) > 0 else 0
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+# ============================================================================
+# PRICING CONFIGURATION (ADMIN EDITABLE)
+# ============================================================================
+
+@router.get("/pricing/config")
+async def get_pricing_config(admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Get current pricing configuration.
+    SECURITY: Requires admin authentication.
+    """
+    try:
+        from usage_tracker import _load_pricing_config
+        config = _load_pricing_config()
+        
+        return {
+            "success": True,
+            "config": config
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+class UpdatePricingRequest(BaseModel):
+    action_costs: Optional[Dict[str, int]] = None
+    tier_monthly_limits: Optional[Dict[str, int]] = None
+    pricing: Optional[Dict[str, Any]] = None
+    topup_packs: Optional[list] = None
+    subscription_tiers: Optional[Dict[str, Any]] = None
+    
+    # SECURITY: Input validation
+    @validator('action_costs')
+    def validate_action_costs(cls, v):
+        if v:
+            for action, cost in v.items():
+                # Validate action name
+                if not re.match(r'^[a-z_]+$', action):
+                    raise ValueError(f'Invalid action name: {action}')
+                # Validate cost
+                if not isinstance(cost, int) or cost < 0 or cost > 1000:
+                    raise ValueError(f'Cost must be between 0 and 1000 for {action}')
+        return v
+    
+    @validator('tier_monthly_limits')
+    def validate_tier_limits(cls, v):
+        if v:
+            allowed_tiers = ['free', 'pro', 'team', 'enterprise', 'admin']
+            for tier, limit in v.items():
+                if tier not in allowed_tiers:
+                    raise ValueError(f'Invalid tier: {tier}')
+                if not isinstance(limit, int) or (limit < -1 or limit > 1000000):
+                    raise ValueError(f'Limit must be -1 (unlimited) or 0-1000000 for {tier}')
+        return v
+
+
+@router.post("/pricing/config")
+async def update_pricing_config(request: UpdatePricingRequest, admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Update pricing configuration.
+    SECURITY: Requires admin authentication, validates all inputs, logs audit.
+    """
+    try:
+        from usage_tracker import _load_pricing_config, _save_pricing_config
+        from user_auth import get_user_database
+        from datetime import datetime
+        
+        # Load current config
+        config = _load_pricing_config()
+        
+        # Update fields
+        if request.action_costs:
+            config["action_costs"] = {**config.get("action_costs", {}), **request.action_costs}
+        
+        if request.tier_monthly_limits:
+            config["tier_monthly_limits"] = {**config.get("tier_monthly_limits", {}), **request.tier_monthly_limits}
+        
+        if request.pricing:
+            config["pricing"] = {**config.get("pricing", {}), **request.pricing}
+        
+        if request.topup_packs:
+            config["topup_packs"] = request.topup_packs
+        
+        if request.subscription_tiers:
+            config["subscription_tiers"] = {**config.get("subscription_tiers", {}), **request.subscription_tiers}
+        
+        # Add metadata
+        config["last_updated"] = datetime.now().isoformat()
+        config["updated_by"] = admin.email
+        
+        # Save config
+        success = _save_pricing_config(config)
+        
+        if success:
+            # SECURITY: Audit log
+            db = get_user_database()
+            db.log_usage(admin.id, "admin_update_pricing", 
+                f"Updated pricing config by {admin.email}")
+            
+            return {
+                "success": True,
+                "message": "Pricing configuration updated successfully",
+                "config": config,
+                "note": "Server restart required for changes to take effect"
+            }
+        else:
+            return {"success": False, "message": "Failed to save pricing configuration"}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@router.post("/pricing/reload")
+async def reload_pricing_config(admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Reload pricing configuration without server restart.
+    SECURITY: Requires admin authentication.
+    """
+    try:
+        from usage_tracker import _load_pricing_config
+        import importlib
+        import usage_tracker
+        
+        # Reload the module
+        importlib.reload(usage_tracker)
+        
+        config = _load_pricing_config()
+        
+        return {
+            "success": True,
+            "message": "Pricing configuration reloaded successfully",
+            "config": config
         }
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}"}

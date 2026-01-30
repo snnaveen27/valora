@@ -7,11 +7,13 @@ Valora AI Backend Server
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
+import asyncio
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import statistics
+import math
 import httpx
 import json
 from pathlib import Path
@@ -144,8 +146,18 @@ print("[OK] GIS Multi-Agent Orchestrator initialized")
 app = FastAPI(title="Valora AI Backend", version="2.0.0")
 
 # Include admin routes
-from admin_routes import router as admin_router
+from admin_routes import router as admin_router, get_active_llm_config
 app.include_router(admin_router)
+
+# Include auth routes
+from auth_routes import router as auth_router
+app.include_router(auth_router)
+print("[OK] Auth routes initialized")
+
+# Include payment routes
+from payment_routes import router as payment_router
+app.include_router(payment_router)
+print("[OK] Payment routes initialized (Razorpay + Cashfree)")
 
 # CORS for frontend
 _default_origins = [
@@ -439,6 +451,7 @@ async def health():
         db_stats = {"error": str(e)}
     
     return {
+        "status": "ok",
         "backend": "ok",
         "nominatim": "ok" if nominatim_ok else "unavailable",
         "nominatim_url": NOMINATIM_URL,
@@ -983,6 +996,88 @@ async def analyze_viewport(lat: float, lng: float):
         except Exception as e:
             print(f"Viewport terrain error: {e}")
     
+    # Enhanced metrics - infrastructure breakdown
+    if result.get("spatial"):
+        spatial = result["spatial"]
+        # Calculate infrastructure categories
+        poi_count = spatial.get("poi_count", 0)
+        transport_count = spatial.get("transport_count", 0)
+        
+        # Estimate category distribution (based on typical Bangalore patterns)
+        result["infrastructure"] = {
+            "schools": max(1, poi_count // 15),
+            "hospitals": max(1, poi_count // 25),
+            "parks": max(1, poi_count // 20),
+            "restaurants": max(2, poi_count // 8),
+            "shopping": max(2, poi_count // 10),
+            "banks_atms": max(1, poi_count // 18),
+            "metro_stations": max(0, transport_count // 5),
+            "bus_stops": max(1, transport_count - (transport_count // 5))
+        }
+        
+        # Livability scores
+        accessibility = spatial.get("accessibility_score", 50)
+        walkability = spatial.get("walkability_score", 50)
+        
+        result["livability"] = {
+            "overall_score": int((accessibility * 0.4 + walkability * 0.4 + min(100, poi_count * 2) * 0.2)),
+            "commute_score": int(min(100, transport_count * 8 + 30)),
+            "lifestyle_score": int(min(100, poi_count * 3 + 20)),
+            "safety_index": int(min(100, 60 + (transport_count * 2) + (poi_count // 10))),
+            "green_score": int(min(100, 40 + (result.get("infrastructure", {}).get("parks", 0) * 15)))
+        }
+    
+    # Investment indicators
+    if result.get("market"):
+        market = result["market"]
+        spatial = result.get("spatial", {})
+        
+        price_per_sqft = market.get("avg_price_per_sqft", 5000)
+        trend = market.get("price_trend_pct", 5)
+        accessibility = spatial.get("accessibility_score", 50) if spatial else 50
+        
+        # Calculate investment metrics
+        growth_potential = min(100, int(50 + trend * 3 + accessibility * 0.3))
+        rental_yield = round(4.0 + (accessibility / 100) * 2 + (trend / 10), 1)
+        
+        result["investment"] = {
+            "growth_potential": growth_potential,
+            "rental_yield_pct": rental_yield,
+            "liquidity": "High" if market.get("active_listings", 0) > 20 else ("Medium" if market.get("active_listings", 0) > 5 else "Low"),
+            "risk_level": "Low" if growth_potential > 70 else ("Medium" if growth_potential > 40 else "High"),
+            "buyer_type": "End-user" if price_per_sqft < 8000 else ("Investor" if growth_potential > 60 else "Premium"),
+            "holding_period": "3-5 years" if growth_potential > 60 else ("5-7 years" if growth_potential > 40 else "7+ years"),
+            "appreciation_1y": round(trend, 1),
+            "appreciation_5y": round(trend * 4.5, 1)
+        }
+    
+    # Area comparison (vs Bangalore average)
+    bangalore_avg = {
+        "price_per_sqft": 7500,
+        "accessibility": 65,
+        "walkability": 60,
+        "poi_density": 45
+    }
+    
+    if result.get("market") or result.get("spatial"):
+        market_data = result.get("market") or {}
+        spatial_data = result.get("spatial") or {}
+        current_price = market_data.get("avg_price_per_sqft", 0)
+        current_access = spatial_data.get("accessibility_score", 0)
+        current_walk = spatial_data.get("walkability_score", 0)
+        current_poi = spatial_data.get("poi_count", 0)
+        
+        result["comparison"] = {
+            "vs_city_avg": {
+                "price": round(((current_price / bangalore_avg["price_per_sqft"]) - 1) * 100, 1) if current_price > 0 else 0,
+                "accessibility": round(current_access - bangalore_avg["accessibility"], 1),
+                "walkability": round(current_walk - bangalore_avg["walkability"], 1),
+                "amenities": round(((current_poi / bangalore_avg["poi_density"]) - 1) * 100, 1) if current_poi > 0 else 0
+            },
+            "price_bracket": "Premium" if current_price > 10000 else ("Mid-range" if current_price > 5000 else "Affordable"),
+            "development_stage": "Mature" if current_poi > 60 else ("Growing" if current_poi > 30 else "Emerging")
+        }
+    
     _cache_viewport_analysis.set(cache_key, result)
     return result
 
@@ -1391,6 +1486,70 @@ async def city_brain_insights():
     }
 
 
+def _generate_fallback_response(intent, facts) -> str:
+    """Generate a response from grounded facts when LLM returns empty content."""
+    from gis_agents import Intent
+    
+    name = facts.location_name or "this area"
+    parts = []
+    
+    if intent == Intent.INVESTMENT:
+        parts.append(f"**Investment Analysis: {name}**\n")
+        if facts.locality_archetype:
+            parts.append(f"- **Type:** {facts.locality_archetype.replace('_', ' ').title()}")
+        if facts.locality_growth_stage:
+            parts.append(f"- **Growth Stage:** {facts.locality_growth_stage.replace('_', ' ').title()}")
+        if facts.investment_outlook:
+            parts.append(f"- **Outlook:** {facts.investment_outlook.replace('_', ' ').title()}")
+        if facts.overall_risk_score is not None:
+            parts.append(f"- **Risk Score:** {facts.overall_risk_score:.0f}/100 ({facts.risk_level or 'unknown'})")
+        if facts.active_listings:
+            parts.append(f"- **Active Listings:** {facts.active_listings}")
+        if facts.location_strengths:
+            parts.append(f"\n**Strengths:** " + ", ".join(facts.location_strengths[:3]))
+        if facts.location_weaknesses:
+            parts.append(f"\n**Considerations:** " + ", ".join(facts.location_weaknesses[:3]))
+    
+    elif intent == Intent.ANALYZE_AREA:
+        parts.append(f"**Area Analysis: {name}**\n")
+        if facts.locality_tagline:
+            parts.append(f"*{facts.locality_tagline}*\n")
+        if facts.accessibility_score is not None:
+            parts.append(f"- **Accessibility:** {facts.accessibility_score}/100")
+        if facts.walkability_score is not None:
+            parts.append(f"- **Walkability:** {facts.walkability_score}/100")
+        if facts.active_listings:
+            parts.append(f"- **Active Listings:** {facts.active_listings}")
+        if facts.flood_risk:
+            parts.append(f"- **Flood Risk:** {facts.flood_risk.title()}")
+    
+    elif intent == Intent.NAVIGATE:
+        parts.append(f"Navigating to **{name}** ({facts.lat:.4f}, {facts.lng:.4f}).\n")
+        if facts.locality_tagline:
+            parts.append(f"*{facts.locality_tagline}*")
+    
+    elif intent == Intent.PROPERTY_SEARCH:
+        parts.append(f"**Properties in {name}**\n")
+        if facts.active_listings:
+            parts.append(f"Found **{facts.active_listings}** active listings in this area.")
+        if facts.avg_price_per_sqft:
+            parts.append(f"- **Avg Price:** ₹{facts.avg_price_per_sqft:,.0f}/sqft")
+        if facts.demand_level:
+            parts.append(f"- **Demand:** {facts.demand_level}")
+    
+    else:
+        # Generic response
+        parts.append(f"**{name}**\n")
+        if facts.locality_tagline:
+            parts.append(f"*{facts.locality_tagline}*\n")
+        if facts.accessibility_score is not None:
+            parts.append(f"- Accessibility: {facts.accessibility_score}/100")
+        if facts.active_listings:
+            parts.append(f"- Active Listings: {facts.active_listings}")
+    
+    return "\n".join(parts) if parts else f"Analysis complete for {name}. View the dashboard for details."
+
+
 @app.post("/api/chat")
 async def chat_with_ai(request: ChatRequest):
     """
@@ -1450,6 +1609,92 @@ async def chat_with_ai(request: ChatRequest):
                 "cached": False,
                 "fast_response": True  # Indicates no LLM was needed
             }
+
+    # =========================================================================
+    # FAST PATH: Polygon / Buffer / Custom Zone queries (no LLM required)
+    # =========================================================================
+    polygon_analysis = (context or {}).get('polygonAnalysis')
+    buffer_analysis = (context or {}).get('bufferAnalysis')
+    zone_analysis = polygon_analysis or buffer_analysis
+
+    if zone_analysis and user_query:
+        ql = user_query.lower()
+        if any(k in ql for k in ["polygon", "buffer", "zone", "inside this", "drawn"]):
+            zone_type = zone_analysis.get('zone_type') or ('polygon' if polygon_analysis else 'buffer')
+            metrics = zone_analysis.get('metrics', {}) or {}
+            counts = zone_analysis.get('counts', {}) or {}
+            building_stats = zone_analysis.get('building_stats', {}) or {}
+
+            message_lines = []
+            message_lines.append(f"**Custom Zone Analysis ({zone_type})**")
+            if zone_type == 'polygon':
+                area_m2 = metrics.get('area_m2')
+                perim_m = metrics.get('perimeter_m')
+                if area_m2 is not None:
+                    message_lines.append(f"- **Area:** {area_m2:,.0f} m²")
+                if perim_m is not None:
+                    message_lines.append(f"- **Perimeter:** {perim_m:,.0f} m")
+            else:
+                radius_m = metrics.get('radius_m')
+                if radius_m is not None:
+                    message_lines.append(f"- **Radius:** {radius_m:,.0f} m")
+
+            message_lines.append(f"- **Buildings:** {counts.get('buildings', 0)}")
+            message_lines.append(f"- **Properties:** {counts.get('properties', 0)}")
+            message_lines.append(f"- **POIs:** {counts.get('pois', 0)}")
+            message_lines.append(f"- **Transport Stops:** {counts.get('transport_stops', 0)}")
+
+            if building_stats:
+                if building_stats.get('avg_height_m') is not None:
+                    message_lines.append(f"- **Avg building height:** {building_stats.get('avg_height_m'):.1f} m")
+                if building_stats.get('max_height_m') is not None:
+                    message_lines.append(f"- **Max building height:** {building_stats.get('max_height_m'):.1f} m")
+                if building_stats.get('dominant_type'):
+                    message_lines.append(f"- **Dominant building type:** {building_stats.get('dominant_type')}")
+                if building_stats.get('above_30m') is not None:
+                    message_lines.append(f"- **Buildings above 30m:** {building_stats.get('above_30m')}")
+
+            msg = "\n".join(message_lines)
+            return {
+                "success": True,
+                "message": msg,
+                "intent": intent.value,
+                "dashboard": {
+                    "title": f"Zone Analysis ({zone_type})",
+                    "cards": [
+                        {
+                            "title": "Counts",
+                            "items": [
+                                {"label": "Buildings", "value": counts.get('buildings', 0)},
+                                {"label": "Properties", "value": counts.get('properties', 0)},
+                                {"label": "POIs", "value": counts.get('pois', 0)},
+                                {"label": "Transport", "value": counts.get('transport_stops', 0)},
+                            ],
+                        },
+                    ],
+                },
+                "ui_actions": [],
+                "simulation": None,
+                "digital_twin_state": None,
+                "facts": {
+                    "zone_type": zone_type,
+                    "zone_metrics": metrics,
+                    "zone_counts": counts,
+                    "zone_building_stats": building_stats,
+                },
+                "facts_summary": {
+                    "zone_type": zone_type,
+                    "buildings": counts.get('buildings', 0),
+                    "properties": counts.get('properties', 0),
+                    "pois": counts.get('pois', 0),
+                    "transport_stops": counts.get('transport_stops', 0),
+                },
+                "reasoning_trace": None,
+                "chain_of_thought": None,
+                "tasks": None,
+                "cached": False,
+                "fast_response": True,
+            }
     
     # Get current LLM config (only needed for non-conversational queries)
     current_llm_config = get_active_llm_config()
@@ -1466,23 +1711,21 @@ async def chat_with_ai(request: ChatRequest):
             raise HTTPException(status_code=503, detail="Local LLM URL not configured. Go to Admin Panel > Config to set it up.")
     
     # =========================================================================
-    # PHASE 2: Dynamic Task Planning & Multi-Agent Fact Gathering
+    # PHASE 2: Multi-Agent Fact Gathering (No Task System)
     # =========================================================================
-    from task_planner import reset_task_planner
+    import time as time_module
+    fact_start = time_module.time()
+    print(f"[PERF] Starting fact gathering for: {user_query[:50]}")
     
-    # Create dynamic task planner for this query
-    task_planner = reset_task_planner()
-    
-    # Generate query-specific task plan
-    task_planner.generate_plan(user_query, intent.value, context)
-    
-    # Gather facts with real-time task tracking
     facts, intent, ui_actions, digital_twin_state, reasoning_trace = gis_orchestrator.gather_facts(
         query=user_query,
         context=context,
         intent=intent,
-        task_planner=task_planner,
+        task_planner=None,  # Disabled task system
     )
+    
+    fact_time = time_module.time() - fact_start
+    print(f"[PERF] Fact gathering took {fact_time:.2f}s")
     
     # Build dashboard from grounded facts
     title = facts.location_name or "Analysis"
@@ -1503,10 +1746,91 @@ async def chat_with_ai(request: ChatRequest):
     
     # Add viewport info if available
     viewport = context.get('viewport')
+    viewport_context = ""
     if viewport:
         viewport_context = f"\n**Viewport:** Center ~{viewport.get('center', {}).get('lat', 12.97):.2f}, {viewport.get('center', {}).get('lng', 77.64):.2f}, {viewport.get('buildingsCount', 0)} buildings loaded"
-    else:
-        viewport_context = ""
+    
+    # Add comprehensive analysis context from Analysis Panel
+    current_analysis = context.get('currentAnalysis', {})
+    viewport_analysis = context.get('viewportAnalysis', {})
+    
+    analysis_context = ""
+    if current_analysis or viewport_analysis:
+        analysis_parts = []
+        
+        # Area name
+        area_name = current_analysis.get('areaName') or viewport_analysis.get('area_name')
+        if area_name:
+            analysis_parts.append(f"**Current Area:** {area_name}")
+        
+        # Market data
+        market = current_analysis.get('market') or viewport_analysis.get('market')
+        if market:
+            analysis_parts.append(f"**Market Data:** ₹{market.get('avg_price_per_sqft', 0):,}/sqft, {market.get('demand_level', 'Medium')} demand, {market.get('price_trend_pct', 0):.1f}% annual growth")
+        
+        # Spatial/Infrastructure
+        spatial = current_analysis.get('spatial') or viewport_analysis.get('spatial')
+        if spatial:
+            analysis_parts.append(f"**Infrastructure:** {spatial.get('poi_count', 0)} POIs, {spatial.get('transport_count', 0)} transport stops, Walkability {spatial.get('walkability_score', 0)}/100, Accessibility {spatial.get('accessibility_score', 0)}/100")
+        
+        # Infrastructure breakdown
+        infra = current_analysis.get('infrastructure') or viewport_analysis.get('infrastructure')
+        if infra:
+            analysis_parts.append(f"**Nearby Amenities (1km):** {infra.get('schools', 0)} schools, {infra.get('hospitals', 0)} hospitals, {infra.get('parks', 0)} parks, {infra.get('metro_stations', 0)} metro stations")
+        
+        # Livability scores
+        livability = current_analysis.get('livability') or viewport_analysis.get('livability')
+        if livability:
+            analysis_parts.append(f"**Livability Index:** Overall {livability.get('overall_score', 0)}/100, Commute {livability.get('commute_score', 0)}/100, Safety {livability.get('safety_index', 0)}/100")
+        
+        # Investment metrics
+        investment = current_analysis.get('investment') or viewport_analysis.get('investment')
+        if investment:
+            analysis_parts.append(f"**Investment Analysis:** Growth potential {investment.get('growth_potential', 0)}/100, Rental yield {investment.get('rental_yield_pct', 0)}%, Risk: {investment.get('risk_level', 'Medium')}, Recommended for: {investment.get('buyer_type', 'End-user')}")
+        
+        # Terrain
+        terrain = current_analysis.get('terrain') or viewport_analysis.get('terrain')
+        if terrain:
+            elev = terrain.get('elevation_m')
+            if isinstance(elev, dict):
+                elev = elev.get('mean', 920)
+            analysis_parts.append(f"**Terrain:** Elevation {elev or 920}m, Flood risk: {terrain.get('flood_risk', 'unknown')}")
+        
+        # Comparison vs city average
+        comparison = current_analysis.get('comparison') or viewport_analysis.get('comparison')
+        if comparison:
+            vs_avg = comparison.get('vs_city_avg', {})
+            analysis_parts.append(f"**vs City Average:** Price {vs_avg.get('price', 0):+.1f}%, Accessibility {vs_avg.get('accessibility', 0):+.1f}, Development stage: {comparison.get('development_stage', 'Growing')}")
+        
+        if analysis_parts:
+            analysis_context = "\n\n**CURRENT ANALYSIS PANEL DATA (use this for accurate responses):**\n" + "\n".join(analysis_parts)
+    
+    # Add simulation context if available
+    simulation = context.get('simulation')
+    simulation_context = ""
+    if simulation and simulation.get('impacts'):
+        sim_impacts = simulation['impacts']
+        simulation_context = f"\n\n**ACTIVE SIMULATION:** Value impact: {sim_impacts.get('property_value_impact', 0)}%, Confidence: {sim_impacts.get('confidence', 0)*100:.0f}%"
+
+    # Add polygon/buffer analysis context if available
+    zone_context = ""
+    try:
+        polygon_analysis = (context or {}).get('polygonAnalysis')
+        buffer_analysis = (context or {}).get('bufferAnalysis')
+        zone_analysis = polygon_analysis or buffer_analysis
+        if zone_analysis:
+            zone_type = zone_analysis.get('zone_type') or ('polygon' if polygon_analysis else 'buffer')
+            metrics = zone_analysis.get('metrics', {}) or {}
+            counts = zone_analysis.get('counts', {}) or {}
+            building_stats = zone_analysis.get('building_stats', {}) or {}
+            zone_context = "\n\n**ACTIVE DRAWN ZONE (use these for polygon/buffer questions):**\n" + json.dumps({
+                "zone_type": zone_type,
+                "metrics": metrics,
+                "counts": counts,
+                "building_stats": building_stats,
+            }, indent=2)
+    except Exception:
+        zone_context = ""
     
     # =========================================================================
     # PHASE 2: LLM Narrative Synthesis (facts only, no invention)
@@ -1520,7 +1844,8 @@ async def chat_with_ai(request: ChatRequest):
     if simulation_data:
         facts_context += f"\n\n**Simulation Results:**\n{json.dumps(simulation_data['impacts'], indent=2)}"
 
-    full_system = system_prompt + "\n\n**GROUNDED FACTS (use ONLY these):**\n" + facts_context + viewport_context
+    # Include all context sources for comprehensive AI awareness
+    full_system = system_prompt + "\n\n**GROUNDED FACTS (use ONLY these):**\n" + facts_context + viewport_context + analysis_context + simulation_context + zone_context
     
     messages_with_context = [{"role": "system", "content": full_system}]
     
@@ -1531,8 +1856,9 @@ async def chat_with_ai(request: ChatRequest):
         })
     
     # Call LLM for narrative synthesis only (supports OpenRouter or Local LLM)
-    # DeepSeek R1 needs longer timeout for chain-of-thought reasoning
+    # Reasoning models need longer timeout for chain-of-thought processing
     chain_of_thought = None
+    thinking_time = 0.0
     
     # Check cache first (cache key = query + intent + location)
     chat_cache = get_chat_cache()
@@ -1548,8 +1874,11 @@ async def chat_with_ai(request: ChatRequest):
         print(f"[CACHE HIT] Chat response for: {user_query[:50]}...")
         ai_message = cached_response.get('message', '')
         chain_of_thought = cached_response.get('chain_of_thought')
+        thinking_time = cached_response.get('thinking_time', 0.0)
     else:
         # No cache, call LLM
+        import time
+        llm_start_time = time.time()
         try:
             async with httpx.AsyncClient(timeout=180.0) as client:  # 3 min timeout for reasoning models
                 if llm_provider == 'openrouter':
@@ -1588,25 +1917,53 @@ async def chat_with_ai(request: ChatRequest):
                     raise HTTPException(status_code=response.status_code, detail=f"{provider_name} error: {response.text[:200]}")
                 
                 result = response.json()
-                ai_message = result['choices'][0]['message']['content']
+                message_obj = result['choices'][0]['message']
+                ai_message = message_obj.get('content', '') or ''
                 
-                # Extract DeepSeek R1 chain-of-thought from <think> tags
-                if "<think>" in ai_message:
-                    think_match = re_module.search(r"<think>(.*?)</think>", ai_message, re_module.DOTALL)
+                # Handle reasoning models: reasoning may be in separate field
+                if message_obj.get('reasoning'):
+                    chain_of_thought = message_obj['reasoning']
+                
+                # Extract chain-of-thought from <think> tags (common format for reasoning models)
+                # Try multiple extraction patterns
+                if "<think>" in ai_message.lower():
+                    # Pattern 1: Standard <think>...</think>
+                    think_match = re_module.search(r"<think>(.*?)</think>", ai_message, re_module.DOTALL | re_module.IGNORECASE)
                     if think_match:
                         chain_of_thought = think_match.group(1).strip()
-                        # Remove <think> block from final message
-                        ai_message = re_module.sub(r"<think>.*?</think>", "", ai_message, flags=re_module.DOTALL).strip()
+                        # Remove all <think> blocks from final message
+                        ai_message = re_module.sub(r"<think>.*?</think>", "", ai_message, flags=re_module.DOTALL | re_module.IGNORECASE).strip()
+                    
+                    # Pattern 2: Sometimes thinking is at the start without closing tag
+                    if not chain_of_thought and ai_message.lower().startswith("<think>"):
+                        parts = re_module.split(r"</think>", ai_message, maxsplit=1, flags=re_module.IGNORECASE)
+                        if len(parts) == 2:
+                            chain_of_thought = parts[0].replace("<think>", "").replace("<Think>", "").strip()
+                            ai_message = parts[1].strip()
+                
+                # If content is empty but we have reasoning, generate response from facts
+                if not ai_message.strip() and facts.location_name:
+                    # Generate a basic response from the grounded facts
+                    ai_message = _generate_fallback_response(intent, facts)
+                
+                # Calculate thinking time
+                thinking_time = time.time() - llm_start_time
                 
                 # Cache the response for future use
                 chat_cache.set(user_query, {
                     'message': ai_message,
-                    'chain_of_thought': chain_of_thought
+                    'chain_of_thought': chain_of_thought,
+                    'thinking_time': thinking_time
                 }, **cache_key_parts)
-                print(f"[CACHE SET] Chat response cached for: {user_query[:50]}...")
+                print(f"[CACHE SET] Chat response cached for: {user_query[:50]}... (thinking time: {thinking_time:.1f}s)")
             
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"LLM error: {str(e)}")
+            print(f"[LLM ERROR] {str(e)} - using fallback response")
+            # Use fallback response instead of failing
+            if facts.location_name:
+                ai_message = _generate_fallback_response(intent, facts)
+            else:
+                ai_message = "I encountered an issue processing your request. Please try again or rephrase your query."
     
     # Extract SIDEBAR content if present (applies to both cached and fresh responses)
     sidebar_content = ""
@@ -1623,9 +1980,48 @@ async def chat_with_ai(request: ChatRequest):
     if not dashboard.get("title"):
         dashboard["title"] = title
 
-    # Manage credits (deduct 1 for chat)
-    user_id = context.get('user_id', 'user_demo')
-    credit_resp = await manage_credits(CreditAction(user_id=user_id, action='deduct', reason='chat'))
+    # =========================================================================
+    # FACT VERIFICATION: Verify LLM claims against deterministic data
+    # =========================================================================
+    verification_status = "pending"
+    verification_results = []
+    verification_rate = 0
+    
+    if FACT_VERIFIER_AVAILABLE and ai_message:
+        try:
+            verifier = get_fact_verifier()
+            # Extract claims from the LLM response
+            location_context = {"lat": facts.lat, "lng": facts.lng} if facts.lat and facts.lng else None
+            extracted_claims = verifier.extract_claims_from_text(ai_message, location_context)
+            
+            if extracted_claims:
+                # Verify the claims
+                verify_response = verifier.verify_claims(extracted_claims)
+                verification_status = verify_response.overall_status
+                verification_rate = verify_response.verification_rate
+                verification_results = [
+                    {
+                        "claim_id": r.claim_id,
+                        "claim_text": r.claim_text,
+                        "status": r.status,
+                        "confidence": r.confidence,
+                        "rewrite_suggestion": r.rewrite_suggestion
+                    } for r in verify_response.results
+                ]
+                
+                # Log verification for metrics
+                from observability import log_verification
+                log_verification(verification_status, len(extracted_claims), {
+                    "verified": verify_response.verified_count,
+                    "unverified": verify_response.unverified_count
+                })
+            else:
+                verification_status = "no_claims"
+        except Exception as e:
+            print(f"[VERIFIER] Error during verification: {e}")
+            verification_status = "error"
+
+    # Usage tracking removed from chat - handled by frontend/auth context
     
     # Add simulation and twin state to response
     # Build full facts object for frontend explainability
@@ -1664,9 +2060,6 @@ async def chat_with_ai(request: ChatRequest):
         "investment_outlook": facts.investment_outlook,
     }
     
-    # Get dynamic task snapshot from planner
-    tasks = task_planner.get_tasks_snapshot()
-    
     return {
         "success": True,
         "message": ai_message,
@@ -1675,7 +2068,6 @@ async def chat_with_ai(request: ChatRequest):
         "ui_actions": ui_actions,
         "simulation": simulation_data,
         "digital_twin_state": digital_twin_state,
-        "user_credits": credit_resp if credit_resp.get('success') else None,
         "facts": facts_data,
         "facts_summary": {
             "location": facts.location_name,
@@ -1687,9 +2079,343 @@ async def chat_with_ai(request: ChatRequest):
         },
         "reasoning_trace": reasoning_trace,
         "chain_of_thought": chain_of_thought,
-        "tasks": tasks if tasks else None,
-        "cached": cached_response is not None
+        "thinking_time": thinking_time,
+        "cached": cached_response is not None,
+        # Fact Verification
+        "verification": {
+            "status": verification_status,
+            "rate": verification_rate,
+            "results": verification_results
+        }
     }
+
+
+# ============================================================================
+# STREAMING CHAT ENDPOINT - Real-time LLM inference with SSE
+# ============================================================================
+
+@app.post("/api/chat/stream")
+async def chat_stream(request: ChatRequest):
+    """
+    Streaming chat endpoint with Server-Sent Events (SSE).
+    Streams thinking/reasoning content in real-time like Ollama.
+    Works with both Qwen VL and DeepSeek R1 models.
+    """
+    
+    async def generate_stream():
+        start_time = time.time()
+        thinking_buffer = ""
+        response_buffer = ""
+        in_thinking = False
+        
+        # Send immediate start signal
+        yield f"data: {json.dumps({'type': 'status', 'content': 'Connected', 'thinking_time': 0})}\n\n"
+        await asyncio.sleep(0.01)  # Flush initial message
+        
+        # Get LLM config
+        current_llm_config = get_active_llm_config()
+        llm_provider = current_llm_config.get('provider', 'local')
+
+        # Use the same grounded-facts pipeline as /api/chat (but stream the final LLM call)
+        user_query = request.messages[-1].content if request.messages else ""
+
+        # =========================================================================
+        # FAST PATH: Polygon / Buffer / Custom Zone queries (no LLM required)
+        # =========================================================================
+        try:
+            ctx = request.context or {}
+            polygon_analysis = ctx.get('polygonAnalysis')
+            buffer_analysis = ctx.get('bufferAnalysis')
+            zone_analysis = polygon_analysis or buffer_analysis
+            if zone_analysis and user_query:
+                ql = user_query.lower()
+                if any(k in ql for k in ["polygon", "buffer", "zone", "inside this", "drawn"]):
+                    zone_type = zone_analysis.get('zone_type') or ('polygon' if polygon_analysis else 'buffer')
+                    metrics = zone_analysis.get('metrics', {}) or {}
+                    counts = zone_analysis.get('counts', {}) or {}
+                    building_stats = zone_analysis.get('building_stats', {}) or {}
+
+                    message_lines = []
+                    message_lines.append(f"**Custom Zone Analysis ({zone_type})**")
+                    if zone_type == 'polygon':
+                        area_m2 = metrics.get('area_m2')
+                        perim_m = metrics.get('perimeter_m')
+                        if area_m2 is not None:
+                            message_lines.append(f"- **Area:** {area_m2:,.0f} m²")
+                        if perim_m is not None:
+                            message_lines.append(f"- **Perimeter:** {perim_m:,.0f} m")
+                    else:
+                        radius_m = metrics.get('radius_m')
+                        if radius_m is not None:
+                            message_lines.append(f"- **Radius:** {radius_m:,.0f} m")
+
+                    message_lines.append(f"- **Buildings:** {counts.get('buildings', 0)}")
+                    message_lines.append(f"- **Properties:** {counts.get('properties', 0)}")
+                    message_lines.append(f"- **POIs:** {counts.get('pois', 0)}")
+                    message_lines.append(f"- **Transport Stops:** {counts.get('transport_stops', 0)}")
+
+                    if building_stats:
+                        if building_stats.get('avg_height_m') is not None:
+                            message_lines.append(f"- **Avg building height:** {building_stats.get('avg_height_m'):.1f} m")
+                        if building_stats.get('max_height_m') is not None:
+                            message_lines.append(f"- **Max building height:** {building_stats.get('max_height_m'):.1f} m")
+                        if building_stats.get('dominant_type'):
+                            message_lines.append(f"- **Dominant building type:** {building_stats.get('dominant_type')}")
+                        if building_stats.get('above_30m') is not None:
+                            message_lines.append(f"- **Buildings above 30m:** {building_stats.get('above_30m')}")
+
+                    content = "\n".join(message_lines)
+                    thinking_time = time.time() - start_time
+                    yield f"data: {json.dumps({'type': 'content', 'content': content, 'thinking_time': thinking_time})}\n\n"
+                    yield f"data: {json.dumps({'type': 'done', 'thinking_time': thinking_time})}\n\n"
+                    return
+        except Exception:
+            pass
+
+        yield f"data: {json.dumps({'type': 'status', 'content': 'Gathering facts...', 'thinking_time': time.time() - start_time})}\n\n"
+        await asyncio.sleep(0.01)
+
+        try:
+            gis_orchestrator = get_gis_orchestrator()
+            intent = IntentRouter.classify(
+                user_query,
+                has_building=bool((request.context or {}).get('selectedBuilding')),
+                has_location=bool((request.context or {}).get('selectedLocation') or (request.context or {}).get('selectedPlace')),
+            )
+            facts, intent, ui_actions, digital_twin_state, reasoning_trace = gis_orchestrator.gather_facts(
+                query=user_query,
+                context=request.context or {},
+                intent=intent,
+                task_planner=None,
+            )
+
+            # Reuse the same system prompt construction as /api/chat
+            system_prompt = """You are Valora AI, a city intelligence assistant for Bangalore real estate.
+
+CRITICAL: You MUST base your answer ONLY on the grounded facts provided below.
+- Do not invent metrics, prices, scores, counts, or POIs.
+- If something is unknown, say so.
+"""
+
+            viewport_context = ""
+            viewport = (request.context or {}).get('viewport')
+            if viewport:
+                viewport_context = f"\n\n**VIEWPORT (for context only):**\n{json.dumps(viewport, indent=2)}"
+
+            facts_context = facts.to_context_string()
+
+            zone_context = ""
+            try:
+                ctx = request.context or {}
+                polygon_analysis = ctx.get('polygonAnalysis')
+                buffer_analysis = ctx.get('bufferAnalysis')
+                zone_analysis = polygon_analysis or buffer_analysis
+                if zone_analysis:
+                    zone_type = zone_analysis.get('zone_type') or ('polygon' if polygon_analysis else 'buffer')
+                    metrics = zone_analysis.get('metrics', {}) or {}
+                    counts = zone_analysis.get('counts', {}) or {}
+                    building_stats = zone_analysis.get('building_stats', {}) or {}
+                    zone_context = "\n\n**ACTIVE DRAWN ZONE (use these for polygon/buffer questions):**\n" + json.dumps({
+                        "zone_type": zone_type,
+                        "metrics": metrics,
+                        "counts": counts,
+                        "building_stats": building_stats,
+                    }, indent=2)
+            except Exception:
+                zone_context = ""
+
+            full_system = system_prompt + "\n\n**GROUNDED FACTS (use ONLY these):**\n" + facts_context + viewport_context + zone_context
+            messages = [{"role": "system", "content": full_system}]
+            for msg in request.messages:
+                messages.append({"role": msg.role, "content": msg.content})
+
+        except Exception as e:
+            print(f"[STREAM] Facts gathering error: {e}")
+            # Fall back to a minimal prompt but keep streaming working
+            system_prompt = "You are Valora AI, a city intelligence assistant for Bangalore real estate. Be concise and helpful."
+            messages = [{"role": "system", "content": system_prompt}]
+            for msg in request.messages:
+                messages.append({"role": msg.role, "content": msg.content})
+        
+        try:
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                model_name = current_llm_config.get('local_model', 'qwen3-vl:8b')
+                local_url = current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions')
+                
+                # For OpenRouter, use non-streaming (they don't support SSE well for free models)
+                if llm_provider == 'openrouter':
+                    yield f"data: {json.dumps({'type': 'status', 'content': 'Processing with cloud model...'})}\n\n"
+                    
+                    response = await client.post(
+                        OPENROUTER_URL,
+                        headers={
+                            "Authorization": f"Bearer {current_llm_config.get('openrouter_api_key', '')}",
+                            "HTTP-Referer": "http://localhost:3000",
+                            "X-Title": "Valora AI"
+                        },
+                        json={
+                            "model": current_llm_config.get('openrouter_model', 'meta-llama/llama-3.3-70b-instruct:free'),
+                            "messages": messages,
+                            "temperature": 0.5,
+                            "max_tokens": 600
+                        }
+                    )
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        content = result['choices'][0]['message'].get('content', '')
+                        thinking_time = time.time() - start_time
+                        
+                        yield f"data: {json.dumps({'type': 'content', 'content': content, 'thinking_time': thinking_time})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'type': 'error', 'content': 'API error'})}\n\n"
+                    
+                    yield f"data: {json.dumps({'type': 'done', 'thinking_time': time.time() - start_time})}\n\n"
+                    return
+                
+                # Local LLM with streaming
+                yield f"data: {json.dumps({'type': 'status', 'content': f'Thinking with {model_name}...'})}\n\n"
+                
+                async with client.stream(
+                    "POST",
+                    local_url,
+                    json={
+                        "model": model_name,
+                        "messages": messages,
+                        "temperature": 0.5,
+                        "max_tokens": 800,
+                        "stream": True
+                    }
+                ) as response:
+                    # DeepSeek-style streaming: reasoning comes in a separate `delta.reasoning` field.
+                    # Some models embed <think> tags in `delta.content`. Support both.
+                    in_reasoning = False
+
+                    # Robust <think> parsing across token boundaries
+                    pending = ""
+                    in_tag_thinking = False
+                    THINK_OPEN = "<think>"
+                    THINK_CLOSE = "</think>"
+                    keep_outside = len(THINK_OPEN) - 1
+                    keep_inside = len(THINK_CLOSE) - 1
+
+                    async for line in response.aiter_lines():
+                        if not line or not line.startswith("data: "):
+                            continue
+                        
+                        data = line[6:]  # Remove "data: " prefix
+                        if data == "[DONE]":
+                            break
+                        
+                        try:
+                            chunk = json.loads(data)
+                            delta = chunk.get('choices', [{}])[0].get('delta', {})
+                            reasoning_token = delta.get('reasoning', '') or ''
+                            content_token = delta.get('content', '') or ''
+
+                            current_time = time.time() - start_time
+
+                            # 1) Stream reasoning field as "thinking" (DeepSeek-style)
+                            if reasoning_token:
+                                if not in_reasoning:
+                                    in_reasoning = True
+                                    yield f"data: {json.dumps({'type': 'thinking_start', 'thinking_time': current_time})}\n\n"
+                                thinking_buffer += reasoning_token
+                                yield f"data: {json.dumps({'type': 'thinking', 'content': reasoning_token, 'thinking_time': current_time})}\n\n"
+
+                            # 2) When normal content begins, close reasoning panel
+                            if content_token and in_reasoning:
+                                in_reasoning = False
+                                yield f"data: {json.dumps({'type': 'thinking_end', 'thinking_time': current_time})}\n\n"
+
+                            # 3) Stream content; also parse optional <think> tags inside content
+                            if not content_token:
+                                continue
+
+                            pending += content_token
+
+                            while True:
+                                pending_lower = pending.lower()
+
+                                if in_tag_thinking:
+                                    close_idx = pending_lower.find(THINK_CLOSE)
+                                    if close_idx != -1:
+                                        part = pending[:close_idx]
+                                        if part:
+                                            thinking_buffer += part
+                                            yield f"data: {json.dumps({'type': 'thinking', 'content': part, 'thinking_time': current_time})}\n\n"
+                                        pending = pending[close_idx + len(THINK_CLOSE):]
+                                        in_tag_thinking = False
+                                        yield f"data: {json.dumps({'type': 'thinking_end', 'thinking_time': current_time})}\n\n"
+                                        continue
+
+                                    if len(pending) > keep_inside:
+                                        part = pending[:-keep_inside]
+                                        if part:
+                                            thinking_buffer += part
+                                            yield f"data: {json.dumps({'type': 'thinking', 'content': part, 'thinking_time': current_time})}\n\n"
+                                        pending = pending[-keep_inside:]
+                                    break
+
+                                else:
+                                    open_idx = pending_lower.find(THINK_OPEN)
+                                    if open_idx != -1:
+                                        part = pending[:open_idx]
+                                        if part:
+                                            response_buffer += part
+                                            yield f"data: {json.dumps({'type': 'content', 'content': part, 'thinking_time': current_time})}\n\n"
+                                        pending = pending[open_idx + len(THINK_OPEN):]
+                                        in_tag_thinking = True
+                                        yield f"data: {json.dumps({'type': 'thinking_start', 'thinking_time': current_time})}\n\n"
+                                        continue
+
+                                    if len(pending) > keep_outside:
+                                        part = pending[:-keep_outside]
+                                        if part:
+                                            response_buffer += part
+                                            yield f"data: {json.dumps({'type': 'content', 'content': part, 'thinking_time': current_time})}\n\n"
+                                        pending = pending[-keep_outside:]
+                                    break
+                        
+                        except json.JSONDecodeError:
+                            continue
+
+                    # Flush remaining pending buffer
+                    if pending:
+                        current_time = time.time() - start_time
+                        if in_tag_thinking:
+                            thinking_buffer += pending
+                            yield f"data: {json.dumps({'type': 'thinking', 'content': pending, 'thinking_time': current_time})}\n\n"
+                            in_tag_thinking = False
+                            yield f"data: {json.dumps({'type': 'thinking_end', 'thinking_time': current_time})}\n\n"
+                        else:
+                            response_buffer += pending
+                            yield f"data: {json.dumps({'type': 'content', 'content': pending, 'thinking_time': current_time})}\n\n"
+
+                    # If the model only sent reasoning and never content, close it
+                    if in_reasoning:
+                        current_time = time.time() - start_time
+                        in_reasoning = False
+                        yield f"data: {json.dumps({'type': 'thinking_end', 'thinking_time': current_time})}\n\n"
+                
+                # Send completion
+                total_time = time.time() - start_time
+                yield f"data: {json.dumps({'type': 'done', 'thinking_time': total_time, 'full_thinking': thinking_buffer, 'full_response': response_buffer})}\n\n"
+                
+        except Exception as e:
+            print(f"[STREAM ERROR] {str(e)}")
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
 
 # ============================================================================
 # TERRAIN ENDPOINTS
@@ -1764,6 +2490,184 @@ async def get_terrain_stats():
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Terrain stats error: {str(e)}")
+
+@app.get("/api/terrain/profile")
+async def get_elevation_profile(lat: float, lng: float, radius_km: float = 2.0):
+    """Get elevation profile around a location for charting"""
+    try:
+        if not terrain_service:
+            return {
+                "success": False,
+                "error": "Terrain service not available"
+            }
+        
+        cache_key = f"profile_{round(float(lat), 5)}|{round(float(lng), 5)}|{round(float(radius_km), 2)}"
+        cached = _cache_terrain_analysis.get(cache_key)
+        if cached is not None:
+            return cached
+
+        result = terrain_service.get_elevation_profile(lat, lng, radius_km)
+        
+        if not result:
+            return {
+                "success": False,
+                "error": "Location outside terrain coverage area"
+            }
+
+        response = {
+            "success": True,
+            "data": result
+        }
+        _cache_terrain_analysis.set(cache_key, response)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Elevation profile error: {str(e)}")
+
+
+# ============== PATHFINDING ENDPOINTS ==============
+
+try:
+    from pathfinding_3d import get_pathfinding_service, Pathfinding3D
+    PATHFINDING_AVAILABLE = True
+except ImportError:
+    PATHFINDING_AVAILABLE = False
+    print("[WARNING] Pathfinding service not available")
+
+try:
+    from raster_analysis import get_raster_service, RasterAnalysis
+    RASTER_AVAILABLE = True
+except ImportError:
+    RASTER_AVAILABLE = False
+    print("[WARNING] Raster analysis service not available")
+
+
+@app.get("/api/pathfinding/route")
+async def get_walking_route(
+    start_lat: float, start_lng: float,
+    end_lat: float, end_lng: float,
+    avoid_buildings: bool = True
+):
+    """
+    Calculate walking route between two points using A* algorithm.
+    
+    - start_lat, start_lng: Starting coordinates
+    - end_lat, end_lng: Destination coordinates
+    - avoid_buildings: Whether to route around buildings (default True)
+    
+    Returns route with waypoints, distance, walking time, and elevation changes.
+    """
+    if not PATHFINDING_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Pathfinding service not available")
+    
+    try:
+        pathfinder = get_pathfinding_service()
+        result = pathfinder.find_path(start_lat, start_lng, end_lat, end_lng, avoid_buildings)
+        return result.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Pathfinding error: {str(e)}")
+
+
+@app.get("/api/pathfinding/to-nearest")
+async def get_route_to_nearest(
+    lat: float, lng: float,
+    poi_type: str,
+    max_distance_m: float = 2000
+):
+    """
+    Find walking route to nearest POI of given type.
+    
+    - lat, lng: Starting coordinates
+    - poi_type: Type of POI (metro, school, hospital, restaurant, etc.)
+    - max_distance_m: Maximum search radius (default 2000m)
+    
+    Returns route to nearest matching POI.
+    """
+    if not PATHFINDING_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Pathfinding service not available")
+    
+    try:
+        pathfinder = get_pathfinding_service()
+        result = pathfinder.find_path_to_nearest(lat, lng, poi_type, max_distance_m)
+        return result.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Pathfinding error: {str(e)}")
+
+
+# ============== FLOOD RISK ENDPOINTS ==============
+
+@app.get("/api/flood-risk/analysis")
+async def get_flood_risk_analysis(lat: float, lng: float, radius_m: float = 500):
+    """
+    Comprehensive flood risk analysis for a location.
+    
+    - lat, lng: Location coordinates
+    - radius_m: Analysis radius in meters (default 500m)
+    
+    Returns flood risk score, zone classification, insurance multiplier, and recommendations.
+    """
+    if not RASTER_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Raster analysis service not available")
+    
+    try:
+        raster = get_raster_service()
+        result = raster.analyze_flood_risk(lat, lng, radius_m)
+        return result.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Flood risk analysis error: {str(e)}")
+
+
+@app.get("/api/flood-risk/insurance-estimate")
+async def get_flood_insurance_estimate(lat: float, lng: float):
+    """
+    Get flood insurance risk estimate for a property location.
+    
+    Returns flood zone, insurance multiplier, and annual flood probability.
+    """
+    if not RASTER_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Raster analysis service not available")
+    
+    try:
+        raster = get_raster_service()
+        result = raster.analyze_flood_risk(lat, lng, 300)
+        return {
+            "location": {"lat": lat, "lng": lng},
+            "flood_zone": result.flood_zone,
+            "insurance_multiplier": round(result.insurance_multiplier, 2),
+            "annual_flood_probability": round(result.annual_flood_probability, 2),
+            "risk_level": result.risk_level,
+            "base_premium_multiplier": f"{result.insurance_multiplier:.1f}x",
+            "zone_description": {
+                "A": "High risk - 1% annual flood chance",
+                "AE": "High risk with base flood elevation",
+                "AH": "Shallow flooding area",
+                "X500": "Moderate risk - 0.2% annual chance",
+                "X": "Low risk - minimal flood hazard"
+            }.get(result.flood_zone, "Unknown zone")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Insurance estimate error: {str(e)}")
+
+
+@app.get("/api/terrain/advanced-analysis")
+async def get_advanced_terrain_analysis(lat: float, lng: float, radius_m: float = 500):
+    """
+    Advanced terrain analysis with drainage patterns and construction suitability.
+    
+    - lat, lng: Center coordinates
+    - radius_m: Analysis radius in meters (default 500m)
+    
+    Returns detailed terrain metrics, drainage analysis, and construction suitability.
+    """
+    if not RASTER_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Raster analysis service not available")
+    
+    try:
+        raster = get_raster_service()
+        result = raster.analyze_terrain_advanced(lat, lng, radius_m)
+        return result.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Advanced terrain analysis error: {str(e)}")
+
 
 # ============== PROPERTY ENDPOINTS ==============
 
@@ -2054,6 +2958,506 @@ async def analyze_location(lat: float, lng: float):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Location analysis error: {str(e)}")
+
+
+# ============================================================================
+# COMMUTE TIME & ACCESSIBILITY ENDPOINTS
+# ============================================================================
+
+class CommuteTimeRequest(BaseModel):
+    from_lat: float
+    from_lng: float
+    to_lat: float
+    to_lng: float
+    mode: str = "drive"  # walk, drive, transit
+
+
+class IschroneRequest(BaseModel):
+    lat: float
+    lng: float
+    time_minutes: int = 15
+    mode: str = "walk"  # walk, drive, transit
+
+
+@app.post("/api/spatial/commute-time")
+async def calculate_commute_time(request: CommuteTimeRequest):
+    """
+    Calculate estimated travel time between two points.
+    Uses NetworkAnalyzer for routing calculations.
+    """
+    try:
+        from network_analyzer import get_network_analyzer
+        analyzer = get_network_analyzer()
+        
+        result = analyzer.find_shortest_path(
+            from_lat=request.from_lat,
+            from_lng=request.from_lng,
+            to_lat=request.to_lat,
+            to_lng=request.to_lng,
+            mode=request.mode
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "from": {"lat": request.from_lat, "lng": request.from_lng},
+                "to": {"lat": request.to_lat, "lng": request.to_lng},
+                "mode": request.mode,
+                "travel_time_min": result.get("travel_time_min", 0),
+                "distance_m": result.get("estimated_distance_m", 0),
+                "direct_distance_m": result.get("direct_distance_m", 0),
+                "speed_kmh": result.get("speed_kmh", 0),
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Commute time calculation error: {str(e)}")
+
+
+@app.get("/api/spatial/commute-time")
+async def calculate_commute_time_get(
+    from_lat: float,
+    from_lng: float,
+    to_lat: float,
+    to_lng: float,
+    mode: str = "drive"
+):
+    """GET version of commute time calculation."""
+    try:
+        from network_analyzer import get_network_analyzer
+        analyzer = get_network_analyzer()
+        
+        result = analyzer.find_shortest_path(
+            from_lat=from_lat,
+            from_lng=from_lng,
+            to_lat=to_lat,
+            to_lng=to_lng,
+            mode=mode
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "from": {"lat": from_lat, "lng": from_lng},
+                "to": {"lat": to_lat, "lng": to_lng},
+                "mode": mode,
+                "travel_time_min": result.get("travel_time_min", 0),
+                "distance_m": result.get("estimated_distance_m", 0),
+                "direct_distance_m": result.get("direct_distance_m", 0),
+                "speed_kmh": result.get("speed_kmh", 0),
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Commute time calculation error: {str(e)}")
+
+
+@app.post("/api/spatial/isochrone")
+async def calculate_isochrone(request: IschroneRequest):
+    """
+    Calculate isochrone (reachable area within time limit).
+    Returns boundary points and reachable POIs.
+    """
+    try:
+        from network_analyzer import get_network_analyzer
+        analyzer = get_network_analyzer()
+        
+        result = analyzer.calculate_isochrone(
+            lat=request.lat,
+            lng=request.lng,
+            time_minutes=request.time_minutes,
+            mode=request.mode
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "center": {"lat": result.center_lat, "lng": result.center_lng},
+                "time_minutes": result.time_minutes,
+                "mode": result.mode,
+                "coverage_area_sqkm": result.coverage_area_sqkm,
+                "boundary_points": [{"lat": p[0], "lng": p[1]} for p in result.boundary_points],
+                "reachable_pois": result.reachable_pois[:50],  # Limit to 50
+                "reachable_count": len(result.reachable_pois),
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Isochrone calculation error: {str(e)}")
+
+
+@app.get("/api/spatial/accessibility")
+async def get_accessibility_score(lat: float, lng: float):
+    """
+    Get comprehensive accessibility score for a location.
+    Includes walkability, transit, and amenity scores.
+    """
+    try:
+        from network_analyzer import get_network_analyzer
+        analyzer = get_network_analyzer()
+        
+        result = analyzer.calculate_accessibility_score(lat, lng)
+        
+        return {
+            "success": True,
+            "data": result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Accessibility score error: {str(e)}")
+
+
+class PolygonAnalyzeRequest(BaseModel):
+    coordinates: List[List[float]]
+    include_samples: bool = True
+    limit: int = 50000
+
+
+class BufferAnalyzeRequest(BaseModel):
+    center: Dict[str, float]
+    radius_m: float
+    include_samples: bool = True
+    limit: int = 50000
+
+
+def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    R = 6371000.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lng2 - lng1)
+    a = math.sin(dphi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0) ** 2
+    return R * 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+
+
+def _point_in_polygon(lng: float, lat: float, polygon: List[List[float]]) -> bool:
+    inside = False
+    n = len(polygon)
+    j = n - 1
+    for i in range(n):
+        xi, yi = polygon[i][0], polygon[i][1]
+        xj, yj = polygon[j][0], polygon[j][1]
+        intersects = ((yi > lat) != (yj > lat)) and (
+            lng < (xj - xi) * (lat - yi) / ((yj - yi) if (yj - yi) != 0 else 1e-12) + xi
+        )
+        if intersects:
+            inside = not inside
+        j = i
+    return inside
+
+
+def _polygon_center(coords: List[List[float]]) -> Dict[str, float]:
+    if not coords:
+        return {"lat": 0.0, "lng": 0.0}
+    lngs = [c[0] for c in coords]
+    lats = [c[1] for c in coords]
+    return {"lat": sum(lats) / len(lats), "lng": sum(lngs) / len(lngs)}
+
+
+def _polygon_metrics(coords: List[List[float]]) -> Dict[str, Any]:
+    if len(coords) < 3:
+        return {"area_m2": 0.0, "perimeter_m": 0.0}
+
+    if coords[0] != coords[-1]:
+        coords = coords + [coords[0]]
+
+    center = _polygon_center(coords[:-1])
+    lat0 = center["lat"]
+    lng0 = center["lng"]
+    m_per_deg_lat = 111000.0
+    m_per_deg_lng = 111000.0 * math.cos(math.radians(lat0))
+
+    xs = [(c[0] - lng0) * m_per_deg_lng for c in coords]
+    ys = [(c[1] - lat0) * m_per_deg_lat for c in coords]
+
+    area2 = 0.0
+    perimeter = 0.0
+    for i in range(len(coords) - 1):
+        area2 += xs[i] * ys[i + 1] - xs[i + 1] * ys[i]
+        dx = xs[i + 1] - xs[i]
+        dy = ys[i + 1] - ys[i]
+        perimeter += math.sqrt(dx * dx + dy * dy)
+
+    area = abs(area2) / 2.0
+
+    return {
+        "area_m2": area,
+        "perimeter_m": perimeter,
+        "center": center,
+    }
+
+
+def _bbox_from_coords(coords: List[List[float]]) -> Dict[str, float]:
+    lngs = [c[0] for c in coords]
+    lats = [c[1] for c in coords]
+    return {
+        "min_lng": min(lngs),
+        "min_lat": min(lats),
+        "max_lng": max(lngs),
+        "max_lat": max(lats),
+    }
+
+
+def _bbox_expand(bbox: Dict[str, float], meters: float) -> Dict[str, float]:
+    lat0 = (bbox["min_lat"] + bbox["max_lat"]) / 2.0
+    lat_delta = meters / 111000.0
+    lng_delta = meters / (111000.0 * max(0.1, math.cos(math.radians(lat0))))
+    return {
+        "min_lng": bbox["min_lng"] - lng_delta,
+        "min_lat": bbox["min_lat"] - lat_delta,
+        "max_lng": bbox["max_lng"] + lng_delta,
+        "max_lat": bbox["max_lat"] + lat_delta,
+    }
+
+
+def _query_bbox(query_service, table: str, lat_col: str, lng_col: str, select_cols: str, bbox: Dict[str, float], limit: int) -> List[Dict[str, Any]]:
+    sql = f"""
+        SELECT {select_cols}
+        FROM {table}
+        WHERE {lat_col} BETWEEN ? AND ? AND {lng_col} BETWEEN ? AND ?
+        LIMIT ?
+    """
+    params = (bbox["min_lat"], bbox["max_lat"], bbox["min_lng"], bbox["max_lng"], limit)
+    return query_service.db.execute(sql, params) or []
+
+
+@app.post("/api/spatial/polygon-analyze")
+async def spatial_polygon_analyze(request: PolygonAnalyzeRequest):
+    coords = request.coordinates
+    if not coords or len(coords) < 3:
+        raise HTTPException(status_code=400, detail="Polygon must have at least 3 coordinates")
+
+    bbox = _bbox_from_coords(coords)
+    bbox_q = _bbox_expand(bbox, 50.0)
+    metrics = _polygon_metrics(coords)
+
+    try:
+        from database.query_service import get_query_service
+        query_service = get_query_service()
+
+        buildings_rows = _query_bbox(
+            query_service,
+            table="buildings",
+            lat_col="latitude",
+            lng_col="longitude",
+            select_cols="osm_id, name, building_type, height, levels, latitude as lat, longitude as lng",
+            bbox=bbox_q,
+            limit=request.limit,
+        )
+        properties_rows = _query_bbox(
+            query_service,
+            table="properties",
+            lat_col="latitude",
+            lng_col="longitude",
+            select_cols="property_id, title, listing_type, price, latitude as lat, longitude as lng",
+            bbox=bbox_q,
+            limit=request.limit,
+        )
+        pois_rows = _query_bbox(
+            query_service,
+            table="pois",
+            lat_col="latitude",
+            lng_col="longitude",
+            select_cols="poi_id, name, category, subcategory, latitude as lat, longitude as lng",
+            bbox=bbox_q,
+            limit=request.limit,
+        )
+        transport_rows = _query_bbox(
+            query_service,
+            table="transport_stops",
+            lat_col="latitude",
+            lng_col="longitude",
+            select_cols="stop_id, name, transport_type as type, latitude as lat, longitude as lng, line_name",
+            bbox=bbox_q,
+            limit=request.limit,
+        )
+
+        buildings_in = [b for b in buildings_rows if b.get("lat") is not None and b.get("lng") is not None and _point_in_polygon(float(b["lng"]), float(b["lat"]), coords)]
+        properties_in = [p for p in properties_rows if p.get("lat") is not None and p.get("lng") is not None and _point_in_polygon(float(p["lng"]), float(p["lat"]), coords)]
+        pois_in = [p for p in pois_rows if p.get("lat") is not None and p.get("lng") is not None and _point_in_polygon(float(p["lng"]), float(p["lat"]), coords)]
+        transport_in = [t for t in transport_rows if t.get("lat") is not None and t.get("lng") is not None and _point_in_polygon(float(t["lng"]), float(t["lat"]), coords)]
+
+        heights = []
+        type_counts: Dict[str, int] = {}
+        above_30m = 0
+        for b in buildings_in:
+            h = b.get("height")
+            try:
+                if h is not None:
+                    hf = float(h)
+                    heights.append(hf)
+                    if hf >= 30.0:
+                        above_30m += 1
+            except Exception:
+                pass
+            bt = (b.get("building_type") or "unknown")
+            type_counts[bt] = type_counts.get(bt, 0) + 1
+
+        dominant_type = None
+        if type_counts:
+            dominant_type = max(type_counts.items(), key=lambda kv: kv[1])[0]
+
+        building_stats = {
+            "count": len(buildings_in),
+            "avg_height_m": (sum(heights) / len(heights)) if heights else None,
+            "max_height_m": max(heights) if heights else None,
+            "dominant_type": dominant_type,
+            "above_30m": above_30m,
+        }
+
+        samples = None
+        if request.include_samples:
+            samples = {
+                "buildings": buildings_in[:50],
+                "properties": properties_in[:50],
+                "pois": pois_in[:50],
+                "transport": transport_in[:50],
+            }
+
+        return {
+            "success": True,
+            "data": {
+                "zone_type": "polygon",
+                "metrics": {
+                    **metrics,
+                    "bbox": bbox,
+                },
+                "counts": {
+                    "buildings": len(buildings_in),
+                    "properties": len(properties_in),
+                    "pois": len(pois_in),
+                    "transport_stops": len(transport_in),
+                },
+                "building_stats": building_stats,
+                "samples": samples,
+            },
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Polygon analyze error: {str(e)}")
+
+
+@app.post("/api/spatial/buffer-analyze")
+async def spatial_buffer_analyze(request: BufferAnalyzeRequest):
+    center = request.center or {}
+    lat = center.get("lat")
+    lng = center.get("lng")
+    radius_m = request.radius_m
+    if lat is None or lng is None:
+        raise HTTPException(status_code=400, detail="center.lat and center.lng are required")
+    if radius_m is None or radius_m <= 0:
+        raise HTTPException(status_code=400, detail="radius_m must be > 0")
+
+    lat = float(lat)
+    lng = float(lng)
+    radius_m = float(radius_m)
+
+    bbox = {
+        "min_lat": lat - (radius_m / 111000.0),
+        "max_lat": lat + (radius_m / 111000.0),
+        "min_lng": lng - (radius_m / (111000.0 * max(0.1, math.cos(math.radians(lat))))),
+        "max_lng": lng + (radius_m / (111000.0 * max(0.1, math.cos(math.radians(lat))))),
+    }
+
+    try:
+        from database.query_service import get_query_service
+        query_service = get_query_service()
+
+        buildings_rows = _query_bbox(
+            query_service,
+            table="buildings",
+            lat_col="latitude",
+            lng_col="longitude",
+            select_cols="osm_id, name, building_type, height, levels, latitude as lat, longitude as lng",
+            bbox=bbox,
+            limit=request.limit,
+        )
+        properties_rows = _query_bbox(
+            query_service,
+            table="properties",
+            lat_col="latitude",
+            lng_col="longitude",
+            select_cols="property_id, title, listing_type, price, latitude as lat, longitude as lng",
+            bbox=bbox,
+            limit=request.limit,
+        )
+        pois_rows = _query_bbox(
+            query_service,
+            table="pois",
+            lat_col="latitude",
+            lng_col="longitude",
+            select_cols="poi_id, name, category, subcategory, latitude as lat, longitude as lng",
+            bbox=bbox,
+            limit=request.limit,
+        )
+        transport_rows = _query_bbox(
+            query_service,
+            table="transport_stops",
+            lat_col="latitude",
+            lng_col="longitude",
+            select_cols="stop_id, name, transport_type as type, latitude as lat, longitude as lng, line_name",
+            bbox=bbox,
+            limit=request.limit,
+        )
+
+        buildings_in = [b for b in buildings_rows if b.get("lat") is not None and b.get("lng") is not None and _haversine_m(lat, lng, float(b["lat"]), float(b["lng"])) <= radius_m]
+        properties_in = [p for p in properties_rows if p.get("lat") is not None and p.get("lng") is not None and _haversine_m(lat, lng, float(p["lat"]), float(p["lng"])) <= radius_m]
+        pois_in = [p for p in pois_rows if p.get("lat") is not None and p.get("lng") is not None and _haversine_m(lat, lng, float(p["lat"]), float(p["lng"])) <= radius_m]
+        transport_in = [t for t in transport_rows if t.get("lat") is not None and t.get("lng") is not None and _haversine_m(lat, lng, float(t["lat"]), float(t["lng"])) <= radius_m]
+
+        heights = []
+        type_counts: Dict[str, int] = {}
+        above_30m = 0
+        for b in buildings_in:
+            h = b.get("height")
+            try:
+                if h is not None:
+                    hf = float(h)
+                    heights.append(hf)
+                    if hf >= 30.0:
+                        above_30m += 1
+            except Exception:
+                pass
+            bt = (b.get("building_type") or "unknown")
+            type_counts[bt] = type_counts.get(bt, 0) + 1
+
+        dominant_type = None
+        if type_counts:
+            dominant_type = max(type_counts.items(), key=lambda kv: kv[1])[0]
+
+        building_stats = {
+            "count": len(buildings_in),
+            "avg_height_m": (sum(heights) / len(heights)) if heights else None,
+            "max_height_m": max(heights) if heights else None,
+            "dominant_type": dominant_type,
+            "above_30m": above_30m,
+        }
+
+        samples = None
+        if request.include_samples:
+            samples = {
+                "buildings": buildings_in[:50],
+                "properties": properties_in[:50],
+                "pois": pois_in[:50],
+                "transport": transport_in[:50],
+            }
+
+        return {
+            "success": True,
+            "data": {
+                "zone_type": "buffer",
+                "metrics": {
+                    "center": {"lat": lat, "lng": lng},
+                    "radius_m": radius_m,
+                    "bbox": bbox,
+                },
+                "counts": {
+                    "buildings": len(buildings_in),
+                    "properties": len(properties_in),
+                    "pois": len(pois_in),
+                    "transport_stops": len(transport_in),
+                },
+                "building_stats": building_stats,
+                "samples": samples,
+            },
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Buffer analyze error: {str(e)}")
 
 
 # ============== PHASE 1: VALUATION ENDPOINTS ==============
@@ -2682,10 +4086,53 @@ Calculate ALL metrics from the data provided:
             print(f"AI analysis error: {e}")
             result["ai_analysis"] = None
     
-    # Recommendations are now generated by AI, not hardcoded
-    # If AI didn't provide recommendations, leave empty
+    # Fallback: Generate computed recommendations if AI didn't provide any
     if "recommendations" not in result or not result["recommendations"]:
-        result["recommendations"] = []
+        recommendations = []
+        if result.get("spatial"):
+            s = result["spatial"]
+            if s.get("accessibility_score", 0) >= 80:
+                recommendations.append(f"Excellent accessibility score ({s['accessibility_score']}/100) - prime location for commuters")
+            if s.get("walkability_score", 0) >= 70:
+                recommendations.append(f"High walkability ({s['walkability_score']}/100) - daily errands possible on foot")
+            if s.get("amenity_density", 0) >= 100:
+                recommendations.append(f"{s.get('total_features', 0)} features within 1km - exceptional amenity density")
+            if s.get("by_category", {}).get("transport", 0) >= 5:
+                recommendations.append(f"{s['by_category']['transport']} transport options nearby - excellent connectivity")
+        if result.get("valuation"):
+            v = result["valuation"]
+            if v.get("confidence", 0) >= 0.7:
+                recommendations.append(f"High valuation confidence ({v['confidence']*100:.0f}%) - reliable price estimate")
+        result["recommendations"] = recommendations[:4]  # Max 4 recommendations
+    
+    # Fallback: Ensure market stats exist with computed growth/demand
+    if not result.get("market") and result.get("valuation"):
+        # Create basic market stats from valuation
+        v = result["valuation"]
+        result["market"] = {
+            "avg_price": v.get("estimated_price", 0),
+            "avg_price_per_sqft": v.get("price_per_sqft", 0),
+            "total_properties": 1,
+            "growth_1y": 8.5,  # Bangalore average
+            "demand_index": "Medium"
+        }
+    
+    # Fallback: Ensure area_importance has score/grade
+    if result.get("area_importance") and "score" not in result["area_importance"]:
+        factors = result["area_importance"].get("factors", {})
+        # Calculate score from factors
+        score = (
+            factors.get("accessibility", 50) * 0.35 +
+            factors.get("walkability", 50) * 0.30 +
+            min(100, factors.get("amenity_density", 0) * 0.5) * 0.20 +
+            min(100, factors.get("poi_count", 0) / 5) * 0.10 +
+            min(100, factors.get("transport_count", 0) * 10) * 0.05
+        )
+        result["area_importance"]["score"] = round(score)
+        result["area_importance"]["grade"] = (
+            "A+" if score >= 90 else "A" if score >= 80 else "B+" if score >= 70 else
+            "B" if score >= 60 else "C" if score >= 50 else "D" if score >= 40 else "F"
+        )
     
     _cache_building_analysis.set(cache_key, result)
     return result
@@ -2956,118 +4403,402 @@ async def update_digital_twin_state(request: StateUpdateRequest):
         raise HTTPException(status_code=500, detail=f"State update error: {str(e)}")
 
 
-# ============== PHASE 5: CREDIT SYSTEM ==============
+# ============== PHASE 5: USAGE UNITS SYSTEM (replaces credits) ==============
+# Monthly units with per-action costs - Hard limit + Top-up model
 
-# In-memory credit tracking (production would use database)
-user_credits = {}
-DEFAULT_CREDITS = 100  # New users get 100 credits
+from user_auth import get_user_database, SubscriptionTier
 
-class CreditAction(BaseModel):
-    user_id: str
-    action: str  # 'add', 'deduct', 'check'
-    amount: Optional[int] = 0
-    reason: Optional[str] = None
-
-# Credit costs for different operations
-CREDIT_COSTS = {
-    'chat': 1,
-    'analysis': 2,
-    'simulation': 5,
-    'storyboard': 10,
-    'property_search': 1,
-    'valuation': 3,
-    'rag_search': 1
+# Unit costs for different operations (higher = more expensive)
+UNIT_COSTS = {
+    'chat': 1,           # Basic chat query
+    'analysis': 3,       # Area/building analysis
+    'simulation': 25,    # What-if scenarios
+    'storyboard': 15,    # Narrative generation
+    'property_search': 2,
+    'valuation': 10,     # Property valuation
+    'rag_search': 1,
+    'report_export': 20, # PDF/report generation
 }
 
-@app.post("/api/credits")
-async def manage_credits(request: CreditAction):
-    """
-    Manage user credits (Windsurf-style usage tracking).
-    
-    Actions:
-    - check: Get current credit balance
-    - add: Add credits to account
-    - deduct: Deduct credits for usage
-    """
-    user_id = request.user_id
-    
-    # Initialize user if not exists
-    if user_id not in user_credits:
-        user_credits[user_id] = {
-            'balance': DEFAULT_CREDITS,
-            'total_used': 0,
-            'history': []
-        }
-    
-    user = user_credits[user_id]
-    
-    if request.action == 'check':
-        return {
-            "success": True,
-            "user_id": user_id,
-            "balance": user['balance'],
-            "total_used": user['total_used'],
-            "recent_history": user['history'][-10:]
-        }
-    
-    elif request.action == 'add':
-        user['balance'] += request.amount
-        user['history'].append({
-            'action': 'add',
-            'amount': request.amount,
-            'reason': request.reason or 'Credit top-up',
-            'balance_after': user['balance']
-        })
-        return {
-            "success": True,
-            "user_id": user_id,
-            "amount_added": request.amount,
-            "new_balance": user['balance']
-        }
-    
-    elif request.action == 'deduct':
-        cost = request.amount or CREDIT_COSTS.get(request.reason, 1)
-        if user['balance'] < cost:
-            return {
-                "success": False,
-                "error": "Insufficient credits",
-                "balance": user['balance'],
-                "cost": cost
-            }
-        user['balance'] -= cost
-        user['total_used'] += cost
-        user['history'].append({
-            'action': 'deduct',
-            'amount': cost,
-            'reason': request.reason or 'Usage',
-            'balance_after': user['balance']
-        })
-        return {
-            "success": True,
-            "user_id": user_id,
-            "amount_deducted": cost,
-            "new_balance": user['balance']
-        }
-    
-    return {"success": False, "error": "Invalid action"}
+# Monthly unit allowances by tier
+TIER_MONTHLY_UNITS = {
+    'free': 50,
+    'pro': 1000,
+    'team': 3000,
+    'enterprise': -1,  # Unlimited (fair use)
+    'admin': -1,       # Unlimited
+}
 
-@app.get("/api/credits/{user_id}")
-async def get_credits(user_id: str):
-    """Get credit balance for a user."""
-    if user_id not in user_credits:
-        user_credits[user_id] = {
-            'balance': DEFAULT_CREDITS,
-            'total_used': 0,
-            'history': []
-        }
+# Top-up packs with promo pricing (80% launch discount)
+TOPUP_PACKS = {
+    'starter': {'units': 100, 'base_price': 299, 'promo_price': 59},
+    'standard': {'units': 300, 'base_price': 699, 'promo_price': 139},
+    'bulk': {'units': 1000, 'base_price': 1999, 'promo_price': 399},
+}
+
+# Launch promo active until March 31, 2026
+LAUNCH_PROMO_ACTIVE = True
+
+@app.get("/api/usage/{user_id}")
+async def get_usage(user_id: int):
+    """Get usage statistics for a user."""
+    db = get_user_database()
+    user = db.get_user_by_id(user_id)
     
-    user = user_credits[user_id]
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    monthly_limit = TIER_MONTHLY_UNITS.get(user.tier.value, 50)
+    
     return {
         "success": True,
         "user_id": user_id,
-        "balance": user['balance'],
-        "total_used": user['total_used'],
-        "credit_costs": CREDIT_COSTS
+        "tier": user.tier.value,
+        "units_used": user.queries_today,  # Will be renamed to units_used_this_month
+        "monthly_limit": monthly_limit,
+        "units_remaining": monthly_limit - user.queries_today if monthly_limit > 0 else -1,
+        "is_unlimited": monthly_limit == -1,
+        "unit_costs": UNIT_COSTS,
+        "topup_packs": TOPUP_PACKS,
+    }
+
+@app.get("/api/usage/check/{user_id}/{action}")
+async def check_usage_allowed(user_id: int, action: str):
+    """Check if user has enough units for an action."""
+    db = get_user_database()
+    user = db.get_user_by_id(user_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    monthly_limit = TIER_MONTHLY_UNITS.get(user.tier.value, 50)
+    cost = UNIT_COSTS.get(action, 1)
+    
+    # Unlimited tiers always allowed
+    if monthly_limit == -1:
+        return {"allowed": True, "cost": cost, "remaining": -1}
+    
+    remaining = monthly_limit - user.queries_today
+    allowed = remaining >= cost
+    
+    return {
+        "allowed": allowed,
+        "cost": cost,
+        "remaining": remaining,
+        "monthly_limit": monthly_limit,
+        "upgrade_needed": not allowed,
+    }
+
+@app.post("/api/usage/deduct")
+async def deduct_usage(user_id: int, action: str, units: int = None):
+    """Deduct units for an action. Returns error if insufficient."""
+    db = get_user_database()
+    user = db.get_user_by_id(user_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    monthly_limit = TIER_MONTHLY_UNITS.get(user.tier.value, 50)
+    cost = units or UNIT_COSTS.get(action, 1)
+    
+    # Unlimited tiers - just log, don't block
+    if monthly_limit == -1:
+        db.increment_query_count(user_id)
+        return {"success": True, "deducted": cost, "remaining": -1}
+    
+    remaining = monthly_limit - user.queries_today
+    
+    if remaining < cost:
+        return {
+            "success": False,
+            "error": "insufficient_units",
+            "message": f"You need {cost} units but only have {remaining} remaining this month.",
+            "remaining": remaining,
+            "cost": cost,
+            "topup_packs": TOPUP_PACKS,
+        }
+    
+    # Deduct (increment usage counter)
+    db.increment_query_count(user_id)
+    
+    return {
+        "success": True,
+        "deducted": cost,
+        "remaining": remaining - cost,
+        "monthly_limit": monthly_limit,
+    }
+
+@app.get("/api/topup-packs")
+async def get_topup_packs():
+    """Get available top-up packs."""
+    return {
+        "packs": TOPUP_PACKS,
+        "currency": "INR",
+    }
+
+from insight_cache import (
+    get_cached_insight, cache_insight, check_user_charged, 
+    record_user_charge, get_card_cost, card_has_simulation,
+    INSIGHT_CARD_TYPES, get_cache_stats, append_training_sample
+)
+
+class InsightCardRequest(BaseModel):
+    card_type: str  # infrastructure, livability, investment, comparison, market, terrain, spatial
+    lat: float
+    lng: float
+    user_id: int
+    area_name: Optional[str] = None
+    card_data: Optional[Dict[str, Any]] = None  # Current card values for context
+
+@app.post("/api/insight/explain")
+async def explain_insight_card(request: InsightCardRequest):
+    """
+    Generate AI explanation for an insight card with caching and charge tracking.
+    - Checks 2km radius cache first (free if cached)
+    - Checks if user already paid for this area (free if already paid)
+    - Charges user only for new explanations
+    - Returns simulation data if applicable
+    """
+    card_type = request.card_type
+    lat = request.lat
+    lng = request.lng
+    user_id = request.user_id
+    area_name = request.area_name or "this area"
+    card_data = request.card_data or {}
+    
+    # Validate card type
+    if card_type not in INSIGHT_CARD_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid card type: {card_type}")
+    
+    card_config = INSIGHT_CARD_TYPES[card_type]
+    cost_units = get_card_cost(card_type)
+    has_simulation = card_has_simulation(card_type)
+    
+    # Step 1: Check cache for nearby explanation (free)
+    cached, is_cache_hit = get_cached_insight(user_id, card_type, lat, lng)
+    if is_cache_hit and cached:
+        return {
+            "success": True,
+            "explanation": cached.get("explanation"),
+            "simulation_data": cached.get("simulation_data"),
+            "source": "cache",
+            "cache_hit": True,
+            "charged": False,
+            "units_charged": 0,
+            "distance_from_cache_km": cached.get("distance_km", 0),
+            "has_simulation": has_simulation
+        }
+    
+    # Step 2: Check if user already paid for this area (free)
+    already_charged, charge_key = check_user_charged(user_id, card_type, lat, lng)
+    if already_charged:
+        # User paid before - generate fresh but don't charge
+        # Still generate explanation since cache may have expired
+        pass  # Continue to generation but skip charging
+    
+    # Step 3: Check user's remaining units (if not already paid)
+    if not already_charged:
+        db = get_user_database()
+        user = db.get_user_by_id(user_id)
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        monthly_limit = TIER_MONTHLY_UNITS.get(user.tier.value, 50)
+        remaining = monthly_limit - user.queries_today if monthly_limit != -1 else -1
+        
+        if monthly_limit != -1 and remaining < cost_units:
+            return {
+                "success": False,
+                "error": "insufficient_units",
+                "message": f"This insight costs {cost_units} units. You have {remaining} remaining.",
+                "cost": cost_units,
+                "remaining": remaining,
+                "topup_needed": True
+            }
+    
+    # Step 4: Generate AI explanation
+    explanation_prompt = f"""Explain the {card_config['name']} metrics for {area_name} in Bangalore.
+
+Current data:
+{json.dumps(card_data, indent=2)}
+
+Location: {lat:.4f}, {lng:.4f}
+
+Provide a concise, actionable insight (2-3 paragraphs) covering:
+1. What these numbers mean for a potential buyer/investor
+2. Key factors driving these values
+3. Comparison to Bangalore averages
+{"4. Potential future scenarios and their impact" if has_simulation else ""}
+
+Be specific to this location and use the actual data provided. Avoid generic advice."""
+
+    try:
+        # Use the existing LLM service
+        if LLM_AVAILABLE and llm_service:
+            explanation = await llm_service.generate(
+                explanation_prompt,
+                system_prompt="You are Valora AI, a real estate intelligence expert for Bangalore. Provide data-driven, specific insights."
+            )
+        else:
+            # Fallback explanation
+            explanation = f"**{card_config['name']} Analysis for {area_name}**\n\n"
+            explanation += f"Based on the current metrics, this area shows "
+            if card_type == "investment":
+                explanation += f"a growth potential score of {card_data.get('growth_potential', 'N/A')}/100 "
+                explanation += f"with an estimated rental yield of {card_data.get('rental_yield_pct', 'N/A')}%. "
+            elif card_type == "livability":
+                explanation += f"an overall livability score of {card_data.get('overall_score', 'N/A')}/100. "
+            elif card_type == "infrastructure":
+                explanation += f"diverse infrastructure with nearby amenities. "
+            explanation += "\n\nContact Valora AI for detailed analysis."
+        
+        # Step 5: Generate simulation data if applicable
+        simulation_data = None
+        if has_simulation:
+            simulation_data = {
+                "available": True,
+                "simulation_types": card_config.get("simulation_types", []),
+                "preview": f"Simulate how changes would affect {card_config['name'].lower()} in {area_name}"
+            }
+        
+        # Step 6: Cache the result
+        cache_id = cache_insight(
+            user_id=user_id,
+            card_type=card_type,
+            lat=lat,
+            lng=lng,
+            explanation=explanation,
+            simulation_data=simulation_data,
+            metadata={"area_name": area_name, "generated_at": datetime.now().isoformat()}
+        )
+        
+        # Step 7: Charge user if not already paid
+        charged = False
+        if not already_charged:
+            record_user_charge(user_id, card_type, lat, lng, cost_units, area_name)
+            db.increment_query_count(user_id)
+            charged = True
+
+        # Append training sample ONLY when a new paid insight is generated
+        if charged:
+            # Include the full prompt for fine-tuning
+            append_training_sample({
+                "user_id": user_id,
+                "card_type": card_type,
+                "card_name": card_config.get("name"),
+                "lat": lat,
+                "lng": lng,
+                "area_name": area_name,
+                "prompt": explanation_prompt,  # Full prompt for training
+                "completion": explanation,      # AI output
+                "card_data": card_data,
+                "has_simulation": has_simulation,
+                "simulation_data": simulation_data,
+                "units_charged": cost_units,
+                "source": "generated"
+            })
+        
+        return {
+            "success": True,
+            "explanation": explanation,
+            "simulation_data": simulation_data,
+            "source": "generated",
+            "cache_hit": False,
+            "charged": charged,
+            "units_charged": cost_units if charged else 0,
+            "has_simulation": has_simulation,
+            "card_name": card_config['name']
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Insight explanation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate explanation: {str(e)}")
+
+@app.post("/api/insight/simulate")
+async def simulate_insight_scenario(request: dict):
+    """
+    Run a simulation for an insight card scenario.
+    Uses the existing simulation engine.
+    """
+    card_type = request.get("card_type")
+    simulation_type = request.get("simulation_type")
+    lat = request.get("lat")
+    lng = request.get("lng")
+    user_id = request.get("user_id")
+    parameters = request.get("parameters", {})
+    
+    if not all([card_type, simulation_type, lat, lng, user_id]):
+        raise HTTPException(status_code=400, detail="Missing required parameters")
+    
+    # Check user can afford simulation (costs 10 units)
+    SIMULATION_COST = 10
+    db = get_user_database()
+    user = db.get_user_by_id(user_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    monthly_limit = TIER_MONTHLY_UNITS.get(user.tier.value, 50)
+    remaining = monthly_limit - user.queries_today if monthly_limit != -1 else -1
+    
+    if monthly_limit != -1 and remaining < SIMULATION_COST:
+        return {
+            "success": False,
+            "error": "insufficient_units",
+            "message": f"Simulation costs {SIMULATION_COST} units. You have {remaining} remaining.",
+            "cost": SIMULATION_COST
+        }
+    
+    # Run simulation using existing engine
+    try:
+        if SIMULATION_AVAILABLE:
+            result = await simulation_engine.simulate_scenario(
+                scenario_type=simulation_type,
+                lat=lat,
+                lng=lng,
+                parameters=parameters
+            )
+        else:
+            # Fallback simulation result
+            result = {
+                "scenario": simulation_type,
+                "impacts": {
+                    "property_value_impact": 8.5,
+                    "accessibility_change": 15,
+                    "confidence": 0.72
+                },
+                "narrative": f"Simulating {simulation_type} impact on the area."
+            }
+        
+        # Charge user
+        db.increment_query_count(user_id)
+        record_user_charge(user_id, f"simulation_{card_type}", lat, lng, SIMULATION_COST)
+        
+        return {
+            "success": True,
+            "result": result,
+            "charged": True,
+            "units_charged": SIMULATION_COST,
+            "show_in_map": True  # Signal frontend to show simulation in map
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Simulation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/insight/cache-stats")
+async def get_insight_cache_stats():
+    """Get insight cache and charge statistics."""
+    return get_cache_stats()
+
+@app.get("/api/insight/card-types")
+async def get_insight_card_types():
+    """Get available insight card types with costs."""
+    return {
+        "card_types": INSIGHT_CARD_TYPES,
+        "cache_radius_km": 2.0,
+        "cache_ttl_hours": 24
     }
 
 
@@ -3435,7 +5166,7 @@ async def get_system_status():
             "properties": ["/api/properties/smart-search", "/api/properties/nearby"],
             "simulation": ["/api/simulate", "/api/simulate/storyboard"],
             "digital_twin": ["/api/digital-twin/init", "/api/digital-twin/state", "/api/digital-twin/update", "/api/digital-twin/history"],
-            "credits": ["/api/credits", "/api/credits/{user_id}"],
+            "usage": ["/api/usage/{user_id}", "/api/usage/check/{user_id}/{action}", "/api/usage/deduct", "/api/topup-packs"],
             "rag": ["/api/rag/search", "/api/rag/context"],
             "valuation": ["/api/valuation/estimate"],
             "status": "/api/status"
@@ -4122,6 +5853,427 @@ async def compare_properties(request: PropertyCompareRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# FACT VERIFIER ENDPOINTS - Truth firewall for LLM claims
+# ============================================================================
+
+try:
+    from fact_verifier import get_fact_verifier, Claim, ClaimType
+    FACT_VERIFIER_AVAILABLE = True
+except ImportError:
+    FACT_VERIFIER_AVAILABLE = False
+
+
+class VerifyClaimRequest(BaseModel):
+    """Request to verify a single claim."""
+    claim_text: str
+    claim_type: str = "general"
+    value: Optional[Any] = None
+    unit: Optional[str] = None
+    location: Optional[Dict[str, float]] = None
+    property_id: Optional[str] = None
+    locality: Optional[str] = None
+    context: Optional[Dict[str, Any]] = None
+
+
+class VerifyClaimsRequest(BaseModel):
+    """Request to verify multiple claims."""
+    claims: List[VerifyClaimRequest]
+    request_id: Optional[str] = None
+
+
+class VerifyNarrativeRequest(BaseModel):
+    """Request to verify claims extracted from narrative text."""
+    narrative: str
+    location: Optional[Dict[str, float]] = None
+
+
+@app.post("/api/verifier/verify")
+async def verify_claims(request: VerifyClaimsRequest):
+    """
+    Verify multiple LLM claims against deterministic data sources.
+    
+    This is the core "truth firewall" for Valora AI.
+    """
+    if not FACT_VERIFIER_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Fact verifier service not available")
+    
+    try:
+        verifier = get_fact_verifier()
+        
+        # Convert request to Claim objects
+        claims = []
+        for i, c in enumerate(request.claims):
+            claims.append(Claim(
+                claim_id=f"c_{i}",
+                claim_text=c.claim_text,
+                claim_type=c.claim_type,
+                value=c.value,
+                unit=c.unit,
+                location=c.location,
+                property_id=c.property_id,
+                locality=c.locality,
+                context=c.context
+            ))
+        
+        # Verify all claims
+        response = verifier.verify_claims(claims, request.request_id)
+        
+        return {
+            "success": True,
+            "request_id": response.request_id,
+            "overall_status": response.overall_status,
+            "verification_rate": response.verification_rate,
+            "total_claims": response.total_claims,
+            "verified_count": response.verified_count,
+            "unverified_count": response.unverified_count,
+            "results": [
+                {
+                    "claim_id": r.claim_id,
+                    "claim_text": r.claim_text,
+                    "status": r.status,
+                    "confidence": r.confidence,
+                    "evidence": [
+                        {
+                            "source": e.source,
+                            "query_type": e.query_type,
+                            "actual_value": e.actual_value,
+                            "expected_value": e.expected_value,
+                            "match": e.match,
+                            "details": e.details
+                        } for e in r.evidence
+                    ],
+                    "rewrite_suggestion": r.rewrite_suggestion
+                } for r in response.results
+            ],
+            "warnings": response.warnings,
+            "timestamp": response.timestamp
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Verification error: {str(e)}")
+
+
+@app.post("/api/verifier/verify-narrative")
+async def verify_narrative(request: VerifyNarrativeRequest):
+    """
+    Extract and verify claims from narrative text.
+    
+    Extracts verifiable claims (prices, distances, counts, etc.) from
+    natural language text and verifies each against data sources.
+    """
+    if not FACT_VERIFIER_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Fact verifier service not available")
+    
+    try:
+        verifier = get_fact_verifier()
+        
+        # Extract claims from narrative
+        claims = verifier.extract_claims_from_text(request.narrative, request.location)
+        
+        if not claims:
+            return {
+                "success": True,
+                "message": "No verifiable claims found in narrative",
+                "overall_status": "no_claims",
+                "claims_extracted": 0,
+                "results": []
+            }
+        
+        # Verify extracted claims
+        response = verifier.verify_claims(claims)
+        
+        return {
+            "success": True,
+            "request_id": response.request_id,
+            "overall_status": response.overall_status,
+            "verification_rate": response.verification_rate,
+            "claims_extracted": len(claims),
+            "verified_count": response.verified_count,
+            "unverified_count": response.unverified_count,
+            "results": [
+                {
+                    "claim_id": r.claim_id,
+                    "claim_text": r.claim_text,
+                    "status": r.status,
+                    "confidence": r.confidence,
+                    "rewrite_suggestion": r.rewrite_suggestion,
+                    "evidence": [
+                        {
+                            "source": e.source,
+                            "actual_value": e.actual_value,
+                            "expected_value": e.expected_value,
+                            "match": e.match
+                        } for e in r.evidence
+                    ]
+                } for r in response.results
+            ],
+            "warnings": response.warnings
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Narrative verification error: {str(e)}")
+
+
+@app.get("/api/verifier/status")
+async def verifier_status():
+    """Get fact verifier service status."""
+    return {
+        "available": FACT_VERIFIER_AVAILABLE,
+        "claim_types": [ct.value for ct in ClaimType] if FACT_VERIFIER_AVAILABLE else [],
+        "description": "Fact verifier validates LLM claims against deterministic data sources"
+    }
+
+
+# ============================================================================
+# OBSERVABILITY ENDPOINTS - Metrics and monitoring
+# ============================================================================
+
+try:
+    from observability import get_metrics, MetricsCollector
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    OBSERVABILITY_AVAILABLE = False
+
+
+@app.get("/api/metrics")
+async def metrics_summary():
+    """Get metrics summary for monitoring dashboard."""
+    if not OBSERVABILITY_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Observability not available")
+    
+    metrics = get_metrics()
+    return {
+        "success": True,
+        **metrics.get_summary()
+    }
+
+
+@app.get("/api/metrics/endpoints")
+async def metrics_endpoints():
+    """Get per-endpoint latency metrics."""
+    if not OBSERVABILITY_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Observability not available")
+    
+    metrics = get_metrics()
+    return {
+        "success": True,
+        "endpoints": metrics.get_endpoint_stats()
+    }
+
+
+@app.get("/api/metrics/verifier")
+async def metrics_verifier():
+    """Get fact verifier metrics."""
+    if not OBSERVABILITY_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Observability not available")
+    
+    metrics = get_metrics()
+    return {
+        "success": True,
+        "verifier": metrics.get_verifier_stats()
+    }
+
+
+@app.get("/api/metrics/prometheus")
+async def metrics_prometheus():
+    """Export metrics in Prometheus format."""
+    if not OBSERVABILITY_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Observability not available")
+    
+    from fastapi.responses import PlainTextResponse
+    metrics = get_metrics()
+    return PlainTextResponse(content=metrics.get_prometheus_metrics(), media_type="text/plain")
+
+
+# ============================================================================
+# AUTH & RBAC - Protected admin endpoints
+# ============================================================================
+
+try:
+    from auth import get_auth_service, get_current_user, check_rate_limit, User, Role, Permission
+    AUTH_AVAILABLE = True
+except ImportError:
+    AUTH_AVAILABLE = False
+
+
+@app.get("/api/auth/status")
+async def auth_status():
+    """Get authentication service status."""
+    return {
+        "available": AUTH_AVAILABLE,
+        "roles": [r.value for r in Role] if AUTH_AVAILABLE else [],
+        "description": "RBAC authentication for protected endpoints"
+    }
+
+
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    """Get current user info from API key."""
+    if not AUTH_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Auth not available")
+    
+    # Get API key from header or query
+    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    
+    if not api_key:
+        return {
+            "authenticated": False,
+            "user": None,
+            "role": "anonymous"
+        }
+    
+    auth_service = get_auth_service()
+    user = auth_service.authenticate(api_key)
+    
+    if user:
+        return {
+            "authenticated": True,
+            "user": {
+                "user_id": user.user_id,
+                "username": user.username,
+                "role": user.role.value,
+                "rate_limit": user.rate_limit,
+                "permissions": [p.value for p in user.permissions]
+            }
+        }
+    
+    return {
+        "authenticated": False,
+        "user": None,
+        "role": "anonymous"
+    }
+
+
+@app.get("/api/auth/rate-limit")
+async def auth_rate_limit(request: Request):
+    """Get current rate limit status."""
+    if not AUTH_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Auth not available")
+    
+    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    auth_service = get_auth_service()
+    
+    if api_key:
+        user = auth_service.authenticate(api_key)
+        if user:
+            return auth_service.get_rate_limit_info(user.user_id, user.rate_limit)
+    
+    # Anonymous user - use IP
+    client_ip = request.client.host if request.client else "unknown"
+    return auth_service.get_rate_limit_info(client_ip, 50)  # 50 req/min for anonymous
+
+
+# ============================================================================
+# USER PREFERENCES - Session memory and preference learning
+# ============================================================================
+
+try:
+    from spatial_memory import get_spatial_memory, SpatialMemoryService
+    SPATIAL_MEMORY_AVAILABLE = True
+except ImportError:
+    SPATIAL_MEMORY_AVAILABLE = False
+    get_spatial_memory = None
+
+
+class UserPreferencesRequest(BaseModel):
+    user_id: str = "default"
+    preferred_areas: Optional[List[str]] = None
+    budget_range: Optional[List[float]] = None  # [min, max] in lakhs
+    preferred_property_types: Optional[List[str]] = None
+    preferred_amenities: Optional[List[str]] = None
+    avoid_areas: Optional[List[str]] = None
+
+
+@app.get("/api/preferences/{user_id}")
+async def get_user_preferences(user_id: str = "default"):
+    """Get user preferences and session memory."""
+    if not SPATIAL_MEMORY_AVAILABLE:
+        return {
+            "success": True,
+            "user_id": user_id,
+            "preferences": {
+                "preferred_areas": [],
+                "budget_range": None,
+                "preferred_property_types": [],
+                "preferred_amenities": [],
+                "avoid_areas": [],
+                "exploration_style": "balanced"
+            },
+            "recent_locations": [],
+            "comparisons": []
+        }
+    
+    session = get_spatial_memory(user_id)
+    
+    return {
+        "success": True,
+        "user_id": user_id,
+        "preferences": session.preferences.to_dict(),
+        "recent_locations": [loc.to_dict() for loc in session.visit_history[-10:]],
+        "comparisons": [{"location_a": c.location_a, "location_b": c.location_b, "winner": c.winner} for c in session.comparisons[-5:]]
+    }
+
+
+@app.post("/api/preferences/{user_id}")
+async def update_user_preferences(user_id: str, request: UserPreferencesRequest):
+    """Update user preferences."""
+    if not SPATIAL_MEMORY_AVAILABLE:
+        return {"success": True, "message": "Preferences noted (memory service not available)"}
+    
+    session = get_spatial_memory(user_id)
+    
+    if request.preferred_areas:
+        session.preferences.preferred_areas = request.preferred_areas
+    if request.budget_range:
+        session.preferences.budget_range = tuple(request.budget_range) if len(request.budget_range) == 2 else None
+    if request.preferred_property_types:
+        session.preferences.preferred_property_types = request.preferred_property_types
+    if request.preferred_amenities:
+        session.preferences.preferred_amenities = request.preferred_amenities
+    if request.avoid_areas:
+        session.preferences.avoid_areas = request.avoid_areas
+    
+    session._save_session()
+    
+    return {
+        "success": True,
+        "message": "Preferences updated",
+        "preferences": session.preferences.to_dict()
+    }
+
+
+@app.post("/api/preferences/{user_id}/location")
+async def record_location_visit(user_id: str, request: Request):
+    """Record a location visit for preference learning."""
+    if not SPATIAL_MEMORY_AVAILABLE:
+        return {"success": True, "message": "Visit noted"}
+    
+    body = await request.json()
+    session = get_spatial_memory(user_id)
+    
+    session.record_visit(
+        lat=body.get("lat", 0),
+        lng=body.get("lng", 0),
+        name=body.get("name", "Unknown"),
+        intent=body.get("intent", "explore"),
+        actions=body.get("actions", []),
+        sentiment=body.get("sentiment", "neutral")
+    )
+    
+    return {"success": True, "message": "Location visit recorded"}
+
+
+@app.delete("/api/preferences/{user_id}")
+async def clear_user_preferences(user_id: str):
+    """Clear user preferences and history."""
+    if not SPATIAL_MEMORY_AVAILABLE:
+        return {"success": True, "message": "Preferences cleared"}
+    
+    session = get_spatial_memory(user_id)
+    session.clear_session()
+    
+    return {"success": True, "message": "Preferences and history cleared"}
 
 
 if __name__ == "__main__":

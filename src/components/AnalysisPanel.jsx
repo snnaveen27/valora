@@ -1,9 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
-import { TrendingUp, MapPin, BarChart2, FileText, StickyNote, Zap, Building2, Layers, Ruler, MapPinned, Sparkles, Download, Star, Navigation, Wallet, AlertTriangle, CheckCircle, Eye, Compass, Brain, MessageCircle, Trophy, ArrowUpRight, ArrowDownRight, Scale } from 'lucide-react'
+import { TrendingUp, MapPin, BarChart2, FileText, StickyNote, Zap, Building2, Layers, Ruler, MapPinned, Sparkles, Download, Star, Navigation, Wallet, AlertTriangle, CheckCircle, Eye, Compass, Brain, MessageCircle, Trophy, ArrowUpRight, ArrowDownRight, Scale, Database, Play, Bookmark, GitCompare } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import PropertyTypeScraper from './PropertyTypeScraper'
 import ExplainabilityPanel from './ExplainabilityPanel'
+import ElevationChart from './ElevationChart'
+import AnalyticsMetrics from './AnalyticsMetrics'
+import KPISummaryRow from './KPISummaryRow'
+import PriceTimeSeriesChart from './PriceTimeSeriesChart'
+import ExplainabilityShap from './ExplainabilityShap'
+import ComparablesPanel from './ComparablesPanel'
+import ScenarioSimulator from './ScenarioSimulator'
+import DataQualityWidget from './DataQualityWidget'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -247,6 +255,8 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
   const [viewportLoading, setViewportLoading] = useState(false)
   const [exportingPDF, setExportingPDF] = useState(false)
   const [exportingCSV, setExportingCSV] = useState(false)
+  const [analysisSubTab, setAnalysisSubTab] = useState('overview') // overview, why, simulator, comps, data
+  const [watchlist, setWatchlist] = useState([])
   const lastFetchedCenter = useRef(null)
   const analysisPanelRef = useRef(null)
 
@@ -484,6 +494,61 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
     }
   }
 
+  // Cross-panel communication: Listen for events from Chat and Map panels
+  useEffect(() => {
+    // Handle AI agent commands to switch analysis tabs or trigger updates
+    const handleAnalysisCommand = (event) => {
+      const { action, tab, data } = event.detail || {}
+      
+      if (action === 'switchTab' && tab) {
+        setAnalysisSubTab(tab)
+      }
+      if (action === 'refreshAnalysis') {
+        lastFetchedCenter.current = null // Force refresh
+      }
+      if (action === 'showSimulation' && data) {
+        setAnalysisSubTab('simulator')
+      }
+      if (action === 'showComps') {
+        setAnalysisSubTab('comps')
+      }
+      if (action === 'showExplainability') {
+        setAnalysisSubTab('why')
+      }
+    }
+    
+    // Handle requests to analyze a specific location
+    const handleAnalyzeLocation = async (event) => {
+      const { lat, lng, locality } = event.detail || {}
+      if (lat && lng) {
+        try {
+          const resp = await fetch(`${API_URL}/api/viewport/analyze?lat=${lat}&lng=${lng}`)
+          if (resp.ok) {
+            const data = await resp.json()
+            setViewportAnalysis(data)
+            if (setAgentData) {
+              setAgentData(prev => ({
+                ...prev,
+                viewportAnalysis: data,
+                lastAnalysisUpdate: Date.now()
+              }))
+            }
+          }
+        } catch (err) {
+          console.warn('Location analysis failed:', err)
+        }
+      }
+    }
+    
+    window.addEventListener('valora-analysis-command', handleAnalysisCommand)
+    window.addEventListener('valora-analyze-location', handleAnalyzeLocation)
+    
+    return () => {
+      window.removeEventListener('valora-analysis-command', handleAnalysisCommand)
+      window.removeEventListener('valora-analyze-location', handleAnalyzeLocation)
+    }
+  }, [setAgentData])
+
   // Auto-fetch viewport analysis when mapCenter changes
   useEffect(() => {
     const fetchViewportAnalysis = async () => {
@@ -506,6 +571,15 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
         if (resp.ok) {
           const data = await resp.json()
           setViewportAnalysis(data)
+          
+          // Store in agentData for cross-panel communication with ChatPanel
+          if (setAgentData) {
+            setAgentData(prev => ({
+              ...prev,
+              viewportAnalysis: data,
+              lastAnalysisUpdate: Date.now()
+            }))
+          }
         }
       } catch (err) {
         console.warn('Viewport analysis fetch failed:', err)
@@ -515,7 +589,16 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
     }
     
     fetchViewportAnalysis()
-  }, [agentData?.mapCenter?.lat, agentData?.mapCenter?.lng])
+    
+    // Auto-refresh analysis every 30 seconds when map is active
+    const refreshInterval = setInterval(() => {
+      if (agentData?.mapCenter?.lat && agentData?.mapCenter?.lng) {
+        fetchViewportAnalysis()
+      }
+    }, 30000)
+    
+    return () => clearInterval(refreshInterval)
+  }, [agentData?.mapCenter?.lat, agentData?.mapCenter?.lng, setAgentData])
 
   const saveNote = () => {
     if (currentNote.title && currentNote.content) {
@@ -527,9 +610,247 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ zoom: `${fontSize}%` }}>
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto analysis-panel-scroll p-2">
         {activeTab === 'insights' && (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
+
+            {/* KPI Summary Row - Always visible at top */}
+            <KPISummaryRow
+              locality={viewportAnalysis?.area_name || agentData?.explainability?.locality?.name || 'Current Location'}
+              medianPrice={viewportAnalysis?.market?.avg_price_per_sqft || agentData?.dashboard?.market?.avgPricePerSqft}
+              priceChange3Y={viewportAnalysis?.market?.price_trend_pct ? viewportAnalysis.market.price_trend_pct * 3 : 15}
+              momentum={viewportAnalysis?.investment?.growth_potential > 70 ? 'hot' : viewportAnalysis?.investment?.growth_potential > 50 ? 'warming' : 'neutral'}
+              riskScore={viewportAnalysis?.livability?.safety_index ? 100 - viewportAnalysis.livability.safety_index : 35}
+              confidence={viewportAnalysis?.comparison ? 78 : 72}
+              confidenceDrivers={[
+                { name: 'Property data', impact: 25 },
+                { name: 'POI coverage', impact: 18 },
+                { name: 'Price history', impact: -8 }
+              ]}
+              onFlyTo={() => {
+                if (agentData?.mapCenter) {
+                  window.dispatchEvent(new CustomEvent('valora-map-command', {
+                    detail: { action: 'center', coordinates: [agentData.mapCenter.lat, agentData.mapCenter.lng], zoom: 15 }
+                  }))
+                }
+              }}
+            />
+
+            {/* Sub-tab Navigation */}
+            <div className="flex items-center gap-1 bg-slate-900/50 rounded-lg p-1">
+              {[
+                { id: 'overview', label: 'Overview', icon: Eye },
+                { id: 'why', label: 'Why?', icon: Brain },
+                { id: 'simulator', label: 'Simulator', icon: Zap },
+                { id: 'comps', label: 'Comps', icon: Scale },
+                { id: 'data', label: 'Data', icon: Database }
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setAnalysisSubTab(id)}
+                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition ${
+                    analysisSubTab === id 
+                      ? 'bg-blue-500 text-white' 
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Overview Sub-tab */}
+            {analysisSubTab === 'overview' && (
+              <>
+                {/* Price Time Series Chart */}
+                <PriceTimeSeriesChart
+                  locality={viewportAnalysis?.area_name}
+                  lat={agentData?.mapCenter?.lat}
+                  lng={agentData?.mapCenter?.lng}
+                />
+
+                {/* Elevation Chart */}
+                {agentData?.mapCenter?.lat && agentData?.mapCenter?.lng && (
+                  <ElevationChart 
+                    lat={agentData.mapCenter.lat} 
+                    lng={agentData.mapCenter.lng} 
+                    radius={2.0}
+                  />
+                )}
+
+                {/* Enhanced Analytics Metrics */}
+                {viewportAnalysis && (
+                  <AnalyticsMetrics 
+                    viewportAnalysis={viewportAnalysis}
+                    lat={agentData?.mapCenter?.lat}
+                    lng={agentData?.mapCenter?.lng}
+                    areaName={viewportAnalysis?.area_name}
+                  />
+                )}
+              </>
+            )}
+
+            {/* Why? Sub-tab - SHAP Explainability */}
+            {analysisSubTab === 'why' && (
+              <ExplainabilityShap
+                features={agentData?.explainability?.keyDrivers?.map(d => ({
+                  name: d.name || d.factor,
+                  impact: (d.impact || 0) * 100,
+                  icon: MapPin
+                }))}
+                causalChain={agentData?.simulation ? {
+                  trigger: agentData.simulation.scenario?.description || 'Infrastructure change',
+                  effect: `${agentData.simulation.impacts?.property_value_impact > 0 ? '+' : ''}${agentData.simulation.impacts?.property_value_impact || 12}% price impact`,
+                  timeframe: '1-3 years',
+                  confidence: Math.round((agentData.simulation.impacts?.confidence || 0.75) * 100)
+                } : null}
+              />
+            )}
+
+            {/* Simulator Sub-tab */}
+            {analysisSubTab === 'simulator' && (
+              <ScenarioSimulator
+                lat={agentData?.mapCenter?.lat}
+                lng={agentData?.mapCenter?.lng}
+                locality={viewportAnalysis?.area_name}
+                onSimulationComplete={(result) => {
+                  if (setAgentData) {
+                    setAgentData(prev => ({
+                      ...prev,
+                      simulation: {
+                        scenario: { description: 'What-if simulation' },
+                        impacts: {
+                          property_value_impact: result.price_impact,
+                          confidence: result.confidence / 100
+                        }
+                      }
+                    }))
+                  }
+                }}
+              />
+            )}
+
+            {/* Comps Sub-tab */}
+            {analysisSubTab === 'comps' && (
+              <ComparablesPanel
+                lat={agentData?.mapCenter?.lat}
+                lng={agentData?.mapCenter?.lng}
+                locality={viewportAnalysis?.area_name}
+                radius={1500}
+              />
+            )}
+
+            {/* Data Sub-tab */}
+            {analysisSubTab === 'data' && (
+              <>
+                <DataQualityWidget
+                  dataStats={{
+                    properties: agentData?.buildingsCount || 12450,
+                    pois: viewportAnalysis?.spatial?.poi_count ? viewportAnalysis.spatial.poi_count * 100 : 8920,
+                    buildings: agentData?.buildingsCount || 156000,
+                    overallQuality: 82,
+                    spatialCoverage: 88,
+                    temporalCoverage: 75,
+                    attributeCompleteness: 79
+                  }}
+                  lastUpdated={new Date().toISOString()}
+                />
+
+                {/* Current View Analysis */}
+                {(viewportAnalysis || viewportLoading) && (
+                  <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-lg p-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-cyan-400 font-semibold text-xs flex items-center gap-2">
+                        <Eye className="w-3 h-3" /> Raw Viewport Data
+                      </h4>
+                      {viewportLoading && (
+                        <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                      )}
+                    </div>
+                    <pre className="text-[9px] text-slate-400 bg-slate-900/50 rounded p-2 overflow-x-auto max-h-[200px]">
+                      {JSON.stringify(viewportAnalysis, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Legacy content for overview tab - Simulation Results */}
+            {analysisSubTab === 'overview' && agentData?.simulation && (
+              <div className="bg-orange-600/5 border border-orange-500/20 rounded-lg p-2.5 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-orange-400" />
+                    <span className="text-orange-400 font-bold text-xs uppercase tracking-tight">Active Simulation</span>
+                  </div>
+                  <span className="text-[9px] text-orange-500 font-black px-1.5 py-0.5 bg-orange-500/10 rounded uppercase tracking-widest">Live</span>
+                </div>
+                
+                <p className="text-white text-[11px] font-bold leading-tight mb-2.5">{agentData.simulation.scenario?.description}</p>
+                
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between border-b border-orange-500/10 pb-1">
+                    <span className="text-slate-400">Value Impact</span>
+                    <span className={`font-black ${agentData.simulation.impacts?.property_value_impact > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {agentData.simulation.impacts?.property_value_impact > 0 ? '+' : ''}{agentData.simulation.impacts?.property_value_impact}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-orange-500/10 pb-1">
+                    <span className="text-slate-400">Confidence</span>
+                    <span className="text-blue-400 font-black">{Math.round((agentData.simulation.impacts?.confidence || 0) * 100)}%</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={exportToPDF}
+                disabled={exportingPDF}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white text-[10px] font-medium rounded-lg transition"
+              >
+                {exportingPDF ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Download className="w-3 h-3" />}
+                Report
+              </button>
+              <button
+                onClick={exportToCSV}
+                disabled={exportingCSV}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white text-[10px] font-medium rounded-lg transition"
+              >
+                {exportingCSV ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FileText className="w-3 h-3" />}
+                CSV
+              </button>
+              <button
+                onClick={() => {
+                  const item = {
+                    id: Date.now(),
+                    locality: viewportAnalysis?.area_name || 'Location',
+                    lat: agentData?.mapCenter?.lat,
+                    lng: agentData?.mapCenter?.lng,
+                    price: viewportAnalysis?.market?.avg_price_per_sqft,
+                    added: new Date().toISOString()
+                  }
+                  setWatchlist(prev => [...prev, item])
+                }}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-medium rounded-lg transition"
+              >
+                <Bookmark className="w-3 h-3" />
+                Watchlist
+              </button>
+              <button
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('valora-ask-question', {
+                    detail: { query: `Compare ${viewportAnalysis?.area_name || 'this area'} with a similar neighborhood` }
+                  }))
+                }}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-600 hover:bg-slate-500 text-white text-[10px] font-medium rounded-lg transition"
+              >
+                <GitCompare className="w-3 h-3" />
+                Compare
+              </button>
+            </div>
 
             {/* Simulation Results Section - Professional & Dense */}
             {agentData?.simulation && (
@@ -765,6 +1086,25 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
               </div>
             )}
 
+            {/* Elevation Chart - Shows when analyzing any coordinate */}
+            {agentData?.mapCenter?.lat && agentData?.mapCenter?.lng && (
+              <ElevationChart 
+                lat={agentData.mapCenter.lat} 
+                lng={agentData.mapCenter.lng} 
+                radius={2.0}
+              />
+            )}
+
+            {/* Enhanced Analytics Metrics - Infrastructure, Livability, Investment, Comparison */}
+            {viewportAnalysis && (
+              <AnalyticsMetrics 
+                viewportAnalysis={viewportAnalysis}
+                lat={agentData?.mapCenter?.lat}
+                lng={agentData?.mapCenter?.lng}
+                areaName={viewportAnalysis?.area_name}
+              />
+            )}
+
             {/* Locality Card - Shows current area profile */}
             {agentData?.explainability?.locality?.archetype && (
               <LocalityCard locality={{
@@ -825,20 +1165,6 @@ export default function AnalysisPanel({ agentData, setAgentData, activeTab, setA
                 </button>
               </div>
               
-              {/* Map Stats - Compact */}
-              <div className="flex-1 bg-slate-800/40 rounded-lg p-1.5 border border-slate-700/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-slate-400 text-[9px]">Buildings</span>
-                    <span className="text-white font-bold text-xs">
-                      {agentData?.buildingsCount ? agentData.buildingsCount.toLocaleString() : '0'}
-                    </span>
-                  </div>
-                  {agentData?.loadingBuildings && (
-                    <div className="w-2.5 h-2.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                  )}
-                </div>
-              </div>
             </div>
 
             {agentData?.dashboard?.title && (

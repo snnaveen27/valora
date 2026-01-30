@@ -80,7 +80,7 @@ class DynamicTaskPlanner:
             add_task("Loading nearby points of interest")
         
         elif intent == "analyze_area":
-            location = context.get('selectedPlace', {}).get('name') or self._extract_location_from_query(query)
+            location = (context or {}).get('selectedPlace', {}).get('name') or self._extract_location_from_query(query)
             add_task(f"Analyzing area: {location}")
             add_task("Gathering spatial data (POIs, transport)")
             add_task("Calculating accessibility and walkability scores")

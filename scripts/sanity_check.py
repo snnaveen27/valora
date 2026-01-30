@@ -510,6 +510,58 @@ def run_sanity(base_url: str, include_chat: bool) -> Dict[str, Any]:
     except Exception as e:
       tests.append(_make_result('Locality Fast Lookup', t0, False, f'Locality lookup failed: {e}'))
 
+    # ============== USER PREFERENCES API TESTS ==============
+    # Test Get User Preferences
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.get('/api/preferences/test_user'))
+      ok = data.get('success') == True and isinstance(data.get('preferences'), dict)
+      tests.append(_make_result('Get User Preferences', t0, ok, 'GET /api/preferences/{user_id}'))
+    except Exception as e:
+      tests.append(_make_result('Get User Preferences', t0, False, f'GET /api/preferences failed: {e}'))
+
+    # Test Update User Preferences
+    t0 = _now_ms()
+    try:
+      payload = {
+        "user_id": "test_user",
+        "preferred_areas": ["Koramangala", "Indiranagar"],
+        "budget_range": [50, 150],
+        "preferred_property_types": ["apartment", "villa"]
+      }
+      data = _ok_json(client.post('/api/preferences/test_user', json=payload))
+      ok = data.get('success') == True
+      tests.append(_make_result('Update User Preferences', t0, ok, 'POST /api/preferences/{user_id}'))
+    except Exception as e:
+      tests.append(_make_result('Update User Preferences', t0, False, f'POST /api/preferences failed: {e}'))
+
+    # Test Record Location Visit
+    t0 = _now_ms()
+    try:
+      payload = {
+        "lat": 12.9352,
+        "lng": 77.6245,
+        "name": "Koramangala",
+        "intent": "property_search",
+        "duration": 120,
+        "actions": ["view_property", "compare"],
+        "sentiment": "positive"
+      }
+      data = _ok_json(client.post('/api/preferences/test_user/location', json=payload))
+      ok = data.get('success') == True
+      tests.append(_make_result('Record Location Visit', t0, ok, 'POST /api/preferences/{user_id}/location'))
+    except Exception as e:
+      tests.append(_make_result('Record Location Visit', t0, False, f'POST /api/preferences/location failed: {e}'))
+
+    # Test Clear User Preferences
+    t0 = _now_ms()
+    try:
+      data = _ok_json(client.delete('/api/preferences/test_user'))
+      ok = data.get('success') == True
+      tests.append(_make_result('Clear User Preferences', t0, ok, 'DELETE /api/preferences/{user_id}'))
+    except Exception as e:
+      tests.append(_make_result('Clear User Preferences', t0, False, f'DELETE /api/preferences failed: {e}'))
+
     t0 = _now_ms()
     if not include_chat:
       tests.append(_make_result('Chat Orchestration', t0, False, 'Skipped (--no-chat flag)', skipped=True))
@@ -546,9 +598,31 @@ EXTENDED_CASES: List[BenchmarkCase] = [
   # Additional Navigation
   BenchmarkCase('Nav Coords', 'Fly to 12.9716, 77.5946', ('navigate',), require_facts=True),
   BenchmarkCase('Nav Landmark', 'Go to Cubbon Park', ('navigate',), require_facts=True),
+  # NEW: Polygon/Buffer Area Queries
+  BenchmarkCase('Area Polygon', 'Analyze this polygon area for investment', ('analyze_area', 'general')),
+  BenchmarkCase('Area Buffer', 'Show properties within 2km radius of Indiranagar', ('property_search', 'analyze_area')),
+  # NEW: Cinema/Storytelling Queries
+  BenchmarkCase('Cinema Tour', 'Give me a cinematic tour of Koramangala', ('simulate', 'general')),
+  BenchmarkCase('Story Mode', 'Tell me the story of Whitefield development', ('simulate', 'general')),
   # Additional Property Search
   BenchmarkCase('Prop Filtered', 'Properties under 80 lakhs near metro in HSR', ('property_search',), require_facts=True),
   BenchmarkCase('Prop Amenity', 'Homes near good schools in Jayanagar', ('property_search',)),
+  # NEW: Rent vs Buy Filters
+  BenchmarkCase('Prop Rental', '2BHK for rent in Koramangala', ('property_search',), require_facts=True),
+  BenchmarkCase('Prop Sale', 'Apartments for sale under 1 crore', ('property_search',), require_facts=True),
+  # NEW: PG/Hostel Search
+  BenchmarkCase('PG Girls', 'Girls PG in HSR Layout', ('property_search',), require_facts=True),
+  BenchmarkCase('PG Boys', 'Boys hostel near Whitefield', ('property_search',), require_facts=True),
+  # NEW: Plot/Land Search  
+  BenchmarkCase('Plot Search', 'Plots in Yelahanka', ('property_search',), require_facts=True),
+  # NEW: Commercial Search
+  BenchmarkCase('Commercial', 'Office space in MG Road', ('property_search',), require_facts=True),
+  # NEW: Commute-Time Search
+  BenchmarkCase('Commute 30m', 'Properties within 30 minutes of Whitefield', ('property_search',), require_facts=True),
+  BenchmarkCase('Commute Easy', 'Housing with easy commute to Electronic City', ('property_search',), require_facts=True),
+  # NEW: Full-Text Search
+  BenchmarkCase('Text Search', 'Bachelor friendly PG', ('property_search',)),
+  BenchmarkCase('Amenity Text', 'Gated community near metro', ('property_search',)),
   # Additional Area Analysis
   BenchmarkCase('Area POI', 'What are the top amenities around Indiranagar?', ('analyze_area', 'general')),
   BenchmarkCase('Area Risk', 'Is Silk Board area flood-prone?', ('terrain', 'analyze_area', 'general')),

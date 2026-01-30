@@ -27,6 +27,7 @@ class DatabaseQueryService:
         return cls._instance
     
     def __init__(self):
+        
         if self._initialized:
             return
         
@@ -49,14 +50,29 @@ class DatabaseQueryService:
         radius_m: int = 2000,
         property_type: Optional[str] = None,
         listing_type: Optional[str] = None,
+        property_category: Optional[str] = None,
+        property_subtype: Optional[str] = None,
+        pg_type: Optional[str] = None,
+        bhk: Optional[str] = None,
         min_price: Optional[int] = None,
         max_price: Optional[int] = None,
         min_bedrooms: Optional[int] = None,
         max_bedrooms: Optional[int] = None,
         locality: Optional[str] = None,
+        text_query: Optional[str] = None,
         limit: int = 50
     ) -> List[Dict]:
-        """Search properties with filters."""
+        """
+        Search properties with filters.
+        
+        Args:
+            listing_type: 'sale' or 'rent'
+            property_category: 'residential', 'commercial', 'plot', 'pg'
+            property_subtype: 'flat', 'villa', 'office', 'warehouse', etc.
+            pg_type: 'boys', 'girls', 'coed' (for PG/hostels)
+            bhk: '1BHK', '2BHK', '3BHK', etc.
+            text_query: Full-text search across title, description, locality
+        """
         
         conditions = ["1=1"]
         params = []
@@ -66,8 +82,41 @@ class DatabaseQueryService:
             params.append(f"%{property_type}%")
         
         if listing_type:
+            # Normalize rent variations
+            normalized = listing_type.lower().strip()
+            if normalized in ('rent', 'rental', 'lease', 'for rent'):
+                normalized = 'rent'
+            elif normalized in ('sale', 'buy', 'purchase', 'for sale'):
+                normalized = 'sale'
             conditions.append("listing_type = ?")
-            params.append(listing_type)
+            params.append(normalized)
+        
+        if property_category:
+            conditions.append("property_category = ?")
+            params.append(property_category.lower())
+        
+        if property_subtype:
+            conditions.append("property_subtype LIKE ?")
+            params.append(f"%{property_subtype}%")
+        
+        # pg_type column not yet in database - skip for now
+        # if pg_type:
+        #     conditions.append("pg_type = ?")
+        #     params.append(pg_type.lower())
+        
+        if bhk:
+            # Handle both '2BHK' and '2' formats
+            bhk_normalized = bhk.upper().replace(' ', '')
+            if not bhk_normalized.endswith('BHK'):
+                bhk_normalized = f"{bhk_normalized}BHK"
+            conditions.append("(bhk = ? OR bedrooms = ?)")
+            params.append(bhk_normalized)
+            # Extract number for bedrooms fallback
+            try:
+                bedrooms_num = int(''.join(filter(str.isdigit, bhk_normalized)))
+                params.append(bedrooms_num)
+            except:
+                params.append(0)
         
         if min_price:
             conditions.append("price >= ?")
@@ -89,6 +138,12 @@ class DatabaseQueryService:
             conditions.append("(locality LIKE ? OR area_name LIKE ?)")
             params.extend([f"%{locality}%", f"%{locality}%"])
         
+        if text_query:
+            # Full-text search with weighted ranking simulation
+            search_pattern = f"%{text_query}%"
+            conditions.append("(title LIKE ? OR description LIKE ? OR locality LIKE ? OR area_name LIKE ? OR amenities LIKE ?)")
+            params.extend([search_pattern] * 5)
+        
         # Spatial filter (bounding box approximation)
         if lat and lng and radius_m:
             # ~111km per degree lat, ~85km per degree lng at Bangalore
@@ -105,7 +160,8 @@ class DatabaseQueryService:
                    floor_number, total_floors, furnishing, facing, age_years, parking,
                    price, price_per_sqft, price_display, maintenance_monthly, deposit,
                    amenities, builder_name, owner_name, images, source_url,
-                   posted_at, created_at
+                   posted_at, created_at,
+                   property_category, property_subtype, bhk, rent_monthly
             FROM properties
             WHERE {' AND '.join(conditions)}
             LIMIT ?

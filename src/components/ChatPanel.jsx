@@ -199,30 +199,54 @@ function IntentBubble({ intent, isLoading }) {
   )
 }
 
-// DeepSeek Thinking Display - Clean inference-style UI
-function ThinkingDisplay({ thought, isLoading }) {
-  const [expanded, setExpanded] = useState(false)
+// AI Reasoning Display - Ollama-style with real-time streaming support
+function ThinkingDisplay({ thought, thinkingTime, isStreaming, streamingThought }) {
+  const [expanded, setExpanded] = useState(true) // Default expanded during streaming
   
-  if (!thought && !isLoading) return null
+  // Auto-collapse when streaming finishes for better UX
+  useEffect(() => {
+    if (isStreaming) {
+      setExpanded(true) // Expand while streaming
+    } else if (thought || streamingThought) {
+      setExpanded(false) // Collapse when finished
+    }
+  }, [isStreaming, thought, streamingThought])
+  
+  const displayThought = streamingThought || thought
+  const displayTime = thinkingTime || 0
+  
+  if (!displayThought && !isStreaming) return null
   
   return (
     <div className="mb-3">
+      {/* Prominent "Thought for X seconds" header - Ollama style */}
+      <div className="mb-2 pb-2 border-b border-slate-700/50">
+        <div className="text-sm text-slate-400 font-normal flex items-center gap-2">
+          {isStreaming ? (
+            <>
+              <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse" />
+              <span>Thinking... <span className="font-semibold text-slate-300">{displayTime.toFixed(1)}</span>s</span>
+            </>
+          ) : (
+            <span>Thought for <span className="font-semibold text-slate-300">{displayTime.toFixed(1)}</span> seconds</span>
+          )}
+        </div>
+      </div>
+      
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs text-violet-400 hover:text-violet-300 transition-colors"
+        className="flex items-center gap-2 px-2 py-1.5 text-xs text-violet-400 hover:text-violet-300 hover:bg-violet-500/5 rounded transition-colors"
       >
-        <div className="relative">
-          <Brain className={`w-3.5 h-3.5 ${isLoading ? 'animate-pulse' : ''}`} />
-          {isLoading && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-violet-400 rounded-full animate-ping" />}
-        </div>
-        <span className="font-medium">{isLoading ? 'Reasoning...' : 'View reasoning'}</span>
+        <Brain className={`w-3.5 h-3.5 ${isStreaming ? 'animate-pulse' : ''}`} />
+        <span className="font-medium">{expanded ? 'Hide reasoning' : 'Show reasoning'}</span>
         {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
       </button>
       
-      {expanded && thought && (
-        <div className="mt-2 p-3 bg-gradient-to-br from-violet-950/40 to-slate-900/60 rounded-lg border border-violet-500/20">
-          <div className="text-xs text-violet-200/80 leading-relaxed whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">
-            {thought}
+      {expanded && displayThought && (
+        <div className="mt-2 p-4 bg-slate-900/60 rounded-lg border border-slate-700/50">
+          <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap font-mono">
+            {displayThought}
+            {isStreaming && <span className="animate-pulse">▌</span>}
           </div>
         </div>
       )}
@@ -455,6 +479,165 @@ Just ask naturally — I understand casual conversation too!
     return () => window.removeEventListener('valora-ask-question', handleAskQuestion)
   }, [isLoading])
 
+  // Listen for building clicks from map to auto-analyze
+  useEffect(() => {
+    const handleBuildingClick = async (e) => {
+      if (isLoading) return
+      
+      const { building, query } = e.detail || {}
+      if (!building || !query) return
+      
+      // Add user-style message showing what was clicked
+      const clickMessage = `🏢 Clicked: ${building.type || 'Building'} (${building.height || '?'}m, ${building.levels || '?'} floors)`
+      setMessages(prev => [...prev, { role: 'user', content: clickMessage }])
+      setIsLoading(true)
+      
+      // Add AI thinking placeholder
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: '',
+        isLoading: true,
+        isStreaming: true,
+        isThinking: true,
+        streamingThought: '',
+        streamingContent: '',
+        thinkingTime: 0
+      }])
+      
+      const messageIndex = messages.length + 1 // After user message
+      
+      // Use streaming for the building analysis
+      await callAIStreaming(
+        query,
+        (thinking, time, isThinking) => {
+          setMessages(prev => {
+            const newMessages = [...prev]
+            if (newMessages[messageIndex]) {
+              newMessages[messageIndex] = {
+                ...newMessages[messageIndex],
+                streamingThought: thinking,
+                thinkingTime: time,
+                isThinking: isThinking,
+                isLoading: isThinking,
+                isStreaming: true
+              }
+            }
+            return newMessages
+          })
+        },
+        (content, time) => {
+          setMessages(prev => {
+            const newMessages = [...prev]
+            if (newMessages[messageIndex]) {
+              newMessages[messageIndex] = {
+                ...newMessages[messageIndex],
+                streamingContent: content,
+                content: content,
+                thinkingTime: time,
+                isThinking: false,
+                isLoading: false,
+                isStreaming: true
+              }
+            }
+            return newMessages
+          })
+        },
+        (result) => {
+          setMessages(prev => {
+            const newMessages = [...prev]
+            if (newMessages[messageIndex]) {
+              newMessages[messageIndex] = {
+                role: 'assistant',
+                content: result.content,
+                chainOfThought: result.thinking,
+                thinkingTime: result.thinkingTime,
+                intent: 'analyze_building',
+                isLoading: false,
+                isStreaming: false,
+                isThinking: false,
+                isFastResponse: false,
+                streamingThought: null,
+                streamingContent: null
+              }
+            }
+            return newMessages
+          })
+          setIsLoading(false)
+        }
+      )
+    }
+    
+    window.addEventListener('valora-building-clicked', handleBuildingClick)
+    return () => window.removeEventListener('valora-building-clicked', handleBuildingClick)
+  }, [isLoading, messages.length])
+
+  // Listen for insight card explanations from AnalyticsMetrics
+  useEffect(() => {
+    const handleInsightExplanation = (e) => {
+      const { cardType, cardName, explanation, cacheHit, charged, unitsCharged, hasSimulation, simulationData, areaName } = e.detail || {}
+      
+      if (!explanation) return
+      
+      // Build a message showing the insight
+      const cacheInfo = cacheHit ? '📦 (cached - free)' : charged ? `💰 ${unitsCharged} units` : '✓ free'
+      const userMsg = `📊 **${cardName || cardType}** insight for ${areaName || 'this area'} ${cacheInfo}`
+      
+      setMessages(prev => [...prev, { role: 'user', content: userMsg }])
+      
+      // Add the AI explanation
+      const aiContent = explanation + (hasSimulation && simulationData?.available 
+        ? `\n\n---\n🎬 **Simulation Available:** ${simulationData.preview}\n_Click to run a what-if scenario._` 
+        : '')
+      
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: aiContent,
+        intent: 'insight_explanation',
+        isInsight: true,
+        insightType: cardType,
+        hasSimulation,
+        simulationData
+      }])
+    }
+    
+    const handleTopupNeeded = (e) => {
+      const { message, cost, remaining } = e.detail || {}
+      
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `⚠️ **Insufficient Units**\n\n${message}\n\n💳 [Top up now](/topup) to continue using AI insights.`,
+        intent: 'topup_needed',
+        isError: true
+      }])
+    }
+    
+    const handleSimulationAvailable = (e) => {
+      const { cardType, simulationTypes, lat, lng, preview } = e.detail || {}
+      
+      // Dispatch to map panel to show simulation option
+      window.dispatchEvent(new CustomEvent('valora-ui-command', {
+        detail: { 
+          action: 'showSimulationOption', 
+          cardType, 
+          simulationTypes, 
+          lat, 
+          lng,
+          preview 
+        }
+      }))
+    }
+    
+    window.addEventListener('valora-insight-explanation', handleInsightExplanation)
+    window.addEventListener('valora-topup-needed', handleTopupNeeded)
+    window.addEventListener('valora-simulation-available', handleSimulationAvailable)
+    
+    return () => {
+      window.removeEventListener('valora-insight-explanation', handleInsightExplanation)
+      window.removeEventListener('valora-topup-needed', handleTopupNeeded)
+      window.removeEventListener('valora-simulation-available', handleSimulationAvailable)
+    }
+  }, [])
+
   // Check backend health on mount and load LLM config
   useEffect(() => {
     const checkBackend = async () => {
@@ -554,21 +737,213 @@ Just ask naturally — I understand casual conversation too!
     }
   }
 
-  // Call backend AI chat endpoint with full context
+  // Streaming chat with SSE - real-time thinking display
+  const callAIStreaming = async (userMessage, onThinkingUpdate, onContentUpdate, onComplete) => {
+    // Build comprehensive context for AI agent with all analysis data
+    const context = {
+      selectedBuilding: agentData?.selectedBuilding || null,
+      selectedLocation: agentData?.selectedLocation || null,
+      selectedPlace: agentData?.selectedPlace || null,
+      mapCenter: agentData?.mapCenter || null,
+      drawnPolygon: agentData?.drawnPolygon || null,
+      drawnBuffer: agentData?.drawnBuffer || null,
+      polygonAnalysis: agentData?.polygonAnalysis || null,
+      bufferAnalysis: agentData?.bufferAnalysis || null,
+      // Include viewport analysis for accurate responses
+      viewportAnalysis: agentData?.viewportAnalysis || null,
+      // Include current analysis metrics
+      currentAnalysis: {
+        areaName: agentData?.viewportAnalysis?.area_name || agentData?.explainability?.locality?.name,
+        market: agentData?.viewportAnalysis?.market || null,
+        spatial: agentData?.viewportAnalysis?.spatial || null,
+        infrastructure: agentData?.viewportAnalysis?.infrastructure || null,
+        livability: agentData?.viewportAnalysis?.livability || null,
+        investment: agentData?.viewportAnalysis?.investment || null,
+        terrain: agentData?.viewportAnalysis?.terrain || null,
+        comparison: agentData?.viewportAnalysis?.comparison || null,
+      },
+      // Include explainability data
+      explainability: agentData?.explainability || null,
+      // Include simulation results if any
+      simulation: agentData?.simulation || null,
+      // Buildings count in viewport
+      buildingsCount: agentData?.buildingsCount || 0,
+    }
+
+    try {
+      console.log('[STREAM] Starting streaming request...')
+      const response = await fetch(`${API_URL}/api/chat/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            ...messages.filter(m => m.role !== 'system').map(m => ({
+              role: m.role,
+              content: m.content
+            })),
+            { role: 'user', content: userMessage }
+          ],
+          context
+        })
+      })
+
+      if (!response.ok) {
+        console.error('[STREAM] HTTP error:', response.status)
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      if (!response.body) {
+        console.error('[STREAM] No response body')
+        throw new Error('Streaming not supported')
+      }
+
+      const reader = response.body.getReader()
+      console.log('[STREAM] Got reader, starting to read...')
+      const decoder = new TextDecoder()
+      let thinkingBuffer = ''
+      let contentBuffer = ''
+      let thinkingTime = 0
+
+      // SSE events are separated by a blank line (\n\n). We must buffer across chunks.
+      let sseBuffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const text = decoder.decode(value, { stream: true })
+        sseBuffer += text
+
+        // Process complete SSE events (handle \n\n and \r\n\r\n)
+        let sepIndex
+        while (true) {
+          const lfIndex = sseBuffer.indexOf('\n\n')
+          const crlfIndex = sseBuffer.indexOf('\r\n\r\n')
+          let sepLen = 0
+          if (lfIndex !== -1 && (crlfIndex === -1 || lfIndex < crlfIndex)) {
+            sepIndex = lfIndex
+            sepLen = 2
+          } else if (crlfIndex !== -1) {
+            sepIndex = crlfIndex
+            sepLen = 4
+          } else {
+            break
+          }
+
+          const rawEvent = sseBuffer.slice(0, sepIndex)
+          sseBuffer = sseBuffer.slice(sepIndex + sepLen)
+
+          const normalizedEvent = rawEvent.replace(/\r\n/g, '\n')
+
+          // Ignore comments/empty
+          if (!normalizedEvent.trim()) continue
+
+          // Collect all data: lines (SSE spec)
+          const dataLines = normalizedEvent
+            .split('\n')
+            .filter(l => l.startsWith('data:'))
+            .map(l => l.slice(5).trimStart())
+
+          if (dataLines.length === 0) continue
+
+          const dataStr = dataLines.join('\n')
+          if (dataStr === '[DONE]') {
+            onComplete({ content: contentBuffer, thinking: thinkingBuffer, thinkingTime })
+            return
+          }
+
+          let data
+          try {
+            data = JSON.parse(dataStr)
+          } catch (e) {
+            // If backend ever sends non-JSON events, skip
+            continue
+          }
+
+          thinkingTime = data.thinking_time ?? thinkingTime
+
+          switch (data.type) {
+            case 'status':
+              // Keep UI in "thinking" state until we see actual content tokens.
+              // This makes the experience feel like real LLM inference.
+              onThinkingUpdate(thinkingBuffer, thinkingTime, true)
+              break
+            case 'thinking_start':
+              onThinkingUpdate(thinkingBuffer, thinkingTime, true)
+              break
+            case 'thinking':
+              if (data.content) thinkingBuffer += data.content
+              onThinkingUpdate(thinkingBuffer, thinkingTime, true)
+              break
+            case 'thinking_end':
+              onThinkingUpdate(thinkingBuffer, thinkingTime, false)
+              break
+            case 'content':
+              if (data.content) contentBuffer += data.content
+              onContentUpdate(contentBuffer, thinkingTime)
+              break
+            case 'done':
+              onComplete({
+                content: contentBuffer || data.full_response || '',
+                thinking: thinkingBuffer || data.full_thinking || '',
+                thinkingTime: data.thinking_time ?? thinkingTime
+              })
+              return
+            case 'error':
+              onComplete({ content: `Error: ${data.content}`, thinking: '', thinkingTime: 0 })
+              return
+          }
+        }
+      }
+      // If stream ended without done, finalize whatever we have
+      onComplete({ content: contentBuffer, thinking: thinkingBuffer, thinkingTime })
+      return
+    } catch (err) {
+      console.error('[STREAM] Streaming error:', err)
+      onComplete({ content: `Streaming error: ${err?.message || String(err)}`, thinking: '', thinkingTime: 0 })
+    }
+  }
+
+  // Call backend AI chat endpoint with full context (non-streaming fallback)
   const callAI = async (userMessage) => {
     try {
-      // Build context payload with all available map/building data
+      // Build comprehensive context for AI agent with all analysis data
       const context = {
         selectedBuilding: agentData?.selectedBuilding || null,
         selectedLocation: agentData?.selectedLocation || null,
         selectedPlace: agentData?.selectedPlace || null,
         mapCenter: agentData?.mapCenter || null,
+        drawnPolygon: agentData?.drawnPolygon || null,
+        drawnBuffer: agentData?.drawnBuffer || null,
+        polygonAnalysis: agentData?.polygonAnalysis || null,
+        bufferAnalysis: agentData?.bufferAnalysis || null,
         viewport: {
           buildingsCount: agentData?.buildingsCount || 0,
           zoom: agentData?.zoom || 'medium'
-        }
+        },
+        // Include viewport analysis for accurate responses
+        viewportAnalysis: agentData?.viewportAnalysis || null,
+        // Include current analysis metrics
+        currentAnalysis: {
+          areaName: agentData?.viewportAnalysis?.area_name || agentData?.explainability?.locality?.name,
+          market: agentData?.viewportAnalysis?.market || null,
+          spatial: agentData?.viewportAnalysis?.spatial || null,
+          infrastructure: agentData?.viewportAnalysis?.infrastructure || null,
+          livability: agentData?.viewportAnalysis?.livability || null,
+          investment: agentData?.viewportAnalysis?.investment || null,
+          terrain: agentData?.viewportAnalysis?.terrain || null,
+          comparison: agentData?.viewportAnalysis?.comparison || null,
+        },
+        // Include explainability data
+        explainability: agentData?.explainability || null,
+        // Include simulation results if any
+        simulation: agentData?.simulation || null,
       }
 
+      // Add 120 second timeout for complex queries
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 120000)
+      
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: {
@@ -583,8 +958,11 @@ Just ask naturally — I understand casual conversation too!
             { role: 'user', content: userMessage }
           ],
           context: context
-        })
+        }),
+        signal: controller.signal
       })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         throw new Error(`AI API error: ${response.status}`)
@@ -599,7 +977,6 @@ Just ask naturally — I understand casual conversation too!
           dashboard: data.dashboard || prev.dashboard,
           simulation: data.simulation || null,
           digitalTwinState: data.digital_twin_state || null,
-          credits: data.user_credits?.balance ?? prev.credits,
           lastReasoningTrace: data.reasoning_trace || null,
           // City Intelligence data for explainability
           explainability: {
@@ -646,6 +1023,7 @@ Just ask naturally — I understand casual conversation too!
       window.__lastIntent = data.intent || null
       window.__lastFactsSummary = data.facts_summary || null
       window.__lastChainOfThought = data.chain_of_thought || null
+      window.__lastThinkingTime = data.thinking_time || 0
       window.__lastFastResponse = data.fast_response || false  // Conversational responses (no LLM)
       
       // Store locality data for inline card display
@@ -687,13 +1065,51 @@ Just ask naturally — I understand casual conversation too!
           if (a.action === 'highlightProperties' && a.properties) {
             window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: a }))
           }
+          
+          // Analysis Panel commands: Switch analysis sub-tabs, show specific views
+          if (a.action === 'showAnalysis' || a.action === 'switchAnalysisTab') {
+            window.dispatchEvent(new CustomEvent('valora-analysis-command', { 
+              detail: { action: 'switchTab', tab: a.tab || 'overview' }
+            }))
+          }
+          if (a.action === 'showSimulation') {
+            window.dispatchEvent(new CustomEvent('valora-analysis-command', { 
+              detail: { action: 'showSimulation', data: a.data }
+            }))
+          }
+          if (a.action === 'showComparables' || a.action === 'showComps') {
+            window.dispatchEvent(new CustomEvent('valora-analysis-command', { 
+              detail: { action: 'showComps' }
+            }))
+          }
+          if (a.action === 'showExplainability' || a.action === 'explainValuation') {
+            window.dispatchEvent(new CustomEvent('valora-analysis-command', { 
+              detail: { action: 'showExplainability' }
+            }))
+          }
+          if (a.action === 'analyzeLocation' && a.lat && a.lng) {
+            window.dispatchEvent(new CustomEvent('valora-analyze-location', { 
+              detail: { lat: a.lat, lng: a.lng, locality: a.locality }
+            }))
+          }
         }
       }
 
       return data.message || data.assistant_message || ''
     } catch (err) {
       console.error('AI call failed:', err)
-      return `⚠️ AI service temporarily unavailable. ${err.message}\n\nPlease try again in a moment.`
+      console.error('Error details:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      })
+      
+      // Check if it's a timeout
+      if (err.name === 'AbortError') {
+        return `⚠️ Request took too long (>120s). The analysis is complex and timed out.\n\nPlease try a simpler query or check if the backend is processing.`
+      }
+      
+      return `⚠️ Connection error: ${err.message}\n\nBackend may be slow or unavailable. Please wait and try again.`
     }
   }
 
@@ -832,15 +1248,91 @@ Just ask naturally — I understand casual conversation too!
     
     const loadingIntent = detectLoadingIntent(userMessage)
     
+    // Add streaming message placeholder and capture its index
+    // Note: messages.length here is AFTER user message was added (line 892)
+    // So the assistant will be at index = current messages.length + 1 (user msg) = messages.length + 1
+    // But since we use prev in setMessages, we need to add 1 for the user message
     const placeholderMessageIndex = messages.length + 1
-    // Clean loading state - just intent bubble, no task list
+    
+    // Add streaming message placeholder
     setMessages(prev => [...prev, { 
       role: 'assistant', 
       content: '',
       intent: loadingIntent,
-      isLoading: true
+      isLoading: true,
+      isStreaming: true,
+      isThinking: true,
+      streamingThought: '',
+      streamingContent: '',
+      thinkingTime: 0
     }])
     
+    // Use streaming API for real-time thinking display
+    await callAIStreaming(
+      userMessage,
+      // onThinkingUpdate - called as thinking tokens arrive
+      (thinking, time, isThinking) => {
+        setMessages(prev => {
+          const newMessages = [...prev]
+          if (newMessages[placeholderMessageIndex]) {
+            newMessages[placeholderMessageIndex] = {
+              ...newMessages[placeholderMessageIndex],
+              streamingThought: thinking,
+              thinkingTime: time,
+              isThinking: isThinking,
+              isLoading: isThinking,
+              isStreaming: true
+            }
+          }
+          return newMessages
+        })
+      },
+      // onContentUpdate - called as response tokens arrive
+      (content, time) => {
+        setMessages(prev => {
+          const newMessages = [...prev]
+          if (newMessages[placeholderMessageIndex]) {
+            newMessages[placeholderMessageIndex] = {
+              ...newMessages[placeholderMessageIndex],
+              streamingContent: content,
+              content: content,
+              thinkingTime: time,
+              isThinking: false,
+              isLoading: false,
+              isStreaming: true
+            }
+          }
+          return newMessages
+        })
+      },
+      // onComplete - called when streaming is done
+      (result) => {
+        setMessages(prev => {
+          const newMessages = [...prev]
+          if (newMessages[placeholderMessageIndex]) {
+            newMessages[placeholderMessageIndex] = {
+              role: 'assistant',
+              content: result.content,
+              chainOfThought: result.thinking,
+              thinkingTime: result.thinkingTime,
+              intent: loadingIntent,
+              isLoading: false,
+              isStreaming: false,
+              isThinking: false,
+              isFastResponse: false,
+              // Clear streaming fields to prevent duplicate ThinkingDisplay
+              streamingThought: null,
+              streamingContent: null
+            }
+          }
+          return newMessages
+        })
+        setIsLoading(false)
+      }
+    )
+    return
+    
+    // Fallback (old non-streaming code kept for reference)
     const aiResponse = await callAI(userMessage)
     
     // Include reasoning trace, chain-of-thought from the last response
@@ -848,6 +1340,7 @@ Just ask naturally — I understand casual conversation too!
     const intent = window.__lastIntent
     const factsSummary = window.__lastFactsSummary
     const chainOfThought = window.__lastChainOfThought || null
+    const thinkingTime = window.__lastThinkingTime || 0
     const localityData = window.__lastLocalityData || null
     const isFastResponse = window.__lastFastResponse || false
     
@@ -859,6 +1352,7 @@ Just ask naturally — I understand casual conversation too!
         content: aiResponse,
         reasoningTrace,
         chainOfThought,
+        thinkingTime,
         intent: intent || loadingIntent,
         factsSummary,
         locality: localityData,
@@ -917,29 +1411,36 @@ Just ask naturally — I understand casual conversation too!
               {msg.role === 'assistant' ? (
                 <div className="space-y-2">
                   {/* Modern Intent Bubble - Shows what AI is doing */}
-                  {msg.intent && !msg.isFastResponse && (
-                    <StatusDisplay intent={msg.intent} isLoading={msg.isLoading} />
+                  {msg.intent && !msg.isFastResponse && !msg.isStreaming && (
+                    <StatusDisplay intent={msg.intent} isLoading={msg.isLoading && !msg.streamingThought} />
                   )}
                   
-                  {/* Loading state - Clean typing indicator */}
-                  {msg.isLoading ? (
+                  {/* Unified Thinking Display - handles both streaming and completed states */}
+                  {(msg.streamingThought || msg.chainOfThought || msg.isThinking) && (
+                    <ThinkingDisplay 
+                      thought={msg.chainOfThought}
+                      thinkingTime={msg.thinkingTime}
+                      isStreaming={msg.isThinking}
+                      streamingThought={msg.streamingThought}
+                    />
+                  )}
+                  
+                  {/* Loading state - only show if not streaming and no thinking */}
+                  {msg.isLoading && !msg.isStreaming && !msg.streamingThought && !msg.isThinking ? (
                     <div className="py-2">
                       <TypingIndicator />
                     </div>
                   ) : (
                     <>
-                      {/* Main content */}
-                      {msg.content && (
+                      
+                      {/* Main content - show streaming or final */}
+                      {(msg.content || msg.streamingContent) && (
                         <div className="prose prose-invert prose-sm max-w-none prose-headings:mt-3 prose-headings:mb-2 prose-headings:font-semibold prose-p:my-2 prose-ul:my-2 prose-li:my-0.5 prose-hr:my-3 prose-strong:text-white prose-a:text-blue-400">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {msg.content}
+                            {msg.content || msg.streamingContent}
                           </ReactMarkdown>
+                          {msg.isStreaming && !msg.isThinking && <span className="animate-pulse">▌</span>}
                         </div>
-                      )}
-                      
-                      {/* DeepSeek Thinking - Collapsible */}
-                      {msg.chainOfThought && (
-                        <ThinkingDisplay thought={msg.chainOfThought} />
                       )}
                     </>
                   )}
