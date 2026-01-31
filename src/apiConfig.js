@@ -20,7 +20,8 @@ const getApiUrl = () => {
   }
 
   // Default production path (proxied via Nginx)
-  return '/valora/api';
+  // Note: Don't include /api here - fetch calls already add /api/ prefix
+  return '/valora';
 };
 
 export const API_URL = getApiUrl();

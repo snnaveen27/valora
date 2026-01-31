@@ -5,7 +5,11 @@ import { normalizePath } from 'vite'
 import path from 'path'
 import sirv from 'sirv'
 
+const isProduction = process.env.NODE_ENV === 'production'
+const basePath = isProduction ? '/valora/' : '/'
+
 export default defineConfig({
+  base: basePath,
   plugins: [
     react(),
     viteStaticCopy({
@@ -30,10 +34,15 @@ export default defineConfig({
     }
   ],
   define: {
-    CESIUM_BASE_URL: JSON.stringify('/cesium/')
+    CESIUM_BASE_URL: JSON.stringify(isProduction ? '/valora/cesium/' : '/cesium/')
   },
   server: {
     port: 3000,
     open: true
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false
   }
 })
