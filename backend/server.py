@@ -227,9 +227,6 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     
-    # Remove server identification headers
-    response.headers.pop("server", None)
-    
     return response
 
 @app.on_event("startup")
