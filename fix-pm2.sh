@@ -15,7 +15,7 @@ cd /home/ubuntu/valora
 mkdir -p logs
 
 # Start backend using the correct command
-pm2 start "python -m uvicorn server:app --app-dir backend --port 8000 --host 0.0.0.0" \
+pm2 start "python3 -m uvicorn server:app --app-dir backend --port 8000 --host 0.0.0.0" \
   --name valora-backend \
   --cwd /home/ubuntu/valora \
   --restart-delay 5000 \
