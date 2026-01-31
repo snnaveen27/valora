@@ -25,134 +25,201 @@ from analyzers.area_analyzer import AreaAnalyzer
 from spatial.local_geocoder import get_local_geocoder
 from scrapers import multi_source_scraper
 
+ 
+import sys
+_backend_dir = Path(__file__).parent
+if str(_backend_dir) not in sys.path:
+    sys.path.insert(0, str(_backend_dir))
+
+try:
+    from city_intelligence.locality_personality import get_locality_personality_model
+    from city_intelligence.evolution_timeline import get_evolution_timeline_system
+    from city_intelligence.risk_indexes import get_risk_index_calculator
+    from city_intelligence.causal_reasoning import get_causal_reasoning_engine
+    from city_intelligence.knowledge_graph import get_urban_knowledge_graph
+    from city_intelligence.prediction_schema import get_prediction_builder, PredictionDomain
+    CITY_INTELLIGENCE_IMPORTS_OK = True
+    print("[OK] City Intelligence modules imported")
+except ImportError as e:
+    print(f"[WARNING] City Intelligence imports failed: {e}")
+    CITY_INTELLIGENCE_IMPORTS_OK = False
+    get_locality_personality_model = lambda: None
+    get_evolution_timeline_system = lambda: None
+    get_risk_index_calculator = lambda: None
+    get_causal_reasoning_engine = lambda: None
+    get_urban_knowledge_graph = lambda: None
+    get_prediction_builder = lambda: None
+    class PredictionDomain:
+        PROPERTY_VALUE = "property_value"
+        POPULATION = "population"
+        TRAFFIC = "traffic"
+        EMPLOYMENT = "employment"
+
 # Load environment variables
-load_dotenv()
+dotenv_path = Path(__file__).resolve().parents[1] / '.env'
+load_dotenv(dotenv_path=dotenv_path)
 
 # Initialize services - gracefully handle missing folders (database is primary source)
 osm_data_dir = Path(__file__).parent.parent / 'src' / 'data' / 'osm_extracted'
 terrain_dir = Path(__file__).parent.parent / 'src' / 'data' / 'terrain'
 properties_dir = Path(__file__).parent.parent / 'src' / 'data' / 'posted_properties'
-
-# Area analyzer and geocoder use database as primary, files as fallback
-try:
-    area_analyzer = AreaAnalyzer(osm_data_dir)
-    print("[OK] Area analyzer initialized (uses database)")
-except Exception as e:
-    print(f"[WARNING] Area analyzer not available: {e}")
-    area_analyzer = None
-
-try:
-    local_geocoder = get_local_geocoder(osm_data_dir)
-    print("[OK] Local geocoder initialized (uses database)")
-except Exception as e:
-    print(f"[WARNING] Local geocoder not available: {e}")
-    local_geocoder = None
-
-# Import and initialize terrain service (optional - terrain folder may not exist)
-try:
-    from spatial.terrain_service import TerrainService
-    terrain_service = TerrainService(terrain_dir)
-    print("[OK] Terrain service initialized")
-except Exception as e:
-    print(f"[WARNING] Terrain service not available: {e}")
-    terrain_service = None
-
-# Import and initialize property service (uses database, folder is optional)
-try:
-    from services.property_service import get_property_service
-    property_service = get_property_service(properties_dir)
-    print("[OK] Property service initialized (uses database)")
-except Exception as e:
-    print(f"[WARNING] Property service not available: {e}")
-    property_service = None
-
-# Import and initialize property image service (for AI training)
-try:
-    from services.property_image_service import get_image_service
-    image_service = get_image_service()
-    IMAGE_SERVICE_AVAILABLE = True
-    print(f"[OK] Property image service initialized ({len(image_service.training_data)} images)")
-except Exception as e:
-    print(f"[WARNING] Property image service not available: {e}")
-    image_service = None
-    IMAGE_SERVICE_AVAILABLE = False
-
-# Phase 1: Import and initialize RAG, Valuation, and Spatial Reasoning services
 data_dir = Path(__file__).parent.parent / 'src' / 'data'
 
-try:
-    from ai.rag_service import get_rag_service
-    rag_service = get_rag_service(data_dir)
-    RAG_AVAILABLE = True
-except Exception as e:
-    print(f"[WARNING] RAG service not available: {e}")
-    rag_service = None
-    RAG_AVAILABLE = False
+MAPBOX_API_KEY = os.getenv("MAPBOX_API_KEY")
+MAPBOX_API_STREET_API = os.getenv("MAPBOX_API_STREET_API")
+MAPBOX_API_MACRO_API = os.getenv("MAPBOX_API_MACRO_API")
+# OpenRouter Config
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# Import and initialize simulation & digital twin
-try:
-    from intelligence.simulation_engine import get_simulation_engine, ScenarioInput
-    from intelligence.narrative_generator import get_narrative_generator
-    from engines.digital_twin import get_digital_twin, StateChange
-    simulation_engine = get_simulation_engine()
-    narrative_generator = get_narrative_generator()
-    digital_twin = get_digital_twin(data_dir)
-    SIMULATION_AVAILABLE = True
-    print("[OK] Simulation & Digital Twin engines initialized")
-except Exception as e:
-    print(f"[WARNING] Simulation/Digital Twin not available: {e}")
-    simulation_engine = None
-    narrative_generator = None
-    digital_twin = None
-    SIMULATION_AVAILABLE = False
 
-try:
-    from intelligence.valuation_model import get_valuation_model
-    valuation_model = get_valuation_model(data_dir)
-    VALUATION_AVAILABLE = True
-except Exception as e:
-    print(f"[WARNING] Valuation model not available: {e}")
-    valuation_model = None
-    VALUATION_AVAILABLE = False
+def _compute_market_facts(property_service, lat: float, lng: float, radius_m: int) -> Dict[str, Any]:
+    try:
+        if hasattr(property_service, 'get_area_stats'):
+            stats = property_service.get_area_stats(lat, lng, radius_m=radius_m)
+            if isinstance(stats, dict):
+                avg_ppsf = stats.get('avg_price_per_sqft') or stats.get('avg_price_per_sq_ft')
+                trend = stats.get('price_trend_pct')
+                return {
+                    'avg_price_per_sqft': avg_ppsf,
+                    'trend': 'rising' if (trend or 0) > 1 else ('falling' if (trend or 0) < -1 else 'stable'),
+                    'confidence': 0.6,
+                    'price_trend_pct': trend,
+                    'active_listings': stats.get('active_listings'),
+                }
 
-try:
-    from spatial.spatial_reasoning import get_spatial_service
-    spatial_service = get_spatial_service(data_dir)
-    SPATIAL_AVAILABLE = True
-except Exception as e:
-    print(f"[WARNING] Spatial reasoning not available: {e}")
-    spatial_service = None
-    SPATIAL_AVAILABLE = False
+        results = None
+        if hasattr(property_service, 'search'):
+            results = property_service.search(lat=lat, lng=lng, radius_m=radius_m, limit=50)
 
-# Phase 2: GIS Multi-Agent Orchestrator
-from ai.gis_agents import get_gis_orchestrator, IntentRouter, Intent, _compute_market_facts
-from search.query_cache import get_chat_cache
+        if not isinstance(results, list) or not results:
+            return {}
 
-# Phase 3: City Intelligence Engine
-try:
-    import sys
-    sys.path.insert(0, str(Path(__file__).parent / 'city_intelligence'))
-    from city_intelligence.locality_personality import get_locality_personality_model, LocalityProfile
-    from city_intelligence.evolution_timeline import get_evolution_timeline_system
-    from city_intelligence.risk_indexes import get_risk_index_calculator
-    from city_intelligence.knowledge_graph import get_urban_knowledge_graph
-    from city_intelligence.causal_reasoning import get_causal_reasoning_engine
-    from city_intelligence.prediction_schema import get_prediction_builder, PredictionDomain, TimeHorizon
-    CITY_INTELLIGENCE_AVAILABLE = True
-    print("[OK] City Intelligence Engine initialized")
-except Exception as e:
-    print(f"[WARNING] City Intelligence not available: {e}")
-    CITY_INTELLIGENCE_AVAILABLE = False
-gis_orchestrator = get_gis_orchestrator(
-    geocoder=local_geocoder,
-    spatial_service=spatial_service,
-    terrain_service=terrain_service,
-    property_service=property_service,
-    valuation_model=valuation_model,
-    rag_service=rag_service,
-    area_analyzer=area_analyzer,
-)
-print("[OK] GIS Multi-Agent Orchestrator initialized")
+        ppsf_values = []
+        for r in results:
+            v = r.get('price_per_sqft') or r.get('price_per_sq_ft')
+            if v is None:
+                continue
+            try:
+                ppsf_values.append(float(v))
+            except Exception:
+                continue
+
+        if not ppsf_values:
+            return {}
+
+        avg_ppsf = sum(ppsf_values) / len(ppsf_values)
+        return {
+            'avg_price_per_sqft': avg_ppsf,
+            'trend': 'stable',
+            'confidence': 0.4,
+            'active_listings': len(results),
+        }
+    except Exception:
+        return {}
+
+# Service accessors (lazy loaded to save RAM)
+_services = {}
+
+def get_area_analyzer():
+    if 'area_analyzer' not in _services:
+        try:
+            from analyzers.area_analyzer import AreaAnalyzer
+            _services['area_analyzer'] = AreaAnalyzer(osm_data_dir)
+            print("[OK] Area analyzer lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Area analyzer failed: {e}")
+            _services['area_analyzer'] = None
+    return _services['area_analyzer']
+
+def get_local_geocoder_service():
+    if 'local_geocoder' not in _services:
+        try:
+            from spatial.local_geocoder import get_local_geocoder
+            _services['local_geocoder'] = get_local_geocoder(osm_data_dir)
+            print("[OK] Local geocoder lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Local geocoder failed: {e}")
+            _services['local_geocoder'] = None
+    return _services['local_geocoder']
+
+def get_terrain_service():
+    if 'terrain_service' not in _services:
+        try:
+            from spatial.terrain_service import TerrainService
+            _services['terrain_service'] = TerrainService(terrain_dir)
+            print("[OK] Terrain service lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Terrain service failed: {e}")
+            _services['terrain_service'] = None
+    return _services['terrain_service']
+
+def get_property_service_lazy():
+    if 'property_service' not in _services:
+        try:
+            from services.property_service import get_property_service
+            _services['property_service'] = get_property_service(properties_dir)
+            print("[OK] Property service lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Property service failed: {e}")
+            _services['property_service'] = None
+    return _services['property_service']
+
+def get_rag_service_lazy():
+    if 'rag_service' not in _services:
+        try:
+            from ai.rag_service import get_rag_service
+            _services['rag_service'] = get_rag_service(data_dir)
+            print("[OK] RAG service lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] RAG service failed: {e}")
+            _services['rag_service'] = None
+    return _services['rag_service']
+
+def get_valuation_model_lazy():
+    if 'valuation_model' not in _services:
+        try:
+            from intelligence.valuation_model import get_valuation_model
+            _services['valuation_model'] = get_valuation_model(data_dir)
+            print("[OK] Valuation model lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Valuation model failed: {e}")
+            _services['valuation_model'] = None
+    return _services['valuation_model']
+
+def get_spatial_service_lazy():
+    if 'spatial_service' not in _services:
+        try:
+            from spatial.spatial_reasoning import get_spatial_service
+            _services['spatial_service'] = get_spatial_service(data_dir)
+            print("[OK] Spatial service lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Spatial reasoning failed: {e}")
+            _services['spatial_service'] = None
+    return _services['spatial_service']
+
+def get_gis_orchestrator_lazy():
+    if 'gis_orchestrator' not in _services:
+        from ai.gis_agents import get_gis_orchestrator
+        _services['gis_orchestrator'] = get_gis_orchestrator(
+            geocoder=get_local_geocoder_service(),
+            spatial_service=get_spatial_service_lazy(),
+            terrain_service=get_terrain_service(),
+            property_service=get_property_service_lazy(),
+            valuation_model=get_valuation_model_lazy(),
+            rag_service=get_rag_service_lazy(),
+            area_analyzer=get_area_analyzer(),
+        )
+        print("[OK] GIS Orchestrator lazy-initialized")
+    return _services['gis_orchestrator']
+
+
+def get_city_intelligence_available() -> bool:
+    try:
+        model = get_locality_personality_model()
+        return model is not None
+    except Exception:
+        return False
+
 
 app = FastAPI(title="Valora AI Backend", version="2.0.0")
 
@@ -244,22 +311,22 @@ class TTLCache:
         while len(self._store) > self.maxsize:
             self._store.popitem(last=False)
 
-_cache_geocode = TTLCache(maxsize=1024, ttl_seconds=3600)
-_cache_geocode_local = TTLCache(maxsize=1024, ttl_seconds=3600)
-_cache_area_analyze = TTLCache(maxsize=512, ttl_seconds=300)
-_cache_terrain_elevation = TTLCache(maxsize=4096, ttl_seconds=86400)
-_cache_terrain_analysis = TTLCache(maxsize=2048, ttl_seconds=3600)
+_cache_geocode = TTLCache(maxsize=128, ttl_seconds=3600)
+_cache_geocode_local = TTLCache(maxsize=128, ttl_seconds=3600)
+_cache_area_analyze = TTLCache(maxsize=64, ttl_seconds=300)
+_cache_terrain_elevation = TTLCache(maxsize=512, ttl_seconds=86400)
+_cache_terrain_analysis = TTLCache(maxsize=256, ttl_seconds=3600)
 _cache_terrain_stats = TTLCache(maxsize=1, ttl_seconds=3600)
 _cache_properties_categories = TTLCache(maxsize=1, ttl_seconds=3600)
-_cache_properties_area_stats = TTLCache(maxsize=1024, ttl_seconds=900)
-_cache_properties_nearby = TTLCache(maxsize=2048, ttl_seconds=300)
-_cache_properties_search = TTLCache(maxsize=2048, ttl_seconds=300)
+_cache_properties_area_stats = TTLCache(maxsize=128, ttl_seconds=900)
+_cache_properties_nearby = TTLCache(maxsize=256, ttl_seconds=300)
+_cache_properties_search = TTLCache(maxsize=256, ttl_seconds=300)
 
 # Phase 1 caches
-_cache_spatial_nearby = TTLCache(maxsize=2048, ttl_seconds=300)
-_cache_spatial_summary = TTLCache(maxsize=1024, ttl_seconds=300)
-_cache_valuation = TTLCache(maxsize=1024, ttl_seconds=600)
-_cache_rag_search = TTLCache(maxsize=512, ttl_seconds=300)
+_cache_spatial_nearby = TTLCache(maxsize=256, ttl_seconds=300)
+_cache_spatial_summary = TTLCache(maxsize=128, ttl_seconds=300)
+_cache_valuation = TTLCache(maxsize=128, ttl_seconds=600)
+_cache_rag_search = TTLCache(maxsize=64, ttl_seconds=300)
 
 # Note: Market computation logic moved to gis_agents.py for Phase 2 multi-agent orchestration
 
@@ -412,6 +479,8 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Mapbox configuration
 MAPBOX_API_KEY = os.getenv("MAPBOX_API_KEY", "")
+MAPBOX_API_STREET_API = os.getenv("MAPBOX_API_STREET_API", "")
+MAPBOX_API_MACRO_API = os.getenv("MAPBOX_API_MACRO_API", "")
 
 class PlaceResult(BaseModel):
     place_id: int
@@ -468,12 +537,12 @@ async def health():
         "nominatim_url": NOMINATIM_URL,
         "database": db_stats,
         "services": {
-            "rag": RAG_AVAILABLE,
-            "spatial": SPATIAL_AVAILABLE,
-            "valuation": VALUATION_AVAILABLE,
-            "terrain": terrain_service is not None,
-            "property": property_service is not None,
-            "geocoder": local_geocoder is not None
+            "rag": get_rag_service_lazy() is not None,
+            "spatial": get_spatial_service_lazy() is not None,
+            "valuation": get_valuation_model_lazy() is not None,
+            "terrain": get_terrain_service() is not None,
+            "property": get_property_service_lazy() is not None,
+            "geocoder": get_local_geocoder_service() is not None
         }
     }
 
@@ -494,11 +563,11 @@ async def get_agent_capabilities():
         ],
         "data_sources": {},
         "services": {
-            "rag": RAG_AVAILABLE,
-            "spatial": SPATIAL_AVAILABLE,
-            "valuation": VALUATION_AVAILABLE,
-            "terrain": terrain_service is not None,
-            "geocoder": local_geocoder is not None
+            "rag": get_rag_service_lazy() is not None,
+            "spatial": get_spatial_service_lazy() is not None,
+            "valuation": get_valuation_model_lazy() is not None,
+            "terrain": get_terrain_service() is not None,
+            "geocoder": get_local_geocoder_service() is not None
         }
     }
     
@@ -516,7 +585,9 @@ async def get_agent_capabilities():
 async def get_config():
     """Get frontend configuration including API keys"""
     return {
-        "mapbox_api_key": MAPBOX_API_KEY
+        "mapbox_api_key": MAPBOX_API_KEY,
+        "mapbox_street_api_key": MAPBOX_API_STREET_API,
+        "mapbox_macro_api_key": MAPBOX_API_MACRO_API
     }
 
 @app.get("/api/geocode", response_model=GeocodeResponse)
@@ -611,7 +682,11 @@ async def geocode_local(q: str, limit: int = 10):
     if cached is not None:
         return cached
 
-    results = local_geocoder.search(query, limit=limit)
+    geocoder = get_local_geocoder_service()
+    if not geocoder:
+        raise HTTPException(status_code=503, detail="Local geocoder not available")
+    
+    results = geocoder.search(query, limit=limit)
     
     formatted_results = []
     for r in results:
@@ -900,9 +975,13 @@ async def analyze_area(lng: float, lat: float, radius: int = 1000):
     if cached is not None:
         return cached
 
+    analyzer = get_area_analyzer()
+    if not analyzer:
+        raise HTTPException(status_code=503, detail="Area analyzer not available")
+        
     try:
-        summary = area_analyzer.analyze_area(lng, lat, radius)
-        insights = area_analyzer.generate_area_insights(summary)
+        summary = analyzer.analyze_area(lng, lat, radius)
+        insights = analyzer.generate_area_insights(summary)
 
         result = {
             'success': True,
@@ -940,69 +1019,67 @@ async def analyze_viewport(lat: float, lng: float):
     }
     
     # Get area name via reverse geocoding
-    if local_geocoder:
+    geocoder = get_local_geocoder_service()
+    if geocoder:
         try:
-            nearby = local_geocoder.reverse(lat, lng)
+            nearby = geocoder.reverse(lat, lng)
             if nearby:
                 result["area_name"] = nearby.get("name", f"Area at {lat:.4f}, {lng:.4f}")
         except Exception:
             result["area_name"] = f"Area at {lat:.4f}, {lng:.4f}"
     
     # Spatial analysis
-    if SPATIAL_AVAILABLE and spatial_service:
+    spatial = get_spatial_service_lazy()
+    if spatial:
         try:
-            summary = spatial_service.get_summary(lat, lng, radius_m=1000)
+            summary = spatial.get_summary(lat, lng, radius_m=1000)
             result["spatial"] = {
                 "poi_count": summary.by_category.get('poi', 0),
                 "transport_count": summary.by_category.get('transport', 0),
-                "accessibility_score": int(summary.accessibility_score),
-                "walkability_score": int(summary.walkability_score),
-                "amenity_density": round(summary.amenity_density, 2),
-                "total_features": summary.total_features
+                "landmarks_count": summary.by_category.get('landmark', 0)
             }
         except Exception as e:
             print(f"Viewport spatial error: {e}")
     
     # Fallback to area analyzer
-    if not result["spatial"] and area_analyzer:
+    analyzer = get_area_analyzer()
+    if not result["spatial"] and analyzer:
         try:
-            area_data = area_analyzer.analyze_area(lng, lat, radius_m=1000)
+            area_data = analyzer.analyze_area(lng, lat, radius_m=1000)
             poi_summary = area_data.get('poi_summary', {})
             transport = area_data.get('transport', {})
             result["spatial"] = {
                 "poi_count": poi_summary.get('total', 0),
                 "transport_count": transport.get('total_stops', 0),
-                "accessibility_score": min(100, transport.get('total_stops', 0) * 5 + 40),
-                "walkability_score": min(100, poi_summary.get('total', 0) // 5 + 50),
-                "amenity_density": round(poi_summary.get('total', 0) / 3.14, 2),
-                "total_features": poi_summary.get('total', 0) + transport.get('total_stops', 0)
+                "landmarks_count": 0
             }
         except Exception as e:
             print(f"Viewport area analyzer error: {e}")
     
     # Market data
-    if property_service:
+    prop_service = get_property_service_lazy()
+    if prop_service:
         try:
-            market = _compute_market_facts(property_service, lat, lng, 1500)
+            market = _compute_market_facts(prop_service, lat, lng, 1500)
             if market and market.get('avg_price_per_sqft'):
                 result["market"] = {
                     "avg_price_per_sqft": round(market['avg_price_per_sqft']),
-                    "price_trend_pct": round(market['price_trend_pct'], 1) if market.get('price_trend_pct') else None,
-                    "active_listings": market.get('active_listings', 0),
-                    "demand_level": market.get('demand_level', 'Medium')
+                    "price_trend": market.get('trend', 'stable'),
+                    "confidence": market.get('confidence', 0.5)
                 }
         except Exception as e:
             print(f"Viewport market error: {e}")
     
     # Terrain data
-    if terrain_service:
+    terrain = get_terrain_service()
+    if terrain:
         try:
-            terrain = terrain_service.get_terrain_analysis(lat, lng)
-            if terrain:
+            terrain_data = terrain.get_terrain_analysis(lat, lng)
+            if terrain_data:
                 result["terrain"] = {
-                    "elevation_m": terrain.get('elevation'),
-                    "slope_deg": terrain.get('slope'),
-                    "flood_risk": terrain.get('flood_risk', 'unknown')
+                    "elevation_m": terrain_data.get('elevation'),
+                    "slope_deg": terrain_data.get('slope'),
+                    "aspect": terrain_data.get('aspect')
                 }
         except Exception as e:
             print(f"Viewport terrain error: {e}")
@@ -1132,9 +1209,10 @@ async def analyze_location(request: LocationAnalyzeRequest):
     }
     
     # 1. Reverse geocoding for area name
-    if local_geocoder:
+    geocoder = get_local_geocoder_service()
+    if geocoder:
         try:
-            nearby = local_geocoder.reverse(lat, lng)
+            nearby = geocoder.reverse(lat, lng)
             if nearby:
                 result["area_name"] = nearby.get("name", f"Location at {lat:.4f}, {lng:.4f}")
         except Exception:
@@ -1142,9 +1220,10 @@ async def analyze_location(request: LocationAnalyzeRequest):
     
     # 2. Spatial analysis
     spatial_data = None
-    if SPATIAL_AVAILABLE and spatial_service:
+    spatial = get_spatial_service_lazy()
+    if spatial:
         try:
-            summary = spatial_service.get_summary(lat, lng, radius_m=radius)
+            summary = spatial.get_summary(lat, lng, radius_m=radius)
             spatial_data = {
                 "poi_count": summary.by_category.get('poi', 0),
                 "transport_count": summary.by_category.get('transport', 0),
@@ -1156,7 +1235,7 @@ async def analyze_location(request: LocationAnalyzeRequest):
                 "nearest_transport": None
             }
             # Get nearest items
-            nearby_items = spatial_service.get_nearby(lat, lng, radius_m=500, limit=10)
+            nearby_items = spatial.get_nearby(lat, lng, radius_m=500, limit=10)
             for item in nearby_items:
                 if item.get('type') == 'poi' and not spatial_data['nearest_poi']:
                     spatial_data['nearest_poi'] = {
@@ -1173,9 +1252,10 @@ async def analyze_location(request: LocationAnalyzeRequest):
             print(f"Location spatial error: {e}")
     
     # Fallback to area analyzer
-    if not result["spatial"] and area_analyzer:
+    analyzer = get_area_analyzer()
+    if not result["spatial"] and analyzer:
         try:
-            area_data = area_analyzer.analyze_area(lng, lat, radius_m=radius)
+            area_data = analyzer.analyze_area(lng, lat, radius_m=radius)
             poi_summary = area_data.get('poi_summary', {})
             transport = area_data.get('transport', {})
             result["spatial"] = {
@@ -1190,9 +1270,10 @@ async def analyze_location(request: LocationAnalyzeRequest):
             print(f"Location area analyzer error: {e}")
     
     # 3. Market data with micro-economics
-    if property_service:
+    prop_service = get_property_service_lazy()
+    if prop_service:
         try:
-            market = _compute_market_facts(property_service, lat, lng, radius)
+            market = _compute_market_facts(prop_service, lat, lng, radius)
             if market:
                 result["market"] = {
                     "avg_price_per_sqft": round(market.get('avg_price_per_sqft') or 0) if market.get('avg_price_per_sqft') is not None else 0,
@@ -1237,9 +1318,10 @@ async def analyze_location(request: LocationAnalyzeRequest):
             print(f"Location market error: {e}")
     
     # 4. Nearby properties
-    if property_service:
+    prop_svc = get_property_service_lazy()
+    if prop_svc:
         try:
-            properties = property_service.search(lat=lat, lng=lng, radius_m=radius, limit=10)
+            properties = prop_svc.search(lat=lat, lng=lng, radius_m=radius, limit=10)
             result["nearby_properties"] = [{
                 "id": p.get('id'),
                 "name": p.get('name', p.get('title', 'Property')),
@@ -1255,6 +1337,7 @@ async def analyze_location(request: LocationAnalyzeRequest):
             print(f"Location properties error: {e}")
     
     # 5. Land/Property valuation estimate
+    valuation_model = get_valuation_model_lazy()
     if valuation_model:
         try:
             # Estimate for a typical 2BHK 1200 sqft
@@ -1276,6 +1359,7 @@ async def analyze_location(request: LocationAnalyzeRequest):
             print(f"Location valuation error: {e}")
     
     # 6. Terrain data
+    terrain_service = get_terrain_service()
     if terrain_service:
         try:
             terrain = terrain_service.get_terrain_analysis(lat, lng)
@@ -1370,6 +1454,7 @@ async def smart_property_search(request: PropertySearchRequest):
         lat, lng = 12.9716, 77.5946
     
     # Search properties
+    property_service = get_property_service_lazy()
     if property_service:
         try:
             filters = {}
@@ -2431,6 +2516,9 @@ async def chat_stream(request: ChatRequest):
 async def get_elevation(lat: float, lng: float):
     """Get elevation data for a specific location"""
     try:
+        terrain_service = get_terrain_service()
+        if not terrain_service:
+            raise HTTPException(status_code=503, detail="Terrain service not available")
         cache_key = f"{round(float(lat), 5)}|{round(float(lng), 5)}"
         cached = _cache_terrain_elevation.get(cache_key)
         if cached is not None:
@@ -2457,6 +2545,9 @@ async def get_elevation(lat: float, lng: float):
 async def get_terrain_analysis(lat: float, lng: float, radius: float = 0.01):
     """Get terrain analysis for an area"""
     try:
+        terrain_service = get_terrain_service()
+        if not terrain_service:
+            raise HTTPException(status_code=503, detail="Terrain service not available")
         cache_key = f"{round(float(lat), 5)}|{round(float(lng), 5)}|{round(float(radius), 5)}"
         cached = _cache_terrain_analysis.get(cache_key)
         if cached is not None:
@@ -2483,6 +2574,9 @@ async def get_terrain_analysis(lat: float, lng: float, radius: float = 0.01):
 async def get_terrain_stats():
     """Get overall terrain statistics"""
     try:
+        terrain_service = get_terrain_service()
+        if not terrain_service:
+            raise HTTPException(status_code=503, detail="Terrain service not available")
         cached = _cache_terrain_stats.get("terrain_stats")
         if cached is not None:
             return cached
@@ -2501,11 +2595,9 @@ async def get_terrain_stats():
 async def get_elevation_profile(lat: float, lng: float, radius_km: float = 2.0):
     """Get elevation profile around a location for charting"""
     try:
+        terrain_service = get_terrain_service()
         if not terrain_service:
-            return {
-                "success": False,
-                "error": "Terrain service not available"
-            }
+            raise HTTPException(status_code=503, detail="Terrain service not available")
         
         cache_key = f"profile_{round(float(lat), 5)}|{round(float(lng), 5)}|{round(float(radius_km), 2)}"
         cached = _cache_terrain_analysis.get(cache_key)
@@ -2820,14 +2912,16 @@ async def get_property_categories():
 @app.get("/api/images/stats")
 async def get_image_stats():
     """Get statistics about downloaded property images."""
-    if not IMAGE_SERVICE_AVAILABLE:
+    image_service = get_image_service_lazy()
+    if not image_service:
         return {"available": False, "message": "Image service not initialized"}
     return {"available": True, **image_service.get_stats()}
 
 @app.get("/api/images/property/{property_id}")
 async def get_property_images(property_id: str):
     """Get all images for a specific property."""
-    if not IMAGE_SERVICE_AVAILABLE:
+    image_service = get_image_service_lazy()
+    if not image_service:
         raise HTTPException(status_code=503, detail="Image service not available")
     images = image_service.get_images_for_property(property_id)
     return {"property_id": property_id, "count": len(images), "images": images}
@@ -2835,7 +2929,8 @@ async def get_property_images(property_id: str):
 @app.get("/api/images/locality/{locality}")
 async def get_locality_images(locality: str, limit: int = 10):
     """Get images from a specific locality."""
-    if not IMAGE_SERVICE_AVAILABLE:
+    image_service = get_image_service_lazy()
+    if not image_service:
         raise HTTPException(status_code=503, detail="Image service not available")
     images = image_service.get_images_by_locality(locality, limit)
     return {"locality": locality, "count": len(images), "images": images}
@@ -2843,7 +2938,8 @@ async def get_locality_images(locality: str, limit: int = 10):
 @app.get("/api/images/nearby")
 async def get_nearby_images(lat: float, lng: float, radius_km: float = 2.0, limit: int = 10):
     """Get property images near a location."""
-    if not IMAGE_SERVICE_AVAILABLE:
+    image_service = get_image_service_lazy()
+    if not image_service:
         raise HTTPException(status_code=503, detail="Image service not available")
     images = image_service.get_images_near_location(lat, lng, radius_km, limit)
     return {"location": {"lat": lat, "lng": lng}, "radius_km": radius_km, "count": len(images), "images": images}
@@ -2851,7 +2947,8 @@ async def get_nearby_images(lat: float, lng: float, radius_km: float = 2.0, limi
 @app.get("/api/images/training/batch")
 async def get_training_batch(batch_size: int = 32, property_type: str = None, listing_type: str = None):
     """Get a batch of training data with optional filters."""
-    if not IMAGE_SERVICE_AVAILABLE:
+    image_service = get_image_service_lazy()
+    if not image_service:
         raise HTTPException(status_code=503, detail="Image service not available")
     batch = image_service.get_training_batch(batch_size, property_type, listing_type)
     return {"batch_size": len(batch), "data": batch}
@@ -2859,7 +2956,8 @@ async def get_training_batch(batch_size: int = 32, property_type: str = None, li
 @app.get("/api/images/training/vl-format")
 async def get_vl_training_data():
     """Get training data in Vision-Language format (for Qwen3-VL)."""
-    if not IMAGE_SERVICE_AVAILABLE:
+    image_service = get_image_service_lazy()
+    if not image_service:
         raise HTTPException(status_code=503, detail="Image service not available")
     vl_data = image_service.prepare_vl_training_data()
     return {"format": "vision-language", "count": len(vl_data), "sample": vl_data[:5] if vl_data else []}
@@ -2867,7 +2965,8 @@ async def get_vl_training_data():
 @app.post("/api/images/training/export")
 async def export_training_data():
     """Export training data to file for model fine-tuning."""
-    if not IMAGE_SERVICE_AVAILABLE:
+    image_service = get_image_service_lazy()
+    if not image_service:
         raise HTTPException(status_code=503, detail="Image service not available")
     output_path = image_service.export_for_training()
     return {"success": True, "path": str(output_path), "count": len(image_service.training_data)}
@@ -2875,7 +2974,8 @@ async def export_training_data():
 @app.get("/api/images/file/{property_id}/{filename}")
 async def serve_property_image(property_id: str, filename: str):
     """Serve a property image file."""
-    if not IMAGE_SERVICE_AVAILABLE:
+    image_service = get_image_service_lazy()
+    if not image_service:
         raise HTTPException(status_code=503, detail="Image service not available")
     
     from fastapi.responses import FileResponse
@@ -2910,7 +3010,8 @@ async def spatial_nearby(
     - layers: Comma-separated layers to query (poi,transport,place)
     - limit: Maximum results
     """
-    if not SPATIAL_AVAILABLE:
+    spatial_service = get_spatial_service_lazy()
+    if not spatial_service:
         raise HTTPException(status_code=503, detail="Spatial reasoning service not available")
     
     try:
@@ -2950,7 +3051,8 @@ async def spatial_summary(lat: float, lng: float, radius: int = 1000):
     
     Returns counts by category, nearest features, and accessibility/walkability scores.
     """
-    if not SPATIAL_AVAILABLE:
+    spatial_service = get_spatial_service_lazy()
+    if not spatial_service:
         raise HTTPException(status_code=503, detail="Spatial reasoning service not available")
     
     try:
@@ -2986,7 +3088,8 @@ async def spatial_contains(lat: float, lng: float):
     """
     Query what boundaries/zones contain a point (Phase 1 Unified Spatial API).
     """
-    if not SPATIAL_AVAILABLE:
+    spatial_service = get_spatial_service_lazy()
+    if not spatial_service:
         raise HTTPException(status_code=503, detail="Spatial reasoning service not available")
     
     try:
@@ -3002,13 +3105,15 @@ async def analyze_location(lat: float, lng: float):
     Complete location analysis with terrain and spatial features.
     Combines spatial summary with terrain data for comprehensive analysis.
     """
-    if not SPATIAL_AVAILABLE:
+    spatial_service = get_spatial_service_lazy()
+    if not spatial_service:
         raise HTTPException(status_code=503, detail="Spatial reasoning service not available")
     
     try:
         # Get terrain data if available
         elevation = 900.0
         slope = 2.0
+        terrain_service = get_terrain_service()
         if terrain_service:
             terrain = terrain_service.get_elevation(lat, lng)
             if terrain:
@@ -3561,9 +3666,6 @@ async def estimate_valuation(request: Request):
         "property_type": "residential"
     }
     """
-    if not VALUATION_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Valuation model not available")
-    
     try:
         body = await request.json()
         lat = body.get("lat")
@@ -3585,6 +3687,10 @@ async def estimate_valuation(request: Request):
         cached = _cache_valuation.get(cache_key)
         if cached is not None:
             return cached
+
+        valuation_model = get_valuation_model_lazy()
+        if not valuation_model:
+            raise HTTPException(status_code=503, detail="Valuation model not available")
         
         result = valuation_model.valuate(
             lat=float(lat),
@@ -3628,7 +3734,8 @@ async def get_market_stats(lat: float, lng: float, radius: float = 2.0, property
     - radius: Radius in km (default 2.0)
     - property_type: Filter by type (residential, commercial, agricultural)
     """
-    if not VALUATION_AVAILABLE:
+    valuation_model = get_valuation_model_lazy()
+    if not valuation_model:
         raise HTTPException(status_code=503, detail="Valuation model not available")
     
     try:
@@ -3644,7 +3751,8 @@ async def train_valuation_model():
     Train the ML valuation model on property data.
     This can take several minutes depending on data size.
     """
-    if not VALUATION_AVAILABLE:
+    valuation_model = get_valuation_model_lazy()
+    if not valuation_model:
         raise HTTPException(status_code=503, detail="Valuation model not available")
     
     try:
@@ -3658,11 +3766,9 @@ async def train_valuation_model():
 
 try:
     from intelligence.advanced_insights import get_insights_service, AdvancedInsightsService
-    INSIGHTS_AVAILABLE = True
     insights_service = get_insights_service()
     print("[OK] Advanced Insights Service initialized")
 except Exception as e:
-    INSIGHTS_AVAILABLE = False
     insights_service = None
     print(f"[WARNING] Advanced Insights not available: {e}")
 
@@ -3673,7 +3779,7 @@ async def get_area_insights(lat: float, lng: float, locality: str = None, radius
     Get comprehensive advanced insights for a location.
     Combines price trends, market intelligence, infrastructure, terrain, and AI analysis.
     """
-    if not INSIGHTS_AVAILABLE:
+    if not insights_service:
         raise HTTPException(status_code=503, detail="Insights service not available")
     
     try:
@@ -3686,7 +3792,7 @@ async def get_area_insights(lat: float, lng: float, locality: str = None, radius
 @app.get("/api/insights/price-trend/{property_id}")
 async def get_property_price_trend(property_id: str):
     """Get price trend analysis for a specific property."""
-    if not INSIGHTS_AVAILABLE:
+    if not insights_service:
         raise HTTPException(status_code=503, detail="Insights service not available")
     
     try:
@@ -3703,7 +3809,7 @@ async def get_property_price_trend(property_id: str):
 @app.get("/api/insights/locality-trend")
 async def get_locality_price_trend(locality: str, days: int = 30):
     """Get price trends for a locality over time."""
-    if not INSIGHTS_AVAILABLE:
+    if not insights_service:
         raise HTTPException(status_code=503, detail="Insights service not available")
     
     try:
@@ -3716,7 +3822,7 @@ async def get_locality_price_trend(locality: str, days: int = 30):
 @app.get("/api/insights/price-movers")
 async def get_top_price_movers(days: int = 30, limit: int = 20):
     """Get properties with biggest price changes."""
-    if not INSIGHTS_AVAILABLE:
+    if not insights_service:
         raise HTTPException(status_code=503, detail="Insights service not available")
     
     try:
@@ -3729,7 +3835,7 @@ async def get_top_price_movers(days: int = 30, limit: int = 20):
 @app.get("/api/insights/market/{locality}")
 async def get_market_intelligence(locality: str):
     """Get comprehensive market intelligence for a locality."""
-    if not INSIGHTS_AVAILABLE:
+    if not insights_service:
         raise HTTPException(status_code=503, detail="Insights service not available")
     
     try:
@@ -3742,7 +3848,7 @@ async def get_market_intelligence(locality: str):
 @app.get("/api/insights/investment/{property_id}")
 async def get_investment_insight(property_id: str):
     """Get investment analysis for a specific property."""
-    if not INSIGHTS_AVAILABLE:
+    if not insights_service:
         raise HTTPException(status_code=503, detail="Insights service not available")
     
     try:
@@ -3775,7 +3881,8 @@ async def rag_search(
     - namespaces: Comma-separated namespaces to search
     - lat, lng, radius_km: Optional location filter
     """
-    if not RAG_AVAILABLE:
+    rag_service = get_rag_service_lazy()
+    if not rag_service:
         raise HTTPException(status_code=503, detail="RAG service not available")
     
     try:
@@ -3823,7 +3930,8 @@ async def rag_index(force: bool = False):
     
     - force: If true, clears existing index before re-indexing
     """
-    if not RAG_AVAILABLE:
+    rag_service = get_rag_service_lazy()
+    if not rag_service:
         raise HTTPException(status_code=503, detail="RAG service not available")
     
     try:
@@ -3849,7 +3957,8 @@ async def rag_context(
     Get relevant context for a query to augment LLM responses.
     Returns formatted text suitable for injection into prompts.
     """
-    if not RAG_AVAILABLE:
+    rag_service = get_rag_service_lazy()
+    if not rag_service:
         return {"success": True, "context": ""}
     
     try:
@@ -3919,7 +4028,8 @@ async def analyze_building(request: BuildingAnalysisRequest):
     }
     
     # 1. Spatial Analysis (Phase 1)
-    if SPATIAL_AVAILABLE:
+    spatial_service = get_spatial_service_lazy()
+    if spatial_service:
         try:
             summary = spatial_service.get_summary(lat, lng, radius_m=1000)
             result["spatial"] = {
@@ -3946,7 +4056,8 @@ async def analyze_building(request: BuildingAnalysisRequest):
             print(f"Spatial analysis error: {e}")
     
     # 2. Valuation (Phase 1)
-    if VALUATION_AVAILABLE:
+    valuation_model = get_valuation_model_lazy()
+    if valuation_model:
         try:
             # Estimate property value
             covered_area = request.area or 1000
@@ -4043,7 +4154,8 @@ async def analyze_building(request: BuildingAnalysisRequest):
 - Transport Count: {ai['transport_count']}""")
             
             # Get RAG context if available
-            if RAG_AVAILABLE:
+            rag_service = get_rag_service_lazy()
+            if rag_service:
                 rag_context = rag_service.get_context_for_query(
                     f"property investment {request.buildingType} near {lat}, {lng}",
                     lat=lat, lng=lng, radius_km=2.0, max_results=5
@@ -4080,10 +4192,10 @@ Calculate ALL metrics from the data provided:
             ]
             
             # Use configured LLM provider (local or OpenRouter)
-            current_llm_config = _load_llm_config()
+            current_llm_config = get_active_llm_config()
             llm_provider = current_llm_config.get('provider', 'local')
             
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=12.0) as client:
                 if llm_provider == 'openrouter':
                     response = await client.post(
                         OPENROUTER_URL,
@@ -4223,23 +4335,53 @@ Calculate ALL metrics from the data provided:
 
 # ============== PHASE 4: SIMULATION & STORYBOARD ENDPOINTS ==============
 
-try:
-    from intelligence.simulation_engine import get_simulation_engine, ScenarioInput
-    from intelligence.narrative_generator import get_narrative_generator
-    from engines.digital_twin import get_digital_twin, StateChange
-    from dataclasses import asdict
-    simulation_engine = get_simulation_engine()
-    narrative_generator = get_narrative_generator()
-    digital_twin = get_digital_twin()
-    SIMULATION_AVAILABLE = True
-    print("[OK] Simulation engine initialized")
-    print("[OK] Digital twin engine initialized")
-except Exception as e:
-    print(f"[WARNING] Simulation engine not available: {e}")
-    simulation_engine = None
-    narrative_generator = None
-    digital_twin = None
-    SIMULATION_AVAILABLE = False
+def get_simulation_engine_lazy():
+    if 'simulation_engine' not in _services:
+        try:
+            from intelligence.simulation_engine import get_simulation_engine
+            _services['simulation_engine'] = get_simulation_engine()
+            print("[OK] Simulation engine lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Simulation engine failed: {e}")
+            _services['simulation_engine'] = None
+    return _services['simulation_engine']
+
+def get_narrative_generator_lazy():
+    if 'narrative_generator' not in _services:
+        try:
+            from intelligence.narrative_generator import get_narrative_generator
+            _services['narrative_generator'] = get_narrative_generator()
+            print("[OK] Narrative generator lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Narrative generator failed: {e}")
+            _services['narrative_generator'] = None
+    return _services['narrative_generator']
+
+def get_digital_twin_lazy():
+    if 'digital_twin' not in _services:
+        try:
+            from engines.digital_twin import get_digital_twin
+            _services['digital_twin'] = get_digital_twin(data_dir)
+            print("[OK] Digital twin lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Digital twin failed: {e}")
+            _services['digital_twin'] = None
+    return _services['digital_twin']
+
+def get_image_service_lazy():
+    if 'image_service' not in _services:
+        try:
+            from services.property_image_service import get_image_service
+            _services['image_service'] = get_image_service()
+            print(f"[OK] Property image service lazy-initialized")
+        except Exception as e:
+            print(f"[WARNING] Property image service failed: {e}")
+            _services['image_service'] = None
+    return _services['image_service']
+
+from intelligence.simulation_engine import ScenarioInput
+from engines.digital_twin import StateChange
+from dataclasses import asdict
 
 class SimulationRequest(BaseModel):
     scenario_type: str  # 'metro_station', 'highway', 'zoning_change', 'infrastructure'
@@ -4266,15 +4408,17 @@ async def run_simulation(request: SimulationRequest):
     - Walkability changes
     - AI-generated reasoning
     """
-    if not SIMULATION_AVAILABLE:
+    simulation_engine = get_simulation_engine_lazy()
+    if not simulation_engine:
         raise HTTPException(status_code=503, detail="Simulation engine not available")
     
     try:
         # Get current area context for simulation
         context = {}
-        if SPATIAL_AVAILABLE and spatial_service:
+        spatial = get_spatial_service_lazy()
+        if spatial:
             try:
-                spatial_summary = spatial_service.get_summary(request.lat, request.lng, radius_m=1000)
+                spatial_summary = spatial.get_summary(request.lat, request.lng, radius_m=1000)
                 context['spatial'] = spatial_summary
                 context['transport'] = {
                     'metro_count': spatial_summary.get('transport', {}).get('metro', 0),
@@ -4318,15 +4462,18 @@ async def generate_simulation_storyboard(request: SimulationRequest):
     - Simulation impacts
     - Storyboard with camera paths, overlays, and narration
     """
-    if not SIMULATION_AVAILABLE:
+    simulation_engine = get_simulation_engine_lazy()
+    narrative_generator = get_narrative_generator_lazy()
+    if not simulation_engine or not narrative_generator:
         raise HTTPException(status_code=503, detail="Simulation engine not available")
     
     try:
         # Get context
         context = {}
-        if SPATIAL_AVAILABLE and spatial_service:
+        spatial = get_spatial_service_lazy()
+        if spatial:
             try:
-                spatial_summary = spatial_service.get_summary(request.lat, request.lng, radius_m=1000)
+                spatial_summary = spatial.get_summary(request.lat, request.lng, radius_m=1000)
                 context['spatial'] = spatial_summary
                 context['transport'] = {
                     'metro_count': spatial_summary.get('transport', {}).get('metro', 0),
@@ -4381,7 +4528,8 @@ async def initialize_digital_twin(request: DigitalTwinInitRequest):
     Initialize digital twin for a city area.
     Creates a real-time virtual representation of the urban environment.
     """
-    if not SIMULATION_AVAILABLE or not digital_twin:
+    digital_twin = get_digital_twin_lazy()
+    if not digital_twin:
         raise HTTPException(status_code=503, detail="Digital twin not available")
     
     try:
@@ -4392,9 +4540,9 @@ async def initialize_digital_twin(request: DigitalTwinInitRequest):
         
         # Sync with real data
         digital_twin.sync_with_real_data(
-            spatial_service if SPATIAL_AVAILABLE else None,
-            property_service,
-            terrain_service
+            get_spatial_service_lazy(),
+            get_property_service_lazy(),
+            get_terrain_service()
         )
         
         return {
@@ -4408,7 +4556,8 @@ async def initialize_digital_twin(request: DigitalTwinInitRequest):
 @app.get("/api/digital-twin/state")
 async def get_digital_twin_state():
     """Get current digital twin state"""
-    if not SIMULATION_AVAILABLE or not digital_twin:
+    digital_twin = get_digital_twin_lazy()
+    if not digital_twin:
         raise HTTPException(status_code=503, detail="Digital twin not available")
     
     state = digital_twin.get_state()
@@ -4423,7 +4572,8 @@ async def get_digital_twin_state():
 @app.get("/api/digital-twin/history")
 async def get_digital_twin_history(entity_id: Optional[str] = None):
     """Get digital twin change history"""
-    if not SIMULATION_AVAILABLE or not digital_twin:
+    digital_twin = get_digital_twin_lazy()
+    if not digital_twin:
         raise HTTPException(status_code=503, detail="Digital twin not available")
     
     history = digital_twin.get_change_history(entity_id)
@@ -4448,7 +4598,9 @@ async def update_digital_twin_state(request: StateUpdateRequest):
     Update digital twin state with a change event.
     Tracks changes and computes cascading impacts.
     """
-    if not SIMULATION_AVAILABLE or not digital_twin:
+    digital_twin = get_digital_twin_lazy()
+    spatial_service = get_spatial_service_lazy()
+    if not digital_twin or not spatial_service:
         raise HTTPException(status_code=503, detail="Digital twin not available")
     
     if not digital_twin.get_state():
@@ -4835,7 +4987,8 @@ async def simulate_insight_scenario(request: dict):
     
     # Run simulation using existing engine
     try:
-        if SIMULATION_AVAILABLE:
+        simulation_engine = get_simulation_engine_lazy()
+        if simulation_engine:
             result = await simulation_engine.simulate_scenario(
                 scenario_type=simulation_type,
                 lat=lat,
@@ -5189,9 +5342,9 @@ async def get_system_status():
                 "name": "Spatial Intelligence",
                 "status": "complete",
                 "services": {
-                    "rag": RAG_AVAILABLE,
-                    "valuation": VALUATION_AVAILABLE,
-                    "spatial_reasoning": SPATIAL_AVAILABLE
+                    "rag": get_rag_service_lazy() is not None,
+                    "valuation": get_valuation_model_lazy() is not None,
+                    "spatial_reasoning": get_spatial_service_lazy() is not None
                 }
             },
             "phase2": {
@@ -5200,7 +5353,7 @@ async def get_system_status():
                 "services": {
                     "intent_router": True,
                     "gis_orchestrator": True,
-                    "property_service": property_service is not None
+                    "property_service": get_property_service_lazy() is not None
                 }
             },
             "phase3": {
@@ -5216,10 +5369,10 @@ async def get_system_status():
                 "name": "Simulation & Storyboard",
                 "status": "complete",
                 "services": {
-                    "simulation_engine": SIMULATION_AVAILABLE,
-                    "narrative_generator": SIMULATION_AVAILABLE,
+                    "simulation_engine": get_simulation_engine_lazy() is not None,
+                    "narrative_generator": get_narrative_generator_lazy() is not None,
                     "3d_storyboard": True,
-                    "digital_twin": digital_twin is not None
+                    "digital_twin": get_digital_twin_lazy() is not None
                 }
             },
             "phase5": {
@@ -5228,7 +5381,7 @@ async def get_system_status():
                 "services": {
                     "credit_system": True,
                     "offline_tiles": True,
-                    "ml_models": VALUATION_AVAILABLE,
+                    "ml_models": get_valuation_model_lazy() is not None,
                     "security_hardening": True
                 }
             }
@@ -5237,11 +5390,11 @@ async def get_system_status():
             "3d_visualization": True,
             "property_search": True,
             "location_analysis": True,
-            "simulation": SIMULATION_AVAILABLE,
-            "storyboard": SIMULATION_AVAILABLE,
-            "digital_twin": digital_twin is not None,
+            "simulation": get_simulation_engine_lazy() is not None,
+            "storyboard": get_narrative_generator_lazy() is not None,
+            "digital_twin": get_digital_twin_lazy() is not None,
             "offline_mode": True,
-            "real_time_state_tracking": digital_twin is not None
+            "real_time_state_tracking": get_digital_twin_lazy() is not None
         },
         "api_endpoints": {
             "chat": "/api/chat",
@@ -5263,15 +5416,15 @@ async def phase1_status():
         "phase": 1,
         "services": {
             "rag": {
-                "available": RAG_AVAILABLE,
+                "available": get_rag_service_lazy() is not None,
                 "description": "Semantic search with Pinecone vector database"
             },
             "valuation": {
-                "available": VALUATION_AVAILABLE,
+                "available": get_valuation_model_lazy() is not None,
                 "description": "ML property valuation with spatial features"
             },
             "spatial_reasoning": {
-                "available": SPATIAL_AVAILABLE,
+                "available": get_spatial_service_lazy() is not None,
                 "description": "H3 spatial indexing and proximity analysis"
             }
         }
@@ -5389,7 +5542,7 @@ async def get_market_overview():
 @app.get("/api/city-intelligence/locality/{locality_name}")
 async def get_locality_profile(locality_name: str):
     """Get comprehensive locality personality profile."""
-    if not CITY_INTELLIGENCE_AVAILABLE:
+    if not get_city_intelligence_available():
         raise HTTPException(status_code=503, detail="City Intelligence not available")
     
     try:
@@ -5413,7 +5566,7 @@ async def get_locality_profile(locality_name: str):
 @app.get("/api/city-intelligence/localities")
 async def get_all_localities():
     """Get all available locality profiles."""
-    if not CITY_INTELLIGENCE_AVAILABLE:
+    if not get_city_intelligence_available():
         raise HTTPException(status_code=503, detail="City Intelligence not available")
     
     try:
@@ -5441,7 +5594,7 @@ async def get_all_localities():
 @app.get("/api/city-intelligence/compare")
 async def compare_localities(locality1: str, locality2: str):
     """Compare two localities across dimensions."""
-    if not CITY_INTELLIGENCE_AVAILABLE:
+    if not get_city_intelligence_available():
         raise HTTPException(status_code=503, detail="City Intelligence not available")
     
     try:
@@ -5460,7 +5613,7 @@ async def compare_localities(locality1: str, locality2: str):
 @app.get("/api/city-intelligence/timeline/{locality_name}")
 async def get_locality_timeline(locality_name: str):
     """Get evolution timeline for a locality."""
-    if not CITY_INTELLIGENCE_AVAILABLE:
+    if not get_city_intelligence_available():
         raise HTTPException(status_code=503, detail="City Intelligence not available")
     
     try:
@@ -5501,7 +5654,7 @@ async def get_locality_timeline(locality_name: str):
 @app.get("/api/city-intelligence/risk/{locality_name}")
 async def get_locality_risk(locality_name: str, lat: float = None, lng: float = None):
     """Get risk profile for a locality."""
-    if not CITY_INTELLIGENCE_AVAILABLE:
+    if not get_city_intelligence_available():
         raise HTTPException(status_code=503, detail="City Intelligence not available")
     
     try:
@@ -5537,7 +5690,7 @@ async def get_locality_risk(locality_name: str, lat: float = None, lng: float = 
 @app.post("/api/city-intelligence/reason")
 async def causal_reasoning(request: dict):
     """Perform causal reasoning about a scenario."""
-    if not CITY_INTELLIGENCE_AVAILABLE:
+    if not get_city_intelligence_available():
         raise HTTPException(status_code=503, detail="City Intelligence not available")
     
     try:
@@ -5575,7 +5728,7 @@ async def causal_reasoning(request: dict):
 @app.get("/api/city-intelligence/knowledge-graph/stats")
 async def get_knowledge_graph_stats():
     """Get knowledge graph statistics."""
-    if not CITY_INTELLIGENCE_AVAILABLE:
+    if not get_city_intelligence_available():
         raise HTTPException(status_code=503, detail="City Intelligence not available")
     
     try:
@@ -5589,7 +5742,7 @@ async def get_knowledge_graph_stats():
 @app.get("/api/city-intelligence/knowledge-graph/context/{locality_id}")
 async def get_locality_context(locality_id: str):
     """Get knowledge graph context for a locality."""
-    if not CITY_INTELLIGENCE_AVAILABLE:
+    if not get_city_intelligence_available():
         raise HTTPException(status_code=503, detail="City Intelligence not available")
     
     try:
@@ -5608,7 +5761,7 @@ async def get_locality_context(locality_id: str):
 @app.post("/api/city-intelligence/predict")
 async def create_prediction(request: dict):
     """Create a calibrated prediction."""
-    if not CITY_INTELLIGENCE_AVAILABLE:
+    if not get_city_intelligence_available():
         raise HTTPException(status_code=503, detail="City Intelligence not available")
     
     try:
@@ -5656,15 +5809,16 @@ async def create_prediction(request: dict):
 @app.get("/api/city-intelligence/status")
 async def get_city_intelligence_status():
     """Get City Intelligence Engine status."""
+    available = get_city_intelligence_available()
     return {
-        "available": CITY_INTELLIGENCE_AVAILABLE,
+        "available": available,
         "modules": {
-            "locality_personality": CITY_INTELLIGENCE_AVAILABLE,
-            "evolution_timeline": CITY_INTELLIGENCE_AVAILABLE,
-            "risk_indexes": CITY_INTELLIGENCE_AVAILABLE,
-            "knowledge_graph": CITY_INTELLIGENCE_AVAILABLE,
-            "causal_reasoning": CITY_INTELLIGENCE_AVAILABLE,
-            "prediction_schema": CITY_INTELLIGENCE_AVAILABLE,
+            "locality_personality": available,
+            "evolution_timeline": available,
+            "risk_indexes": available,
+            "knowledge_graph": available,
+            "causal_reasoning": available,
+            "prediction_schema": available,
         },
         "endpoints": [
             "/api/city-intelligence/locality/{name}",
@@ -5691,7 +5845,7 @@ async def generate_storyboard(request: StoryboardRequest):
     """Generate a cinematic storyboard for map storytelling."""
     try:
         # Get locality coordinates
-        model = get_locality_personality_model() if CITY_INTELLIGENCE_AVAILABLE else None
+        model = get_locality_personality_model() if get_city_intelligence_available() else None
         
         scenes = []
         localities_involved = []
@@ -5797,7 +5951,7 @@ async def get_investment_leaderboard(limit: int = 10):
     try:
         localities_data = []
         
-        if CITY_INTELLIGENCE_AVAILABLE:
+        if get_city_intelligence_available():
             model = get_locality_personality_model()
             risk_calc = get_risk_index_calculator()
             profiles = model.get_all_profiles()

@@ -1,0 +1,7 @@
+{
+  "provider": "local",
+  "openrouter_model": "mistralai/mistral-7b-instruct:free",
+  "local_url": "http://127.0.0.1:11434/v1/chat/completions",
+  "local_model": "glm-4.6:cloud",
+  "openrouter_api_key": "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"
+}

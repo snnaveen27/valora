@@ -36,6 +36,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const viewerRef = useRef(null)
   const loadedTilesRef = useRef(new Set())  // Track loaded tile IDs
   const tileEntitiesRef = useRef({})  // Map of tile_id -> entities[]
+  const tileCentersRef = useRef({})  // Map of tile_id -> {lat, lng} for distance-based eviction
   const cameraMoveTimeoutRef = useRef(null)
   const selectedBuildingEntityRef = useRef(null)  // Track currently highlighted building
   const keyDownHandlerRef = useRef(null) // Track key handler so we can remove it on cleanup
@@ -54,6 +55,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const [tilesLoaded, setTilesLoaded] = useState(0)
   const [clickRipple, setClickRipple] = useState(null)
   const [canGoBack, setCanGoBack] = useState(false)
+  
+  // Basemap toggle: 'osm', 'mapbox_street', 'mapbox_macro'
+  const [basemapType, setBasemapType] = useState('osm')
   
   // Enhanced layer visibility controls - buildings and shadows always on
   const [showBuildings, setShowBuildings] = useState(true)
@@ -557,6 +561,84 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     })
   }
 
+  // Switch basemap between OSM and Mapbox
+  const switchBasemap = async (type) => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    
+    console.log(`🔄 Switching to ${type} basemap...`)
+    
+    try {
+      let provider
+      
+      if (type === 'mapbox_street' || type === 'mapbox_macro') {
+        // Fetch config for Mapbox keys
+        const configResp = await fetch(`${API_BASE}/api/config`)
+        if (!configResp.ok) {
+          throw new Error('Failed to fetch Mapbox config')
+        }
+        const config = await configResp.json()
+        const mapboxKey =
+          type === 'mapbox_macro'
+            ? (config.mapbox_macro_api_key || config.mapbox_api_key)
+            : (config.mapbox_street_api_key || config.mapbox_api_key)
+        
+        if (!mapboxKey) {
+          console.warn('Mapbox key not found, falling back to OSM')
+          provider = new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' })
+          setBasemapType('osm')
+        } else {
+          const styleId = type === 'mapbox_macro' ? 'satellite-v9' : 'streets-v12'
+          provider = new Cesium.UrlTemplateImageryProvider({
+            url: `https://api.mapbox.com/styles/v1/mapbox/${styleId}/tiles/{z}/{x}/{y}?access_token=${mapboxKey}`,
+            credit: '© Mapbox'
+          })
+        }
+      } else {
+        // Default OSM
+        provider = new Cesium.OpenStreetMapImageryProvider({
+          url: 'https://tile.openstreetmap.org/'
+        })
+      }
+
+      if (!provider) {
+        throw new Error('No imagery provider created')
+      }
+
+      if (provider.readyPromise) {
+        await provider.readyPromise
+      }
+
+      const applyOsmFallback = () => {
+        try {
+          viewer.imageryLayers.removeAll(true)
+          const osmProvider = new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' })
+          viewer.imageryLayers.addImageryProvider(osmProvider)
+          setBasemapType('osm')
+        } catch (e) {
+          console.error('Failed to apply OSM fallback:', e)
+        }
+      }
+
+      if (provider.errorEvent && type !== 'osm') {
+        provider.errorEvent.addEventListener((err) => {
+          console.error(`Basemap imagery error for ${type}:`, err)
+          applyOsmFallback()
+        })
+      }
+
+      viewer.imageryLayers.removeAll(true)
+      viewer.imageryLayers.addImageryProvider(provider)
+      setBasemapType(type)
+    } catch (err) {
+      console.error(`Failed to switch to ${type} basemap:`, err)
+      // Fallback to OSM on error
+      const osmProvider = new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' })
+      viewer.imageryLayers.addImageryProvider(osmProvider)
+      setBasemapType('osm')
+    }
+  }
+
   const updateHeading = () => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed()) return
@@ -885,9 +967,21 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       
       viewer.entities.resumeEvents()
       
-      // Store entities for this tile (persistent - won't be removed)
+      // Store entities for this tile
       tileEntitiesRef.current[tileId] = entities
       loadedTilesRef.current.add(tileId)
+      
+      // Store tile center for distance-based eviction
+      if (entities.length > 0) {
+        const firstEntity = entities[0]
+        const props = firstEntity.properties
+        if (props && props.lat && props.lng) {
+          tileCentersRef.current[tileId] = {
+            lat: props.lat.getValue(Cesium.JulianDate.now()),
+            lng: props.lng.getValue(Cesium.JulianDate.now())
+          }
+        }
+      }
       
       return true
     } catch (err) {
@@ -927,6 +1021,53 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       min_lat: cameraLat - loadRadius,
       max_lng: cameraLng + loadRadius,
       max_lat: cameraLat + loadRadius
+    }
+
+    // RAM Optimization: Distance-based eviction - release buildings far from camera
+    const MAX_TILES_IN_MEMORY = 40
+    const loadRadiusKm = loadRadius * 111.0
+    const evictionDistanceKm = loadRadiusKm * 4
+    
+    // Calculate distance from camera to each tile center
+    const haversineDistance = (lat1, lng1, lat2, lng2) => {
+      const R = 6371 // Earth radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180
+      const dLng = (lng2 - lng1) * Math.PI / 180
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2)
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    }
+    
+    // Distance-based eviction: Remove tiles far from current camera position
+    const allTileIds = Array.from(loadedTilesRef.current)
+    const tilesWithDistance = allTileIds.map(id => {
+      const center = tileCentersRef.current[id]
+      if (!center) return { id, distance: Infinity }
+      const dist = haversineDistance(cameraLat, cameraLng, center.lat, center.lng)
+      return { id, distance: dist }
+    })
+    
+    // Sort by distance (farthest first) and evict tiles beyond eviction distance
+    tilesWithDistance.sort((a, b) => b.distance - a.distance)
+    
+    // Evict tiles that are too far OR if we have too many tiles
+    const tilesToEvict = tilesWithDistance.filter(t => 
+      t.distance > evictionDistanceKm || 
+      (loadedTilesRef.current.size > MAX_TILES_IN_MEMORY && t.distance > loadRadiusKm * 2)
+    )
+    
+    if (tilesToEvict.length > 0) {
+      tilesToEvict.forEach(({ id }) => {
+        const entities = tileEntitiesRef.current[id]
+        if (entities) {
+          entities.forEach(e => viewer.entities.remove(e))
+          delete tileEntitiesRef.current[id]
+        }
+        delete tileCentersRef.current[id]
+        loadedTilesRef.current.delete(id)
+      })
+      console.log(`🧹 Released ${tilesToEvict.length} distant tiles from RAM (camera moved)`)
     }
 
     try {
@@ -1221,8 +1362,24 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           imageryProvider: false,
           terrainProvider: new Cesium.EllipsoidTerrainProvider(),
           skyBox: false,
-          skyAtmosphere: false
+          skyAtmosphere: false,
+          contextOptions: {
+            webgl: {
+              preserveDrawingBuffer: false,
+              failIfMajorPerformanceCaveat: false
+            }
+          }
         })
+
+        // Memory optimization: Reduce tile cache size and set maximumScreenSpaceError
+        viewer.scene.globe.tileCacheSize = 100 // Lower from default 1000 to save RAM
+        viewer.scene.debugShowFramesPerSecond = false
+        viewer.scene.requestRenderMode = true // Render only when needed
+        viewer.scene.maximumRenderTimeChange = Infinity
+        
+        // Aggressive memory cleanup for entities
+        viewer.entities.suspendEvents()
+        viewer.entities.resumeEvents()
 
         viewerRef.current = viewer
 
@@ -1918,6 +2075,37 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
             title={is3DMode ? 'Switch to 2D' : 'Switch to 3D'}
           >
             {is3DMode ? '2D' : '3D'}
+          </button>
+        </div>
+
+        {/* Basemap Toggles */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden flex flex-col p-1 gap-1">
+          <button
+            onClick={() => switchBasemap('osm')}
+            className={`w-9 h-9 flex items-center justify-center rounded transition-colors text-[10px] font-bold ${
+              basemapType === 'osm' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+            }`}
+            title="OpenStreetMap"
+          >
+            OSM
+          </button>
+          <button
+            onClick={() => switchBasemap('mapbox_street')}
+            className={`w-9 h-9 flex items-center justify-center rounded transition-colors text-[10px] font-bold ${
+              basemapType === 'mapbox_street' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+            }`}
+            title="Mapbox Streets (Street API token)"
+          >
+            MBS
+          </button>
+          <button
+            onClick={() => switchBasemap('mapbox_macro')}
+            className={`w-9 h-9 flex items-center justify-center rounded transition-colors text-[10px] font-bold ${
+              basemapType === 'mapbox_macro' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+            }`}
+            title="Mapbox Streets (Macro API token)"
+          >
+            MBM
           </button>
         </div>
 
