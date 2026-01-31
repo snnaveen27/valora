@@ -5,8 +5,7 @@ import '../styles/cesium.css'
 import DrawingTools from '../components/DrawingTools'
 import { API_URL } from '../apiConfig'
 
-// Use Vite-defined CESIUM_BASE_URL (handles /valora/cesium/ for production)
-window.CESIUM_BASE_URL = typeof CESIUM_BASE_URL !== 'undefined' ? CESIUM_BASE_URL : '/cesium/'
+window.CESIUM_BASE_URL = '/cesium/'
 
 // Backend API for local 3D buildings
 const API_BASE = API_URL
@@ -38,7 +37,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const viewerRef = useRef(null)
   const loadedTilesRef = useRef(new Set())  // Track loaded tile IDs
   const tileEntitiesRef = useRef({})  // Map of tile_id -> entities[]
-  const tileCentersRef = useRef({})  // Map of tile_id -> {lat, lng} for distance-based eviction
   const cameraMoveTimeoutRef = useRef(null)
   const selectedBuildingEntityRef = useRef(null)  // Track currently highlighted building
   const keyDownHandlerRef = useRef(null) // Track key handler so we can remove it on cleanup
@@ -58,9 +56,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const [clickRipple, setClickRipple] = useState(null)
   const [canGoBack, setCanGoBack] = useState(false)
   
-  // Basemap toggle: 'osm', 'mapbox_street', 'mapbox_macro'
-  const [basemapType, setBasemapType] = useState('osm')
-  
   // Enhanced layer visibility controls - buildings and shadows always on
   const [showBuildings, setShowBuildings] = useState(true)
   const [showShadows, setShowShadows] = useState(true)
@@ -69,6 +64,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   
   // Real-time clock state
   const [currentTime, setCurrentTime] = useState(new Date())
+  
+  // Basemap toggle: 'osm', 'mapbox_streets', 'mapbox_satellite', 'mapbox_satellite_streets', 'mapbox_dark', 'mapbox_light', 'mapbox_outdoors'
+  const [basemapType, setBasemapType] = useState('osm')
   
   // Drawing tools state
   const [isDrawing, setIsDrawing] = useState(false)
@@ -563,7 +561,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     })
   }
 
-  // Switch basemap between OSM and Mapbox
+  // Switch basemap between OSM and Mapbox styles
   const switchBasemap = async (type) => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed()) return
@@ -573,24 +571,52 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     try {
       let provider
       
-      if (type === 'mapbox_street' || type === 'mapbox_macro') {
+      if (type.startsWith('mapbox_')) {
         // Fetch config for Mapbox keys
         const configResp = await fetch(`${API_BASE}/api/config`)
         if (!configResp.ok) {
           throw new Error('Failed to fetch Mapbox config')
         }
         const config = await configResp.json()
-        const mapboxKey =
-          type === 'mapbox_macro'
-            ? (config.mapbox_macro_api_key || config.mapbox_api_key)
-            : (config.mapbox_street_api_key || config.mapbox_api_key)
+        
+        // Determine which API key to use and which style
+        let mapboxKey = config.mapbox_api_key
+        let styleId
+        
+        switch(type) {
+          case 'mapbox_streets':
+            mapboxKey = config.mapbox_street_api_key || config.mapbox_api_key
+            styleId = 'streets-v12'
+            break
+          case 'mapbox_satellite':
+            mapboxKey = config.mapbox_macro_api_key || config.mapbox_api_key
+            styleId = 'satellite-v9'
+            break
+          case 'mapbox_satellite_streets':
+            mapboxKey = config.mapbox_macro_api_key || config.mapbox_api_key
+            styleId = 'satellite-streets-v12'
+            break
+          case 'mapbox_dark':
+            mapboxKey = config.mapbox_api_key
+            styleId = 'dark-v11'
+            break
+          case 'mapbox_light':
+            mapboxKey = config.mapbox_api_key
+            styleId = 'light-v11'
+            break
+          case 'mapbox_outdoors':
+            mapboxKey = config.mapbox_api_key
+            styleId = 'outdoors-v12'
+            break
+          default:
+            styleId = 'streets-v12'
+        }
         
         if (!mapboxKey) {
           console.warn('Mapbox key not found, falling back to OSM')
           provider = new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' })
           setBasemapType('osm')
         } else {
-          const styleId = type === 'mapbox_macro' ? 'satellite-v9' : 'streets-v12'
           provider = new Cesium.UrlTemplateImageryProvider({
             url: `https://api.mapbox.com/styles/v1/mapbox/${styleId}/tiles/{z}/{x}/{y}?access_token=${mapboxKey}`,
             credit: '© Mapbox'
@@ -632,6 +658,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       viewer.imageryLayers.removeAll(true)
       viewer.imageryLayers.addImageryProvider(provider)
       setBasemapType(type)
+      console.log(`✅ Switched to ${type} basemap`)
     } catch (err) {
       console.error(`Failed to switch to ${type} basemap:`, err)
       // Fallback to OSM on error
@@ -969,21 +996,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       
       viewer.entities.resumeEvents()
       
-      // Store entities for this tile
+      // Store entities for this tile (persistent - won't be removed)
       tileEntitiesRef.current[tileId] = entities
       loadedTilesRef.current.add(tileId)
-      
-      // Store tile center for distance-based eviction
-      if (entities.length > 0) {
-        const firstEntity = entities[0]
-        const props = firstEntity.properties
-        if (props && props.lat && props.lng) {
-          tileCentersRef.current[tileId] = {
-            lat: props.lat.getValue(Cesium.JulianDate.now()),
-            lng: props.lng.getValue(Cesium.JulianDate.now())
-          }
-        }
-      }
       
       return true
     } catch (err) {
@@ -1023,53 +1038,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       min_lat: cameraLat - loadRadius,
       max_lng: cameraLng + loadRadius,
       max_lat: cameraLat + loadRadius
-    }
-
-    // RAM Optimization: Distance-based eviction - release buildings far from camera
-    const MAX_TILES_IN_MEMORY = 40
-    const loadRadiusKm = loadRadius * 111.0
-    const evictionDistanceKm = loadRadiusKm * 4
-    
-    // Calculate distance from camera to each tile center
-    const haversineDistance = (lat1, lng1, lat2, lng2) => {
-      const R = 6371 // Earth radius in km
-      const dLat = (lat2 - lat1) * Math.PI / 180
-      const dLng = (lng2 - lng1) * Math.PI / 180
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLng/2) * Math.sin(dLng/2)
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    }
-    
-    // Distance-based eviction: Remove tiles far from current camera position
-    const allTileIds = Array.from(loadedTilesRef.current)
-    const tilesWithDistance = allTileIds.map(id => {
-      const center = tileCentersRef.current[id]
-      if (!center) return { id, distance: Infinity }
-      const dist = haversineDistance(cameraLat, cameraLng, center.lat, center.lng)
-      return { id, distance: dist }
-    })
-    
-    // Sort by distance (farthest first) and evict tiles beyond eviction distance
-    tilesWithDistance.sort((a, b) => b.distance - a.distance)
-    
-    // Evict tiles that are too far OR if we have too many tiles
-    const tilesToEvict = tilesWithDistance.filter(t => 
-      t.distance > evictionDistanceKm || 
-      (loadedTilesRef.current.size > MAX_TILES_IN_MEMORY && t.distance > loadRadiusKm * 2)
-    )
-    
-    if (tilesToEvict.length > 0) {
-      tilesToEvict.forEach(({ id }) => {
-        const entities = tileEntitiesRef.current[id]
-        if (entities) {
-          entities.forEach(e => viewer.entities.remove(e))
-          delete tileEntitiesRef.current[id]
-        }
-        delete tileCentersRef.current[id]
-        loadedTilesRef.current.delete(id)
-      })
-      console.log(`🧹 Released ${tilesToEvict.length} distant tiles from RAM (camera moved)`)
     }
 
     try {
@@ -1362,26 +1330,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           shadows: true,
           shouldAnimate: true,
           imageryProvider: false,
-          terrainProvider: false, // No terrain provider to prevent network requests
+          terrainProvider: new Cesium.EllipsoidTerrainProvider(),
           skyBox: false,
-          skyAtmosphere: false,
-          contextOptions: {
-            webgl: {
-              preserveDrawingBuffer: false,
-              failIfMajorPerformanceCaveat: false
-            }
-          }
+          skyAtmosphere: false
         })
-
-        // Memory optimization: Reduce tile cache size and set maximumScreenSpaceError
-        viewer.scene.globe.tileCacheSize = 100 // Lower from default 1000 to save RAM
-        viewer.scene.debugShowFramesPerSecond = false
-        viewer.scene.requestRenderMode = true // Render only when needed
-        viewer.scene.maximumRenderTimeChange = Infinity
-        
-        // Aggressive memory cleanup for entities
-        viewer.entities.suspendEvents()
-        viewer.entities.resumeEvents()
 
         viewerRef.current = viewer
 
@@ -2011,19 +1963,90 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         </div>
       )}
 
-      {/* Drawing Tools - Top Left */}
-      <DrawingTools
-        isDrawing={isDrawing}
-        drawMode={drawMode}
-        onStartPolygon={startPolygonDraw}
-        onStartBuffer={startBufferDraw}
-        onClearDrawing={clearDrawings}
-        onFinishDrawing={drawMode === 'polygon' ? finishPolygonDraw : () => {}}
-        onCancelDrawing={cancelDrawing}
-        bufferRadius={bufferRadius}
-        onBufferRadiusChange={setBufferRadius}
-        polygonPoints={polygonPoints.length}
-      />
+      {/* Basemap Selector - Top Center Bar */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40">
+        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 px-2 py-1.5 flex items-center gap-1">
+          <button
+            onClick={() => switchBasemap('osm')}
+            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
+              basemapType === 'osm' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
+            }`}
+            title="OpenStreetMap"
+          >
+            Street Map
+          </button>
+          <button
+            onClick={() => switchBasemap('mapbox_streets')}
+            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
+              basemapType === 'mapbox_streets' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Mapbox Streets"
+          >
+            Streets
+          </button>
+          <button
+            onClick={() => switchBasemap('mapbox_satellite')}
+            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
+              basemapType === 'mapbox_satellite' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Mapbox Satellite Imagery"
+          >
+            Satellite
+          </button>
+          <button
+            onClick={() => switchBasemap('mapbox_satellite_streets')}
+            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
+              basemapType === 'mapbox_satellite_streets' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Mapbox Satellite with Street Labels"
+          >
+            Hybrid
+          </button>
+          <button
+            onClick={() => switchBasemap('mapbox_dark')}
+            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
+              basemapType === 'mapbox_dark' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Mapbox Dark Theme"
+          >
+            Dark
+          </button>
+          <button
+            onClick={() => switchBasemap('mapbox_light')}
+            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
+              basemapType === 'mapbox_light' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Mapbox Light Theme"
+          >
+            Light
+          </button>
+          <button
+            onClick={() => switchBasemap('mapbox_outdoors')}
+            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
+              basemapType === 'mapbox_outdoors' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Mapbox Outdoors with Terrain"
+          >
+            Outdoors
+          </button>
+        </div>
+      </div>
+
+      {/* Drawing Tools - Bottom Left */}
+      <div className="absolute bottom-4 left-4 z-40">
+        <DrawingTools
+          isDrawing={isDrawing}
+          drawMode={drawMode}
+          onStartPolygon={startPolygonDraw}
+          onStartBuffer={startBufferDraw}
+          onClearDrawing={clearDrawings}
+          onFinishDrawing={drawMode === 'polygon' ? finishPolygonDraw : () => {}}
+          onCancelDrawing={cancelDrawing}
+          bufferRadius={bufferRadius}
+          onBufferRadiusChange={setBufferRadius}
+          polygonPoints={polygonPoints.length}
+        />
+      </div>
 
       {/* Navigation Controls - Top Right */}
       <div className="absolute top-4 right-4 z-40 flex flex-col gap-2">
@@ -2089,37 +2112,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
             title={is3DMode ? 'Switch to 2D' : 'Switch to 3D'}
           >
             {is3DMode ? '2D' : '3D'}
-          </button>
-        </div>
-
-        {/* Basemap Toggles */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden flex flex-col p-1 gap-1">
-          <button
-            onClick={() => switchBasemap('osm')}
-            className={`w-9 h-9 flex items-center justify-center rounded transition-colors text-[10px] font-bold ${
-              basemapType === 'osm' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
-            }`}
-            title="OpenStreetMap"
-          >
-            OSM
-          </button>
-          <button
-            onClick={() => switchBasemap('mapbox_street')}
-            className={`w-9 h-9 flex items-center justify-center rounded transition-colors text-[10px] font-bold ${
-              basemapType === 'mapbox_street' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
-            }`}
-            title="Mapbox Streets (Street API token)"
-          >
-            MBS
-          </button>
-          <button
-            onClick={() => switchBasemap('mapbox_macro')}
-            className={`w-9 h-9 flex items-center justify-center rounded transition-colors text-[10px] font-bold ${
-              basemapType === 'mapbox_macro' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
-            }`}
-            title="Mapbox Streets (Macro API token)"
-          >
-            MBM
           </button>
         </div>
 
