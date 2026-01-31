@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: 'valora-backend',
-    script: 'python3',
+    script: '/home/ubuntu/valora/backend/venv/bin/python',
     args: '-m uvicorn server:app --app-dir backend --port 8000 --host 0.0.0.0',
     cwd: '/home/ubuntu/valora',
     instances: 1,
