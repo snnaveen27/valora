@@ -82,6 +82,9 @@ backend/config/pricing_config.json
 backend/admin_config.json
 backend/llm_config.json
 
+# Admin-configurable LLM config (must never be committed; may contain API keys)
+backend/routes/llm_config.json
+
 # Training data (privacy-sensitive)
 backend/training_data/*.jsonl
 !backend/training_data/.gitkeep
