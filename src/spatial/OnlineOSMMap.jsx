@@ -1220,7 +1220,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           shadows: true,
           shouldAnimate: true,
           imageryProvider: false,
-          terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+          terrainProvider: false, // No terrain provider to prevent network requests
           skyBox: false,
           skyAtmosphere: false
         })
