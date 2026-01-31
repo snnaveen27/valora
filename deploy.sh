@@ -8,6 +8,12 @@ set -e  # Exit on any error
 echo "🚀 Starting Valora Deployment..."
 echo "================================"
 
+SCRIPT_PATH="$0"
+SCRIPT_SHA_BEFORE=""
+if command -v sha256sum >/dev/null 2>&1; then
+  SCRIPT_SHA_BEFORE=$(sha256sum "$SCRIPT_PATH" | awk '{print $1}')
+fi
+
 # Navigate to project directory
 cd /home/ubuntu/valora
 
@@ -28,6 +34,17 @@ git stash >/dev/null 2>&1 || true
 # Pull latest code
 echo "⬇️  Pulling latest code from GitHub..."
 git pull origin main
+
+# If this script changed after pulling, re-exec to ensure we run the latest logic.
+# Guard against infinite recursion.
+if [ -z "${VALORA_DEPLOY_REEXEC:-}" ] && [ -n "$SCRIPT_SHA_BEFORE" ] && command -v sha256sum >/dev/null 2>&1; then
+  SCRIPT_SHA_AFTER=$(sha256sum "$SCRIPT_PATH" | awk '{print $1}')
+  if [ "$SCRIPT_SHA_BEFORE" != "$SCRIPT_SHA_AFTER" ]; then
+    echo "🔁 deploy.sh updated by git pull; re-running latest script..."
+    export VALORA_DEPLOY_REEXEC=1
+    exec "$SCRIPT_PATH"
+  fi
+fi
 
 # Build frontend
 echo "🔨 Building frontend..."
