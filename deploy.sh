@@ -44,20 +44,32 @@ pm2 start ecosystem.config.cjs
 # Save PM2 configuration
 pm2 save
 
-# Wait for backend to start
+# Wait for backend to start with retry logic
 echo "⏳ Waiting for backend to start..."
-sleep 3
+max_retries=30
+retry_count=0
+while [ $retry_count -lt $max_retries ]; do
+  if curl -s -f http://127.0.0.1:8000/health > /dev/null 2>&1; then
+    echo "✅ Backend is healthy!"
+    break
+  fi
+  retry_count=$((retry_count + 1))
+  if [ $retry_count -lt $max_retries ]; then
+    echo "Waiting for backend... ($retry_count/$max_retries)"
+    sleep 3
+  fi
+done
+
+if [ $retry_count -eq $max_retries ]; then
+  echo "⚠️  Backend health check timeout. Check logs:"
+  pm2 logs valora-backend --lines 20 --nostream
+fi
 
 # Show status
 echo ""
 echo "✅ Deployment Complete!"
 echo "======================="
 pm2 list
-
-# Test backend health
-echo ""
-echo "🏥 Testing backend health..."
-curl -f http://localhost:8000/api/health && echo "✅ Backend is healthy!" || echo "⚠️  Backend health check failed"
 
 echo ""
 echo "📊 View logs with: pm2 logs valora-backend"

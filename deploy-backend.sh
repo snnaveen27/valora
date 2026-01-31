@@ -44,8 +44,8 @@ pm2 status
 
 echo ""
 echo "=== Backend Health Check ==="
-sleep 3
-curl -f http://localhost:8000/api/health || echo "⚠️  Backend health check failed"
+sleep 5
+curl -f http://127.0.0.1:8000/health || echo "⚠️  Backend health check failed"
 
 echo ""
 echo "=== Deployment Complete ==="

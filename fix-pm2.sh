@@ -35,7 +35,7 @@ pm2 status
 echo ""
 echo "=== Testing Backend Health ==="
 sleep 5
-curl -f http://localhost:8000/api/health || echo "⚠️  Health check failed"
+curl -f http://127.0.0.1:8000/health || echo "⚠️  Health check failed"
 
 echo ""
 echo "=== Fix Complete ==="
