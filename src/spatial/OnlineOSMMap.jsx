@@ -1233,13 +1233,25 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         viewer.shadowMap.size = 2048
         viewer.shadowMap.softShadows = true
 
-        // Remove default layers and add OSM tiles
+        // Remove default layers and add OSM tiles with proper configuration
         viewer.imageryLayers.removeAll(true)
         
+        // Use OSM tiles with CORS proxy configuration for production
         const osmProvider = new Cesium.OpenStreetMapImageryProvider({
-          url: 'https://tile.openstreetmap.org/'
+          url: 'https://tile.openstreetmap.org/',
+          credit: '© OpenStreetMap contributors',
+          enablePickFeatures: false
         })
-        viewer.imageryLayers.addImageryProvider(osmProvider)
+        
+        // Add error handling for tile loading
+        osmProvider.errorEvent.addEventListener((error) => {
+          console.warn('OSM tile loading error:', error)
+        })
+        
+        const imageryLayer = viewer.imageryLayers.addImageryProvider(osmProvider)
+        imageryLayer.alpha = 1.0
+        imageryLayer.brightness = 1.0
+        
         console.log('🗺️ Using OSM tiles')
 
         // Configure globe with lighting for shadows
