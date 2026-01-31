@@ -172,41 +172,64 @@ print("[OK] Payment routes initialized (Razorpay + Cashfree)")
 
 # CORS for frontend
 _default_origins = [
+    # Local development
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:3002",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
+    # Production domains
+    "https://3.109.34.1.sslip.io",
+    "http://3.109.34.1.sslip.io",
 ]
 _origins_env = os.getenv("FRONTEND_ORIGINS", "")
-_allowed_origins = [o.strip() for o in _origins_env.split(",") if o.strip()] or _default_origins
+if _origins_env:
+    _allowed_origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
+else:
+    _allowed_origins = _default_origins
 
 # Security: Validate origins to prevent CORS bypass
 _validated_origins = []
 for origin in _allowed_origins:
-    if origin.startswith(("http://localhost:", "http://127.0.0.1:", "https://")):
+    # Allow localhost, 127.0.0.1, and HTTPS origins
+    if origin.startswith(("http://localhost:", "http://127.0.0.1:", "https://", "http://3.")):
         _validated_origins.append(origin)
     else:
         print(f"[WARNING] Rejected invalid origin: {origin}")
+
+print(f"[OK] CORS configured for origins: {_validated_origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_validated_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],  # Explicit headers for security
     max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 @app.middleware("http")
-async def request_timing_middleware(request: Request, call_next):
+async def security_headers_middleware(request: Request, call_next):
+    """Add security headers to all responses"""
     start = time.perf_counter()
     response = await call_next(request)
     elapsed_ms = (time.perf_counter() - start) * 1000.0
+    
+    # Timing header
     if os.getenv("LOG_REQUEST_TIMINGS", "1") == "1":
         print(f"{request.method} {request.url.path} {response.status_code} {elapsed_ms:.1f}ms")
     response.headers["X-Response-Time-Ms"] = f"{elapsed_ms:.1f}"
+    
+    # Security headers to prevent common attacks
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    
+    # Remove server identification headers
+    response.headers.pop("server", None)
+    
     return response
 
 @app.on_event("startup")

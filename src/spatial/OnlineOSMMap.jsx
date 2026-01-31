@@ -5,7 +5,8 @@ import '../styles/cesium.css'
 import DrawingTools from '../components/DrawingTools'
 import { API_URL } from '../apiConfig'
 
-window.CESIUM_BASE_URL = '/cesium/'
+// Use Vite-defined CESIUM_BASE_URL (handles /valora/cesium/ for production)
+window.CESIUM_BASE_URL = typeof CESIUM_BASE_URL !== 'undefined' ? CESIUM_BASE_URL : '/cesium/'
 
 // Backend API for local 3D buildings
 const API_BASE = API_URL
