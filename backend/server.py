@@ -2292,7 +2292,7 @@ async def chat_stream(request: ChatRequest):
         await asyncio.sleep(0.01)
 
         try:
-            gis_orchestrator = get_gis_orchestrator()
+            gis_orchestrator = get_gis_orchestrator_lazy()
             intent = IntentRouter.classify(
                 user_query,
                 has_building=bool((request.context or {}).get('selectedBuilding')),
