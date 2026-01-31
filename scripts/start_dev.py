@@ -65,6 +65,24 @@ def main():
         print("   - Backend API: http://localhost:8000")
         print("   - Frontend: http://localhost:3000 (starting...)")
         print("\nPress Ctrl+C to stop all services")
+        try:
+            while True:
+                exit_code = backend_process.poll()
+                if exit_code is not None:
+                    print(f"\nBackend process exited with code: {exit_code}")
+                    sys.exit(exit_code)
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\nStopping backend...")
+            try:
+                backend_process.terminate()
+                time.sleep(1)
+            except Exception:
+                pass
+            try:
+                backend_process.kill()
+            except Exception:
+                pass
     else:
         print("\nERROR: Failed to start services")
         sys.exit(1)
