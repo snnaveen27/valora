@@ -11,9 +11,19 @@ echo "================================"
 # Navigate to project directory
 cd /home/ubuntu/valora
 
-# Stash any local changes
+# If ecosystem.config.cjs exists as an untracked file, it will block git pull.
+# Backup it so the tracked version from GitHub can be pulled.
+if [ -f "ecosystem.config.cjs" ]; then
+  if ! git ls-files --error-unmatch "ecosystem.config.cjs" >/dev/null 2>&1; then
+    ts=$(date +"%Y%m%d-%H%M%S")
+    echo "📦 Found untracked ecosystem.config.cjs - backing up to ecosystem.config.cjs.bak.${ts}"
+    mv "ecosystem.config.cjs" "ecosystem.config.cjs.bak.${ts}"
+  fi
+fi
+
+# Stash any local changes (ignore if nothing to stash)
 echo "📦 Stashing local changes..."
-git stash
+git stash >/dev/null 2>&1 || true
 
 # Pull latest code
 echo "⬇️  Pulling latest code from GitHub..."
