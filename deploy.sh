@@ -29,7 +29,7 @@ pm2 delete valora-backend 2>/dev/null || true
 
 # Start backend with ecosystem config
 echo "🚀 Starting backend..."
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 
 # Save PM2 configuration
 pm2 save
