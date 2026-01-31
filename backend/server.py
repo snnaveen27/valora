@@ -66,6 +66,17 @@ except Exception as e:
     print(f"[WARNING] Property service not available: {e}")
     property_service = None
 
+# Import and initialize property image service (for AI training)
+try:
+    from services.property_image_service import get_image_service
+    image_service = get_image_service()
+    IMAGE_SERVICE_AVAILABLE = True
+    print(f"[OK] Property image service initialized ({len(image_service.training_data)} images)")
+except Exception as e:
+    print(f"[WARNING] Property image service not available: {e}")
+    image_service = None
+    IMAGE_SERVICE_AVAILABLE = False
+
 # Phase 1: Import and initialize RAG, Valuation, and Spatial Reasoning services
 data_dir = Path(__file__).parent.parent / 'src' / 'data'
 
@@ -354,20 +365,20 @@ BANGALORE_BBOX = {
 }
 
 # LLM Configuration (supports OpenRouter and Local LLM)
+# Default: OpenRouter with DeepSeek V3.1 (671B) - best value for production
 LLM_CONFIG_FILE = Path(__file__).parent / 'llm_config.json'
 
 def load_llm_config():
     """Load LLM config from file or return defaults."""
     defaults = {
-        'provider': 'local',  # 'openrouter' or 'local'
+        'provider': 'openrouter',  # 'openrouter' or 'local' - default to cloud for production
         'openrouter_api_key': os.getenv('OPENROUTER_API_KEY', ''),
-        'openrouter_model': os.getenv('OPENROUTER_MODEL', 'meta-llama/llama-3.2-3b-instruct:free'),
+        'openrouter_model': os.getenv('OPENROUTER_MODEL', 'deepseek/deepseek-chat'),  # DeepSeek V3.2 (671B)
+        'openrouter_model_reasoning': os.getenv('OPENROUTER_MODEL_REASONING', 'deepseek/deepseek-reasoner'),  # Deep analysis
+        'openrouter_model_vision': os.getenv('OPENROUTER_MODEL_VISION', 'qwen/qwen2.5-vl-72b-instruct'),
         'local_url': os.getenv('LOCAL_LLM_URL', 'http://127.0.0.1:11434/v1/chat/completions'),
-        # Multi-model config for different use cases
-        'local_model': os.getenv('LOCAL_LLM_MODEL', 'qwen3-vl:8b'),  # Primary chat (best quality)
-        'local_model_fast': os.getenv('LOCAL_LLM_MODEL_FAST', 'llama3.2'),  # Quick responses
-        'local_model_reasoning': os.getenv('LOCAL_LLM_MODEL_REASONING', 'deepseek-r1:8b'),  # Simulation/reasoning
-        'active_model_type': 'primary',  # 'primary', 'fast', or 'reasoning'
+        'local_model': os.getenv('LOCAL_LLM_MODEL', 'llama3.2'),  # Fallback local model
+        'active_model_type': 'primary',  # 'primary', 'reasoning', or 'vision'
     }
     if LLM_CONFIG_FILE.exists():
         try:
@@ -394,9 +405,9 @@ print(f"[OK] LLM Provider: {llm_config['provider']}")
 
 # Legacy env vars for compatibility
 OPENROUTER_API_KEY = llm_config.get('openrouter_api_key') or os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = llm_config.get('openrouter_model', "meta-llama/llama-3.2-3b-instruct:free")
-OPENROUTER_MODEL_REASONING = os.getenv("OPENROUTER_MODEL_REASONING", "meta-llama/llama-3.2-3b-instruct:free")
-OPENROUTER_MODEL_VISION = os.getenv("OPENROUTER_MODEL_VISION", "qwen/qwen2.5-vl-7b-instruct:free")
+OPENROUTER_MODEL = llm_config.get('openrouter_model', "deepseek/deepseek-chat")  # DeepSeek V3.2 (671B)
+OPENROUTER_MODEL_REASONING = llm_config.get('openrouter_model_reasoning', "deepseek/deepseek-reasoner")
+OPENROUTER_MODEL_VISION = llm_config.get('openrouter_model_vision', "qwen/qwen2.5-vl-72b-instruct")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Mapbox configuration
@@ -2190,12 +2201,7 @@ async def chat_stream(request: ChatRequest):
             )
 
             # Reuse the same system prompt construction as /api/chat
-            system_prompt = """You are Valora AI, a city intelligence assistant for Bangalore real estate.
-
-CRITICAL: You MUST base your answer ONLY on the grounded facts provided below.
-- Do not invent metrics, prices, scores, counts, or POIs.
-- If something is unknown, say so.
-"""
+            system_prompt = gis_orchestrator.build_system_prompt(intent)
 
             viewport_context = ""
             viewport = (request.context or {}).get('viewport')
@@ -2239,7 +2245,7 @@ CRITICAL: You MUST base your answer ONLY on the grounded facts provided below.
         
         try:
             async with httpx.AsyncClient(timeout=180.0) as client:
-                model_name = current_llm_config.get('local_model', 'qwen3-vl:8b')
+                model_name = current_llm_config.get('local_model', 'llama3.2')
                 local_url = current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions')
                 
                 # For OpenRouter, use non-streaming (they don't support SSE well for free models)
@@ -2254,7 +2260,7 @@ CRITICAL: You MUST base your answer ONLY on the grounded facts provided below.
                             "X-Title": "Valora AI"
                         },
                         json={
-                            "model": current_llm_config.get('openrouter_model', 'meta-llama/llama-3.3-70b-instruct:free'),
+                            "model": current_llm_config.get('openrouter_model', OPENROUTER_MODEL),
                             "messages": messages,
                             "temperature": 0.5,
                             "max_tokens": 600
@@ -2808,6 +2814,83 @@ async def get_property_categories():
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Categories error: {str(e)}")
+
+# ============== PROPERTY IMAGE ENDPOINTS (AI Training) ==============
+
+@app.get("/api/images/stats")
+async def get_image_stats():
+    """Get statistics about downloaded property images."""
+    if not IMAGE_SERVICE_AVAILABLE:
+        return {"available": False, "message": "Image service not initialized"}
+    return {"available": True, **image_service.get_stats()}
+
+@app.get("/api/images/property/{property_id}")
+async def get_property_images(property_id: str):
+    """Get all images for a specific property."""
+    if not IMAGE_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Image service not available")
+    images = image_service.get_images_for_property(property_id)
+    return {"property_id": property_id, "count": len(images), "images": images}
+
+@app.get("/api/images/locality/{locality}")
+async def get_locality_images(locality: str, limit: int = 10):
+    """Get images from a specific locality."""
+    if not IMAGE_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Image service not available")
+    images = image_service.get_images_by_locality(locality, limit)
+    return {"locality": locality, "count": len(images), "images": images}
+
+@app.get("/api/images/nearby")
+async def get_nearby_images(lat: float, lng: float, radius_km: float = 2.0, limit: int = 10):
+    """Get property images near a location."""
+    if not IMAGE_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Image service not available")
+    images = image_service.get_images_near_location(lat, lng, radius_km, limit)
+    return {"location": {"lat": lat, "lng": lng}, "radius_km": radius_km, "count": len(images), "images": images}
+
+@app.get("/api/images/training/batch")
+async def get_training_batch(batch_size: int = 32, property_type: str = None, listing_type: str = None):
+    """Get a batch of training data with optional filters."""
+    if not IMAGE_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Image service not available")
+    batch = image_service.get_training_batch(batch_size, property_type, listing_type)
+    return {"batch_size": len(batch), "data": batch}
+
+@app.get("/api/images/training/vl-format")
+async def get_vl_training_data():
+    """Get training data in Vision-Language format (for Qwen3-VL)."""
+    if not IMAGE_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Image service not available")
+    vl_data = image_service.prepare_vl_training_data()
+    return {"format": "vision-language", "count": len(vl_data), "sample": vl_data[:5] if vl_data else []}
+
+@app.post("/api/images/training/export")
+async def export_training_data():
+    """Export training data to file for model fine-tuning."""
+    if not IMAGE_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Image service not available")
+    output_path = image_service.export_for_training()
+    return {"success": True, "path": str(output_path), "count": len(image_service.training_data)}
+
+@app.get("/api/images/file/{property_id}/{filename}")
+async def serve_property_image(property_id: str, filename: str):
+    """Serve a property image file."""
+    if not IMAGE_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Image service not available")
+    
+    from fastapi.responses import FileResponse
+    image_path = image_service.images_dir / "by_property" / property_id / filename
+    
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    media_type = "image/jpeg"
+    if filename.endswith(".png"):
+        media_type = "image/png"
+    elif filename.endswith(".webp"):
+        media_type = "image/webp"
+    
+    return FileResponse(image_path, media_type=media_type)
 
 # ============== PHASE 1: SPATIAL REASONING ENDPOINTS ==============
 

@@ -124,7 +124,7 @@ class Counterfactual3DEngine:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+            db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
         self.db_path = str(db_path)
         
         # Lazy-load engines
@@ -190,7 +190,7 @@ class Counterfactual3DEngine:
             radius_deg = radius_m / 111000
             
             cursor.execute("""
-                SELECT id, title, latitude, longitude, price, bedrooms, covered_area, property_type
+                SELECT id, title, latitude, longitude, price, bedrooms, total_area_sqft, property_type
                 FROM properties
                 WHERE latitude BETWEEN ? AND ?
                 AND longitude BETWEEN ? AND ?
@@ -208,7 +208,7 @@ class Counterfactual3DEngine:
                         'lng': row['longitude'],
                         'price': row['price'],
                         'bedrooms': row['bedrooms'],
-                        'area': row['covered_area'],
+                        'area': row['total_area_sqft'],
                         'type': row['property_type'],
                         'distance': dist
                     })

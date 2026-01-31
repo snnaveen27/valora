@@ -144,7 +144,7 @@ class FactVerifier:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+            db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
         self.db_path = str(db_path)
         
         # Lazy-load agents
@@ -248,12 +248,12 @@ class FactVerifier:
             radius_deg = 2000 / 111000  # 2km radius
             
             cursor.execute("""
-                SELECT AVG(price / NULLIF(covered_area, 0)) as avg_ppsf,
+                SELECT AVG(price / NULLIF(total_area_sqft, 0)) as avg_ppsf,
                        COUNT(*) as count
                 FROM properties
                 WHERE latitude BETWEEN ? AND ?
                 AND longitude BETWEEN ? AND ?
-                AND price > 0 AND covered_area > 0
+                AND price > 0 AND total_area_sqft > 0
             """, (lat - radius_deg, lat + radius_deg, lng - radius_deg, lng + radius_deg))
             
             row = cursor.fetchone()
@@ -699,7 +699,7 @@ class FactVerifier:
             elif result.status == VerificationStatus.UNVERIFIED.value:
                 unverified_count += 1
             
-            if result.warnings:
+            if hasattr(result, 'warnings') and result.warnings:
                 warnings.extend(result.warnings)
         
         # Determine overall status

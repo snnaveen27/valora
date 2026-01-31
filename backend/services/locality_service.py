@@ -10,8 +10,8 @@ from pathlib import Path
 from functools import lru_cache
 from datetime import datetime
 
-# Database path
-DB_PATH = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+# Database path - use absolute path from project root
+DB_PATH = Path(__file__).parent.parent.parent / "src" / "data" / "valora.db"
 
 
 class LocalityService:

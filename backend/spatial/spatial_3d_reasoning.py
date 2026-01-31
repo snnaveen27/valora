@@ -115,7 +115,7 @@ class Spatial3DReasoning:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+            db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
         self.db_path = str(db_path)
     
     def analyze_3d_context(self, lat: float, lng: float, 

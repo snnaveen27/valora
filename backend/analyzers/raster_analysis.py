@@ -165,7 +165,7 @@ class RasterAnalysis:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+            db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
         self.db_path = str(db_path)
     
     def _get_terrain_grid(self, lat: float, lng: float, radius_deg: float = 0.02) -> Tuple[Optional[Any], Dict]:

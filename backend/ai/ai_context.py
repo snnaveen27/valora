@@ -176,7 +176,7 @@ class AIContextManager:
     def __init__(self, session_id: str = "default", db_path: str = None):
         self.session_id = session_id
         if db_path is None:
-            db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+            db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
         self.db_path = str(db_path)
         
         self.context = AIContext(

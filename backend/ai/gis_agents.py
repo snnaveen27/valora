@@ -1728,7 +1728,17 @@ class GISAgentOrchestrator:
         """Build a focused system prompt based on intent."""
         # Import production-ready prompts
         try:
-            from response_templates import get_system_prompt
+            from ai.prompts import get_system_prompt as _get_prompt, Intent as _PromptIntent
+            try:
+                return _get_prompt(_PromptIntent(intent.value))
+            except Exception:
+                return _get_prompt(_PromptIntent.GENERAL)
+        except ImportError:
+            pass
+
+        # Fallback to legacy templates
+        try:
+            from ai.response_templates import get_system_prompt
             return get_system_prompt(intent.value)
         except ImportError:
             pass

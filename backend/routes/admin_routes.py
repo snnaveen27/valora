@@ -75,7 +75,7 @@ class IndexingRequest(BaseModel):
 class LLMConfigRequest(BaseModel):
     provider: str  # "openrouter" or "local"
     openrouter_api_key: Optional[str] = ""
-    openrouter_model: Optional[str] = "meta-llama/llama-3.2-3b-instruct:free"
+    openrouter_model: Optional[str] = "deepseek/deepseek-chat"  # DeepSeek V3.2 (671B)
     local_url: Optional[str] = "http://127.0.0.1:11434/v1/chat/completions"
     local_model: Optional[str] = "llama3.2"
 
@@ -673,7 +673,7 @@ def _load_llm_config() -> dict:
     defaults = {
         'provider': 'openrouter',
         'openrouter_api_key': os.getenv('OPENROUTER_API_KEY', ''),
-        'openrouter_model': os.getenv('OPENROUTER_MODEL', 'meta-llama/llama-3.2-3b-instruct:free'),
+        'openrouter_model': os.getenv('OPENROUTER_MODEL', 'deepseek/deepseek-chat'),  # DeepSeek V3.2 (671B)
         'local_url': os.getenv('LOCAL_LLM_URL', 'http://127.0.0.1:11434/v1/chat/completions'),
         'local_model': os.getenv('LOCAL_LLM_MODEL', 'llama3.2')
     }

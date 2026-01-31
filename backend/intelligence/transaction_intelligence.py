@@ -87,7 +87,7 @@ class TransactionIntelligence:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+            db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
         self.db_path = str(db_path)
     
     def _get_conn(self) -> sqlite3.Connection:
@@ -192,15 +192,15 @@ class TransactionIntelligence:
             cutoff_date = (datetime.now() - timedelta(days=max_age_days)).isoformat()
             
             cursor.execute("""
-                SELECT id, title, price, covered_area, bedrooms, property_type,
-                       latitude, longitude, locality, posted_date
+                SELECT id, title, price, total_area_sqft, bedrooms, property_type,
+                       latitude, longitude, locality, posted_at
                 FROM properties
                 WHERE latitude BETWEEN ? AND ?
                 AND longitude BETWEEN ? AND ?
                 AND price > 0
-                AND covered_area > 0
-                AND posted_date >= ?
-                ORDER BY posted_date DESC
+                AND total_area_sqft > 0
+                AND posted_at >= ?
+                ORDER BY posted_at DESC
                 LIMIT 200
             """, (
                 lat - radius_deg, lat + radius_deg,
@@ -214,8 +214,8 @@ class TransactionIntelligence:
                 if distance > radius_m:
                     continue
                 
-                area = row['covered_area'] or 1
-                posted = row['posted_date']
+                area = row['total_area_sqft'] or 1
+                posted = row['posted_at']
                 
                 # Parse date
                 try:
@@ -380,27 +380,27 @@ class TransactionIntelligence:
             cutoff = (datetime.now() - timedelta(days=months * 30)).isoformat()
             
             cursor.execute("""
-                SELECT price, covered_area, posted_date
+                SELECT price, total_area_sqft, posted_at
                 FROM properties
                 WHERE locality LIKE ?
                 AND price > 0
-                AND covered_area > 0
-                AND posted_date >= ?
-                ORDER BY posted_date
+                AND total_area_sqft > 0
+                AND posted_at >= ?
+                ORDER BY posted_at
             """, (f"%{locality_name}%", cutoff))
             
             # Group by month
             monthly_data = {}
             for row in cursor.fetchall():
                 try:
-                    posted = row['posted_date']
+                    posted = row['posted_at']
                     if isinstance(posted, str):
                         dt = datetime.fromisoformat(posted.replace('Z', '+00:00'))
                     else:
                         continue
                     
                     month_key = dt.strftime('%Y-%m')
-                    ppsf = row['price'] / row['covered_area']
+                    ppsf = row['price'] / row['total_area_sqft']
                     
                     if month_key not in monthly_data:
                         monthly_data[month_key] = []

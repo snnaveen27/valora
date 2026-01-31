@@ -25,7 +25,7 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [llmConfig, setLlmConfig] = useState({
     provider: 'openrouter', // 'openrouter' or 'local'
     openrouter_api_key: '',
-    openrouter_model: 'meta-llama/llama-3.2-3b-instruct:free',
+    openrouter_model: 'deepseek/deepseek-chat', // DeepSeek V3.2 (671B) - best value
     local_url: 'http://127.0.0.1:11434/v1/chat/completions',
     local_model: 'llama3.2'
   })
@@ -1414,12 +1414,18 @@ export default function AdminPanel({ isOpen, onClose }) {
                       onChange={(e) => setLlmConfig(prev => ({ ...prev, openrouter_model: e.target.value }))}
                       className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
                     >
-                      <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B Instruct (Free)</option>
-                      <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash Experimental (Free)</option>
-                      <option value="google/gemma-3-27b-it:free">Gemma 3 27B (Free)</option>
-                      <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 0528 (Free)</option>
-                      <option value="qwen/qwen3-coder:free">Qwen3 Coder 480B (Free)</option>
-                      <option value="openai/gpt-oss-120b:free">GPT OSS 120B (Free)</option>
+                      <optgroup label="Production (Recommended)">
+                        <option value="deepseek/deepseek-chat">DeepSeek V3.2 (671B) - Best Value ⭐</option>
+                        <option value="deepseek/deepseek-reasoner">DeepSeek Reasoner - Deep Analysis</option>
+                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+                      </optgroup>
+                      <optgroup label="Free Tier">
+                        <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 (Free)</option>
+                        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
+                        <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+                        <option value="qwen/qwen3-235b-a22b:free">Qwen3 235B (Free)</option>
+                      </optgroup>
                     </select>
                   </div>
                   </div>
