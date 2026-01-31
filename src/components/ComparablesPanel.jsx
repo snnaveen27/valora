@@ -3,8 +3,7 @@ import {
   Scale, MapPin, Calendar, Home, ArrowUpDown, Sliders, 
   RefreshCw, ChevronDown, ChevronUp, ExternalLink
 } from 'lucide-react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
 // Adjustment slider component
 function AdjustmentSlider({ label, value, onChange, min = -20, max = 20 }) {

@@ -13,7 +13,7 @@ import ComparablesPanel from './ComparablesPanel'
 import ScenarioSimulator from './ScenarioSimulator'
 import DataQualityWidget from './DataQualityWidget'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
 // "Ask about this" button component
 function AskAboutButton({ query, label }) {

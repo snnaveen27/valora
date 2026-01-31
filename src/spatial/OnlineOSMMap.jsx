@@ -3,11 +3,12 @@ import * as Cesium from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import '../styles/cesium.css'
 import DrawingTools from '../components/DrawingTools'
+import { API_URL } from '../apiConfig'
 
 window.CESIUM_BASE_URL = '/cesium/'
 
 // Backend API for local 3D buildings
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = API_URL
 const TILES_API = `${API_BASE}/api/tiles/viewport`
 const POLYGON_ANALYZE_API = `${API_BASE}/api/spatial/polygon-analyze`
 const BUFFER_ANALYZE_API = `${API_BASE}/api/spatial/buffer-analyze`

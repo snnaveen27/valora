@@ -4,7 +4,7 @@ import {
   RotateCcw, ChevronDown, TrendingUp, Home, AlertTriangle, CheckCircle
 } from 'lucide-react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
 // Scenario type cards
 const SCENARIO_TYPES = [

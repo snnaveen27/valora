@@ -4,7 +4,7 @@ import {
   Minus, ArrowUpRight, ArrowDownRight 
 } from 'lucide-react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
 // Generate sample time series data (will be replaced by API)
 function generateSampleData(months = 36, basePrice = 6500) {

@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import PricingManager from './PricingManager'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
 export default function AdminPanel({ isOpen, onClose }) {
   const { token } = useAuth()
@@ -1499,7 +1499,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                 <h4 className="text-white font-medium mb-3">Environment</h4>
                 <div className="space-y-2 text-sm font-mono">
                   <ConfigRow label="PINECONE_INDEX" value="valora-realestate" />
-                  <ConfigRow label="BACKEND_URL" value="http://localhost:8000" />
+                  <ConfigRow label="BACKEND_URL" value={API_URL} />
                   <ConfigRow label="EMBEDDING_MODEL" value="all-MiniLM-L6-v2" />
                 </div>
               </div>

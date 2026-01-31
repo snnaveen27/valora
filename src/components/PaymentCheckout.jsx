@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { CreditCard, Zap, Shield, Check, X, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-
-const API_URL = 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
 export default function PaymentCheckout({ isOpen, onClose, type = 'subscription', planId = null, packId = null }) {
   const { user, token } = useAuth()

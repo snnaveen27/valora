@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 // Backend API URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
 // Confidence threshold for auto-navigation (0-100)
 const AUTO_NAV_CONFIDENCE = 70

@@ -9,7 +9,7 @@ import PaymentCheckout from './PaymentCheckout'
 import { useAuth } from '../contexts/AuthContext'
 import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap } from 'lucide-react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
 export default function MainApp() {
   const { user, logout, isAdmin } = useAuth()

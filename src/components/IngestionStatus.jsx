@@ -7,7 +7,7 @@ const IngestionStatus = () => {
 
   const fetchStatus = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/ingestion/status');
+      const response = await fetch(`${API_URL}/ingestion/status`);
       if (!response.ok) throw new Error('Failed to fetch status');
       const data = await response.json();
       setStatus(data);

@@ -6,9 +6,8 @@ import {
   Target, Wallet, BarChart3, Activity, Gauge, Sparkles, Play, Loader2, Coins
 } from 'lucide-react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
-// Card costs in units
 const CARD_COSTS = {
   infrastructure: 5,
   livability: 5,

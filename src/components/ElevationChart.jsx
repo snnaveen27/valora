@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Mountain, TrendingUp, TrendingDown } from 'lucide-react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import { API_URL } from '../apiConfig'
 
-export default function ElevationChart({ lat, lng, radius = 2.0 }) {
+export default function ElevationChart({ lat, lng, radius = 2.0, data }) {
   const [profileData, setProfileData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)

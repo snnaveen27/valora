@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Database, Table, Search, Download, RefreshCw, ChevronDown, ChevronRight, Eye } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000';
+import { API_URL } from '../apiConfig'
 
 const DatabasePanel = () => {
   const [tables, setTables] = useState([]);
