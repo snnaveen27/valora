@@ -188,7 +188,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const [fps, setFps] = useState(60)
   const [memoryUsage, setMemoryUsage] = useState(0)
   const [showPerformancePanel, setShowPerformancePanel] = useState(false)
-  const [gpuInfo, setGpuInfo] = useState({ vendor: 'Unknown', renderer: 'Unknown' })
+  const [gpuInfo, setGpuInfo] = useState({ vendor: 'Unknown', renderer: 'Unknown', isDedicated: false })
   
   // Cache stats
   const [ionCacheStats, setIonCacheStats] = useState({ totalTiles: 0, totalSize: 0, percentage: 0 })
@@ -2049,7 +2049,17 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         const hasGPU = !!gl
         const gpuVendor = hasGPU ? gl.getParameter(gl.VENDOR) : 'Unknown'
         const gpuRenderer = hasGPU ? gl.getParameter(gl.RENDERER) : 'Unknown'
+        
+        // Detect if dedicated GPU (NVIDIA, AMD) vs integrated (Intel)
+        const isDedicatedGPU = gpuRenderer.toLowerCase().includes('nvidia') || 
+                               gpuRenderer.toLowerCase().includes('amd') || 
+                               gpuRenderer.toLowerCase().includes('radeon') ||
+                               gpuRenderer.toLowerCase().includes('geforce') ||
+                               gpuRenderer.toLowerCase().includes('rtx') ||
+                               gpuRenderer.toLowerCase().includes('gtx')
+        
         console.log(`🎮 GPU Detected: ${gpuVendor} - ${gpuRenderer}`)
+        console.log(`🚀 GPU Type: ${isDedicatedGPU ? 'DEDICATED (High Performance Mode)' : 'INTEGRATED (Balanced Mode)'}`)
         
         const viewer = new Cesium.Viewer(cesiumContainerRef.current, {
           animation: false,
@@ -2086,14 +2096,50 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         // Store GPU info for UI display
         setGpuInfo({
           vendor: gpuVendor,
-          renderer: gpuRenderer
+          renderer: gpuRenderer,
+          isDedicated: isDedicatedGPU
         })
 
-        // Configure shadow map
-        viewer.shadowMap.enabled = true
-        viewer.shadowMap.darkness = 0.6
-        viewer.shadowMap.size = 2048
-        viewer.shadowMap.softShadows = true
+        // Auto-configure quality based on GPU type
+        if (isDedicatedGPU) {
+          console.log('🚀 DEDICATED GPU: Enabling high-end graphics for better simulations & storytelling')
+          
+          // High-quality shadows for dedicated GPU
+          viewer.shadowMap.enabled = true
+          viewer.shadowMap.darkness = 0.7
+          viewer.shadowMap.size = 4096 // 4K shadow maps
+          viewer.shadowMap.softShadows = true
+          
+          // Enable building shadows by default
+          setShowShadows(true)
+          
+          // Set high building quality
+          setBuildingQuality('high')
+          
+          // Higher resolution scale for sharper rendering
+          viewer.resolutionScale = window.devicePixelRatio || 1.0
+          
+          console.log('✅ High-end graphics enabled: 4K shadows, high quality buildings, enhanced rendering')
+        } else {
+          console.log('⚖️ INTEGRATED GPU: Using balanced graphics settings')
+          
+          // Balanced shadows for integrated GPU
+          viewer.shadowMap.enabled = true
+          viewer.shadowMap.darkness = 0.6
+          viewer.shadowMap.size = 2048
+          viewer.shadowMap.softShadows = false // Disable soft shadows for performance
+          
+          // Shadows off by default for integrated GPU
+          setShowShadows(false)
+          
+          // Medium building quality
+          setBuildingQuality('medium')
+          
+          // Standard resolution
+          viewer.resolutionScale = 1.0
+          
+          console.log('✅ Balanced graphics enabled: 2K shadows, medium quality buildings')
+        }
 
         // Remove default layers and add OSM tiles with proper configuration
         viewer.imageryLayers.removeAll(true)
@@ -2138,9 +2184,21 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         viewer.clock.shouldAnimate = true
         viewer.clock.multiplier = 1 // Real-time
 
-        // Performance settings
-        viewer.resolutionScale = 1.0
-        viewer.scene.fog.enabled = false
+        // Performance settings - GPU-optimized
+        if (isDedicatedGPU) {
+          // High-end graphics for dedicated GPU
+          viewer.scene.fog.enabled = true
+          viewer.scene.fog.density = 0.0001
+          viewer.scene.fog.screenSpaceErrorFactor = 2.0
+          
+          // Enhanced atmosphere for better visuals
+          viewer.scene.skyAtmosphere.hueShift = 0.0
+          viewer.scene.skyAtmosphere.saturationShift = 0.0
+          viewer.scene.skyAtmosphere.brightnessShift = 0.0
+        } else {
+          // Balanced settings for integrated GPU
+          viewer.scene.fog.enabled = false
+        }
 
         // Setup resize observer
         resizeObserver = new ResizeObserver(() => {
@@ -3073,6 +3131,15 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
           {/* Performance & Cache Info */}
           <div className="flex items-center gap-3 text-[10px] text-slate-400 mr-2">
+            {/* GPU Type Badge */}
+            {gpuInfo.isDedicated && (
+              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-600/20 border border-purple-500/30 rounded">
+                <svg className="w-3 h-3 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span className="font-semibold text-purple-300">Dedicated GPU</span>
+              </div>
+            )}
             <div className="flex items-center gap-1">
               <span className={fps >= 30 ? 'text-green-400 font-mono' : 'text-red-400 font-mono'}>{fps} FPS</span>
             </div>
