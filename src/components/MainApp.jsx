@@ -1,15 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
-import OnlineOSMMap from '../spatial/OnlineOSMMap'
-import AnalysisPanel from './AnalysisPanel'
-import ChatPanel from './ChatPanel'
-import AdminPanel from './AdminPanel'
-import ScrapeController from './ScrapeController'
-import CinemaOverlay from './CinemaOverlay'
-import PaymentCheckout from './PaymentCheckout'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud } from 'lucide-react'
 
 import { API_URL } from '../apiConfig'
+
+// Lazy load heavy components
+const OnlineOSMMap = lazy(() => import('../spatial/OnlineOSMMap'))
+const AnalysisPanel = lazy(() => import('./AnalysisPanel'))
+const ChatPanel = lazy(() => import('./ChatPanel'))
+const AdminPanel = lazy(() => import('./AdminPanel'))
+const ScrapeController = lazy(() => import('./ScrapeController'))
+const CinemaOverlay = lazy(() => import('./CinemaOverlay'))
+const PaymentCheckout = lazy(() => import('./PaymentCheckout'))
+
+// Loading spinner component
+const ComponentLoader = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+  </div>
+)
 
 export default function MainApp() {
   const { user, logout, isAdmin } = useAuth()
@@ -644,15 +653,17 @@ export default function MainApp() {
                 </div>
               </div>
               <div className="flex-1 overflow-hidden">
-                <AnalysisPanel 
-                  agentData={agentData} 
-                  setAgentData={setAgentData}
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  fontSize={analysisFontSize}
-                  liveAnalysis={liveAnalysis}
-                  isFullscreen={isAnalysisFullscreen}
-                />
+                <Suspense fallback={<ComponentLoader />}>
+                  <AnalysisPanel 
+                    agentData={agentData} 
+                    setAgentData={setAgentData}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    fontSize={analysisFontSize}
+                    liveAnalysis={liveAnalysis}
+                    isFullscreen={isAnalysisFullscreen}
+                  />
+                </Suspense>
               </div>
             </>
           ) : (
@@ -674,15 +685,17 @@ export default function MainApp() {
             flexShrink: 1
           }}
         >
-          <OnlineOSMMap
-            onAnalysisUpdate={handleAnalysisUpdate}
-            agentData={agentData}
-            setAgentData={setAgentData}
-            toggleMapFullscreen={toggleMapFullscreen}
-            isMapFullscreen={isMapFullscreen}
-            userLocation={userLocation}
-            gpsEnabled={gpsEnabled}
-          />
+          <Suspense fallback={<ComponentLoader />}>
+            <OnlineOSMMap
+              onAnalysisUpdate={handleAnalysisUpdate}
+              agentData={agentData}
+              setAgentData={setAgentData}
+              toggleMapFullscreen={toggleMapFullscreen}
+              isMapFullscreen={isMapFullscreen}
+              userLocation={userLocation}
+              gpsEnabled={gpsEnabled}
+            />
+          </Suspense>
         </div>
 
         {/* Right Chat Panel */}
@@ -744,14 +757,16 @@ export default function MainApp() {
                 </div>
               </div>
               <div className="flex-1 overflow-hidden">
-                <ChatPanel 
-                  agentData={agentData} 
-                  setAgentData={setAgentData} 
-                  fontSize={chatFontSize}
-                  userLocation={userLocation}
-                  locationLabel={locationLabel}
-                  locationSource={locationSource}
-                />
+                <Suspense fallback={<ComponentLoader />}>
+                  <ChatPanel 
+                    agentData={agentData} 
+                    setAgentData={setAgentData} 
+                    fontSize={chatFontSize}
+                    userLocation={userLocation}
+                    locationLabel={locationLabel}
+                    locationSource={locationSource}
+                  />
+                </Suspense>
               </div>
             </>
           ) : (
@@ -892,28 +907,32 @@ export default function MainApp() {
       )}
 
       {/* Payment Checkout Modal */}
-      <PaymentCheckout
-        isOpen={showPaymentCheckout}
-        onClose={() => setShowPaymentCheckout(false)}
-        type={paymentType}
-      />
+      <Suspense fallback={null}>
+        <PaymentCheckout
+          isOpen={showPaymentCheckout}
+          onClose={() => setShowPaymentCheckout(false)}
+          type={paymentType}
+        />
+      </Suspense>
 
       {/* Cinema Mode Overlay */}
-      <CinemaOverlay 
-        isActive={isCinemaMode}
-        narration={cinemaNarration}
-        isPaused={isCinemaPaused}
-        onStop={() => {
-          setIsCinemaMode(false)
-          setCinemaNarration('')
-          setIsCinemaPaused(false)
-          window.dispatchEvent(new CustomEvent('valora-cinema-stop'))
-        }}
-        onPause={() => {
-          setIsCinemaPaused(!isCinemaPaused)
-          window.dispatchEvent(new CustomEvent('valora-cinema-pause', { detail: { paused: !isCinemaPaused } }))
-        }}
-      />
+      <Suspense fallback={null}>
+        <CinemaOverlay 
+          isActive={isCinemaMode}
+          narration={cinemaNarration}
+          isPaused={isCinemaPaused}
+          onStop={() => {
+            setIsCinemaMode(false)
+            setCinemaNarration('')
+            setIsCinemaPaused(false)
+            window.dispatchEvent(new CustomEvent('valora-cinema-stop'))
+          }}
+          onPause={() => {
+            setIsCinemaPaused(!isCinemaPaused)
+            window.dispatchEvent(new CustomEvent('valora-cinema-pause', { detail: { paused: !isCinemaPaused } }))
+          }}
+        />
+      </Suspense>
     </div>
   )
 }
