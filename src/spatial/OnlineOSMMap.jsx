@@ -2141,7 +2141,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       )}
 
       {/* Top Bar - Search + Basemap + Navigation + Layers */}
-      <div className="absolute top-0 left-0 right-0 z-40">
+      <div className="absolute top-0 left-0 right-0 z-50">
         <div className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 px-2 py-1 flex items-center gap-2">
           {/* Search Bar */}
           <div className="flex items-center bg-slate-800/80 border border-slate-700 px-2 py-0.5 w-48">
@@ -2195,7 +2195,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             
             {/* Basemap Dropdown Menu */}
             {showBasemapDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl min-w-[140px] z-50">
+              <div className="absolute top-full left-0 mt-1 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl min-w-[140px] z-[60]">
                 {[
                   { id: 'osm', label: 'Street' },
                   { id: 'mapbox_satellite', label: 'Satellite' },
@@ -2289,7 +2289,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             
             {/* Layers Dropdown Panel */}
             {showLayerPanel && (
-              <div className="absolute top-full left-0 mt-1 bg-slate-900/95 backdrop-blur-sm border border-slate-700 p-3 min-w-[220px] z-50">
+              <div className="absolute top-full left-0 mt-1 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl p-3 min-w-[220px] z-[60]">
                 {/* 3D Layers */}
                 <div className="mb-2">
                   <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">3D Layers</div>
@@ -2416,7 +2416,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
-          <div className="absolute top-full left-2 mt-0 w-80 bg-slate-900/95 backdrop-blur-sm border border-slate-700 max-h-48 overflow-y-auto z-50">
+          <div className="absolute top-full left-2 mt-0 w-80 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl max-h-48 overflow-y-auto z-[60]">
             {searchResults.map((result, idx) => (
               <button
                 key={idx}
