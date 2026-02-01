@@ -1,5 +1,5 @@
 {
-  "provider": "openrouter",
+  "provider": "local",
   "openrouter_api_key": "",
   "openrouter_model": "deepseek/deepseek-chat",
   "openrouter_model_reasoning": "deepseek/deepseek-reasoner",

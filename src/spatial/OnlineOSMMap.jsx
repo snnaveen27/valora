@@ -66,6 +66,24 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   // Real-time clock state
   const [currentTime, setCurrentTime] = useState(new Date())
   
+  // Time simulation controls
+  const [timeMultiplier, setTimeMultiplier] = useState(1) // 1 = real-time
+  const [showTimeControls, setShowTimeControls] = useState(false)
+  const [simulatedTime, setSimulatedTime] = useState(null)
+  
+  // Layer controls panel
+  const [showLayerPanel, setShowLayerPanel] = useState(false)
+  
+  // Building info popup
+  const [selectedBuilding, setSelectedBuilding] = useState(null)
+  const [buildingPopupPosition, setBuildingPopupPosition] = useState(null)
+  
+  // Search bar
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  
   // Basemap toggle: 'osm', 'mapbox_streets', 'mapbox_satellite', 'mapbox_satellite_streets', 'mapbox_dark', 'mapbox_light', 'mapbox_outdoors'
   const [basemapType, setBasemapType] = useState('osm')
   
@@ -906,6 +924,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       const entities = []
       viewer.entities.suspendEvents()
       
+      // Track tile center from first building (for distance-based eviction)
+      let tileCenterLat = null
+      let tileCenterLng = null
+      
       const features = data.features || []
       for (const feature of features) {
         const geomType = feature.geometry?.type
@@ -993,6 +1015,12 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           }
         })
         entities.push(entity)
+        
+        // Store first building's centroid as tile center
+        if (tileCenterLat === null && centroidLat && centroidLng) {
+          tileCenterLat = centroidLat
+          tileCenterLng = centroidLng
+        }
       }
       
       viewer.entities.resumeEvents()
@@ -1002,10 +1030,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       loadedTilesRef.current.add(tileId)
 
       // Store tile center for distance-based eviction
-      if (entities.length > 0 && centroidLat && centroidLng) {
+      if (entities.length > 0 && tileCenterLat !== null && tileCenterLng !== null) {
         tileCentersRef.current[tileId] = {
-          lat: centroidLat,
-          lng: centroidLng
+          lat: tileCenterLat,
+          lng: tileCenterLng
         }
       }
       
@@ -1409,9 +1437,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           enablePickFeatures: false
         })
         
-        // Add error handling for tile loading
-        osmProvider.errorEvent.addEventListener((error) => {
-          console.warn('OSM tile loading error:', error)
+        // Suppress CORS error logging (errors are expected but handled gracefully)
+        osmProvider.errorEvent.addEventListener(() => {
+          // Silently ignore tile loading errors - CORS is expected
         })
         
         const imageryLayer = viewer.imageryLayers.addImageryProvider(osmProvider)
@@ -2171,12 +2199,387 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           </button>
         </div>
 
+        {/* Layer Toggle Button */}
+        <button
+          onClick={() => setShowLayerPanel(!showLayerPanel)}
+          className={`w-9 h-9 flex items-center justify-center rounded-lg shadow-lg border transition-colors ${
+            showLayerPanel 
+              ? 'bg-blue-600 border-blue-500 text-white' 
+              : 'bg-slate-800/95 backdrop-blur-sm border-slate-700 text-slate-300 hover:bg-slate-700'
+          }`}
+          title="Layer Controls"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        </button>
+
       </div>
+
+      {/* Layer Controls Panel - Top Right below nav */}
+      {showLayerPanel && (
+        <div className="absolute top-36 right-4 z-40 w-64">
+          <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 p-3">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-white">Layers</span>
+              <button
+                onClick={() => setShowLayerPanel(false)}
+                className="text-slate-400 hover:text-white transition p-1"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Layer toggles */}
+            <div className="space-y-2">
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-xs text-slate-300">3D Buildings</span>
+                <input
+                  type="checkbox"
+                  checked={showBuildings}
+                  onChange={(e) => {
+                    setShowBuildings(e.target.checked)
+                    const viewer = viewerRef.current
+                    if (viewer && !viewer.isDestroyed()) {
+                      viewer.entities.values.forEach(entity => {
+                        if (entity.polygon) entity.show = e.target.checked
+                      })
+                    }
+                  }}
+                  className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-blue-600 focus:ring-blue-500"
+                />
+              </label>
+              
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-xs text-slate-300">Shadows</span>
+                <input
+                  type="checkbox"
+                  checked={showShadows}
+                  onChange={(e) => {
+                    setShowShadows(e.target.checked)
+                    const viewer = viewerRef.current
+                    if (viewer && !viewer.isDestroyed()) {
+                      viewer.shadows = e.target.checked
+                      viewer.shadowMap.enabled = e.target.checked
+                    }
+                  }}
+                  className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-blue-600 focus:ring-blue-500"
+                />
+              </label>
+              
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-xs text-slate-300">Terrain</span>
+                <input
+                  type="checkbox"
+                  checked={showTerrain}
+                  onChange={(e) => {
+                    setShowTerrain(e.target.checked)
+                    const viewer = viewerRef.current
+                    if (viewer && !viewer.isDestroyed()) {
+                      if (e.target.checked) {
+                        viewer.terrainProvider = Cesium.createWorldTerrain()
+                      } else {
+                        viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
+                      }
+                    }
+                  }}
+                  className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-blue-600 focus:ring-blue-500"
+                />
+              </label>
+            </div>
+            
+            {/* Building quality */}
+            <div className="mt-3 pt-3 border-t border-slate-700">
+              <span className="text-xs text-slate-400 block mb-2">Building Detail</span>
+              <div className="grid grid-cols-3 gap-1">
+                {['low', 'medium', 'high'].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => setBuildingQuality(q)}
+                    className={`px-2 py-1 text-xs rounded capitalize transition ${
+                      buildingQuality === q
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                    }`}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search Bar - Top Left */}
+      <div className="absolute top-4 left-4 z-40 w-72">
+        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700">
+          <div className="flex items-center px-3 py-2">
+            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && searchQuery.trim()) {
+                  setIsSearching(true)
+                  try {
+                    // Use Nominatim for geocoding (free, no API key needed)
+                    const resp = await fetch(
+                      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery + ', Bangalore, India')}&format=json&limit=5`
+                    )
+                    const results = await resp.json()
+                    setSearchResults(results)
+                    setShowSearchResults(true)
+                  } catch (err) {
+                    console.warn('Search failed:', err)
+                  }
+                  setIsSearching(false)
+                }
+              }}
+              placeholder="Search location..."
+              className="flex-1 bg-transparent border-none text-white text-sm placeholder-slate-400 focus:outline-none ml-2"
+            />
+            {isSearching && (
+              <svg className="w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+            )}
+          </div>
+          
+          {/* Search Results */}
+          {showSearchResults && searchResults.length > 0 && (
+            <div className="border-t border-slate-700 max-h-48 overflow-y-auto">
+              {searchResults.map((result, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    const viewer = viewerRef.current
+                    if (viewer && !viewer.isDestroyed()) {
+                      viewer.camera.flyTo({
+                        destination: Cesium.Cartesian3.fromDegrees(
+                          parseFloat(result.lon),
+                          parseFloat(result.lat),
+                          800
+                        ),
+                        orientation: {
+                          heading: Cesium.Math.toRadians(0),
+                          pitch: Cesium.Math.toRadians(-45),
+                          roll: 0
+                        },
+                        duration: 2
+                      })
+                      // Load buildings for new area
+                      setTimeout(loadTilesForViewport, 2500)
+                    }
+                    setShowSearchResults(false)
+                    setSearchQuery(result.display_name.split(',')[0])
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-slate-700 transition"
+                >
+                  <div className="text-sm text-white truncate">{result.display_name.split(',')[0]}</div>
+                  <div className="text-xs text-slate-400 truncate">{result.display_name}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Building Info Popup */}
+      {selectedBuilding && buildingPopupPosition && (
+        <div
+          className="absolute z-50 pointer-events-auto"
+          style={{ left: buildingPopupPosition.x, top: buildingPopupPosition.y, transform: 'translate(-50%, -100%)' }}
+        >
+          <div className="bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-xl border border-blue-500/30 p-3 min-w-[200px]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-white">Building Info</span>
+              <button
+                onClick={() => { setSelectedBuilding(null); setBuildingPopupPosition(null); }}
+                className="text-slate-400 hover:text-white transition"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Type:</span>
+                <span className="text-white capitalize">{selectedBuilding.type || 'Unknown'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Height:</span>
+                <span className="text-white">{selectedBuilding.height ? `${selectedBuilding.height.toFixed(1)}m` : 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Area:</span>
+                <span className="text-white">{selectedBuilding.area ? `${selectedBuilding.area.toFixed(0)} m²` : 'N/A'}</span>
+              </div>
+              {selectedBuilding.floors && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Floors:</span>
+                  <span className="text-white">{selectedBuilding.floors}</span>
+                </div>
+              )}
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-700">
+              <button
+                onClick={() => {
+                  if (setAgentData && selectedBuilding) {
+                    setAgentData(prev => ({
+                      ...prev,
+                      selectedBuilding: selectedBuilding,
+                      clickedLocation: { lat: selectedBuilding.lat, lng: selectedBuilding.lng }
+                    }))
+                  }
+                }}
+                className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition"
+              >
+                Analyze Building
+              </button>
+            </div>
+          </div>
+          {/* Arrow */}
+          <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full">
+            <div className="w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-slate-900"></div>
+          </div>
+        </div>
+      )}
+
+      {/* Time Simulation Controls - Bottom Center */}
+      {showTimeControls && (
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-40 w-96">
+          <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-semibold text-white">Time Simulation</span>
+              </div>
+              <button
+                onClick={() => setShowTimeControls(false)}
+                className="text-slate-400 hover:text-white transition p-1"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Time Display */}
+            <div className="mb-3 text-center">
+              <div className="text-lg font-mono font-bold text-white">
+                {(simulatedTime || currentTime).toLocaleTimeString('en-IN', { 
+                  timeZone: 'Asia/Kolkata', 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  hour12: true 
+                })}
+              </div>
+              <div className="text-xs text-slate-400">
+                {(simulatedTime || currentTime).toLocaleDateString('en-IN', { 
+                  timeZone: 'Asia/Kolkata', 
+                  weekday: 'short', 
+                  day: 'numeric', 
+                  month: 'short',
+                  year: 'numeric'
+                })}
+              </div>
+            </div>
+
+            {/* Time Presets */}
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              {[
+                { label: 'Dawn', hour: 6 },
+                { label: 'Noon', hour: 12 },
+                { label: 'Dusk', hour: 18 },
+                { label: 'Night', hour: 0 }
+              ].map(({ label, hour }) => (
+                <button
+                  key={label}
+                  onClick={() => {
+                    const viewer = viewerRef.current
+                    if (!viewer || viewer.isDestroyed()) return
+                    const newTime = new Date()
+                    newTime.setHours(hour, 0, 0, 0)
+                    setSimulatedTime(newTime)
+                    viewer.clock.currentTime = Cesium.JulianDate.fromDate(newTime)
+                  }}
+                  className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded transition"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Speed Controls */}
+            <div className="mb-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-slate-300">Speed</span>
+                <span className="text-xs text-blue-400 font-mono">{timeMultiplier}x</span>
+              </div>
+              <div className="grid grid-cols-5 gap-1">
+                {[0, 1, 60, 3600, 86400].map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => {
+                      const viewer = viewerRef.current
+                      if (!viewer || viewer.isDestroyed()) return
+                      setTimeMultiplier(speed)
+                      viewer.clock.multiplier = speed
+                      if (speed === 0) {
+                        viewer.clock.shouldAnimate = false
+                      } else {
+                        viewer.clock.shouldAnimate = true
+                      }
+                    }}
+                    className={`px-2 py-1 text-xs rounded transition ${
+                      timeMultiplier === speed
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                    }`}
+                  >
+                    {speed === 0 ? 'Pause' : speed === 1 ? '1x' : speed === 60 ? '1m' : speed === 3600 ? '1h' : '1d'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Reset Button */}
+            <button
+              onClick={() => {
+                const viewer = viewerRef.current
+                if (!viewer || viewer.isDestroyed()) return
+                setSimulatedTime(null)
+                setTimeMultiplier(1)
+                viewer.clock.currentTime = Cesium.JulianDate.now()
+                viewer.clock.multiplier = 1
+                viewer.clock.shouldAnimate = true
+              }}
+              className="w-full mt-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded transition"
+            >
+              Reset to Real-time
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Real-time Clock & Status - Bottom Right */}
       <div className="absolute bottom-4 right-4 z-30 flex flex-col gap-2">
         {/* Live Clock with Bangalore Timezone */}
-        <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 px-3 py-2">
+        <button
+          onClick={() => setShowTimeControls(!showTimeControls)}
+          className="bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 px-3 py-2 hover:bg-slate-800/90 transition cursor-pointer"
+          title="Click to simulate time"
+        >
           <div className="flex items-center gap-2">
             <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -2189,8 +2592,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
                 {currentTime.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' })} • IST
               </div>
             </div>
+            {timeMultiplier !== 1 && (
+              <div className="text-[9px] text-orange-400 font-medium mt-0.5">
+                ⚡ {timeMultiplier === 0 ? 'PAUSED' : `${timeMultiplier}x speed`}
+              </div>
+            )}
           </div>
-        </div>
+        </button>
 
         {/* Buildings Status */}
         <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 px-3 py-2 text-xs">
