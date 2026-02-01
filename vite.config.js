@@ -60,22 +60,16 @@ export default defineConfig({
     port: 3000,
     open: true
   },
+  esbuild: {
+    drop: isProduction ? ['console', 'debugger'] : [],
+    legalComments: 'none'
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
     target: 'es2020',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: isProduction,
-        drop_debugger: isProduction,
-        pure_funcs: isProduction ? ['console.log', 'console.info', 'console.debug'] : []
-      },
-      format: {
-        comments: false
-      }
-    },
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
