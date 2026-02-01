@@ -13,13 +13,7 @@ const basePath = isProduction ? '/valora/' : '/'
 export default defineConfig({
   base: basePath,
   plugins: [
-    react({
-      babel: {
-        plugins: [
-          ['@babel/plugin-transform-react-jsx', { runtime: 'automatic' }]
-        ]
-      }
-    }),
+    react(),
     viteStaticCopy({
       targets: [
         {
