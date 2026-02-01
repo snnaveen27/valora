@@ -2047,9 +2047,47 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         </div>
       )}
 
-      {/* Basemap Selector - Top Center Bar */}
-      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-40">
-        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 px-2 py-1.5 flex items-center gap-1">
+      {/* Top Bar - Search + Basemap Selector */}
+      <div className="absolute top-0 left-0 right-0 z-40">
+        <div className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 px-3 py-2 flex items-center justify-between gap-4">
+          {/* Search Bar */}
+          <div className="flex items-center bg-slate-800/80 border border-slate-700 px-3 py-1.5 flex-1 max-w-sm">
+            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && searchQuery.trim()) {
+                  setIsSearching(true)
+                  try {
+                    const resp = await fetch(
+                      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery + ', Bangalore, India')}&format=json&limit=5`
+                    )
+                    const results = await resp.json()
+                    setSearchResults(results)
+                    setShowSearchResults(true)
+                  } catch (err) {
+                    console.warn('Search failed:', err)
+                  }
+                  setIsSearching(false)
+                }
+              }}
+              placeholder="Search location..."
+              className="flex-1 bg-transparent border-none text-white text-sm placeholder-slate-400 focus:outline-none ml-2"
+            />
+            {isSearching && (
+              <svg className="w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+            )}
+          </div>
+          
+          {/* Basemap Selector */}
+          <div className="flex items-center gap-1">
           <button
             onClick={() => switchBasemap('osm')}
             className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
@@ -2114,73 +2152,93 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
             Outdoors
           </button>
         </div>
+        </div>
+        
+        {/* Search Results Dropdown */}
+        {showSearchResults && searchResults.length > 0 && (
+          <div className="absolute top-full left-3 mt-0 w-96 bg-slate-900/95 backdrop-blur-sm border-x border-b border-slate-700 max-h-64 overflow-y-auto z-50">
+            {searchResults.map((result, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  const viewer = viewerRef.current
+                  if (viewer && !viewer.isDestroyed()) {
+                    viewer.camera.flyTo({
+                      destination: Cesium.Cartesian3.fromDegrees(
+                        parseFloat(result.lon),
+                        parseFloat(result.lat),
+                        800
+                      ),
+                      orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        pitch: Cesium.Math.toRadians(-45),
+                        roll: 0
+                      },
+                      duration: 2
+                    })
+                    setTimeout(loadTilesForViewport, 2500)
+                  }
+                  setShowSearchResults(false)
+                  setSearchQuery(result.display_name.split(',')[0])
+                }}
+                className="w-full px-4 py-2 text-left hover:bg-slate-800 transition border-b border-slate-800 last:border-b-0"
+              >
+                <div className="text-sm text-white truncate">{result.display_name.split(',')[0]}</div>
+                <div className="text-xs text-slate-400 truncate">{result.display_name}</div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Drawing Tools - Bottom Left */}
-      <div className="absolute bottom-0 left-0 z-40">
-        <DrawingTools
-          isDrawing={isDrawing}
-          drawMode={drawMode}
-          onStartPolygon={startPolygonDraw}
-          onStartBuffer={startBufferDraw}
-          onClearDrawing={clearDrawings}
-          onFinishDrawing={drawMode === 'polygon' ? finishPolygonDraw : () => {}}
-          onCancelDrawing={cancelDrawing}
-          bufferRadius={bufferRadius}
-          onBufferRadiusChange={setBufferRadius}
-          polygonPoints={polygonPoints.length}
-        />
-      </div>
-
-      {/* Navigation Controls - Top Right (Dark Theme) */}
-      <div className="absolute top-0 right-0 z-40 flex flex-col gap-2">
-        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden flex flex-col">
+      {/* Right Bar - Navigation + Layer Controls */}
+      <div className="absolute top-12 right-0 bottom-0 z-40 flex">
+        <div className="bg-slate-900/95 backdrop-blur-sm border-l border-slate-700 flex flex-col">
+          {/* Navigation Controls */}
           <button
             onClick={goBackToLastView}
             disabled={!canGoBack}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors border-b border-slate-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+            className="w-12 h-12 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
             title="Back to last view"
           >
             <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
+          
           <button
             onClick={resetView}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors"
+            className="w-12 h-12 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
             title="Reset view"
           >
             <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l9-9 9 9M4 10v10a1 1 0 001 1h5m4 0h5a1 1 0 001-1V10" />
             </svg>
           </button>
-        </div>
-
-        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden flex flex-col">
+          
           <button
             onClick={zoomIn}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors border-b border-slate-700"
+            className="w-12 h-12 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
             title="Zoom In"
           >
             <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
           </button>
+          
           <button
             onClick={zoomOut}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors"
+            className="w-12 h-12 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
             title="Zoom Out"
           >
             <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             </svg>
           </button>
-        </div>
-
-        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden flex flex-col">
+          
           <button
             onClick={resetNorth}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors border-b border-slate-700 relative"
+            className="w-12 h-12 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 relative"
             title="Reset North"
           >
             <div 
@@ -2190,41 +2248,38 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
               <div className="w-0.5 h-3 bg-red-500 rounded-t-sm -mt-1"></div>
             </div>
           </button>
+          
           <button
             onClick={toggle3D}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors text-xs font-bold text-slate-300"
+            className="w-12 h-12 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 text-xs font-bold text-slate-300"
             title={is3DMode ? 'Switch to 2D' : 'Switch to 3D'}
           >
             {is3DMode ? '2D' : '3D'}
           </button>
+          
+          <button
+            onClick={() => setShowLayerPanel(!showLayerPanel)}
+            className={`w-12 h-12 flex items-center justify-center transition-colors ${
+              showLayerPanel 
+                ? 'bg-blue-600 text-white' 
+                : 'text-slate-300 hover:bg-slate-800'
+            }`}
+            title="Layer Controls"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </button>
         </div>
-
-        {/* Layer Toggle Button */}
-        <button
-          onClick={() => setShowLayerPanel(!showLayerPanel)}
-          className={`w-9 h-9 flex items-center justify-center rounded-lg shadow-lg border transition-colors ${
-            showLayerPanel 
-              ? 'bg-blue-600 border-blue-500 text-white' 
-              : 'bg-slate-800/95 backdrop-blur-sm border-slate-700 text-slate-300 hover:bg-slate-700'
-          }`}
-          title="Layer Controls"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-          </svg>
-        </button>
-
-      </div>
-
-      {/* Layer Controls Panel - Top Right below nav */}
-      {showLayerPanel && (
-        <div className="absolute top-44 right-0 z-40 w-64">
-          <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 p-3">
-            <div className="flex items-center justify-between mb-3">
+        
+        {/* Layer Panel */}
+        {showLayerPanel && (
+          <div className="bg-slate-900/95 backdrop-blur-sm border-l border-slate-700 w-64 p-4">
+            <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-white">Layers</span>
               <button
                 onClick={() => setShowLayerPanel(false)}
-                className="text-slate-400 hover:text-white transition p-1"
+                className="text-slate-400 hover:text-white transition"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2232,8 +2287,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
               </button>
             </div>
             
-            {/* Layer toggles */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="text-xs text-slate-300">3D Buildings</span>
                 <input
@@ -2290,18 +2344,17 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
               </label>
             </div>
             
-            {/* Building quality */}
-            <div className="mt-3 pt-3 border-t border-slate-700">
+            <div className="mt-4 pt-4 border-t border-slate-700">
               <span className="text-xs text-slate-400 block mb-2">Building Detail</span>
               <div className="grid grid-cols-3 gap-1">
                 {['low', 'medium', 'high'].map((q) => (
                   <button
                     key={q}
                     onClick={() => setBuildingQuality(q)}
-                    className={`px-2 py-1 text-xs rounded capitalize transition ${
+                    className={`px-2 py-1 text-xs capitalize transition ${
                       buildingQuality === q
                         ? 'bg-blue-600 text-white'
-                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                     }`}
                   >
                     {q}
@@ -2310,84 +2363,66 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Search Bar - Top Left */}
-      <div className="absolute top-0 left-0 z-40 w-80">
-        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700">
-          <div className="flex items-center px-3 py-2">
-            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={async (e) => {
-                if (e.key === 'Enter' && searchQuery.trim()) {
-                  setIsSearching(true)
-                  try {
-                    // Use Nominatim for geocoding (free, no API key needed)
-                    const resp = await fetch(
-                      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery + ', Bangalore, India')}&format=json&limit=5`
-                    )
-                    const results = await resp.json()
-                    setSearchResults(results)
-                    setShowSearchResults(true)
-                  } catch (err) {
-                    console.warn('Search failed:', err)
-                  }
-                  setIsSearching(false)
-                }
-              }}
-              placeholder="Search location..."
-              className="flex-1 bg-transparent border-none text-white text-sm placeholder-slate-400 focus:outline-none ml-2"
+      {/* Bottom Bar - Drawing Tools + Time + Status */}
+      <div className="absolute bottom-0 left-0 right-0 z-40">
+        <div className="bg-slate-900/95 backdrop-blur-sm border-t border-slate-700 px-3 py-2 flex items-center justify-between">
+          {/* Drawing Tools */}
+          <div>
+            <DrawingTools
+              isDrawing={isDrawing}
+              drawMode={drawMode}
+              onStartPolygon={startPolygonDraw}
+              onStartBuffer={startBufferDraw}
+              onClearDrawing={clearDrawings}
+              onFinishDrawing={drawMode === 'polygon' ? finishPolygonDraw : () => {}}
+              onCancelDrawing={cancelDrawing}
+              bufferRadius={bufferRadius}
+              onBufferRadiusChange={setBufferRadius}
+              polygonPoints={polygonPoints.length}
             />
-            {isSearching && (
-              <svg className="w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-            )}
           </div>
           
-          {/* Search Results */}
-          {showSearchResults && searchResults.length > 0 && (
-            <div className="border-t border-slate-700 max-h-48 overflow-y-auto">
-              {searchResults.map((result, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    const viewer = viewerRef.current
-                    if (viewer && !viewer.isDestroyed()) {
-                      viewer.camera.flyTo({
-                        destination: Cesium.Cartesian3.fromDegrees(
-                          parseFloat(result.lon),
-                          parseFloat(result.lat),
-                          800
-                        ),
-                        orientation: {
-                          heading: Cesium.Math.toRadians(0),
-                          pitch: Cesium.Math.toRadians(-45),
-                          roll: 0
-                        },
-                        duration: 2
-                      })
-                      // Load buildings for new area
-                      setTimeout(loadTilesForViewport, 2500)
-                    }
-                    setShowSearchResults(false)
-                    setSearchQuery(result.display_name.split(',')[0])
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-slate-700 transition"
-                >
-                  <div className="text-sm text-white truncate">{result.display_name.split(',')[0]}</div>
-                  <div className="text-xs text-slate-400 truncate">{result.display_name}</div>
-                </button>
-              ))}
+          {/* Clock + Time Controls */}
+          <button
+            onClick={() => setShowTimeControls(!showTimeControls)}
+            className="flex items-center gap-3 px-4 py-1 hover:bg-slate-800 transition cursor-pointer border-l border-slate-700"
+            title="Click to simulate time"
+          >
+            <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <div className="text-sm font-mono font-semibold text-white">
+                {currentTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true })}
+              </div>
+              {timeMultiplier !== 1 && (
+                <div className="text-[9px] text-orange-400 font-medium">
+                  ⚡ {timeMultiplier === 0 ? 'PAUSED' : `${timeMultiplier}x`}
+                </div>
+              )}
             </div>
-          )}
+          </button>
+          
+          {/* Buildings Status */}
+          <div className="flex items-center gap-2 px-4 border-l border-slate-700">
+            {loadingBuildings ? (
+              <>
+                <svg className="w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-slate-300 text-xs">Loading...</span>
+              </>
+            ) : (
+              <>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-slate-300 font-medium text-xs">{buildingsCount.toLocaleString()} buildings</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -2571,56 +2606,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           </div>
         </div>
       )}
-
-      {/* Real-time Clock & Status - Bottom Right */}
-      <div className="absolute bottom-0 right-0 z-30 flex flex-col gap-2">
-        {/* Live Clock with Bangalore Timezone */}
-        <button
-          onClick={() => setShowTimeControls(!showTimeControls)}
-          className="bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 px-3 py-2 hover:bg-slate-800/90 transition cursor-pointer"
-          title="Click to simulate time"
-        >
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="text-right">
-              <div className="text-sm font-mono font-semibold text-white">
-                {currentTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-              </div>
-              <div className="text-[10px] text-slate-400">
-                {currentTime.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' })} • IST
-              </div>
-            </div>
-            {timeMultiplier !== 1 && (
-              <div className="text-[9px] text-orange-400 font-medium mt-0.5">
-                ⚡ {timeMultiplier === 0 ? 'PAUSED' : `${timeMultiplier}x speed`}
-              </div>
-            )}
-          </div>
-        </button>
-
-        {/* Buildings Status */}
-        <div className="bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50 px-3 py-2 text-xs">
-          <div className="flex items-center gap-2">
-            {loadingBuildings ? (
-              <>
-                <svg className="w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="text-slate-300">Loading buildings...</span>
-              </>
-            ) : (
-              <>
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-slate-300 font-medium">{buildingsCount.toLocaleString()} buildings</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
 
       {isLoading && (
         <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-50">
