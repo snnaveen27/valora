@@ -14,5 +14,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Register Service Worker for automatic Ion tile caching
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw-ion-cache.js')
+            .then(registration => {
+              console.log('✅ Ion Cache Service Worker registered:', registration.scope)
+            })
+            .catch(error => {
+              console.warn('❌ Service Worker registration failed:', error)
+            })
+        })
+      }
+    </script>
   </body>
 </html>

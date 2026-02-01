@@ -88,6 +88,83 @@ npm run dev:frontend
 
 ---
 
+## Cesium Ion Enhancements (Optional)
+
+Valora supports **optional Cesium Ion upgrades** that are off by default and can be enabled later without changing core behavior.
+
+### 1) Configure Ion Token (Frontend)
+
+Set in `.env`:
+
+```
+VITE_CESIUM_TOKEN=your-cesium-ion-token
+```
+
+### 2) Available Ion Asset IDs
+
+| Asset | ID | Description |
+|-------|-----|-------------|
+| **Cesium World Terrain** | `1` | Default terrain (always used) |
+| **Google Photorealistic 3D** | `2275207` | Ultra-realistic 3D buildings/terrain |
+| **Cesium OSM Buildings** | `96188` | Global 3D buildings from OSM |
+| **Google Satellite** | `3830182` | High-res satellite imagery |
+| **Google Satellite + Labels** | `3830183` | Satellite with place names |
+| **Google Roadmap** | `3830184` | Street map layer |
+| **Bing Aerial** | `2` | Bing satellite imagery |
+| **Bing Aerial + Labels** | `3` | Bing satellite with labels |
+| **Bing Road** | `4` | Bing street map |
+
+Configure in `.env`:
+
+```bash
+# Core assets
+VITE_CESIUM_ION_TERRAIN_ASSET_ID=1
+VITE_CESIUM_ION_PHOTOREALISTIC_ASSET_ID=2275207
+VITE_CESIUM_ION_OSM_BUILDINGS_ASSET_ID=96188
+
+# Google imagery
+VITE_CESIUM_ION_GOOGLE_SATELLITE_ASSET_ID=3830182
+VITE_CESIUM_ION_GOOGLE_SATELLITE_LABELS_ASSET_ID=3830183
+VITE_CESIUM_ION_GOOGLE_ROADMAP_ASSET_ID=3830184
+
+# Bing imagery
+VITE_CESIUM_ION_BING_AERIAL_ASSET_ID=2
+VITE_CESIUM_ION_BING_AERIAL_LABELS_ASSET_ID=3
+VITE_CESIUM_ION_BING_ROAD_ASSET_ID=4
+```
+
+### 3) Enable Ion Features (UI)
+
+Go to **Layers panel** and toggle:
+
+| Feature | Description |
+|---------|-------------|
+| **Photorealistic 3D (Ion)** | Google's photorealistic 3D tiles with 2GB in-memory cache |
+| **OSM Buildings (Ion)** | Global OSM building models |
+| **Ion Imagery Overlay** | Dropdown to select Google/Bing basemaps |
+
+> All Ion features are **off by default**. Your existing basemap + terrain logic remain unchanged unless you enable these toggles.
+
+### 4) Local Caching (Education Use)
+
+For offline use or education purposes, you can self-host photorealistic tiles:
+
+```bash
+# Set local tileset URL in .env
+VITE_LOCAL_PHOTOREALISTIC_TILESET_URL=/ion-cache/tileset.json
+```
+
+**See full guide:** [`docs/CESIUM_ION_LOCAL_CACHING.md`](docs/CESIUM_ION_LOCAL_CACHING.md)
+
+**Features:**
+- **Enhanced in-memory cache:** 2GB RAM, 5000 tiles (automatic)
+- **Self-hosted tiles:** Capture and serve locally for offline demos
+- **Service worker cache:** Browser-based persistent caching
+
+⚠️ **License Notice:** Local caching is for education/research only. Commercial use requires proper licensing.
+
+---
+
 ## LLM Configuration
 
 Valora uses a **3-model local architecture** via Ollama (8B models are sufficient):

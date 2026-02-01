@@ -7,93 +7,6 @@ import { API_URL } from '../apiConfig'
 
 window.CESIUM_BASE_URL = '/cesium/'
 
-const ION_TOKEN =
-  import.meta.env.VITE_CESIUM_ION_API_KEY ||
-  import.meta.env.VITE_CESIUM_ION_API ||
-  import.meta.env.VITE_CESIUM_ION_TOKEN ||
-  import.meta.env.VITE_CESIUM_TOKEN ||
-  import.meta.env.CESIUM_ION_API_KEY ||
-  import.meta.env.CESIUM_ION_API
-
-if (ION_TOKEN) {
-  Cesium.Ion.defaultAccessToken = ION_TOKEN
-}
-
-const HAS_ION_TOKEN = Boolean(ION_TOKEN)
-const ION_TERRAIN_ASSET_ID = (() => {
-  const raw = Number(
-    import.meta.env.VITE_CESIUM_ION_TERRAIN_ASSET_ID ||
-      import.meta.env.CESIUM_ION_TERRAIN_ASSET_ID ||
-      1
-  )
-  return Number.isFinite(raw) ? raw : 1
-})()
-
-const ION_PHOTOREALISTIC_ASSET_ID = (() => {
-  const raw = Number(
-    import.meta.env.VITE_CESIUM_ION_PHOTOREALISTIC_ASSET_ID ||
-      import.meta.env.CESIUM_ION_PHOTOREALISTIC_ASSET_ID
-  )
-  return Number.isFinite(raw) ? raw : null
-})()
-
-const HAS_ION_PHOTOREALISTIC = Boolean(ION_PHOTOREALISTIC_ASSET_ID)
-
-// Ion OSM Buildings asset
-const ION_OSM_BUILDINGS_ASSET_ID = (() => {
-  const raw = Number(
-    import.meta.env.VITE_CESIUM_ION_OSM_BUILDINGS_ASSET_ID ||
-      import.meta.env.CESIUM_ION_OSM_BUILDINGS_ASSET_ID
-  )
-  return Number.isFinite(raw) ? raw : null
-})()
-
-const HAS_ION_OSM_BUILDINGS = Boolean(ION_OSM_BUILDINGS_ASSET_ID)
-
-// Ion Imagery asset IDs (Google/Bing basemaps)
-const ION_IMAGERY_ASSETS = {
-  googleSatellite: Number(import.meta.env.VITE_CESIUM_ION_GOOGLE_SATELLITE_ASSET_ID) || null,
-  googleSatelliteLabels: Number(import.meta.env.VITE_CESIUM_ION_GOOGLE_SATELLITE_LABELS_ASSET_ID) || null,
-  googleRoadmap: Number(import.meta.env.VITE_CESIUM_ION_GOOGLE_ROADMAP_ASSET_ID) || null,
-  googleLabels: Number(import.meta.env.VITE_CESIUM_ION_GOOGLE_LABELS_ASSET_ID) || null,
-  googleContour: Number(import.meta.env.VITE_CESIUM_ION_GOOGLE_CONTOUR_ASSET_ID) || null,
-  bingAerial: Number(import.meta.env.VITE_CESIUM_ION_BING_AERIAL_ASSET_ID) || null,
-  bingAerialLabels: Number(import.meta.env.VITE_CESIUM_ION_BING_AERIAL_LABELS_ASSET_ID) || null,
-  bingRoad: Number(import.meta.env.VITE_CESIUM_ION_BING_ROAD_ASSET_ID) || null,
-}
-
-const HAS_ION_IMAGERY = HAS_ION_TOKEN && Object.values(ION_IMAGERY_ASSETS).some(Boolean)
-
-// Local tileset URL override (for self-hosted photorealistic tiles)
-const LOCAL_PHOTOREALISTIC_TILESET_URL = import.meta.env.VITE_LOCAL_PHOTOREALISTIC_TILESET_URL || null
-const USE_LOCAL_PHOTOREALISTIC = Boolean(LOCAL_PHOTOREALISTIC_TILESET_URL)
-
-// Photorealistic tile cache settings (RAM-efficient with GPU optimization)
-const PHOTOREALISTIC_CACHE_CONFIG = {
-  maximumScreenSpaceError: 2, // Balanced quality vs performance (default: 2)
-  maximumMemoryUsage: 512, // 512MB RAM-efficient (default: 512MB)
-  preloadWhenHidden: false, // Save memory - only load visible tiles
-  preloadFlightDestinations: false, // Save memory
-  dynamicScreenSpaceError: true,
-  dynamicScreenSpaceErrorDensity: 0.005, // Less aggressive = less RAM
-  dynamicScreenSpaceErrorFactor: 4.0,
-  skipLevelOfDetail: true, // Skip LODs for memory efficiency
-  baseScreenSpaceError: 2048, // Higher = less detail = less RAM
-  skipScreenSpaceErrorFactor: 32, // More aggressive skipping
-  skipLevels: 2, // Skip more levels
-  immediatelyLoadDesiredLevelOfDetail: false,
-  loadSiblings: false, // Don't load adjacent tiles = save RAM
-  cullWithChildrenBounds: true,
-  cullRequestsWhileMoving: true,
-  cullRequestsWhileMovingMultiplier: 120.0, // More aggressive culling
-  progressiveResolutionHeightFraction: 0.5, // Less progressive detail
-  foveatedScreenSpaceError: true, // GPU optimization - focus on center
-  foveatedConeSize: 0.2, // Smaller cone = less detail outside center
-  foveatedMinimumScreenSpaceErrorRelaxation: 0.5, // More relaxed outside center
-  foveatedInterpolationCallback: undefined,
-  foveatedTimeDelay: 0.1
-}
-
 // Backend API for local 3D buildings
 const API_BASE = API_URL
 const TILES_API = `${API_BASE}/api/tiles/viewport`
@@ -102,14 +15,14 @@ const BUFFER_ANALYZE_API = `${API_BASE}/api/spatial/buffer-analyze`
 
 // Bangalore areas for navigation
 const BANGALORE_AREAS = {
-  indiranagar: { lng: 77.6412, lat: 12.9716, name: 'Indiranagar', icon: '🏘️' },
-  hebbal: { lng: 77.5946, lat: 13.0359, name: 'Hebbal', icon: '🌳' },
-  whitefield: { lng: 77.7499, lat: 12.9698, name: 'Whitefield', icon: '🏢' },
-  koramangala: { lng: 77.6245, lat: 12.9352, name: 'Koramangala', icon: '🍽️' },
-  jayanagar: { lng: 77.5800, lat: 12.9250, name: 'Jayanagar', icon: '🏛️' },
-  mgroad: { lng: 77.6066, lat: 12.9758, name: 'MG Road', icon: '🛍️' },
-  electroniccity: { lng: 77.6600, lat: 12.8456, name: 'Electronic City', icon: '💻' },
-  malleshwaram: { lng: 77.5685, lat: 13.0035, name: 'Malleshwaram', icon: '🕉️' }
+  indiranagar: { lng: 77.6412, lat: 12.9716, name: 'Indiranagar', icon: '­ƒÅÿ´©Å' },
+  hebbal: { lng: 77.5946, lat: 13.0359, name: 'Hebbal', icon: '­ƒî│' },
+  whitefield: { lng: 77.7499, lat: 12.9698, name: 'Whitefield', icon: '­ƒÅó' },
+  koramangala: { lng: 77.6245, lat: 12.9352, name: 'Koramangala', icon: '­ƒì¢´©Å' },
+  jayanagar: { lng: 77.5800, lat: 12.9250, name: 'Jayanagar', icon: '­ƒÅø´©Å' },
+  mgroad: { lng: 77.6066, lat: 12.9758, name: 'MG Road', icon: '­ƒøì´©Å' },
+  electroniccity: { lng: 77.6600, lat: 12.8456, name: 'Electronic City', icon: '­ƒÆ╗' },
+  malleshwaram: { lng: 77.5685, lat: 13.0035, name: 'Malleshwaram', icon: '­ƒòë´©Å' }
 }
 
 // Default location: Indiranagar, Bangalore
@@ -117,30 +30,6 @@ const DEFAULT_LOCATION = {
   lng: 77.6412,
   lat: 12.9716,
   height: 1500
-}
-
-const MAP_PREFS_KEY = 'valora.mapPreferences'
-const DEFAULT_ORBIT_DISTANCE = 800
-const DEFAULT_ORBIT_PITCH_DEG = -45
-
-const loadMapPreferences = () => {
-  if (typeof window === 'undefined') return {}
-  try {
-    const raw = window.localStorage.getItem(MAP_PREFS_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch (err) {
-    console.warn('Failed to load map preferences:', err)
-    return {}
-  }
-}
-
-const saveMapPreferences = (prefs) => {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(MAP_PREFS_KEY, JSON.stringify(prefs))
-  } catch (err) {
-    console.warn('Failed to save map preferences:', err)
-  }
 }
 
 export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggleMapFullscreen, isMapFullscreen }) {
@@ -157,11 +46,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const placeMarkerRef = useRef(null)
   const rotationIntervalRef = useRef(null)
   const rotationTargetRef = useRef(null)
-  const ionPhotorealisticTilesetRef = useRef(null)
-  const ionOsmBuildingsTilesetRef = useRef(null)
-  const ionImageryLayerRef = useRef(null)
   const placesDataSourceRef = useRef(null)
-  const initialPrefsRef = useRef(loadMapPreferences())
   const [isLoading, setIsLoading] = useState(true)
   const [is3DMode, setIs3DMode] = useState(true)
   const [heading, setHeading] = useState(0)
@@ -173,27 +58,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const [clickRipple, setClickRipple] = useState(null)
   const [canGoBack, setCanGoBack] = useState(false)
   
-  // Enhanced layer visibility controls - optimized for RAM efficiency
-  const [showBuildings, setShowBuildings] = useState(() => initialPrefsRef.current.showBuildings ?? true)
-  const [showShadows, setShowShadows] = useState(() => initialPrefsRef.current.showShadows ?? false) // Shadows OFF by default (RAM save)
-  const [showTerrainShadows, setShowTerrainShadows] = useState(() => initialPrefsRef.current.showTerrainShadows ?? false) // Terrain shadows OFF
-  const [showTerrain, setShowTerrain] = useState(() => initialPrefsRef.current.showTerrain ?? true) // Terrain enabled by default
-  const [terrainExaggeration, setTerrainExaggeration] = useState(() => initialPrefsRef.current.terrainExaggeration ?? 1)
-  const [showIonPhotorealistic, setShowIonPhotorealistic] = useState(() => initialPrefsRef.current.showIonPhotorealistic ?? false)
-  const [showIonOsmBuildings, setShowIonOsmBuildings] = useState(() => initialPrefsRef.current.showIonOsmBuildings ?? false)
-  const [ionImageryType, setIonImageryType] = useState(() => initialPrefsRef.current.ionImageryType ?? 'none') // 'none', 'googleSatellite', 'googleSatelliteLabels', 'bingAerial', etc.
-  const [buildingQuality, setBuildingQuality] = useState(() => initialPrefsRef.current.buildingQuality ?? 'medium') // low, medium, high - MEDIUM default for RAM
-  
-  // Performance monitoring
-  const [fps, setFps] = useState(60)
-  const [memoryUsage, setMemoryUsage] = useState(0)
-  const [showPerformancePanel, setShowPerformancePanel] = useState(false)
-  const [gpuInfo, setGpuInfo] = useState({ vendor: 'Unknown', renderer: 'Unknown' })
-  
-  // Cache stats
-  const [ionCacheStats, setIonCacheStats] = useState({ totalTiles: 0, totalSize: 0, percentage: 0 })
-  const [buildingCacheStats, setBuildingCacheStats] = useState({ totalTiles: 0, totalSize: 0 })
-  const [showCachePanel, setShowCachePanel] = useState(false)
+  // Enhanced layer visibility controls - buildings and shadows always on
+  const [showBuildings, setShowBuildings] = useState(true)
+  const [showShadows, setShowShadows] = useState(true)
+  const [showTerrain, setShowTerrain] = useState(false) // Start flat, enable for terrain analysis
+  const [buildingQuality, setBuildingQuality] = useState('high') // low, medium, high
   
   // Real-time clock state
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -216,19 +85,15 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const [searchResults, setSearchResults] = useState([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
-  const searchDebounceRef = useRef(null)
   
   // Basemap toggle: 'osm', 'mapbox_streets', 'mapbox_satellite', 'mapbox_satellite_streets', 'mapbox_dark', 'mapbox_light', 'mapbox_outdoors'
-  const [basemapType, setBasemapType] = useState(() => initialPrefsRef.current.basemapType ?? 'osm')
-  const [showWeatherDropdown, setShowWeatherDropdown] = useState(false)
+  const [basemapType, setBasemapType] = useState('osm')
   
   // Weather effects
   const [showRain, setShowRain] = useState(false)
   const [showSnow, setShowSnow] = useState(false)
   const [showClouds, setShowClouds] = useState(false)
   const [showWind, setShowWind] = useState(false)
-  const [realtimeWeather, setRealtimeWeather] = useState(null)
-  const [enableRealtimeWeather, setEnableRealtimeWeather] = useState(false)
   const rainSystemRef = useRef(null)
   const snowSystemRef = useRef(null)
   
@@ -242,445 +107,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const bufferEntityRef = useRef(null)
   const polygonEntityRef = useRef(null)
 
-  useEffect(() => {
-    saveMapPreferences({
-      showBuildings,
-      showShadows,
-      showTerrainShadows,
-      showTerrain,
-      terrainExaggeration,
-      showIonPhotorealistic,
-      showIonOsmBuildings,
-      ionImageryType,
-      basemapType,
-      buildingQuality
-    })
-  }, [showBuildings, showShadows, showTerrainShadows, showTerrain, terrainExaggeration, showIonPhotorealistic, showIonOsmBuildings, ionImageryType, basemapType, buildingQuality])
-
-  useEffect(() => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed() || !viewer.scene?.globe) return
-    viewer.scene.globe.terrainExaggeration = terrainExaggeration
-    viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
-  }, [terrainExaggeration])
-
-  // Service Worker cache stats updater
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return
-
-    const updateCacheStats = async () => {
-      try {
-        const registration = await navigator.serviceWorker.ready
-        const messageChannel = new MessageChannel()
-        
-        messageChannel.port1.onmessage = (event) => {
-          if (event.data) {
-            if (event.data.ion) {
-              setIonCacheStats({
-                totalTiles: event.data.ion.totalTiles || 0,
-                totalSize: event.data.ion.totalSize || 0,
-                percentage: event.data.ion.percentage || 0
-              })
-            }
-            if (event.data.building) {
-              setBuildingCacheStats({
-                totalTiles: event.data.building.totalTiles || 0,
-                totalSize: event.data.building.totalSize || 0
-              })
-            }
-          }
-        }
-        
-        registration.active?.postMessage({ type: 'GET_CACHE_STATS' }, [messageChannel.port2])
-      } catch (err) {
-        console.warn('Failed to get cache stats:', err)
-      }
-    }
-
-    // Update stats when photorealistic tiles are enabled OR buildings are shown
-    if (showIonPhotorealistic || showBuildings) {
-      updateCacheStats()
-      const interval = setInterval(updateCacheStats, 10000) // Update every 10s
-      return () => clearInterval(interval)
-    }
-  }, [showIonPhotorealistic, showBuildings])
-
-  // Performance monitoring - FPS and Memory
-  useEffect(() => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed()) return
-
-    let frameCount = 0
-    let lastTime = performance.now()
-
-    const measurePerformance = () => {
-      frameCount++
-      const currentTime = performance.now()
-      const elapsed = currentTime - lastTime
-
-      if (elapsed >= 1000) {
-        const currentFps = Math.round((frameCount * 1000) / elapsed)
-        setFps(currentFps)
-        frameCount = 0
-        lastTime = currentTime
-
-        // Memory usage (if available)
-        if (performance.memory) {
-          const usedMB = Math.round(performance.memory.usedJSHeapSize / 1048576)
-          setMemoryUsage(usedMB)
-        }
-      }
-
-      requestAnimationFrame(measurePerformance)
-    }
-
-    const rafId = requestAnimationFrame(measurePerformance)
-
-    return () => cancelAnimationFrame(rafId)
-  }, [])
-
-  // Aggressive tile eviction for RAM efficiency
-  useEffect(() => {
-    if (!showBuildings) return
-
-    const evictionInterval = setInterval(() => {
-      const viewer = viewerRef.current
-      if (!viewer || viewer.isDestroyed()) return
-
-      const cameraPos = viewer.camera.positionCartographic
-      const centerLat = Cesium.Math.toDegrees(cameraPos.latitude)
-      const centerLng = Cesium.Math.toDegrees(cameraPos.longitude)
-
-      const MAX_TILES = 50 // Aggressive limit for RAM
-      const EVICTION_DISTANCE_KM = 5 // Evict tiles > 5km away
-
-      const loadedTiles = Array.from(loadedTilesRef.current)
-      if (loadedTiles.length > MAX_TILES) {
-        // Calculate distances and evict furthest tiles
-        const tilesWithDistance = loadedTiles.map(tileId => {
-          const center = tileCentersRef.current[tileId]
-          if (!center) return { tileId, distance: Infinity }
-          
-          const dx = (center.lng - centerLng) * 111
-          const dy = (center.lat - centerLat) * 111
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          
-          return { tileId, distance }
-        })
-
-        tilesWithDistance.sort((a, b) => b.distance - a.distance)
-
-        // Evict furthest tiles beyond limit
-        const tilesToEvict = tilesWithDistance.slice(MAX_TILES)
-        tilesToEvict.forEach(({ tileId, distance }) => {
-          if (distance > EVICTION_DISTANCE_KM) {
-            const entities = tileEntitiesRef.current[tileId] || []
-            entities.forEach(entity => {
-              try {
-                viewer.entities.remove(entity)
-              } catch (e) {}
-            })
-            delete tileEntitiesRef.current[tileId]
-            delete tileCentersRef.current[tileId]
-            delete tileLoadTimesRef.current[tileId]
-            loadedTilesRef.current.delete(tileId)
-          }
-        })
-
-        const evicted = tilesToEvict.filter(t => t.distance > EVICTION_DISTANCE_KM).length
-        if (evicted > 0) {
-          console.log(`🗑️ RAM optimization: Evicted ${evicted} distant tiles`)
-        }
-      }
-    }, 5000) // Check every 5 seconds
-
-    return () => clearInterval(evictionInterval)
-  }, [showBuildings])
-
-  // Auto-search with debounce
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([])
-      setShowSearchResults(false)
-      return
-    }
-
-    // Clear previous debounce
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current)
-    }
-
-    // Debounce search by 500ms
-    searchDebounceRef.current = setTimeout(async () => {
-      setIsSearching(true)
-      try {
-        const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery + ', Bangalore, India')}&format=json&limit=5`
-        )
-        const results = await resp.json()
-        setSearchResults(results)
-        setShowSearchResults(true)
-      } catch (err) {
-        console.warn('Auto-search failed:', err)
-        setSearchResults([])
-      }
-      setIsSearching(false)
-    }, 500)
-
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current)
-      }
-    }
-  }, [searchQuery])
-
-  // Fetch realtime weather for Bangalore
-  useEffect(() => {
-    if (!enableRealtimeWeather) return
-
-    const fetchWeather = async () => {
-      try {
-        // Using OpenWeatherMap API (you'll need to add API key to .env)
-        const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || 'demo'
-        const response = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${DEFAULT_LOCATION.lat}&lon=${DEFAULT_LOCATION.lng}&appid=${API_KEY}`
-        )
-        if (response.ok) {
-          const data = await response.json()
-          setRealtimeWeather(data)
-          
-          // Auto-apply weather effects based on real conditions
-          const weatherCondition = data.weather[0]?.main?.toLowerCase()
-          if (weatherCondition === 'rain' || weatherCondition === 'drizzle' || weatherCondition === 'thunderstorm') {
-            setShowRain(true)
-            setShowSnow(false)
-          } else if (weatherCondition === 'snow') {
-            setShowSnow(true)
-            setShowRain(false)
-          } else if (weatherCondition === 'clouds') {
-            setShowClouds(true)
-          } else {
-            setShowRain(false)
-            setShowSnow(false)
-          }
-          
-          console.log('🌦️ Realtime weather applied:', weatherCondition)
-        }
-      } catch (err) {
-        console.warn('Failed to fetch realtime weather:', err)
-      }
-    }
-
-    fetchWeather()
-    // Refresh weather every 30 minutes
-    const interval = setInterval(fetchWeather, 30 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [enableRealtimeWeather])
-
-  useEffect(() => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed()) return
-
-    const removeTileset = () => {
-      if (ionPhotorealisticTilesetRef.current) {
-        try {
-          viewer.scene.primitives.remove(ionPhotorealisticTilesetRef.current)
-        } catch (err) {
-          console.warn('Failed to remove Ion photorealistic tileset:', err)
-        }
-        ionPhotorealisticTilesetRef.current = null
-      }
-    }
-
-    if (!showIonPhotorealistic) {
-      removeTileset()
-      return undefined
-    }
-
-    // Check for local tileset URL first (self-hosted for education)
-    if (USE_LOCAL_PHOTOREALISTIC) {
-      if (ionPhotorealisticTilesetRef.current) return undefined
-
-      let cancelled = false
-
-      const loadLocalTileset = async () => {
-        try {
-          console.log(`📦 Loading local photorealistic tileset from: ${LOCAL_PHOTOREALISTIC_TILESET_URL}`)
-          const tileset = await Cesium.Cesium3DTileset.fromUrl(LOCAL_PHOTOREALISTIC_TILESET_URL)
-          if (cancelled || !viewer || viewer.isDestroyed()) return
-
-          // Apply advanced cache config
-          Object.assign(tileset, PHOTOREALISTIC_CACHE_CONFIG)
-
-          viewer.scene.primitives.add(tileset)
-          ionPhotorealisticTilesetRef.current = tileset
-          console.log('✅ Local photorealistic tileset loaded with enhanced cache')
-        } catch (err) {
-          console.error('Failed to load local photorealistic tileset:', err)
-          if (!cancelled) {
-            setShowIonPhotorealistic(false)
-          }
-        }
-      }
-
-      loadLocalTileset()
-
-      return () => {
-        cancelled = true
-      }
-    }
-
-    // Fall back to Ion streaming
-    if (!HAS_ION_TOKEN || !HAS_ION_PHOTOREALISTIC) {
-      console.warn('Ion token or photorealistic asset ID missing; disabling photorealistic tiles.')
-      setShowIonPhotorealistic(false)
-      return undefined
-    }
-
-    if (ionPhotorealisticTilesetRef.current) return undefined
-
-    let cancelled = false
-
-    const loadTileset = async () => {
-      try {
-        console.log(`🌐 Loading Ion photorealistic tileset (asset ${ION_PHOTOREALISTIC_ASSET_ID}) with enhanced cache`)
-        const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(ION_PHOTOREALISTIC_ASSET_ID)
-        if (cancelled || !viewer || viewer.isDestroyed()) return
-
-        // Apply advanced cache config for better performance
-        Object.assign(tileset, PHOTOREALISTIC_CACHE_CONFIG)
-
-        viewer.scene.primitives.add(tileset)
-        ionPhotorealisticTilesetRef.current = tileset
-        console.log('✅ Ion photorealistic tileset loaded with 2GB in-memory cache')
-      } catch (err) {
-        console.error('Failed to load Ion photorealistic tileset:', err)
-        if (!cancelled) {
-          setShowIonPhotorealistic(false)
-        }
-      }
-    }
-
-    loadTileset()
-
-    return () => {
-      cancelled = true
-    }
-  }, [showIonPhotorealistic])
-
-  // Ion OSM Buildings tileset effect
-  useEffect(() => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed()) return
-
-    const removeTileset = () => {
-      if (ionOsmBuildingsTilesetRef.current) {
-        try {
-          viewer.scene.primitives.remove(ionOsmBuildingsTilesetRef.current)
-        } catch (err) {
-          console.warn('Failed to remove Ion OSM buildings tileset:', err)
-        }
-        ionOsmBuildingsTilesetRef.current = null
-      }
-    }
-
-    if (!showIonOsmBuildings) {
-      removeTileset()
-      return undefined
-    }
-
-    if (!HAS_ION_TOKEN || !HAS_ION_OSM_BUILDINGS) {
-      console.warn('Ion token or OSM buildings asset ID missing; disabling Ion OSM buildings.')
-      setShowIonOsmBuildings(false)
-      return undefined
-    }
-
-    if (ionOsmBuildingsTilesetRef.current) return undefined
-
-    let cancelled = false
-
-    const loadTileset = async () => {
-      try {
-        const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(ION_OSM_BUILDINGS_ASSET_ID)
-        if (cancelled || !viewer || viewer.isDestroyed()) return
-
-        tileset.style = new Cesium.Cesium3DTileStyle({
-          color: "color('white', 0.8)",
-        })
-
-        viewer.scene.primitives.add(tileset)
-        ionOsmBuildingsTilesetRef.current = tileset
-        console.log('✅ Ion OSM Buildings loaded')
-      } catch (err) {
-        console.error('Failed to load Ion OSM buildings tileset:', err)
-        if (!cancelled) {
-          setShowIonOsmBuildings(false)
-        }
-      }
-    }
-
-    loadTileset()
-
-    return () => {
-      cancelled = true
-    }
-  }, [showIonOsmBuildings])
-
-  // Ion Imagery layer effect
-  useEffect(() => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed()) return
-
-    const removeImageryLayer = () => {
-      if (ionImageryLayerRef.current) {
-        try {
-          viewer.imageryLayers.remove(ionImageryLayerRef.current, true)
-        } catch (err) {
-          console.warn('Failed to remove Ion imagery layer:', err)
-        }
-        ionImageryLayerRef.current = null
-      }
-    }
-
-    if (ionImageryType === 'none' || !ionImageryType) {
-      removeImageryLayer()
-      return undefined
-    }
-
-    const assetId = ION_IMAGERY_ASSETS[ionImageryType]
-    if (!HAS_ION_TOKEN || !assetId) {
-      console.warn('Ion token or imagery asset ID missing; disabling Ion imagery.')
-      setIonImageryType('none')
-      return undefined
-    }
-
-    // Remove existing before loading new
-    removeImageryLayer()
-
-    let cancelled = false
-
-    const loadImagery = async () => {
-      try {
-        const provider = await Cesium.IonImageryProvider.fromAssetId(assetId)
-        if (cancelled || !viewer || viewer.isDestroyed()) return
-
-        const layer = viewer.imageryLayers.addImageryProvider(provider)
-        ionImageryLayerRef.current = layer
-        console.log(`✅ Ion imagery layer loaded: ${ionImageryType}`)
-      } catch (err) {
-        console.error('Failed to load Ion imagery layer:', err)
-        if (!cancelled) {
-          setIonImageryType('none')
-        }
-      }
-    }
-
-    loadImagery()
-
-    return () => {
-      cancelled = true
-    }
-  }, [ionImageryType])
 
   useEffect(() => {
     const runPolygonAnalysis = async () => {
@@ -915,47 +341,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   // Stop rotation helper function
   const stopRotation = () => {
     if (rotationIntervalRef.current) {
-      console.log('🎥 Stopping camera orbit')
+      console.log('­ƒÄÑ Stopping camera orbit')
       clearInterval(rotationIntervalRef.current)
       rotationIntervalRef.current = null
       rotationTargetRef.current = null
     }
   }
 
-  const getTerrainHeight = (lng, lat) => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed() || !showTerrain) return 0
-    const cartographic = Cesium.Cartographic.fromDegrees(lng, lat)
-    const height = viewer.scene?.globe?.getHeight(cartographic)
-    return Number.isFinite(height) ? height : 0
-  }
-
-  const getTerrainAwareTarget = (lng, lat, heightOffset = 0) => {
-    const terrainHeight = getTerrainHeight(lng, lat)
-    return Cesium.Cartesian3.fromDegrees(lng, lat, terrainHeight + heightOffset)
-  }
-
-  const getGroundPositionFromScreen = (screenPosition) => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed()) return null
-    const scene = viewer.scene
-    if (!scene) return null
-
-    if (scene.pickPositionSupported) {
-      const pickPosition = scene.pickPosition(screenPosition)
-      if (Cesium.defined(pickPosition)) return pickPosition
-    }
-
-    const ray = viewer.camera.getPickRay(screenPosition)
-    if (ray) {
-      const globePosition = scene.globe.pick(ray, scene)
-      if (Cesium.defined(globePosition)) return globePosition
-    }
-
-    return viewer.camera.pickEllipsoid(screenPosition, scene.globe.ellipsoid)
-  }
-
-  // Auto-rotate camera 360° around target during analysis loading
+  // Auto-rotate camera 360┬░ around target during analysis loading
   useEffect(() => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed()) return
@@ -963,11 +356,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     const isAnalyzing = agentData?.buildingAnalysisLoading || agentData?.locationAnalysisLoading
 
     if (isAnalyzing && !rotationIntervalRef.current && rotationTargetRef.current) {
-      // Start 360° orbit rotation around target at medium distance (800m)
-      console.log('🎥 Starting 360° camera orbit')
+      // Start 360┬░ orbit rotation around target at medium distance (250m)
+      console.log('­ƒÄÑ Starting 360┬░ camera orbit')
       const target = rotationTargetRef.current
-      const orbitDistance = DEFAULT_ORBIT_DISTANCE // Consistent distance across terrain/flat modes
-      const pitch = Cesium.Math.toRadians(DEFAULT_ORBIT_PITCH_DEG)
+      const orbitDistance = 250 // Medium distance for better building view
+      const pitch = Cesium.Math.toRadians(-45) // 45┬░ downward angle
       
       // Stop rotation on any user input (mouse/touch/wheel)
       const stopOnInput = () => {
@@ -982,7 +375,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       
       rotationIntervalRef.current = setInterval(() => {
         if (viewer && !viewer.isDestroyed() && target) {
-          // Orbit around target by rotating heading (slower: 0.2° per frame for smoother look)
+          // Orbit around target by rotating heading (slower: 0.2┬░ per frame for smoother look)
           viewer.camera.lookAt(
             target,
             new Cesium.HeadingPitchRange(
@@ -1020,14 +413,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       })
     })
     
-    // Update shadow map (but not globe lighting - terrain stays simple 3D)
+    // Update shadow map and globe lighting
     if (viewer.scene && viewer.shadowMap) {
       viewer.shadowMap.enabled = showShadows
-      viewer.scene.globe.enableLighting = false  // Always disabled for simple 3D terrain
-      viewer.scene.globe.shadows = (showTerrain && showTerrainShadows) ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED
+      viewer.scene.globe.enableLighting = showShadows
       viewer.shadows = showShadows
     }
-  }, [showBuildings, showShadows, showTerrain, showTerrainShadows])
+  }, [showBuildings, showShadows])
 
   // Real-time clock - updates every second
   useEffect(() => {
@@ -1091,12 +483,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       }
     })
     
-    // Terrain-aware camera height
-    const terrainHeight = getTerrainHeight(area.lng, area.lat)
-    const adjustedHeight = height + terrainHeight
-    
     viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(area.lng, area.lat, adjustedHeight),
+      destination: Cesium.Cartesian3.fromDegrees(area.lng, area.lat, height),
       orientation: {
         heading: Cesium.Math.toRadians(0),
         pitch: Cesium.Math.toRadians(-35),
@@ -1207,7 +595,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed()) return
     
-    console.log(`🔄 Switching to ${type} basemap...`)
+    console.log(`­ƒöä Switching to ${type} basemap...`)
     
     try {
       let provider
@@ -1260,7 +648,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         } else {
           provider = new Cesium.UrlTemplateImageryProvider({
             url: `https://api.mapbox.com/styles/v1/mapbox/${styleId}/tiles/{z}/{x}/{y}?access_token=${mapboxKey}`,
-            credit: '© Mapbox'
+            credit: '┬® Mapbox'
           })
         }
       } else {
@@ -1299,7 +687,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       viewer.imageryLayers.removeAll(true)
       viewer.imageryLayers.addImageryProvider(provider)
       setBasemapType(type)
-      console.log(`✅ Switched to ${type} basemap`)
+      console.log(`Ô£à Switched to ${type} basemap`)
     } catch (err) {
       console.error(`Failed to switch to ${type} basemap:`, err)
       // Fallback to OSM on error
@@ -1330,7 +718,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     drawingHandlerRef.current = handler
     
     handler.setInputAction((click) => {
-      const cartesian = getGroundPositionFromScreen(click.position)
+      const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid)
       if (cartesian) {
         const cartographic = Cesium.Cartographic.fromCartesian(cartesian)
         const lng = Cesium.Math.toDegrees(cartographic.longitude)
@@ -1414,7 +802,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     drawingHandlerRef.current = handler
     
     handler.setInputAction((click) => {
-      const cartesian = getGroundPositionFromScreen(click.position)
+      const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid)
       if (cartesian) {
         const cartographic = Cesium.Cartographic.fromCartesian(cartesian)
         const lng = Cesium.Math.toDegrees(cartographic.longitude)
@@ -1621,13 +1009,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             outline: true,
             outlineColor: Cesium.Color.fromCssColorString('#ffffff').withAlpha(0.15),
             outlineWidth: 1,
-            height: 0,
             extrudedHeight: height,
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-            extrudedHeightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
-            perPositionHeight: false,
-            closeTop: true,
-            closeBottom: true,
+            height: 0,
             shadows: showShadows ? Cesium.ShadowMode.ENABLED : Cesium.ShadowMode.DISABLED
           },
           properties: {
@@ -1761,7 +1144,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         delete tileLoadTimesRef.current[id]
         loadedTilesRef.current.delete(id)
       })
-      console.log(`🧹 Released ${tilesToEvict.length} distant tiles from RAM (${loadedTilesRef.current.size} tiles remaining)`)
+      console.log(`­ƒº╣ Released ${tilesToEvict.length} distant tiles from RAM (${loadedTilesRef.current.size} tiles remaining)`)
     }
 
     try {
@@ -1828,7 +1211,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       }
       
       if (loadedCount > 0) {
-        console.log(`🏢 Loaded ${loadedCount} new tiles (${totalBuildings} buildings total, ${loadedTilesRef.current.size} tiles)`)
+        console.log(`­ƒÅó Loaded ${loadedCount} new tiles (${totalBuildings} buildings total, ${loadedTilesRef.current.size} tiles)`)
       }
     } catch (err) {
       console.warn('Failed to load tiles:', err.message)
@@ -1888,12 +1271,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         }
       })
 
-      // Terrain-aware camera height
-      const terrainHeight = getTerrainHeight(lngNum, latNum)
-      const adjustedHeight = height + terrainHeight
-      
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, adjustedHeight),
+        destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, height),
         orientation: {
           heading: Cesium.Math.toRadians(0),
           pitch: Cesium.Math.toRadians(-45),
@@ -1932,9 +1311,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         properties.forEach((prop, index) => {
           if (!prop.lat || !prop.lng) return
           
-          const priceLabel = prop.price ? `₹${(prop.price / 100000).toFixed(1)}L` : ''
+          const priceLabel = prop.price ? `Ôé╣${(prop.price / 100000).toFixed(1)}L` : ''
           const bhkLabel = prop.bedrooms ? `${prop.bedrooms}BHK` : ''
-          const label = [bhkLabel, priceLabel].filter(Boolean).join(' • ') || `Property ${index + 1}`
+          const label = [bhkLabel, priceLabel].filter(Boolean).join(' ÔÇó ') || `Property ${index + 1}`
           
           const marker = viewer.entities.add({
             position: Cesium.Cartesian3.fromDegrees(prop.lng, prop.lat),
@@ -2010,12 +1389,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         })
 
         const height = zoom ? Math.max(100, 20000 / Math.pow(2, zoom)) : 600
-        // Terrain-aware camera height
-        const terrainHeight = getTerrainHeight(lngNum, latNum)
-        const adjustedHeight = height + terrainHeight
-        
         viewer.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, adjustedHeight),
+          destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, height),
           orientation: {
             heading: Cesium.Math.toRadians(0),
             pitch: Cesium.Math.toRadians(-45),
@@ -2043,51 +1418,31 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
     const initCesium = async () => {
       try {
-        // Detect GPU capabilities for optimization
-        const canvas = document.createElement('canvas')
-        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
-        const hasGPU = !!gl
-        const gpuVendor = hasGPU ? gl.getParameter(gl.VENDOR) : 'Unknown'
-        const gpuRenderer = hasGPU ? gl.getParameter(gl.RENDERER) : 'Unknown'
-        console.log(`🎮 GPU Detected: ${gpuVendor} - ${gpuRenderer}`)
-        
+        await new Promise(resolve => setTimeout(resolve, 100))
+        if (cancelled) return
+
+        // Create viewer with online OSM tiles
         const viewer = new Cesium.Viewer(cesiumContainerRef.current, {
-          animation: false,
           baseLayerPicker: false,
-          fullscreenButton: false,
           geocoder: false,
           homeButton: false,
-          infoBox: false,
           sceneModePicker: false,
-          selectionIndicator: false,
-          timeline: false,
           navigationHelpButton: false,
-          creditContainer: document.createElement('div'),
+          animation: false,
+          timeline: false,
+          fullscreenButton: false,
+          vrButton: false,
+          infoBox: false,
+          selectionIndicator: false,
           shadows: true,
           shouldAnimate: true,
-          terrainShadows: Cesium.ShadowMode.DISABLED,
-          requestRenderMode: true, // RAM optimization - only render when needed
-          maximumRenderTimeChange: 0.0, // GPU optimization - render every frame change
-          contextOptions: {
-            webgl: {
-              alpha: false, // GPU optimization - no alpha channel
-              depth: true,
-              stencil: false,
-              antialias: hasGPU, // GPU-dependent antialiasing
-              powerPreference: 'high-performance', // Use dedicated GPU if available
-              preserveDrawingBuffer: false,
-              failIfMajorPerformanceCaveat: false
-            }
-          }
+          imageryProvider: false,
+          terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+          skyBox: false,
+          skyAtmosphere: false
         })
 
         viewerRef.current = viewer
-        
-        // Store GPU info for UI display
-        setGpuInfo({
-          vendor: gpuVendor,
-          renderer: gpuRenderer
-        })
 
         // Configure shadow map
         viewer.shadowMap.enabled = true
@@ -2101,7 +1456,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         // Use OSM tiles with CORS proxy configuration for production
         const osmProvider = new Cesium.OpenStreetMapImageryProvider({
           url: 'https://tile.openstreetmap.org/',
-          credit: '© OpenStreetMap contributors',
+          credit: '┬® OpenStreetMap contributors',
           enablePickFeatures: false
         })
         
@@ -2114,24 +1469,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         imageryLayer.alpha = 1.0
         imageryLayer.brightness = 1.0
         
-        console.log('🗺️ Using OSM tiles')
+        console.log('­ƒù║´©Å Using OSM tiles')
 
-        if (basemapType && basemapType !== 'osm') {
-          switchBasemap(basemapType)
-        }
-
-        // Configure globe - disable lighting to prevent dark terrain appearance
+        // Configure globe with lighting for shadows
         viewer.scene.globe.show = true
-        viewer.scene.globe.enableLighting = false  // Disabled to keep terrain bright
+        viewer.scene.globe.enableLighting = true
         viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#f0f0f0')
-        viewer.scene.globe.terrainExaggeration = terrainExaggeration
-        viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
-        // Disable depth test against terrain so buildings at height 0 are visible
-        // (buildings are extruded from ellipsoid surface, not terrain surface)
         viewer.scene.globe.depthTestAgainstTerrain = false
-        
-        // Ensure terrain is rendered below buildings
-        viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
 
         // Set Cesium clock to current real time for accurate sun position & shadows
         viewer.clock.currentTime = Cesium.JulianDate.now()
@@ -2273,7 +1617,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                   buildingAnalysis: analysis
                 }))
               }
-              console.log('🏢 Building analysis complete:', analysis)
+              console.log('­ƒÅó Building analysis complete:', analysis)
             } else {
               console.warn('Building analysis failed:', response.status)
               if (setAgentData) {
@@ -2339,15 +1683,15 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               selectedBuildingEntityRef.current = entity
             }
 
-            // Zoom to building with medium distance for better view
+            // Zoom to street-level view of building (150m orbit distance)
             const lat = buildingData.coordinates.lat
             const lng = buildingData.coordinates.lng
             const height = buildingData.height || 10
-            const orbitDistance = DEFAULT_ORBIT_DISTANCE  // Medium distance for better building view
-            const orbitPitch = Cesium.Math.toRadians(DEFAULT_ORBIT_PITCH_DEG)
+            const orbitDistance = 300
+            const orbitPitch = Cesium.Math.toRadians(-45)
             
             // Target is center of building
-            const target = getTerrainAwareTarget(lng, lat, height / 2)
+            const target = Cesium.Cartesian3.fromDegrees(lng, lat, height / 2)
             rotationTargetRef.current = target
             
             // Fly to orbit position using lookAt
@@ -2393,7 +1737,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           deselectBuilding()
           
           // Get the clicked position on the globe
-          const cartesian = getGroundPositionFromScreen(click.position)
+          const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid)
           if (cartesian) {
             const cartographic = Cesium.Cartographic.fromCartesian(cartesian)
             const clickLat = Cesium.Math.toDegrees(cartographic.latitude)
@@ -2415,11 +1759,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 }))
               }
               
-              // Target is ground level at clicked location (terrain-aware)
-              const target = getTerrainAwareTarget(clickLng, clickLat)
+              // Target is ground level at clicked location
+              const target = Cesium.Cartesian3.fromDegrees(clickLng, clickLat, 0)
               rotationTargetRef.current = target
-              const orbitDistance = DEFAULT_ORBIT_DISTANCE  // Medium distance for location view
-              const orbitPitch = Cesium.Math.toRadians(DEFAULT_ORBIT_PITCH_DEG)
+              const orbitDistance = 300
+              const orbitPitch = Cesium.Math.toRadians(-45)
               
               // Fly to orbit position using lookAt
               viewer.camera.flyToBoundingSphere(
@@ -2478,7 +1822,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                   locationAnalysis: analysis
                 }))
               }
-              console.log('📍 Location analysis complete:', analysis)
+              console.log('­ƒôì Location analysis complete:', analysis)
             } else {
               console.warn('Location analysis failed:', response.status)
               if (setAgentData) {
@@ -2524,53 +1868,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         // Load initial buildings only when enabled
         if (showBuildings) {
           setTimeout(() => loadTilesForViewport(), 1500)
-        }
-
-        // Initialize terrain if enabled by default
-        if (showTerrain) {
-          setTimeout(async () => {
-            try {
-              if (viewer && !viewer.isDestroyed()) {
-                // Switch to 3D globe mode for terrain
-                viewer.scene.mode = Cesium.SceneMode.SCENE3D
-                
-                // Load Cesium Ion terrain
-                viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(ION_TERRAIN_ASSET_ID, {
-                  requestWaterMask: true,
-                  requestVertexNormals: true
-                })
-                
-                // Terrain shadows controlled by separate checkbox
-                viewer.scene.globe.shadows = showTerrainShadows ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED
-                viewer.scene.globe.enableLighting = false  // No day/night effects
-                viewer.scene.globe.terrainExaggeration = terrainExaggeration
-                viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
-                
-                // Enable depth test so buildings with heightReference properly clamp to terrain
-                viewer.scene.globe.depthTestAgainstTerrain = true
-                
-                // Enable sky and atmosphere for 3D globe
-                viewer.scene.skyBox = new Cesium.SkyBox({
-                  sources: {
-                    positiveX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_px.jpg'),
-                    negativeX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mx.jpg'),
-                    positiveY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_py.jpg'),
-                    negativeY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_my.jpg'),
-                    positiveZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_pz.jpg'),
-                    negativeZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mz.jpg')
-                  }
-                })
-                viewer.scene.skyAtmosphere = new Cesium.SkyAtmosphere()
-                
-                console.log('✅ 3D terrain enabled - receives building shadows only')
-              }
-            } catch (err) {
-              console.error('Failed to load Cesium Ion terrain on startup:', err)
-              if (viewer && !viewer.isDestroyed()) {
-                viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
-              }
-            }
-          }, 1000)
         }
 
       } catch (err) {
@@ -2706,18 +2003,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         }))
       }
 
-      // Fly to scene location with terrain-aware height
-      if (scene.location) {
-        const { heading = 0, pitch = -45 } = scene.orientation || {}
-        
-        // Terrain-aware camera height for storyboard
-        const terrainHeight = getTerrainHeight(scene.location.lng, scene.location.lat)
-        const sceneHeight = (scene.location.height || 800) + terrainHeight
-        
+      // Animate camera
+      if (scene.camera) {
+        const { lat, lng, height, heading, pitch, duration } = scene.camera
         const destination = Cesium.Cartesian3.fromDegrees(
-          scene.location.lng,
-          scene.location.lat,
-          sceneHeight
+          lng || DEFAULT_LOCATION.lng,
+          lat || DEFAULT_LOCATION.lat,
+          height || 500
         )
 
         await new Promise((resolve) => {
@@ -2725,17 +2017,17 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             destination,
             orientation: {
               heading: Cesium.Math.toRadians(heading || 0),
-              pitch: Cesium.Math.toRadians(pitch || -45),
+              pitch: Cesium.Math.toRadians(pitch || -35),
               roll: 0
             },
-            duration: scene.duration || 3,
+            duration: (duration || 3000) / 1000,
             complete: resolve
           })
         })
       }
 
       // Wait for scene duration
-      const waitTime = scene.wait || 2000
+      const waitTime = scene.duration || 3000
       await new Promise(resolve => setTimeout(resolve, waitTime))
     }
 
@@ -2762,55 +2054,58 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       const viewer = viewerRef.current
       if (!viewer || viewer.isDestroyed()) return
 
+      const localityName = e.detail?.locality
+      if (!localityName) return
+
+      // Fetch locality coordinates from API
       try {
-        const data = e.detail
-        if (data?.profile?.coordinates) {
-          const { lat, lng } = data.profile.coordinates
-          
-          // Fly to locality with storytelling animation (terrain-aware)
-          const terrainHeight = getTerrainHeight(lng, lat)
-          const adjustedHeight = 800 + terrainHeight
-          
-          viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(lng, lat, adjustedHeight),
-            orientation: {
-              heading: Cesium.Math.toRadians(45),
-              pitch: Cesium.Math.toRadians(-30),
-              roll: 0
-            },
-            duration: 2.5,
-            complete: () => {
-              // Orbit around locality
-              const target = getTerrainAwareTarget(lng, lat, 50)
-              rotationTargetRef.current = target
-              
-              // Start gentle orbit
-              let orbitHeading = 45
-              const orbitDistance = DEFAULT_ORBIT_DISTANCE
-              const orbitInterval = setInterval(() => {
-                if (!viewer || viewer.isDestroyed()) {
-                  clearInterval(orbitInterval)
-                  return
-                }
-                orbitHeading += 0.3
-                viewer.camera.lookAt(
-                  target,
-                  new Cesium.HeadingPitchRange(
-                    Cesium.Math.toRadians(orbitHeading),
-                    Cesium.Math.toRadians(DEFAULT_ORBIT_PITCH_DEG),
-                    orbitDistance
+        const resp = await fetch(`${API_BASE}/api/city-intelligence/locality/${encodeURIComponent(localityName)}`)
+        if (resp.ok) {
+          const data = await resp.json()
+          if (data.profile?.coordinates) {
+            const { lat, lng } = data.profile.coordinates
+            
+            // Fly to locality with storytelling animation
+            viewer.camera.flyTo({
+              destination: Cesium.Cartesian3.fromDegrees(lng, lat, 800),
+              orientation: {
+                heading: Cesium.Math.toRadians(45),
+                pitch: Cesium.Math.toRadians(-35),
+                roll: 0
+              },
+              duration: 2.0,
+              complete: () => {
+                // Orbit around locality
+                const target = Cesium.Cartesian3.fromDegrees(lng, lat, 50)
+                rotationTargetRef.current = target
+                
+                // Start gentle orbit
+                let orbitHeading = 45
+                const orbitInterval = setInterval(() => {
+                  if (!viewer || viewer.isDestroyed()) {
+                    clearInterval(orbitInterval)
+                    return
+                  }
+                  orbitHeading += 0.3
+                  viewer.camera.lookAt(
+                    target,
+                    new Cesium.HeadingPitchRange(
+                      Cesium.Math.toRadians(orbitHeading),
+                      Cesium.Math.toRadians(-35),
+                      600
+                    )
                   )
-                )
-                viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
-              }, 50)
+                  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+                }, 50)
 
-              // Stop after 8 seconds
-              setTimeout(() => clearInterval(orbitInterval), 8000)
-            }
-          })
+                // Stop after 8 seconds
+                setTimeout(() => clearInterval(orbitInterval), 8000)
+              }
+            })
 
-          // Load buildings for this area
-          setTimeout(loadTilesForViewport, 2500)
+            // Load buildings for this area
+            setTimeout(loadTilesForViewport, 2500)
+          }
         }
       } catch (err) {
         console.warn('Failed to fly to locality:', err)
@@ -2847,9 +2142,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
       {/* Top Bar - Search + Basemap + Navigation + Layers */}
       <div className="absolute top-0 left-0 right-0 z-50">
-        <div className="bg-slate-900 border-b border-slate-700 px-2 py-1 flex items-center gap-2">
-          {/* Search Bar with Auto-Results */}
-          <div className="relative flex items-center bg-slate-800/80 border border-slate-700 px-2 py-0.5 w-48">
+        <div className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 px-2 py-1 flex items-center gap-2">
+          {/* Search Bar */}
+          <div className="flex items-center bg-slate-800/80 border border-slate-700 px-2 py-0.5 w-48">
             <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -2857,15 +2152,25 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Type to search..."
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && searchQuery.trim()) {
+                  setIsSearching(true)
+                  try {
+                    const resp = await fetch(
+                      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery + ', Bangalore, India')}&format=json&limit=5`
+                    )
+                    const results = await resp.json()
+                    setSearchResults(results)
+                    setShowSearchResults(true)
+                  } catch (err) {
+                    console.warn('Search failed:', err)
+                  }
+                  setIsSearching(false)
+                }
+              }}
+              placeholder="Search..."
               className="flex-1 bg-transparent border-none text-white text-xs placeholder-slate-400 focus:outline-none ml-1"
             />
-            {isSearching && (
-              <svg className="animate-spin h-3 w-3 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            )}
           </div>
           
           {/* Basemap Dropdown */}
@@ -2888,12 +2193,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               </svg>
             </button>
             
-            {/* Basemap Dropdown */}
+            {/* Basemap Dropdown Menu */}
             {showBasemapDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-700 shadow-2xl min-w-[120px] z-[60] rounded-sm">
+              <div className="absolute top-full left-0 mt-1 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl min-w-[140px] z-[60]">
                 {[
-                  { id: 'osm', label: 'OSM Street' },
-                  { id: 'mapbox_streets', label: 'Mapbox Street' },
+                  { id: 'osm', label: 'Street' },
                   { id: 'mapbox_satellite', label: 'Satellite' },
                   { id: 'mapbox_satellite_streets', label: 'Hybrid' },
                   { id: 'mapbox_dark', label: 'Dark' },
@@ -2906,10 +2210,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                       switchBasemap(id)
                       setShowBasemapDropdown(false)
                     }}
-                    className={`w-full px-3 py-1.5 text-left text-xs transition rounded-sm ${
+                    className={`w-full px-3 py-1.5 text-left text-xs transition ${
                       basemapType === id 
-                        ? 'bg-blue-600 text-white font-semibold' 
-                        : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-slate-300 hover:bg-slate-800'
                     }`}
                   >
                     {label}
@@ -2966,139 +2270,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           {/* Divider */}
           <div className="h-4 w-px bg-slate-700" />
 
-          {/* Weather Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setShowWeatherDropdown(!showWeatherDropdown)
-                setShowLayerPanel(false)
-                setShowBasemapDropdown(false)
-                setShowSearchResults(false)
-              }}
-              className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold transition ${
-                showWeatherDropdown ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-              </svg>
-              <span>Weather</span>
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {/* Weather Dropdown Menu */}
-            {showWeatherDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-700 shadow-2xl min-w-[180px] z-[60] rounded-sm p-2">
-                <div className="text-[10px] text-slate-500 mb-2 font-semibold">Weather Effects</div>
-                
-                {/* Realtime Weather Toggle */}
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-blue-400 hover:text-blue-300 mb-2 pb-2 border-b border-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={enableRealtimeWeather}
-                    onChange={(e) => setEnableRealtimeWeather(e.target.checked)}
-                    className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                  />
-                  <div className="flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <span>Realtime Weather</span>
-                  </div>
-                </label>
-                
-                {/* Current Weather Info */}
-                {realtimeWeather && (
-                  <div className="mb-2 pb-2 border-b border-slate-700">
-                    <div className="text-[9px] text-slate-400 space-y-0.5">
-                      <div className="flex justify-between">
-                        <span>Condition:</span>
-                        <span className="text-slate-300 capitalize">{realtimeWeather.weather[0]?.description}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Temp:</span>
-                        <span className="text-slate-300">{(realtimeWeather.main?.temp - 273.15).toFixed(1)}°C</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Manual Controls */}
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={showRain}
-                      onChange={(e) => setShowRain(e.target.checked)}
-                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                    />
-                    Rain
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={showSnow}
-                      onChange={(e) => setShowSnow(e.target.checked)}
-                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                    />
-                    Snow
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={showClouds}
-                      onChange={(e) => setShowClouds(e.target.checked)}
-                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                    />
-                    Clouds
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={showWind}
-                      onChange={(e) => setShowWind(e.target.checked)}
-                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                    />
-                    Wind
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Performance & Cache Info */}
-          <div className="flex items-center gap-3 text-[10px] text-slate-400 mr-2">
-            <div className="flex items-center gap-1">
-              <span className={fps >= 30 ? 'text-green-400 font-mono' : 'text-red-400 font-mono'}>{fps} FPS</span>
-            </div>
-            {memoryUsage > 0 && (
-              <div className="flex items-center gap-1">
-                <span className="font-mono">{memoryUsage} MB</span>
-              </div>
-            )}
-            <div className="flex items-center gap-1">
-              <span className="font-mono">{tilesLoaded} tiles</span>
-            </div>
-            {(ionCacheStats.totalTiles > 0 || buildingCacheStats.totalTiles > 0) && (
-              <div className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                </svg>
-                <span className="font-mono text-blue-400">
-                  {((ionCacheStats.totalSize + buildingCacheStats.totalSize) / 1048576).toFixed(0)}MB cached
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Divider */}
-          <div className="h-4 w-px bg-slate-700" />
-
           {/* Layers Dropdown */}
           <div className="relative">
             <button
@@ -3118,7 +2289,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             
             {/* Layers Dropdown Panel */}
             {showLayerPanel && (
-              <div className="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-700 shadow-2xl p-3 min-w-[220px] z-[60] rounded-sm">
+              <div className="absolute top-full left-0 mt-1 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl p-3 min-w-[220px] z-[60]">
                 {/* 3D Layers */}
                 <div className="mb-2">
                   <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">3D Layers</div>
@@ -3154,84 +2325,20 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                         }}
                         className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
                       />
-                      Building Shadows
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showTerrainShadows}
-                        onChange={(e) => {
-                          setShowTerrainShadows(e.target.checked)
-                          const viewer = viewerRef.current
-                          if (viewer && !viewer.isDestroyed()) {
-                            viewer.scene.globe.shadows = (showTerrain && e.target.checked) ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED
-                          }
-                        }}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                      />
-                      Terrain Shadows
+                      Shadows
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
                       <input
                         type="checkbox"
                         checked={showTerrain}
-                        onChange={async (e) => {
+                        onChange={(e) => {
                           setShowTerrain(e.target.checked)
                           const viewer = viewerRef.current
                           if (viewer && !viewer.isDestroyed()) {
                             if (e.target.checked) {
-                              try {
-                                // Switch to 3D globe mode for terrain
-                                viewer.scene.mode = Cesium.SceneMode.SCENE3D
-                                
-                                // Load Cesium Ion terrain (basemap stays as selected)
-                                viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(ION_TERRAIN_ASSET_ID, {
-                                  requestWaterMask: true,
-                                  requestVertexNormals: true
-                                })
-                                
-                                // Terrain shadows controlled by separate checkbox
-                                viewer.scene.globe.shadows = showTerrainShadows ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED
-                                viewer.scene.globe.enableLighting = false  // No day/night effects
-                                viewer.scene.globe.terrainExaggeration = terrainExaggeration
-                                viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
-                                
-                                // Enable depth test so buildings with heightReference properly clamp to terrain
-                                viewer.scene.globe.depthTestAgainstTerrain = true
-                                
-                                // Enable sky and atmosphere for 3D globe
-                                viewer.scene.skyBox = new Cesium.SkyBox({
-                                  sources: {
-                                    positiveX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_px.jpg'),
-                                    negativeX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mx.jpg'),
-                                    positiveY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_py.jpg'),
-                                    negativeY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_my.jpg'),
-                                    positiveZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_pz.jpg'),
-                                    negativeZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mz.jpg')
-                                  }
-                                })
-                                viewer.scene.skyAtmosphere = new Cesium.SkyAtmosphere()
-                                
-                                console.log('✅ 3D terrain enabled - receives building shadows only')
-                              } catch (err) {
-                                console.error('Failed to load Cesium Ion terrain:', err)
-                                viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
-                              }
+                              viewer.terrainProvider = Cesium.createWorldTerrain()
                             } else {
-                              // Switch back to flat terrain (basemap stays as selected)
                               viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
-                              
-                              // Disable depth test for flat terrain
-                              viewer.scene.globe.depthTestAgainstTerrain = false
-                              
-                              // Terrain has no shadows - simple 3D only
-                              viewer.scene.globe.shadows = Cesium.ShadowMode.DISABLED
-                              
-                              // Disable sky and atmosphere for flat terrain
-                              viewer.scene.skyBox = undefined
-                              viewer.scene.skyAtmosphere = undefined
-                              
-                              console.log('✅ Flat terrain enabled with current basemap')
                             }
                           }
                         }}
@@ -3239,133 +2346,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                       />
                       Terrain
                     </label>
-                    <div className="mt-2">
-                      <div className="text-[10px] text-slate-500 mb-1">Terrain Exaggeration</div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="5"
-                          step="0.5"
-                          value={terrainExaggeration}
-                          onChange={(e) => {
-                            const viewer = viewerRef.current
-                            const newValue = Number(e.target.value)
-                            setTerrainExaggeration(newValue)
-                            if (viewer && !viewer.isDestroyed() && viewer.scene?.globe) {
-                              viewer.scene.globe.terrainExaggeration = newValue
-                            }
-                          }}
-                          className="w-full accent-blue-600"
-                        />
-                        <span className="text-[10px] text-slate-300 w-9 text-right">
-                          {terrainExaggeration.toFixed(1)}x
-                        </span>
-                      </div>
-                    </div>
-                    <label className="mt-2 flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showIonPhotorealistic}
-                        disabled={!HAS_ION_TOKEN || !HAS_ION_PHOTOREALISTIC}
-                        onChange={(e) => setShowIonPhotorealistic(e.target.checked)}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600 disabled:opacity-50"
-                      />
-                      Photorealistic 3D (Ion)
-                    </label>
-                    {!HAS_ION_PHOTOREALISTIC && (
-                      <div className="text-[10px] text-slate-500 mt-1">
-                        Set VITE_CESIUM_ION_PHOTOREALISTIC_ASSET_ID to enable.
-                      </div>
-                    )}
-                    <label className="mt-2 flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showIonOsmBuildings}
-                        disabled={!HAS_ION_TOKEN || !HAS_ION_OSM_BUILDINGS}
-                        onChange={(e) => setShowIonOsmBuildings(e.target.checked)}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600 disabled:opacity-50"
-                      />
-                      OSM Buildings (Ion)
-                    </label>
-                    {HAS_ION_IMAGERY && (
-                      <div className="mt-2">
-                        <div className="text-[10px] text-slate-500 mb-1">Ion Imagery Overlay</div>
-                        <select
-                          value={ionImageryType}
-                          onChange={(e) => setIonImageryType(e.target.value)}
-                          className="w-full bg-slate-700 text-xs text-slate-200 rounded px-2 py-1 border border-slate-600 focus:outline-none focus:border-blue-500"
-                        >
-                          <option value="none">None (Use basemap)</option>
-                          {ION_IMAGERY_ASSETS.googleSatellite && <option value="googleSatellite">Google Satellite</option>}
-                          {ION_IMAGERY_ASSETS.googleSatelliteLabels && <option value="googleSatelliteLabels">Google Satellite + Labels</option>}
-                          {ION_IMAGERY_ASSETS.googleRoadmap && <option value="googleRoadmap">Google Roadmap</option>}
-                          {ION_IMAGERY_ASSETS.bingAerial && <option value="bingAerial">Bing Aerial</option>}
-                          {ION_IMAGERY_ASSETS.bingAerialLabels && <option value="bingAerialLabels">Bing Aerial + Labels</option>}
-                          {ION_IMAGERY_ASSETS.bingRoad && <option value="bingRoad">Bing Road</option>}
-                        </select>
-                      </div>
-                    )}
-                    {(showIonPhotorealistic || showBuildings) && (
-                      <div className="mt-2 p-2 bg-slate-800 rounded border border-slate-700">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="text-[10px] text-slate-400 font-semibold">Auto-Cache Active</div>
-                          <button
-                            onClick={() => setShowCachePanel(!showCachePanel)}
-                            className="text-[10px] text-blue-400 hover:text-blue-300"
-                          >
-                            {showCachePanel ? 'Hide' : 'Details'}
-                          </button>
-                        </div>
-                        {showCachePanel && (
-                          <div className="space-y-2 text-[10px] text-slate-300">
-                            {showIonPhotorealistic && (
-                              <div className="pb-2 border-b border-slate-700">
-                                <div className="text-slate-400 font-semibold mb-1">Ion Tiles</div>
-                                <div className="flex justify-between">
-                                  <span>Cached:</span>
-                                  <span className="font-mono">{ionCacheStats.totalTiles}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Size:</span>
-                                  <span className="font-mono">{(ionCacheStats.totalSize / 1024 / 1024).toFixed(1)} MB</span>
-                                </div>
-                              </div>
-                            )}
-                            {showBuildings && (
-                              <div className="pb-2 border-b border-slate-700">
-                                <div className="text-slate-400 font-semibold mb-1">Building Tiles</div>
-                                <div className="flex justify-between">
-                                  <span>Cached:</span>
-                                  <span className="font-mono">{buildingCacheStats.totalTiles}</span>
-                                </div>
-                              </div>
-                            )}
-                            <div className="flex justify-between text-slate-400 font-semibold">
-                              <span>Total Storage:</span>
-                              <span className="font-mono">{ionCacheStats.percentage}%</span>
-                            </div>
-                            <button
-                              onClick={async () => {
-                                if (confirm('Clear all cached tiles? They will be re-downloaded when needed.')) {
-                                  const registration = await navigator.serviceWorker.ready
-                                  const messageChannel = new MessageChannel()
-                                  messageChannel.port1.onmessage = () => {
-                                    setIonCacheStats({ totalTiles: 0, totalSize: 0, percentage: 0 })
-                                    setBuildingCacheStats({ totalTiles: 0, totalSize: 0 })
-                                    alert('Cache cleared!')
-                                  }
-                                  registration.active?.postMessage({ type: 'CLEAR_ALL_CACHE' }, [messageChannel.port2])
-                                }
-                              }}
-                              className="w-full mt-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px]"
-                            >
-                              Clear All Cache
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
                 
@@ -3412,8 +2392,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                   </div>
                 </div>
                 
-                {/* Performance Monitor (Layers Panel - Removed, moved to floating panel) */}
-                
                 {/* Building Quality */}
                 <div className="pt-2 border-t border-slate-700">
                   <div className="text-[10px] text-slate-500 mb-1">Quality</div>
@@ -3438,20 +2416,15 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
-          <div className="absolute top-full left-2 mt-0 w-80 bg-slate-900 border border-slate-700 shadow-2xl max-h-48 overflow-y-auto z-[60] rounded-sm">
+          <div className="absolute top-full left-2 mt-0 w-80 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl max-h-48 overflow-y-auto z-[60]">
             {searchResults.map((result, idx) => (
               <button
                 key={idx}
                 onClick={() => {
                   const viewer = viewerRef.current
                   if (viewer && !viewer.isDestroyed()) {
-                    const lon = parseFloat(result.lon)
-                    const lat = parseFloat(result.lat)
-                    const terrainHeight = getTerrainHeight(lon, lat)
-                    const adjustedHeight = 800 + terrainHeight
-                    
                     viewer.camera.flyTo({
-                      destination: Cesium.Cartesian3.fromDegrees(lon, lat, adjustedHeight),
+                      destination: Cesium.Cartesian3.fromDegrees(parseFloat(result.lon), parseFloat(result.lat), 800),
                       orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45), roll: 0 },
                       duration: 2
                     })
@@ -3472,7 +2445,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
       {/* Bottom Bar - Drawing Tools + Time + Status + Fullscreen */}
       <div className="absolute bottom-0 left-0 right-0 z-40">
-        <div className="bg-slate-900 border-t border-slate-700 px-2 py-0.5 flex items-center justify-between">
+        <div className="bg-slate-900/95 backdrop-blur-sm border-t border-slate-700 px-2 py-0.5 flex items-center justify-between">
           {/* Drawing Tools */}
           <div>
             <DrawingTools
@@ -3502,7 +2475,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               {currentTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true })}
             </span>
             {timeMultiplier !== 1 && (
-              <span className="text-[9px] text-orange-400">⚡{timeMultiplier}x</span>
+              <span className="text-[9px] text-orange-400">ÔÜí{timeMultiplier}x</span>
             )}
           </button>
           
@@ -3549,7 +2522,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           className="absolute z-50 pointer-events-auto"
           style={{ left: buildingPopupPosition.x, top: buildingPopupPosition.y, transform: 'translate(-50%, -100%)' }}
         >
-          <div className="bg-slate-900 rounded-lg shadow-xl border border-blue-500/30 p-3 min-w-[200px]">
+          <div className="bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-xl border border-blue-500/30 p-3 min-w-[200px]">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-white">Building Info</span>
               <button
@@ -3572,7 +2545,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Area:</span>
-                <span className="text-white">{selectedBuilding.area ? `${selectedBuilding.area.toFixed(0)} m²` : 'N/A'}</span>
+                <span className="text-white">{selectedBuilding.area ? `${selectedBuilding.area.toFixed(0)} m┬▓` : 'N/A'}</span>
               </div>
               {selectedBuilding.floors && (
                 <div className="flex justify-between">
