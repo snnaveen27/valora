@@ -37,6 +37,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const viewerRef = useRef(null)
   const loadedTilesRef = useRef(new Set())  // Track loaded tile IDs
   const tileEntitiesRef = useRef({})  // Map of tile_id -> entities[]
+  const tileCentersRef = useRef({})  // Map of tile_id -> {lat, lng} for distance-based eviction
   const cameraMoveTimeoutRef = useRef(null)
   const selectedBuildingEntityRef = useRef(null)  // Track currently highlighted building
   const keyDownHandlerRef = useRef(null) // Track key handler so we can remove it on cleanup
@@ -996,9 +997,17 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       
       viewer.entities.resumeEvents()
       
-      // Store entities for this tile (persistent - won't be removed)
+      // Store entities for this tile
       tileEntitiesRef.current[tileId] = entities
       loadedTilesRef.current.add(tileId)
+
+      // Store tile center for distance-based eviction
+      if (entities.length > 0 && centroidLat && centroidLng) {
+        tileCentersRef.current[tileId] = {
+          lat: centroidLat,
+          lng: centroidLng
+        }
+      }
       
       return true
     } catch (err) {
@@ -1024,13 +1033,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       return
     }
 
-    // Aggressive LOD: only load tiles near camera based on height
-    let loadRadius = 0.01 // ~1km default
-    if (cameraHeight < 500) loadRadius = 0.004      // 400m when very close
-    else if (cameraHeight < 1000) loadRadius = 0.008  // 800m
-    else if (cameraHeight < 2000) loadRadius = 0.012  // 1.2km
-    else if (cameraHeight < 5000) loadRadius = 0.02   // 2km
-    else loadRadius = 0.03  // 3km when far
+    // Aggressive LOD: only load tiles near camera based on height (FASTER LOADING - smaller radius)
+    let loadRadius = 0.008 // ~800m default (reduced from 1km)
+    if (cameraHeight < 500) loadRadius = 0.003      // 300m when very close (reduced)
+    else if (cameraHeight < 1000) loadRadius = 0.006  // 600m (reduced)
+    else if (cameraHeight < 2000) loadRadius = 0.01   // 1km (reduced)
+    else if (cameraHeight < 5000) loadRadius = 0.015  // 1.5km (reduced)
+    else loadRadius = 0.02  // 2km when far (reduced)
 
     // Load only tiles within radius of camera center (not entire viewport)
     const bbox = {
@@ -1038,6 +1047,53 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       min_lat: cameraLat - loadRadius,
       max_lng: cameraLng + loadRadius,
       max_lat: cameraLat + loadRadius
+    }
+
+    // RAM Optimization: Distance-based eviction - release buildings far from camera
+    const MAX_TILES_IN_MEMORY = 30  // Reduced from 40 for faster cleanup
+    const loadRadiusKm = loadRadius * 111.0
+    const evictionDistanceKm = loadRadiusKm * 3  // Reduced from 4x for more aggressive cleanup
+    
+    // Calculate distance from camera to each tile center
+    const haversineDistance = (lat1, lng1, lat2, lng2) => {
+      const R = 6371 // Earth radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180
+      const dLng = (lng2 - lng1) * Math.PI / 180
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2)
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    }
+    
+    // Distance-based eviction: Remove tiles far from current camera position
+    const allTileIds = Array.from(loadedTilesRef.current)
+    const tilesWithDistance = allTileIds.map(id => {
+      const center = tileCentersRef.current[id]
+      if (!center) return { id, distance: Infinity }
+      const dist = haversineDistance(cameraLat, cameraLng, center.lat, center.lng)
+      return { id, distance: dist }
+    })
+    
+    // Sort by distance (farthest first) and evict tiles beyond eviction distance
+    tilesWithDistance.sort((a, b) => b.distance - a.distance)
+    
+    // Evict tiles that are too far OR if we have too many tiles
+    const tilesToEvict = tilesWithDistance.filter(t => 
+      t.distance > evictionDistanceKm || 
+      (loadedTilesRef.current.size > MAX_TILES_IN_MEMORY && t.distance > loadRadiusKm * 1.5)
+    )
+    
+    if (tilesToEvict.length > 0) {
+      tilesToEvict.forEach(({ id }) => {
+        const entities = tileEntitiesRef.current[id]
+        if (entities) {
+          entities.forEach(e => viewer.entities.remove(e))
+          delete tileEntitiesRef.current[id]
+        }
+        delete tileCentersRef.current[id]
+        loadedTilesRef.current.delete(id)
+      })
+      console.log(`🧹 Released ${tilesToEvict.length} distant tiles from RAM (${loadedTilesRef.current.size} tiles remaining)`)
     }
 
     try {
@@ -1057,8 +1113,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       
       if (newTiles.length === 0) return // All tiles already loaded
       
-      // Limit total tiles to load at once for performance
-      const maxTilesPerLoad = 16
+      // Limit total tiles to load at once for performance (INCREASED for faster loading)
+      const maxTilesPerLoad = 24  // Increased from 16
       const tilesToLoad = newTiles.slice(0, maxTilesPerLoad)
       
       if (tilesToLoad.length === 0) return
@@ -1073,8 +1129,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         }))
       }
       
-      // Load tiles in parallel batches (4 at a time for speed)
-      const batchSize = 4
+      // Load tiles in parallel batches (INCREASED for faster loading)
+      const batchSize = 8  // Increased from 4 for faster parallel loading
       let loadedCount = 0
       
       for (let i = 0; i < tilesToLoad.length; i += batchSize) {
@@ -1406,7 +1462,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         // Track camera changes
         viewer.camera.changed.addEventListener(updateHeading)
         
-        // Track camera movement end to load buildings and update mapCenter
+        // Track camera movement end to load buildings and update mapCenter (FASTER TRIGGER)
         viewer.camera.moveEnd.addEventListener(() => {
           clearTimeout(cameraMoveTimeoutRef.current)
           cameraMoveTimeoutRef.current = setTimeout(() => {
@@ -1433,7 +1489,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
                 console.warn('Failed to update mapCenter:', e)
               }
             }
-          }, 500)
+          }, 200)  // Reduced from 500ms to 200ms for faster loading
         })
 
         // Function to deselect building
@@ -2048,55 +2104,55 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         />
       </div>
 
-      {/* Navigation Controls - Top Right */}
+      {/* Navigation Controls - Top Right (Dark Theme) */}
       <div className="absolute top-4 right-4 z-40 flex flex-col gap-2">
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden flex flex-col">
+        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden flex flex-col">
           <button
             onClick={goBackToLastView}
             disabled={!canGoBack}
-            className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-100 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors border-b border-slate-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
             title="Back to last view"
           >
-            <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           <button
             onClick={resetView}
-            className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors"
             title="Reset view"
           >
-            <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l9-9 9 9M4 10v10a1 1 0 001 1h5m4 0h5a1 1 0 001-1V10" />
             </svg>
           </button>
         </div>
 
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden flex flex-col">
+        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden flex flex-col">
           <button
             onClick={zoomIn}
-            className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-100"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors border-b border-slate-700"
             title="Zoom In"
           >
-            <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
           </button>
           <button
             onClick={zoomOut}
-            className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors"
             title="Zoom Out"
           >
-            <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             </svg>
           </button>
         </div>
 
-        <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200/50 overflow-hidden flex flex-col">
+        <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden flex flex-col">
           <button
             onClick={resetNorth}
-            className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-100 relative"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors border-b border-slate-700 relative"
             title="Reset North"
           >
             <div 
@@ -2108,7 +2164,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           </button>
           <button
             onClick={toggle3D}
-            className="w-9 h-9 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors text-xs font-bold text-gray-700"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-700 active:bg-slate-600 transition-colors text-xs font-bold text-slate-300"
             title={is3DMode ? 'Switch to 2D' : 'Switch to 3D'}
           >
             {is3DMode ? '2D' : '3D'}
