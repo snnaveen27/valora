@@ -119,7 +119,7 @@ const DEFAULT_LOCATION = {
 }
 
 const MAP_PREFS_KEY = 'valora.mapPreferences'
-const DEFAULT_ORBIT_DISTANCE = 800
+const DEFAULT_ORBIT_DISTANCE = 500
 const DEFAULT_ORBIT_PITCH_DEG = -45
 
 const loadMapPreferences = () => {

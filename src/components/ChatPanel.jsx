@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import { Send, Bot, User, MapPin, Navigation, Settings, Cloud, HardDrive, ChevronDown, ChevronRight, Brain, Loader2, Sparkles, Search, Building2, TrendingUp, Compass, Zap, MessageCircle, Target, BarChart3 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -200,7 +200,7 @@ function IntentBubble({ intent, isLoading }) {
 }
 
 // AI Reasoning Display - Ollama-style with real-time streaming support
-function ThinkingDisplay({ thought, thinkingTime, isStreaming, streamingThought }) {
+const ThinkingDisplay = memo(function ThinkingDisplay({ thought, thinkingTime, isStreaming, streamingThought }) {
   const [expanded, setExpanded] = useState(true) // Default expanded during streaming
   
   // Auto-collapse when streaming finishes for better UX
@@ -266,7 +266,7 @@ function TypingIndicator() {
 }
 
 // Simplified Status Display (no task list)
-function StatusDisplay({ intent, isLoading }) {
+const StatusDisplay = memo(function StatusDisplay({ intent, isLoading }) {
   if (!isLoading && !intent) return null
   
   return (
@@ -274,7 +274,7 @@ function StatusDisplay({ intent, isLoading }) {
       <IntentBubble intent={intent} isLoading={isLoading} />
     </div>
   )
-}
+})
 
 // REMOVED: ThinkingTasksPanel - replaced with cleaner StatusDisplay
 
@@ -506,10 +506,19 @@ Just ask naturally — I understand casual conversation too!
       
       const messageIndex = messages.length + 1 // After user message
       
+      // Throttle state updates to reduce flickering
+      let lastThinkingUpdate = 0
+      let lastContentUpdate = 0
+      const THROTTLE_MS = 100 // Update UI every 100ms max
+      
       // Use streaming for the building analysis
       await callAIStreaming(
         query,
         (thinking, time, isThinking) => {
+          const now = Date.now()
+          if (now - lastThinkingUpdate < THROTTLE_MS && isThinking) return
+          lastThinkingUpdate = now
+          
           setMessages(prev => {
             const newMessages = [...prev]
             if (newMessages[messageIndex]) {
@@ -526,6 +535,10 @@ Just ask naturally — I understand casual conversation too!
           })
         },
         (content, time) => {
+          const now = Date.now()
+          if (now - lastContentUpdate < THROTTLE_MS) return
+          lastContentUpdate = now
+          
           setMessages(prev => {
             const newMessages = [...prev]
             if (newMessages[messageIndex]) {
@@ -1405,7 +1418,7 @@ Just ask naturally — I understand casual conversation too!
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={`msg-${i}-${msg.role}`} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'assistant' && (
               <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4 text-blue-400" />
