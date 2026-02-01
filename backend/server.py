@@ -1589,6 +1589,14 @@ async def chat_with_ai(request: ChatRequest):
         user_query = request.messages[-1].content
     
     context = request.context or {}
+
+    image_base64 = None
+    try:
+        img = context.get('image')
+        if isinstance(img, dict):
+            image_base64 = img.get('base64')
+    except Exception:
+        image_base64 = None
     
     # Classify intent first
     from ai.gis_agents import IntentRouter
@@ -1854,6 +1862,28 @@ async def chat_with_ai(request: ChatRequest):
     
     # Build context from grounded facts
     facts_context = facts.to_context_string()
+
+    if image_base64:
+        try:
+            from ai.multimodal_reasoning import get_multimodal_reasoner
+            mm = get_multimodal_reasoner()
+            mm_result = mm.reason(
+                query=user_query,
+                lat=facts.lat,
+                lng=facts.lng,
+                selected_building=selected_building,
+                viewport=context.get('viewport'),
+                buildings_in_view=None,
+                image_base64=image_base64
+            )
+            vu = (mm_result or {}).get('visual_understanding')
+            if vu and vu.get('analysis'):
+                facts_context += "\n\n**USER UPLOADED IMAGE (VISION ANALYSIS):**\n" + str(vu.get('analysis'))
+            else:
+                if (mm_result or {}).get('vlm_available') is False:
+                    facts_context += "\n\n**USER UPLOADED IMAGE:** Vision model not available on this server."
+        except Exception as e:
+            print(f"[VISION] Error processing uploaded image: {e}")
     
     # Add simulation facts if present
     if simulation_data:

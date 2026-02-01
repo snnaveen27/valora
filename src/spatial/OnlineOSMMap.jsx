@@ -142,7 +142,7 @@ const saveMapPreferences = (prefs) => {
   }
 }
 
-export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggleMapFullscreen, isMapFullscreen }) {
+export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggleMapFullscreen, isMapFullscreen, userLocation, gpsEnabled }) {
   const cesiumContainerRef = useRef(null)
   const viewerRef = useRef(null)
   const loadedTilesRef = useRef(new Set())  // Track loaded tile IDs
@@ -244,6 +244,29 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const rainSystemRef = useRef(null)
   const snowSystemRef = useRef(null)
   const weatherAppliedRef = useRef({ lastKey: null })
+
+  useEffect(() => {
+    const lat = Number(userLocation?.lat)
+    const lng = Number(userLocation?.lng)
+    const hasGps = Boolean(gpsEnabled) && Number.isFinite(lat) && Number.isFinite(lng)
+    setEnableRealtimeWeather(hasGps)
+    if (!hasGps) {
+      setRealtimeWeather(null)
+      setWeatherError(null)
+      setWeatherLastUpdated(null)
+      setShowRain(false)
+      setShowSnow(false)
+      setShowClouds(false)
+      setShowWind(false)
+      weatherAppliedRef.current.lastKey = null
+      if (setAgentData) {
+        setAgentData(prev => ({
+          ...prev,
+          weather: null
+        }))
+      }
+    }
+  }, [gpsEnabled, userLocation?.lat, userLocation?.lng])
   
   // Drawing tools state
   const [isDrawing, setIsDrawing] = useState(false)
@@ -451,6 +474,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   useEffect(() => {
     if (!enableRealtimeWeather) return
 
+    const lat = Number(userLocation?.lat)
+    const lng = Number(userLocation?.lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+
     const fetchWeather = async () => {
       try {
         // Vite only exposes env vars that start with VITE_
@@ -463,7 +490,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         }
 
         const response = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${DEFAULT_LOCATION.lat}&lon=${DEFAULT_LOCATION.lng}&appid=${encodeURIComponent(API_KEY)}&units=metric`
+          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${encodeURIComponent(API_KEY)}&units=metric`
         )
 
         if (response.status === 401) {
@@ -474,9 +501,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
         if (response.ok) {
           const data = await response.json()
+          const updatedAt = Date.now()
           setRealtimeWeather(data)
           setWeatherError(null)
-          setWeatherLastUpdated(Date.now())
+          setWeatherLastUpdated(updatedAt)
 
           const conditionMain = data.weather?.[0]?.main?.toLowerCase() || null
           const conditionDesc = data.weather?.[0]?.description || null
@@ -489,7 +517,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           const rainMm1h = Number.isFinite(data.rain?.['1h']) ? data.rain['1h'] : null
           const snowMm1h = Number.isFinite(data.snow?.['1h']) ? data.snow['1h'] : null
 
-          setWeatherMetrics({
+          const metrics = {
             tempC,
             feelsLikeC,
             humidity,
@@ -500,7 +528,21 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             snowMm1h,
             conditionMain,
             conditionDesc
-          })
+          }
+
+          setWeatherMetrics(metrics)
+
+          if (setAgentData) {
+            setAgentData(prev => ({
+              ...prev,
+              weather: {
+                updatedAt,
+                error: null,
+                metrics,
+                raw: data
+              }
+            }))
+          }
 
           // Auto-apply weather effects based on real conditions
           const key = `${conditionMain}|${Math.round((cloudsPct ?? 0) / 10)}|${Math.round((windSpeedMps ?? 0) * 2)}|${Math.round((rainMm1h ?? 0) * 10)}|${Math.round((snowMm1h ?? 0) * 10)}`
@@ -520,6 +562,17 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         }
       } catch (err) {
         setWeatherError('fetch_failed')
+        if (setAgentData) {
+          setAgentData(prev => ({
+            ...prev,
+            weather: {
+              updatedAt: Date.now(),
+              error: 'fetch_failed',
+              metrics: null,
+              raw: null
+            }
+          }))
+        }
       }
     }
 
@@ -3437,54 +3490,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                       </div>
                     )}
                   </div>
-                </div>
-                
-                {/* Realtime Weather */}
-                <div className="mb-2 pt-2 border-t border-slate-700">
-                  <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">Weather</div>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-blue-400 hover:text-blue-300">
-                    <input
-                      type="checkbox"
-                      checked={enableRealtimeWeather}
-                      onChange={(e) => setEnableRealtimeWeather(e.target.checked)}
-                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                    />
-                    <div className="flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <span>Realtime Weather</span>
-                    </div>
-                  </label>
-                  {enableRealtimeWeather && realtimeWeather && !weatherError && (
-                    <div className="mt-2 p-2 bg-slate-800 rounded border border-slate-700">
-                      <div className="text-[9px] text-slate-400 space-y-0.5">
-                        <div className="flex justify-between">
-                          <span>Condition:</span>
-                          <span className="text-slate-300 capitalize">{weatherMetrics.conditionDesc || '—'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Temp:</span>
-                          <span className="text-slate-300">{Number.isFinite(weatherMetrics.tempC) ? `${weatherMetrics.tempC.toFixed(1)}°C` : '—'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Wind:</span>
-                          <span className="text-slate-300">{Number.isFinite(weatherMetrics.windSpeedMps) ? `${weatherMetrics.windSpeedMps.toFixed(1)} m/s` : '—'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Clouds:</span>
-                          <span className="text-slate-300">{Number.isFinite(weatherMetrics.cloudsPct) ? `${weatherMetrics.cloudsPct}%` : '—'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {enableRealtimeWeather && weatherError && (
-                    <div className="mt-2 text-[9px] text-amber-300">
-                      {weatherError === 'missing_api_key' && 'Missing API key'}
-                      {weatherError === 'invalid_api_key' && 'Invalid API key'}
-                      {weatherError === 'fetch_failed' && 'Fetch failed'}
-                    </div>
-                  )}
                 </div>
                 
                 {/* Performance Monitor (Layers Panel - Removed, moved to floating panel) */}

@@ -53,7 +53,7 @@ export default function DrawingTools({
 
       {/* Modern tools panel */}
       {isExpanded && (
-        <div className="absolute bottom-full mb-1 left-0 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl overflow-hidden min-w-[240px] z-50">
+        <div className="absolute bottom-full mb-1 left-0 bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden min-w-[240px] z-50">
           
           {/* Tool grid */}
           <div className="p-2">

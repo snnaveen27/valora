@@ -7,7 +7,7 @@ import ScrapeController from './ScrapeController'
 import CinemaOverlay from './CinemaOverlay'
 import PaymentCheckout from './PaymentCheckout'
 import { useAuth } from '../contexts/AuthContext'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud } from 'lucide-react'
 
 import { API_URL } from '../apiConfig'
 
@@ -453,6 +453,25 @@ export default function MainApp() {
               {gpsEnabled ? 'GPS' : 'IP'}
             </span>
           </button>
+
+          {gpsEnabled && agentData?.weather?.metrics && !agentData?.weather?.error && (
+            <div className="ml-2 flex items-center gap-2 px-2 py-1 rounded-full border border-slate-600 bg-slate-700/40 text-xs text-slate-200">
+              <Cloud className="w-3.5 h-3.5 text-blue-300" />
+              <span className="capitalize text-slate-200">{agentData.weather.metrics.conditionDesc || '—'}</span>
+              <span className="text-slate-400">·</span>
+              <span className="font-mono text-slate-200">
+                {Number.isFinite(agentData.weather.metrics.tempC) ? `${agentData.weather.metrics.tempC.toFixed(1)}°C` : '—'}
+              </span>
+              <span className="text-slate-400">·</span>
+              <span className="font-mono text-slate-200">
+                {Number.isFinite(agentData.weather.metrics.windSpeedMps) ? `${agentData.weather.metrics.windSpeedMps.toFixed(1)} m/s` : '—'}
+              </span>
+              <span className="text-slate-400">·</span>
+              <span className="font-mono text-slate-200">
+                {Number.isFinite(agentData.weather.metrics.cloudsPct) ? `${agentData.weather.metrics.cloudsPct}%` : '—'}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -661,6 +680,8 @@ export default function MainApp() {
             setAgentData={setAgentData}
             toggleMapFullscreen={toggleMapFullscreen}
             isMapFullscreen={isMapFullscreen}
+            userLocation={userLocation}
+            gpsEnabled={gpsEnabled}
           />
         </div>
 

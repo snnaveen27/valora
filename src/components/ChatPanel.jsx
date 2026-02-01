@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
-import { Send, Bot, User, MapPin, Navigation, Settings, Cloud, HardDrive, ChevronDown, ChevronRight, Brain, Loader2, Sparkles, Search, Building2, TrendingUp, Compass, Zap, MessageCircle, Target, BarChart3 } from 'lucide-react'
+import { Send, Bot, User, MapPin, Navigation, Settings, Cloud, HardDrive, ChevronDown, ChevronRight, Brain, Loader2, Sparkles, Search, Building2, TrendingUp, Compass, Zap, MessageCircle, Target, BarChart3, Image } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -252,7 +252,7 @@ const ThinkingDisplay = memo(function ThinkingDisplay({ thought, thinkingTime, i
       )}
     </div>
   )
-}
+})
 
 // Typing Indicator - Human-like dots
 function TypingIndicator() {
@@ -429,6 +429,7 @@ Just ask naturally — I understand casual conversation too!
   const [backendStatus, setBackendStatus] = useState('checking')
   const [disambiguationCandidates, setDisambiguationCandidates] = useState(null) // For showing multiple location options
   const [showModelSelector, setShowModelSelector] = useState(false)
+  const [attachedImage, setAttachedImage] = useState(null)
   const [llmConfig, setLlmConfig] = useState({
     provider: 'local', // 'local' or 'openrouter'
     local_model: 'qwen3-vl:8b',  // Primary chat
@@ -439,9 +440,28 @@ Just ask naturally — I understand casual conversation too!
   })
   const [availableModels, setAvailableModels] = useState({ openrouter: [], local: [], loading: false })
   const messagesEndRef = useRef(null)
+  const imageInputRef = useRef(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const handlePickImage = () => {
+    imageInputRef.current?.click()
+  }
+
+  const handleImageSelected = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type?.startsWith('image/')) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '')
+      const base64 = dataUrl.includes('base64,') ? dataUrl.split('base64,')[1] : dataUrl
+      setAttachedImage({ base64, mime: file.type, name: file.name })
+    }
+    reader.readAsDataURL(file)
   }
 
   useEffect(() => {
@@ -779,6 +799,14 @@ Just ask naturally — I understand casual conversation too!
       explainability: agentData?.explainability || null,
       // Include simulation results if any
       simulation: agentData?.simulation || null,
+      // Include user's precise location for better context
+      userLocation: userLocation ? {
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        accuracy: userLocation.accuracy,
+        label: locationLabel,
+        source: locationSource
+      } : null,
       // Buildings count in viewport
       buildingsCount: agentData?.buildingsCount || 0,
     }
@@ -941,6 +969,11 @@ Just ask naturally — I understand casual conversation too!
           accuracy: userLocation.accuracy,
           label: locationLabel,
           source: locationSource
+        } : null,
+        image: attachedImage ? {
+          base64: attachedImage.base64,
+          mime: attachedImage.mime,
+          name: attachedImage.name
         } : null,
         // Include viewport analysis for accurate responses
         viewportAnalysis: agentData?.viewportAnalysis || null,
@@ -1201,6 +1234,23 @@ Just ask naturally — I understand casual conversation too!
     }
     
     // For all other queries (analysis, questions, building info, etc.), use AI
+
+    if (attachedImage) {
+      const placeholderMessageIndex = messages.length + 1
+      setMessages(prev => [...prev, { role: 'assistant', content: '', isLoading: true }])
+      const aiResponse = await callAI(userMessage)
+      setMessages(prev => {
+        const newMessages = [...prev]
+        if (newMessages[placeholderMessageIndex]) {
+          newMessages[placeholderMessageIndex] = { role: 'assistant', content: aiResponse, isLoading: false }
+        }
+        return newMessages
+      })
+      setIsLoading(false)
+      setAttachedImage(null)
+      if (imageInputRef.current) imageInputRef.current.value = ''
+      return
+    }
     // Generate smart loading tasks based on query content
     const generateSmartLoadingTasks = (query) => {
       const q = query.toLowerCase()
@@ -1636,6 +1686,21 @@ Just ask naturally — I understand casual conversation too!
         </div>
         
         <div className="flex gap-2">
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageSelected}
+            className="hidden"
+          />
+          <button
+            onClick={handlePickImage}
+            disabled={isLoading}
+            className="px-3 py-2 bg-slate-700/60 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition"
+            title={attachedImage ? attachedImage.name : 'Upload image'}
+          >
+            <Image className="w-4 h-4 text-slate-200" />
+          </button>
           <input
             type="text"
             value={input}
