@@ -2048,7 +2048,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       )}
 
       {/* Basemap Selector - Top Center Bar */}
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-40">
+      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-40">
         <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 px-2 py-1.5 flex items-center gap-1">
           <button
             onClick={() => switchBasemap('osm')}
@@ -2117,7 +2117,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       </div>
 
       {/* Drawing Tools - Bottom Left */}
-      <div className="absolute bottom-4 left-4 z-40">
+      <div className="absolute bottom-0 left-0 z-40">
         <DrawingTools
           isDrawing={isDrawing}
           drawMode={drawMode}
@@ -2133,7 +2133,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       </div>
 
       {/* Navigation Controls - Top Right (Dark Theme) */}
-      <div className="absolute top-4 right-4 z-40 flex flex-col gap-2">
+      <div className="absolute top-0 right-0 z-40 flex flex-col gap-2">
         <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden flex flex-col">
           <button
             onClick={goBackToLastView}
@@ -2218,7 +2218,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
 
       {/* Layer Controls Panel - Top Right below nav */}
       {showLayerPanel && (
-        <div className="absolute top-36 right-4 z-40 w-64">
+        <div className="absolute top-44 right-0 z-40 w-64">
           <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 p-3">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-semibold text-white">Layers</span>
@@ -2314,7 +2314,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       )}
 
       {/* Search Bar - Top Left */}
-      <div className="absolute top-4 left-4 z-40 w-72">
+      <div className="absolute top-0 left-0 z-40 w-80">
         <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700">
           <div className="flex items-center px-3 py-2">
             <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2455,7 +2455,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
 
       {/* Time Simulation Controls - Bottom Center */}
       {showTimeControls && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-40 w-96">
+        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-40 w-96">
           <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -2573,7 +2573,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       )}
 
       {/* Real-time Clock & Status - Bottom Right */}
-      <div className="absolute bottom-4 right-4 z-30 flex flex-col gap-2">
+      <div className="absolute bottom-0 right-0 z-30 flex flex-col gap-2">
         {/* Live Clock with Bangalore Timezone */}
         <button
           onClick={() => setShowTimeControls(!showTimeControls)}
