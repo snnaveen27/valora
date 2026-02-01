@@ -38,6 +38,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   const loadedTilesRef = useRef(new Set())  // Track loaded tile IDs
   const tileEntitiesRef = useRef({})  // Map of tile_id -> entities[]
   const tileCentersRef = useRef({})  // Map of tile_id -> {lat, lng} for distance-based eviction
+  const tileLoadTimesRef = useRef({})  // Map of tile_id -> timestamp to prevent immediate eviction
   const cameraMoveTimeoutRef = useRef(null)
   const selectedBuildingEntityRef = useRef(null)  // Track currently highlighted building
   const keyDownHandlerRef = useRef(null) // Track key handler so we can remove it on cleanup
@@ -1037,6 +1038,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         }
       }
       
+      // Track load time to prevent immediate eviction
+      tileLoadTimesRef.current[tileId] = Date.now()
+      
       return true
     } catch (err) {
       console.warn(`Failed to load tile ${tileId}:`, err.message)
@@ -1078,9 +1082,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     }
 
     // RAM Optimization: Distance-based eviction - release buildings far from camera
-    const MAX_TILES_IN_MEMORY = 30  // Reduced from 40 for faster cleanup
+    const MAX_TILES_IN_MEMORY = 50  // Increased to prevent premature eviction
     const loadRadiusKm = loadRadius * 111.0
-    const evictionDistanceKm = loadRadiusKm * 3  // Reduced from 4x for more aggressive cleanup
+    const evictionDistanceKm = loadRadiusKm * 5  // Increased to 5x to keep buildings visible longer
+    const MIN_TILE_AGE_MS = 10000  // Don't evict tiles loaded less than 10 seconds ago
     
     // Calculate distance from camera to each tile center
     const haversineDistance = (lat1, lng1, lat2, lng2) => {
@@ -1105,11 +1110,19 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     // Sort by distance (farthest first) and evict tiles beyond eviction distance
     tilesWithDistance.sort((a, b) => b.distance - a.distance)
     
-    // Evict tiles that are too far OR if we have too many tiles
-    const tilesToEvict = tilesWithDistance.filter(t => 
-      t.distance > evictionDistanceKm || 
-      (loadedTilesRef.current.size > MAX_TILES_IN_MEMORY && t.distance > loadRadiusKm * 1.5)
-    )
+    // Evict tiles that are too far OR if we have too many tiles, BUT not if recently loaded
+    const currentTime = Date.now()
+    const tilesToEvict = tilesWithDistance.filter(t => {
+      const loadTime = tileLoadTimesRef.current[t.id] || 0
+      const tileAge = currentTime - loadTime
+      
+      // Don't evict tiles younger than MIN_TILE_AGE_MS
+      if (tileAge < MIN_TILE_AGE_MS) return false
+      
+      // Evict if too far OR if we have too many tiles
+      return t.distance > evictionDistanceKm || 
+        (loadedTilesRef.current.size > MAX_TILES_IN_MEMORY && t.distance > loadRadiusKm * 2)
+    })
     
     if (tilesToEvict.length > 0) {
       tilesToEvict.forEach(({ id }) => {
@@ -1119,6 +1132,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           delete tileEntitiesRef.current[id]
         }
         delete tileCentersRef.current[id]
+        delete tileLoadTimesRef.current[id]
         loadedTilesRef.current.delete(id)
       })
       console.log(`🧹 Released ${tilesToEvict.length} distant tiles from RAM (${loadedTilesRef.current.size} tiles remaining)`)
