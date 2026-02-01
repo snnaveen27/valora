@@ -32,7 +32,7 @@ const DEFAULT_LOCATION = {
   height: 1500
 }
 
-export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
+export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggleMapFullscreen, isMapFullscreen }) {
   const cesiumContainerRef = useRef(null)
   const viewerRef = useRef(null)
   const loadedTilesRef = useRef(new Set())  // Track loaded tile IDs
@@ -74,6 +74,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   
   // Layer controls panel
   const [showLayerPanel, setShowLayerPanel] = useState(false)
+  const [showBasemapDropdown, setShowBasemapDropdown] = useState(false)
   
   // Building info popup
   const [selectedBuilding, setSelectedBuilding] = useState(null)
@@ -87,6 +88,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
   
   // Basemap toggle: 'osm', 'mapbox_streets', 'mapbox_satellite', 'mapbox_satellite_streets', 'mapbox_dark', 'mapbox_light', 'mapbox_outdoors'
   const [basemapType, setBasemapType] = useState('osm')
+  
+  // Weather effects
+  const [showRain, setShowRain] = useState(false)
+  const [showSnow, setShowSnow] = useState(false)
+  const [showClouds, setShowClouds] = useState(false)
+  const [showWind, setShowWind] = useState(false)
+  const rainSystemRef = useRef(null)
+  const snowSystemRef = useRef(null)
   
   // Drawing tools state
   const [isDrawing, setIsDrawing] = useState(false)
@@ -1887,6 +1896,76 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
     }
   }, [])
 
+  // Weather effects - Rain
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+
+    if (showRain && !rainSystemRef.current) {
+      // Create rain particle system
+      rainSystemRef.current = viewer.scene.primitives.add(new Cesium.ParticleSystem({
+        image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAQCAYAAADXnxW3AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAIGNIUk0AAHolAACAgwAA+f8AAIDpAAB1MAAA6mAAADqYAAAXb5JfxUYAAAASSURBVHjaYvj//z8DQIABgAEAEhgBwcZx7NgAAAAASUVORK5CYII=',
+        startColor: Cesium.Color.WHITE.withAlpha(0.3),
+        endColor: Cesium.Color.WHITE.withAlpha(0.0),
+        startScale: 1.0,
+        endScale: 0.5,
+        particleLife: 3.0,
+        speed: 15.0,
+        imageSize: new Cesium.Cartesian2(2, 10),
+        emissionRate: 1000,
+        lifetime: 1000000.0,
+        emitter: new Cesium.BoxEmitter(new Cesium.Cartesian3(2000, 2000, 0)),
+        modelMatrix: Cesium.Transforms.eastNorthUpToFixedFrame(viewer.camera.positionWC),
+        emitterModelMatrix: new Cesium.Matrix4()
+      }))
+    } else if (!showRain && rainSystemRef.current) {
+      viewer.scene.primitives.remove(rainSystemRef.current)
+      rainSystemRef.current = null
+    }
+  }, [showRain])
+
+  // Weather effects - Snow
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+
+    if (showSnow && !snowSystemRef.current) {
+      // Create snow particle system
+      snowSystemRef.current = viewer.scene.primitives.add(new Cesium.ParticleSystem({
+        image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAIGNIUk0AAHolAACAgwAA+f8AAIDpAAB1MAAA6mAAADqYAAAXb5JfxUYAAABXSURBVHjaYvz//z8DlWGAKGT8//8/IwMVFTIyMjIyMjIy/v//nwEkzsj4HyrOyMj4/z9MnJGR8T9YnJHxPxs6gZGREVkBIyMjI9D9TAwUAKpFhgEAHhIbCZT8pzMAAAAASUVORK5CYII=',
+        startColor: Cesium.Color.WHITE.withAlpha(0.9),
+        endColor: Cesium.Color.WHITE.withAlpha(0.0),
+        startScale: 1.5,
+        endScale: 1.0,
+        particleLife: 8.0,
+        speed: 3.0,
+        imageSize: new Cesium.Cartesian2(8, 8),
+        emissionRate: 300,
+        lifetime: 1000000.0,
+        emitter: new Cesium.BoxEmitter(new Cesium.Cartesian3(2000, 2000, 0)),
+        modelMatrix: Cesium.Transforms.eastNorthUpToFixedFrame(viewer.camera.positionWC),
+        emitterModelMatrix: new Cesium.Matrix4()
+      }))
+    } else if (!showSnow && snowSystemRef.current) {
+      viewer.scene.primitives.remove(snowSystemRef.current)
+      snowSystemRef.current = null
+    }
+  }, [showSnow])
+
+  // Weather effects - Clouds (atmospheric effect)
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+
+    if (showClouds) {
+      viewer.scene.fog.enabled = true
+      viewer.scene.fog.density = 0.0002
+      viewer.scene.fog.minimumBrightness = 0.7
+    } else {
+      viewer.scene.fog.enabled = false
+    }
+  }, [showClouds])
+
   // Hide Cesium logo
   useEffect(() => {
     const hideCesiumLogo = () => {
@@ -2061,12 +2140,12 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
         </div>
       )}
 
-      {/* Top Bar - Search + Basemap Selector */}
+      {/* Top Bar - Search + Basemap + Navigation + Layers */}
       <div className="absolute top-0 left-0 right-0 z-40">
-        <div className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 px-2 py-1 flex items-center justify-between gap-3">
+        <div className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 px-2 py-1 flex items-center gap-2">
           {/* Search Bar */}
-          <div className="flex items-center bg-slate-800/80 border border-slate-700 px-2 py-1 flex-1 max-w-sm">
-            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex items-center bg-slate-800/80 border border-slate-700 px-2 py-0.5 w-48">
+            <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -2089,88 +2168,255 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
                   setIsSearching(false)
                 }
               }}
-              placeholder="Search location..."
-              className="flex-1 bg-transparent border-none text-white text-sm placeholder-slate-400 focus:outline-none ml-2"
+              placeholder="Search..."
+              className="flex-1 bg-transparent border-none text-white text-xs placeholder-slate-400 focus:outline-none ml-1"
             />
-            {isSearching && (
-              <svg className="w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-            )}
           </div>
           
-          {/* Basemap Selector */}
-          <div className="flex items-center gap-1">
-          <button
-            onClick={() => switchBasemap('osm')}
-            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
-              basemapType === 'osm' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
-            }`}
-            title="OpenStreetMap"
-          >
-            Street Map
-          </button>
-          <button
-            onClick={() => switchBasemap('mapbox_streets')}
-            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
-              basemapType === 'mapbox_streets' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
-            }`}
-            title="Mapbox Streets"
-          >
-            Streets
-          </button>
-          <button
-            onClick={() => switchBasemap('mapbox_satellite')}
-            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
-              basemapType === 'mapbox_satellite' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
-            }`}
-            title="Mapbox Satellite Imagery"
-          >
-            Satellite
-          </button>
-          <button
-            onClick={() => switchBasemap('mapbox_satellite_streets')}
-            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
-              basemapType === 'mapbox_satellite_streets' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
-            }`}
-            title="Mapbox Satellite with Street Labels"
-          >
-            Hybrid
-          </button>
-          <button
-            onClick={() => switchBasemap('mapbox_dark')}
-            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
-              basemapType === 'mapbox_dark' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
-            }`}
-            title="Mapbox Dark Theme"
-          >
-            Dark
-          </button>
-          <button
-            onClick={() => switchBasemap('mapbox_light')}
-            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
-              basemapType === 'mapbox_light' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
-            }`}
-            title="Mapbox Light Theme"
-          >
-            Light
-          </button>
-          <button
-            onClick={() => switchBasemap('mapbox_outdoors')}
-            className={`px-3 py-1.5 rounded transition-colors text-[11px] font-semibold whitespace-nowrap ${
-              basemapType === 'mapbox_outdoors' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-700'
-            }`}
-            title="Mapbox Outdoors with Terrain"
-          >
-            Outdoors
-          </button>
-        </div>
+          {/* Basemap Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowBasemapDropdown(!showBasemapDropdown)
+                setShowSearchResults(false)
+              }}
+              className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold transition ${
+                showBasemapDropdown ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              <span className="capitalize">{basemapType.replace('mapbox_', '').replace('_', ' ')}</span>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {/* Basemap Dropdown Menu */}
+            {showBasemapDropdown && (
+              <div className="absolute top-full left-0 mt-1 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl min-w-[140px] z-50">
+                {[
+                  { id: 'osm', label: 'Street' },
+                  { id: 'mapbox_satellite', label: 'Satellite' },
+                  { id: 'mapbox_satellite_streets', label: 'Hybrid' },
+                  { id: 'mapbox_dark', label: 'Dark' },
+                  { id: 'mapbox_light', label: 'Light' },
+                  { id: 'mapbox_outdoors', label: 'Outdoors' }
+                ].map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => {
+                      switchBasemap(id)
+                      setShowBasemapDropdown(false)
+                    }}
+                    className={`w-full px-3 py-1.5 text-left text-xs transition ${
+                      basemapType === id 
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-slate-700" />
+
+          {/* Navigation Tools */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={goBackToLastView}
+              disabled={!canGoBack}
+              className="w-6 h-6 flex items-center justify-center hover:bg-slate-800 transition disabled:opacity-30"
+              title="Back"
+            >
+              <svg className="w-3 h-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+            <button onClick={resetView} className="w-6 h-6 flex items-center justify-center hover:bg-slate-800 transition" title="Home">
+              <svg className="w-3 h-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l9-9 9 9M4 10v10a1 1 0 001 1h5m4 0h5a1 1 0 001-1V10" />
+              </svg>
+            </button>
+            <button onClick={zoomIn} className="w-6 h-6 flex items-center justify-center hover:bg-slate-800 transition" title="Zoom In">
+              <svg className="w-3 h-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </button>
+            <button onClick={zoomOut} className="w-6 h-6 flex items-center justify-center hover:bg-slate-800 transition" title="Zoom Out">
+              <svg className="w-3 h-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+              </svg>
+            </button>
+            <button onClick={resetNorth} className="w-6 h-6 flex items-center justify-center hover:bg-slate-800 transition relative" title="North">
+              <div style={{ transform: `rotate(${-heading}deg)` }}>
+                <div className="w-0.5 h-2.5 bg-red-500 rounded-t-sm"></div>
+              </div>
+            </button>
+            <button
+              onClick={toggle3D}
+              className="w-6 h-6 flex items-center justify-center hover:bg-slate-800 transition text-[10px] font-bold text-slate-300"
+              title={is3DMode ? '2D' : '3D'}
+            >
+              {is3DMode ? '2D' : '3D'}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="h-4 w-px bg-slate-700" />
+
+          {/* Layers Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowLayerPanel(!showLayerPanel)}
+              className={`flex items-center gap-1 px-2 py-1 text-[10px] font-semibold transition ${
+                showLayerPanel ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <span>Layers</span>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            {/* Layers Dropdown Panel */}
+            {showLayerPanel && (
+              <div className="absolute top-full left-0 mt-1 bg-slate-900/95 backdrop-blur-sm border border-slate-700 p-3 min-w-[220px] z-50">
+                {/* 3D Layers */}
+                <div className="mb-2">
+                  <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">3D Layers</div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={showBuildings}
+                        onChange={(e) => {
+                          setShowBuildings(e.target.checked)
+                          const viewer = viewerRef.current
+                          if (viewer && !viewer.isDestroyed()) {
+                            viewer.entities.values.forEach(entity => {
+                              if (entity.polygon) entity.show = e.target.checked
+                            })
+                          }
+                        }}
+                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
+                      />
+                      Buildings
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={showShadows}
+                        onChange={(e) => {
+                          setShowShadows(e.target.checked)
+                          const viewer = viewerRef.current
+                          if (viewer && !viewer.isDestroyed()) {
+                            viewer.shadows = e.target.checked
+                            viewer.shadowMap.enabled = e.target.checked
+                          }
+                        }}
+                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
+                      />
+                      Shadows
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={showTerrain}
+                        onChange={(e) => {
+                          setShowTerrain(e.target.checked)
+                          const viewer = viewerRef.current
+                          if (viewer && !viewer.isDestroyed()) {
+                            if (e.target.checked) {
+                              viewer.terrainProvider = Cesium.createWorldTerrain()
+                            } else {
+                              viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
+                            }
+                          }
+                        }}
+                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
+                      />
+                      Terrain
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Weather Effects */}
+                <div className="mb-2 pt-2 border-t border-slate-700">
+                  <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">Weather Effects</div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={showRain}
+                        onChange={(e) => setShowRain(e.target.checked)}
+                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
+                      />
+                      Rain
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={showSnow}
+                        onChange={(e) => setShowSnow(e.target.checked)}
+                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
+                      />
+                      Snow
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={showClouds}
+                        onChange={(e) => setShowClouds(e.target.checked)}
+                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
+                      />
+                      Clouds
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={showWind}
+                        onChange={(e) => setShowWind(e.target.checked)}
+                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
+                      />
+                      Wind
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Building Quality */}
+                <div className="pt-2 border-t border-slate-700">
+                  <div className="text-[10px] text-slate-500 mb-1">Quality</div>
+                  <div className="flex gap-1">
+                    {['low', 'medium', 'high'].map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => setBuildingQuality(q)}
+                        className={`px-2 py-0.5 text-[10px] capitalize ${
+                          buildingQuality === q ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        }`}
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
-          <div className="absolute top-full left-3 mt-0 w-96 bg-slate-900/95 backdrop-blur-sm border-x border-b border-slate-700 max-h-64 overflow-y-auto z-50">
+          <div className="absolute top-full left-2 mt-0 w-80 bg-slate-900/95 backdrop-blur-sm border border-slate-700 max-h-48 overflow-y-auto z-50">
             {searchResults.map((result, idx) => (
               <button
                 key={idx}
@@ -2178,16 +2424,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
                   const viewer = viewerRef.current
                   if (viewer && !viewer.isDestroyed()) {
                     viewer.camera.flyTo({
-                      destination: Cesium.Cartesian3.fromDegrees(
-                        parseFloat(result.lon),
-                        parseFloat(result.lat),
-                        800
-                      ),
-                      orientation: {
-                        heading: Cesium.Math.toRadians(0),
-                        pitch: Cesium.Math.toRadians(-45),
-                        roll: 0
-                      },
+                      destination: Cesium.Cartesian3.fromDegrees(parseFloat(result.lon), parseFloat(result.lat), 800),
+                      orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45), roll: 0 },
                       duration: 2
                     })
                     setTimeout(loadTilesForViewport, 2500)
@@ -2195,194 +2433,19 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
                   setShowSearchResults(false)
                   setSearchQuery(result.display_name.split(',')[0])
                 }}
-                className="w-full px-4 py-2 text-left hover:bg-slate-800 transition border-b border-slate-800 last:border-b-0"
+                className="w-full px-3 py-1.5 text-left hover:bg-slate-800 transition border-b border-slate-800 last:border-b-0"
               >
-                <div className="text-sm text-white truncate">{result.display_name.split(',')[0]}</div>
-                <div className="text-xs text-slate-400 truncate">{result.display_name}</div>
+                <div className="text-xs text-white truncate">{result.display_name.split(',')[0]}</div>
+                <div className="text-[10px] text-slate-400 truncate">{result.display_name}</div>
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* Right Bar - Navigation + Layer Controls */}
-      <div className="absolute top-9 right-0 bottom-0 z-40 flex">
-        <div className="bg-slate-900/95 backdrop-blur-sm border-l border-slate-700 flex flex-col">
-          {/* Navigation Controls */}
-          <button
-            onClick={goBackToLastView}
-            disabled={!canGoBack}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-            title="Back to last view"
-          >
-            <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </button>
-          
-          <button
-            onClick={resetView}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
-            title="Reset view"
-          >
-            <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l9-9 9 9M4 10v10a1 1 0 001 1h5m4 0h5a1 1 0 001-1V10" />
-            </svg>
-          </button>
-          
-          <button
-            onClick={zoomIn}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
-            title="Zoom In"
-          >
-            <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-          </button>
-          
-          <button
-            onClick={zoomOut}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
-            title="Zoom Out"
-          >
-            <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-          </button>
-          
-          <button
-            onClick={resetNorth}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 relative"
-            title="Reset North"
-          >
-            <div 
-              className="absolute inset-0 flex items-center justify-center transition-transform duration-300"
-              style={{ transform: `rotate(${-heading}deg)` }}
-            >
-              <div className="w-0.5 h-3 bg-red-500 rounded-t-sm -mt-1"></div>
-            </div>
-          </button>
-          
-          <button
-            onClick={toggle3D}
-            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 text-xs font-bold text-slate-300"
-            title={is3DMode ? 'Switch to 2D' : 'Switch to 3D'}
-          >
-            {is3DMode ? '2D' : '3D'}
-          </button>
-          
-          <button
-            onClick={() => setShowLayerPanel(!showLayerPanel)}
-            className={`w-9 h-9 flex items-center justify-center transition-colors ${
-              showLayerPanel 
-                ? 'bg-blue-600 text-white' 
-                : 'text-slate-300 hover:bg-slate-800'
-            }`}
-            title="Layer Controls"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-          </button>
-        </div>
-        
-        {/* Layer Panel */}
-        {showLayerPanel && (
-          <div className="bg-slate-900/95 backdrop-blur-sm border-l border-slate-700 w-64 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-semibold text-white">Layers</span>
-              <button
-                onClick={() => setShowLayerPanel(false)}
-                className="text-slate-400 hover:text-white transition"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-xs text-slate-300">3D Buildings</span>
-                <input
-                  type="checkbox"
-                  checked={showBuildings}
-                  onChange={(e) => {
-                    setShowBuildings(e.target.checked)
-                    const viewer = viewerRef.current
-                    if (viewer && !viewer.isDestroyed()) {
-                      viewer.entities.values.forEach(entity => {
-                        if (entity.polygon) entity.show = e.target.checked
-                      })
-                    }
-                  }}
-                  className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-blue-600 focus:ring-blue-500"
-                />
-              </label>
-              
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-xs text-slate-300">Shadows</span>
-                <input
-                  type="checkbox"
-                  checked={showShadows}
-                  onChange={(e) => {
-                    setShowShadows(e.target.checked)
-                    const viewer = viewerRef.current
-                    if (viewer && !viewer.isDestroyed()) {
-                      viewer.shadows = e.target.checked
-                      viewer.shadowMap.enabled = e.target.checked
-                    }
-                  }}
-                  className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-blue-600 focus:ring-blue-500"
-                />
-              </label>
-              
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-xs text-slate-300">Terrain</span>
-                <input
-                  type="checkbox"
-                  checked={showTerrain}
-                  onChange={(e) => {
-                    setShowTerrain(e.target.checked)
-                    const viewer = viewerRef.current
-                    if (viewer && !viewer.isDestroyed()) {
-                      if (e.target.checked) {
-                        viewer.terrainProvider = Cesium.createWorldTerrain()
-                      } else {
-                        viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
-                      }
-                    }
-                  }}
-                  className="w-4 h-4 rounded bg-slate-700 border-slate-600 text-blue-600 focus:ring-blue-500"
-                />
-              </label>
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-slate-700">
-              <span className="text-xs text-slate-400 block mb-2">Building Detail</span>
-              <div className="grid grid-cols-3 gap-1">
-                {['low', 'medium', 'high'].map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => setBuildingQuality(q)}
-                    className={`px-2 py-1 text-xs capitalize transition ${
-                      buildingQuality === q
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom Bar - Drawing Tools + Time + Status */}
+      {/* Bottom Bar - Drawing Tools + Time + Status + Fullscreen */}
       <div className="absolute bottom-0 left-0 right-0 z-40">
-        <div className="bg-slate-900/95 backdrop-blur-sm border-t border-slate-700 px-2 py-1 flex items-center justify-between">
+        <div className="bg-slate-900/95 backdrop-blur-sm border-t border-slate-700 px-2 py-0.5 flex items-center justify-between">
           {/* Drawing Tools */}
           <div>
             <DrawingTools
@@ -2399,42 +2462,55 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
             />
           </div>
           
-          {/* Clock + Time Controls */}
+          {/* Center section - Clock */}
           <button
             onClick={() => setShowTimeControls(!showTimeControls)}
-            className="flex items-center gap-3 px-4 py-1 hover:bg-slate-800 transition cursor-pointer border-l border-slate-700"
-            title="Click to simulate time"
+            className="flex items-center gap-2 px-3 hover:bg-slate-800 transition cursor-pointer"
+            title="Time simulation"
           >
-            <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <div>
-              <div className="text-sm font-mono font-semibold text-white">
-                {currentTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true })}
-              </div>
-              {timeMultiplier !== 1 && (
-                <div className="text-[9px] text-orange-400 font-medium">
-                  ⚡ {timeMultiplier === 0 ? 'PAUSED' : `${timeMultiplier}x`}
-                </div>
-              )}
-            </div>
+            <span className="text-xs font-mono text-white">
+              {currentTime.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true })}
+            </span>
+            {timeMultiplier !== 1 && (
+              <span className="text-[9px] text-orange-400">⚡{timeMultiplier}x</span>
+            )}
           </button>
           
-          {/* Buildings Status */}
-          <div className="flex items-center gap-2 px-4 border-l border-slate-700">
-            {loadingBuildings ? (
-              <>
-                <svg className="w-4 h-4 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+          {/* Right section - Status + Fullscreen */}
+          <div className="flex items-center gap-1">
+            {/* Buildings Status */}
+            <div className="flex items-center gap-1 px-2 border-l border-slate-700">
+              {loadingBuildings ? (
+                <svg className="w-3 h-3 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                 </svg>
-                <span className="text-slate-300 text-xs">Loading...</span>
-              </>
-            ) : (
-              <>
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-slate-300 font-medium text-xs">{buildingsCount.toLocaleString()} buildings</span>
-              </>
+              ) : (
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+              )}
+              <span className="text-[10px] text-slate-300">{buildingsCount.toLocaleString()}</span>
+            </div>
+            
+            {/* Fullscreen Toggle */}
+            {toggleMapFullscreen && (
+              <button
+                onClick={toggleMapFullscreen}
+                className={`w-5 h-5 flex items-center justify-center transition border-l border-slate-700 pl-1 ${
+                  isMapFullscreen ? 'text-purple-400' : 'text-slate-400 hover:text-white'
+                }`}
+                title={isMapFullscreen ? 'Exit Map Fullscreen' : 'Map Fullscreen'}
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {isMapFullscreen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  )}
+                </svg>
+              </button>
             )}
           </div>
         </div>

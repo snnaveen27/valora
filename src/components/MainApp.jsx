@@ -470,19 +470,9 @@ export default function MainApp() {
             onAnalysisUpdate={handleAnalysisUpdate}
             agentData={agentData}
             setAgentData={setAgentData}
+            toggleMapFullscreen={toggleMapFullscreen}
+            isMapFullscreen={isMapFullscreen}
           />
-          {/* Map Fullscreen Button - Bottom Right near clock */}
-          <button
-            onClick={toggleMapFullscreen}
-            className={`absolute bottom-32 right-4 z-40 p-2 rounded-lg shadow-lg border transition-all ${
-              isMapFullscreen 
-                ? 'bg-purple-600/90 border-purple-500 text-white hover:bg-purple-500' 
-                : 'bg-slate-800/90 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700'
-            }`}
-            title={isMapFullscreen ? 'Exit Fullscreen' : 'Fullscreen Map'}
-          >
-            {isMapFullscreen ? <Shrink className="w-4 h-4" /> : <Expand className="w-4 h-4" />}
-          </button>
         </div>
 
         {/* Right Chat Panel */}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pentagon, Circle, Trash2, Check, X, ChevronDown } from 'lucide-react'
+import { Pentagon, Circle, Trash2, Check, X, ChevronDown, Ruler, Square, MapPin, Move } from 'lucide-react'
 
 export default function DrawingTools({ 
   isDrawing, 
@@ -15,6 +15,7 @@ export default function DrawingTools({
 }) {
   const [showBufferInput, setShowBufferInput] = useState(false)
   const [tempRadius, setTempRadius] = useState(bufferRadius || 500)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const handleBufferStart = () => {
     setShowBufferInput(true)
@@ -26,73 +27,73 @@ export default function DrawingTools({
     setShowBufferInput(false)
   }
 
-  const [isExpanded, setIsExpanded] = useState(false)
+  const tools = [
+    { id: 'polygon', icon: Pentagon, label: 'Polygon', desc: 'Draw custom area', action: onStartPolygon },
+    { id: 'rectangle', icon: Square, label: 'Rectangle', desc: 'Quick rectangular area', action: onStartPolygon },
+    { id: 'buffer', icon: Circle, label: 'Buffer', desc: 'Radius around point', action: handleBufferStart },
+    { id: 'measure', icon: Ruler, label: 'Measure', desc: 'Distance & area', action: onStartPolygon },
+    { id: 'marker', icon: MapPin, label: 'Marker', desc: 'Add point of interest', action: onStartPolygon }
+  ]
 
   return (
     <div className="relative">
-      {/* Compact toggle button */}
+      {/* Ultra-compact toggle */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 px-3 py-2 bg-slate-800/95 backdrop-blur-sm text-white rounded-lg shadow-lg border border-slate-700 hover:bg-slate-700 transition-colors"
+        className={`flex items-center gap-1.5 px-2 py-0.5 text-slate-300 hover:text-white hover:bg-slate-800 transition ${
+          isDrawing ? 'text-blue-400' : ''
+        }`}
       >
-        <Pentagon className="w-4 h-4" />
-        <span className="text-sm font-medium">Drawing Tools</span>
-        <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+        <span className="text-[10px] font-medium">Draw</span>
+        <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Expanded tools panel */}
+      {/* Modern tools panel */}
       {isExpanded && (
-        <div className="absolute bottom-full mb-2 left-0 bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 overflow-hidden min-w-[200px]">
-
-          <div className="p-2 flex flex-col gap-1">
-            {/* Polygon tool */}
-            <button
-              onClick={() => { onStartPolygon(); setIsExpanded(false); }}
-              disabled={isDrawing}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                drawMode === 'polygon' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'hover:bg-slate-700 text-slate-200'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-              title="Draw polygon area"
-            >
-              <Pentagon className="w-4 h-4" />
-              <span>Draw Polygon</span>
-            </button>
-
-            {/* Buffer/Radius tool */}
-            <button
-              onClick={handleBufferStart}
-              disabled={isDrawing}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                drawMode === 'buffer' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'hover:bg-slate-700 text-slate-200'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-              title="Draw buffer radius"
-            >
-              <Circle className="w-4 h-4" />
-              <span>Buffer Zone</span>
-            </button>
-
-            {/* Clear drawing */}
-            <button
-              onClick={onClearDrawing}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-red-600 text-red-400 hover:text-white transition-colors"
-              title="Clear drawings"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Clear</span>
-            </button>
+        <div className="absolute bottom-full mb-1 left-0 bg-slate-900/98 backdrop-blur-md border border-slate-700/50 shadow-2xl overflow-hidden min-w-[240px] z-50">
+          
+          {/* Tool grid */}
+          <div className="p-2">
+            <div className="grid grid-cols-2 gap-1">
+              {tools.map(tool => (
+                <button
+                  key={tool.id}
+                  onClick={() => { tool.action(); if (tool.id !== 'buffer') setIsExpanded(false); }}
+                  disabled={isDrawing && drawMode !== tool.id}
+                  className={`flex flex-col items-center gap-1 p-2 transition group ${
+                    drawMode === tool.id 
+                      ? 'bg-blue-600/20 border border-blue-500' 
+                      : 'hover:bg-slate-800 border border-transparent'
+                  } disabled:opacity-40`}
+                  title={tool.desc}
+                >
+                  <tool.icon className={`w-4 h-4 ${drawMode === tool.id ? 'text-blue-400' : 'text-slate-400 group-hover:text-white'}`} />
+                  <span className={`text-[9px] font-medium ${drawMode === tool.id ? 'text-blue-300' : 'text-slate-400 group-hover:text-white'}`}>
+                    {tool.label}
+                  </span>
+                </button>
+              ))}
+              
+              {/* Clear button */}
+              <button
+                onClick={onClearDrawing}
+                className="flex flex-col items-center gap-1 p-2 hover:bg-red-600/20 border border-transparent hover:border-red-500/30 transition group"
+                title="Clear all drawings"
+              >
+                <Trash2 className="w-4 h-4 text-red-400 group-hover:text-red-300" />
+                <span className="text-[9px] font-medium text-red-400 group-hover:text-red-300">Clear</span>
+              </button>
+            </div>
           </div>
 
-          {/* Buffer radius input */}
+          {/* Buffer radius config */}
           {showBufferInput && (
-            <div className="p-3 border-t border-slate-700 bg-slate-900">
-              <label className="text-xs font-medium text-slate-300 block mb-2">
-                Buffer Radius (meters)
-              </label>
-              <div className="flex gap-2">
+            <div className="p-2 border-t border-slate-700/50 bg-slate-950/50">
+              <div className="text-[9px] text-slate-400 mb-1.5">Radius (meters)</div>
+              <div className="flex gap-1 mb-1.5">
                 <input
                   type="number"
                   value={tempRadius}
@@ -100,30 +101,30 @@ export default function DrawingTools({
                   min={100}
                   max={10000}
                   step={100}
-                  className="w-24 px-2 py-1 text-sm bg-slate-700 text-white border border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-2 py-1 text-xs bg-slate-800 text-white border border-slate-600 focus:outline-none focus:border-blue-500"
                 />
                 <button
                   onClick={handleBufferConfirm}
-                  className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  className="px-2 bg-blue-600 text-white hover:bg-blue-700 transition"
                 >
-                  <Check className="w-4 h-4" />
+                  <Check className="w-3 h-3" />
                 </button>
                 <button
                   onClick={() => setShowBufferInput(false)}
-                  className="px-2 py-1 bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition-colors"
+                  className="px-2 bg-slate-700 text-slate-300 hover:bg-slate-600 transition"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3" />
                 </button>
               </div>
-              <div className="mt-2 flex gap-1 flex-wrap">
+              <div className="flex gap-1">
                 {[500, 1000, 2000, 5000].map(r => (
                   <button
                     key={r}
                     onClick={() => setTempRadius(r)}
-                    className={`px-2 py-0.5 text-xs rounded ${
+                    className={`flex-1 px-1.5 py-0.5 text-[9px] transition ${
                       tempRadius === r 
                         ? 'bg-blue-600 text-white' 
-                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                     }`}
                   >
                     {r >= 1000 ? `${r/1000}km` : `${r}m`}
@@ -133,33 +134,34 @@ export default function DrawingTools({
             </div>
           )}
 
-          {/* Drawing instructions */}
+          {/* Active drawing status */}
           {isDrawing && (
-            <div className="p-3 border-t border-slate-700 bg-slate-900">
-              <div className="text-xs text-blue-300 mb-2">
-                {drawMode === 'polygon' && (
-                  <>Click to add points. Right-click to finish.</>
-                )}
-                {drawMode === 'buffer' && (
-                  <>Click to place buffer center.</>
-                )}
+            <div className="p-2 border-t border-slate-700/50 bg-blue-950/20">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
+                <span className="text-[9px] text-blue-300 font-medium">
+                  {drawMode === 'polygon' && 'Click to add points • Right-click to finish'}
+                  {drawMode === 'buffer' && 'Click to place buffer center'}
+                  {drawMode === 'measure' && 'Click points to measure'}
+                  {drawMode === 'marker' && 'Click to place marker'}
+                </span>
               </div>
               {polygonPoints > 0 && (
-                <div className="text-xs text-blue-400 mb-2">
-                  Points: {polygonPoints}
+                <div className="text-[9px] text-slate-400 mb-1.5">
+                  {polygonPoints} point{polygonPoints !== 1 ? 's' : ''}
                 </div>
               )}
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 <button
                   onClick={onFinishDrawing}
                   disabled={drawMode === 'polygon' && polygonPoints < 3}
-                  className="flex-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+                  className="flex-1 px-2 py-1 bg-green-600 text-white text-[9px] font-medium hover:bg-green-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Finish
                 </button>
                 <button
                   onClick={onCancelDrawing}
-                  className="flex-1 px-2 py-1 bg-slate-700 text-white text-xs rounded hover:bg-slate-600 transition-colors"
+                  className="flex-1 px-2 py-1 bg-slate-700 text-white text-[9px] font-medium hover:bg-slate-600 transition"
                 >
                   Cancel
                 </button>
