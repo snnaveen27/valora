@@ -2063,9 +2063,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
 
       {/* Top Bar - Search + Basemap Selector */}
       <div className="absolute top-0 left-0 right-0 z-40">
-        <div className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 px-3 py-1.5 flex items-center justify-between gap-4">
+        <div className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 px-2 py-1 flex items-center justify-between gap-3">
           {/* Search Bar */}
-          <div className="flex items-center bg-slate-800/80 border border-slate-700 px-3 py-1.5 flex-1 max-w-sm">
+          <div className="flex items-center bg-slate-800/80 border border-slate-700 px-2 py-1 flex-1 max-w-sm">
             <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -2206,53 +2206,53 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
       </div>
 
       {/* Right Bar - Navigation + Layer Controls */}
-      <div className="absolute top-10 right-0 bottom-0 z-40 flex">
+      <div className="absolute top-9 right-0 bottom-0 z-40 flex">
         <div className="bg-slate-900/95 backdrop-blur-sm border-l border-slate-700 flex flex-col">
           {/* Navigation Controls */}
           <button
             onClick={goBackToLastView}
             disabled={!canGoBack}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
             title="Back to last view"
           >
-            <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           
           <button
             onClick={resetView}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
             title="Reset view"
           >
-            <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l9-9 9 9M4 10v10a1 1 0 001 1h5m4 0h5a1 1 0 001-1V10" />
             </svg>
           </button>
           
           <button
             onClick={zoomIn}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
             title="Zoom In"
           >
-            <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
           </button>
           
           <button
             onClick={zoomOut}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700"
             title="Zoom Out"
           >
-            <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             </svg>
           </button>
           
           <button
             onClick={resetNorth}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 relative"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 relative"
             title="Reset North"
           >
             <div 
@@ -2265,7 +2265,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           
           <button
             onClick={toggle3D}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 text-xs font-bold text-slate-300"
+            className="w-9 h-9 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors border-b border-slate-700 text-xs font-bold text-slate-300"
             title={is3DMode ? 'Switch to 2D' : 'Switch to 3D'}
           >
             {is3DMode ? '2D' : '3D'}
@@ -2273,31 +2273,15 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
           
           <button
             onClick={() => setShowLayerPanel(!showLayerPanel)}
-            className={`w-10 h-10 flex items-center justify-center transition-colors border-b border-slate-700 ${
+            className={`w-9 h-9 flex items-center justify-center transition-colors ${
               showLayerPanel 
                 ? 'bg-blue-600 text-white' 
                 : 'text-slate-300 hover:bg-slate-800'
             }`}
             title="Layer Controls"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-          </button>
-          
-          <button
-            onClick={() => {
-              if (document.fullscreenElement) {
-                document.exitFullscreen()
-              } else {
-                document.documentElement.requestFullscreen()
-              }
-            }}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-800 active:bg-slate-700 transition-colors text-slate-300"
-            title="Toggle Fullscreen"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
             </svg>
           </button>
         </div>
@@ -2398,7 +2382,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate }) {
 
       {/* Bottom Bar - Drawing Tools + Time + Status */}
       <div className="absolute bottom-0 left-0 right-0 z-40">
-        <div className="bg-slate-900/95 backdrop-blur-sm border-t border-slate-700 px-3 py-1.5 flex items-center justify-between">
+        <div className="bg-slate-900/95 backdrop-blur-sm border-t border-slate-700 px-2 py-1 flex items-center justify-between">
           {/* Drawing Tools */}
           <div>
             <DrawingTools
