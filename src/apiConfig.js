@@ -6,7 +6,18 @@
 const getApiUrl = () => {
   // Check if explicit URL is provided in environment
   if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+      const isEnvLocal = /localhost|127\.0\.0\.1/.test(import.meta.env.VITE_API_URL);
+      if (!isLocalHost && isEnvLocal) {
+        // Ignore local API URL when running on a non-local host
+      } else {
+        return import.meta.env.VITE_API_URL;
+      }
+    } else {
+      return import.meta.env.VITE_API_URL;
+    }
   }
 
   // Auto-detect based on hostname

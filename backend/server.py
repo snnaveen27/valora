@@ -179,8 +179,26 @@ _default_origins = [
     "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
 ]
-_origins_env = os.getenv("FRONTEND_ORIGINS", "")
-_allowed_origins = [o.strip() for o in _origins_env.split(",") if o.strip()] or _default_origins
+def _parse_origins(value: str) -> list[str]:
+    if not value:
+        return []
+    value = value.strip()
+    if value.startswith("["):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return [str(o).strip() for o in parsed if str(o).strip()]
+        except json.JSONDecodeError:
+            pass
+    return [o.strip() for o in value.split(",") if o.strip()]
+
+_origins_env = (
+    os.getenv("FRONTEND_ORIGINS")
+    or os.getenv("CORS_ORIGINS")
+    or os.getenv("ALLOWED_ORIGINS")
+    or ""
+)
+_allowed_origins = _parse_origins(_origins_env) or _default_origins
 
 # Security: Validate origins to prevent CORS bypass
 _validated_origins = []
