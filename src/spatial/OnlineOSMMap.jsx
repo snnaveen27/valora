@@ -219,7 +219,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   
   // Basemap toggle: 'osm', 'mapbox_streets', 'mapbox_satellite', 'mapbox_satellite_streets', 'mapbox_dark', 'mapbox_light', 'mapbox_outdoors'
   const [basemapType, setBasemapType] = useState(() => initialPrefsRef.current.basemapType ?? 'osm')
-  const [showWeatherDropdown, setShowWeatherDropdown] = useState(false)
   
   // Weather effects
   const [showRain, setShowRain] = useState(false)
@@ -3129,177 +3128,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             </button>
           </div>
 
-          {/* Divider */}
-          <div className="h-4 w-px bg-slate-700" />
-
-          {/* Weather Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setShowWeatherDropdown(!showWeatherDropdown)
-                setShowLayerPanel(false)
-                setShowBasemapDropdown(false)
-                setShowSearchResults(false)
-              }}
-              className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold transition ${
-                showWeatherDropdown ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-              </svg>
-              <span>Weather</span>
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {/* Weather Dropdown Menu */}
-            {showWeatherDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-700 shadow-2xl min-w-[180px] z-[60] rounded-sm p-2">
-                <div className="text-[10px] text-slate-500 mb-2 font-semibold">Weather Effects</div>
-                
-                {/* Realtime Weather Toggle */}
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-blue-400 hover:text-blue-300 mb-2 pb-2 border-b border-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={enableRealtimeWeather}
-                    onChange={(e) => setEnableRealtimeWeather(e.target.checked)}
-                    className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                  />
-                  <div className="flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <span>Realtime Weather</span>
-                  </div>
-                </label>
-                
-                {/* Current Weather Info */}
-                {enableRealtimeWeather && weatherError === 'missing_api_key' && (
-                  <div className="mb-2 pb-2 border-b border-slate-700">
-                    <div className="text-[9px] text-amber-300 leading-tight">
-                      Missing API key.
-                    </div>
-                    <div className="text-[9px] text-slate-400 leading-tight mt-1">
-                      Add:
-                      <span className="font-mono text-slate-300"> VITE_OPENWEATHER_API_KEY</span>
-                      <span className="text-slate-400"> in </span>
-                      <span className="font-mono text-slate-300">.env</span>
-                      <span className="text-slate-400"> and restart </span>
-                      <span className="font-mono text-slate-300">npm run dev</span>
-                    </div>
-                  </div>
-                )}
-
-                {enableRealtimeWeather && weatherError === 'invalid_api_key' && (
-                  <div className="mb-2 pb-2 border-b border-slate-700">
-                    <div className="text-[9px] text-red-300 leading-tight">
-                      Invalid OpenWeather key (401).
-                    </div>
-                    <div className="text-[9px] text-slate-400 leading-tight mt-1">
-                      Check:
-                      <span className="font-mono text-slate-300"> VITE_OPENWEATHER_API_KEY</span>
-                    </div>
-                  </div>
-                )}
-
-                {enableRealtimeWeather && weatherError === 'fetch_failed' && (
-                  <div className="mb-2 pb-2 border-b border-slate-700">
-                    <div className="text-[9px] text-red-300 leading-tight">
-                      Weather fetch failed.
-                    </div>
-                  </div>
-                )}
-
-                {realtimeWeather && !weatherError && (
-                  <div className="mb-2 pb-2 border-b border-slate-700">
-                    <div className="text-[9px] text-slate-400 space-y-0.5">
-                      <div className="flex justify-between">
-                        <span>Condition:</span>
-                        <span className="text-slate-300 capitalize">{weatherMetrics.conditionDesc || realtimeWeather.weather?.[0]?.description}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Temp:</span>
-                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.tempC) ? `${weatherMetrics.tempC.toFixed(1)}°C` : '—'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Feels:</span>
-                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.feelsLikeC) ? `${weatherMetrics.feelsLikeC.toFixed(1)}°C` : '—'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Humidity:</span>
-                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.humidity) ? `${weatherMetrics.humidity}%` : '—'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Wind:</span>
-                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.windSpeedMps) ? `${weatherMetrics.windSpeedMps.toFixed(1)} m/s` : '—'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Clouds:</span>
-                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.cloudsPct) ? `${weatherMetrics.cloudsPct}%` : '—'}</span>
-                      </div>
-                      {(Number.isFinite(weatherMetrics.rainMm1h) || Number.isFinite(weatherMetrics.snowMm1h)) && (
-                        <div className="flex justify-between">
-                          <span>Precip:</span>
-                          <span className="text-slate-300">
-                            {Number.isFinite(weatherMetrics.rainMm1h) ? `rain ${weatherMetrics.rainMm1h}mm/h` : ''}
-                            {Number.isFinite(weatherMetrics.rainMm1h) && Number.isFinite(weatherMetrics.snowMm1h) ? ' · ' : ''}
-                            {Number.isFinite(weatherMetrics.snowMm1h) ? `snow ${weatherMetrics.snowMm1h}mm/h` : ''}
-                          </span>
-                        </div>
-                      )}
-                      {weatherLastUpdated && (
-                        <div className="text-[9px] text-slate-500 mt-1">
-                          Updated: {new Date(weatherLastUpdated).toLocaleTimeString()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Manual Controls */}
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={showRain}
-                      onChange={(e) => setShowRain(e.target.checked)}
-                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                    />
-                    Rain
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={showSnow}
-                      onChange={(e) => setShowSnow(e.target.checked)}
-                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                    />
-                    Snow
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={showClouds}
-                      onChange={(e) => setShowClouds(e.target.checked)}
-                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                    />
-                    Clouds
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={showWind}
-                      onChange={(e) => setShowWind(e.target.checked)}
-                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                    />
-                    Wind
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Spacer */}
           <div className="flex-1" />
@@ -3611,47 +3439,52 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                   </div>
                 </div>
                 
-                {/* Weather Effects */}
+                {/* Realtime Weather */}
                 <div className="mb-2 pt-2 border-t border-slate-700">
-                  <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">Weather Effects</div>
-                  <div className="space-y-1.5">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showRain}
-                        onChange={(e) => setShowRain(e.target.checked)}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                      />
-                      Rain
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showSnow}
-                        onChange={(e) => setShowSnow(e.target.checked)}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                      />
-                      Snow
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showClouds}
-                        onChange={(e) => setShowClouds(e.target.checked)}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                      />
-                      Clouds
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showWind}
-                        onChange={(e) => setShowWind(e.target.checked)}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                      />
-                      Wind
-                    </label>
-                  </div>
+                  <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">Weather</div>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-blue-400 hover:text-blue-300">
+                    <input
+                      type="checkbox"
+                      checked={enableRealtimeWeather}
+                      onChange={(e) => setEnableRealtimeWeather(e.target.checked)}
+                      className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
+                    />
+                    <div className="flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span>Realtime Weather</span>
+                    </div>
+                  </label>
+                  {enableRealtimeWeather && realtimeWeather && !weatherError && (
+                    <div className="mt-2 p-2 bg-slate-800 rounded border border-slate-700">
+                      <div className="text-[9px] text-slate-400 space-y-0.5">
+                        <div className="flex justify-between">
+                          <span>Condition:</span>
+                          <span className="text-slate-300 capitalize">{weatherMetrics.conditionDesc || '—'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Temp:</span>
+                          <span className="text-slate-300">{Number.isFinite(weatherMetrics.tempC) ? `${weatherMetrics.tempC.toFixed(1)}°C` : '—'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Wind:</span>
+                          <span className="text-slate-300">{Number.isFinite(weatherMetrics.windSpeedMps) ? `${weatherMetrics.windSpeedMps.toFixed(1)} m/s` : '—'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Clouds:</span>
+                          <span className="text-slate-300">{Number.isFinite(weatherMetrics.cloudsPct) ? `${weatherMetrics.cloudsPct}%` : '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {enableRealtimeWeather && weatherError && (
+                    <div className="mt-2 text-[9px] text-amber-300">
+                      {weatherError === 'missing_api_key' && 'Missing API key'}
+                      {weatherError === 'invalid_api_key' && 'Invalid API key'}
+                      {weatherError === 'fetch_failed' && 'Fetch failed'}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Performance Monitor (Layers Panel - Removed, moved to floating panel) */}
