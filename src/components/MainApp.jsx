@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import OnlineOSMMap from '../spatial/OnlineOSMMap'
 import AnalysisPanel from './AnalysisPanel'
 import ChatPanel from './ChatPanel'
@@ -7,7 +7,7 @@ import ScrapeController from './ScrapeController'
 import CinemaOverlay from './CinemaOverlay'
 import PaymentCheckout from './PaymentCheckout'
 import { useAuth } from '../contexts/AuthContext'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed } from 'lucide-react'
 
 import { API_URL } from '../apiConfig'
 
@@ -35,6 +35,14 @@ export default function MainApp() {
   const [cinemaNarration, setCinemaNarration] = useState('')
   const [isCinemaPaused, setIsCinemaPaused] = useState(false)
 
+  const [userLocation, setUserLocation] = useState(null)
+  const [locationLabel, setLocationLabel] = useState('Detecting…')
+  const [locationSource, setLocationSource] = useState('ip')
+  const [gpsEnabled, setGpsEnabled] = useState(false)
+  const [locationError, setLocationError] = useState(null)
+  const geolocationWatchIdRef = useRef(null)
+  const lastReverseGeocodeRef = useRef({ t: 0, lat: null, lng: null })
+
   // Font size persistence
   const [analysisFontSize, setAnalysisFontSize] = useState(() => {
     return parseInt(localStorage.getItem('valora_analysis_font_size')) || 100
@@ -50,6 +58,167 @@ export default function MainApp() {
   useEffect(() => {
     localStorage.setItem('valora_chat_font_size', chatFontSize)
   }, [chatFontSize])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchIpLocation = async () => {
+      try {
+        const resp = await fetch('https://ipapi.co/json/')
+        if (!resp.ok) return
+        const data = await resp.json()
+        if (cancelled) return
+
+        const lat = Number(data.latitude)
+        const lng = Number(data.longitude)
+        const city = data.city
+        const region = data.region
+
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          setUserLocation({ lat, lng, accuracy: null })
+          setLocationSource('ip')
+          setLocationError(null)
+          if (city && region) setLocationLabel(`${city}, ${region}`)
+          else if (city) setLocationLabel(city)
+          else setLocationLabel(`${lat.toFixed(3)}, ${lng.toFixed(3)}`)
+        }
+      } catch (err) {
+        if (!cancelled) setLocationError('ip_location_failed')
+      }
+    }
+
+    const promptForGeolocation = () => {
+      if (!navigator.geolocation) {
+        fetchIpLocation()
+        return
+      }
+
+      setLocationLabel('Requesting permission…')
+      
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled) return
+          const lat = Number(pos.coords.latitude)
+          const lng = Number(pos.coords.longitude)
+          const accuracy = Number(pos.coords.accuracy)
+          
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            setUserLocation({ lat, lng, accuracy: Number.isFinite(accuracy) ? accuracy : null })
+            setLocationSource('gps')
+            setLocationError(null)
+            setGpsEnabled(true)
+            reverseGeocode(lat, lng)
+            console.log('📍 Browser geolocation granted:', { lat, lng, accuracy })
+          }
+        },
+        (err) => {
+          if (cancelled) return
+          console.log('📍 Browser geolocation denied or failed, falling back to IP')
+          setLocationError(err?.code === 1 ? 'permission_denied' : 'gps_failed')
+          fetchIpLocation()
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      )
+    }
+
+    promptForGeolocation()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const reverseGeocode = async (lat, lng) => {
+    const now = Date.now()
+    const prev = lastReverseGeocodeRef.current
+
+    const shouldThrottle = prev.t && now - prev.t < 30000
+    const movedEnough =
+      prev.lat == null ||
+      prev.lng == null ||
+      Math.abs(prev.lat - lat) > 0.001 ||
+      Math.abs(prev.lng - lng) > 0.001
+
+    if (shouldThrottle && !movedEnough) return
+
+    lastReverseGeocodeRef.current = { t: now, lat, lng }
+
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`
+      )
+      if (!resp.ok) return
+      const data = await resp.json()
+      const a = data.address || {}
+      const label =
+        a.suburb ||
+        a.neighbourhood ||
+        a.village ||
+        a.town ||
+        a.city ||
+        a.county ||
+        a.state
+      if (label) setLocationLabel(label)
+    } catch {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    if (!gpsEnabled) {
+      if (geolocationWatchIdRef.current != null && navigator.geolocation) {
+        try {
+          navigator.geolocation.clearWatch(geolocationWatchIdRef.current)
+        } catch {}
+        geolocationWatchIdRef.current = null
+      }
+      return
+    }
+
+    if (!navigator.geolocation) {
+      setLocationError('geolocation_unavailable')
+      setGpsEnabled(false)
+      return
+    }
+
+    setLocationError(null)
+    setLocationSource('gps')
+
+    geolocationWatchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude)
+        const lng = Number(pos.coords.longitude)
+        const accuracy = Number(pos.coords.accuracy)
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
+
+        setUserLocation({ lat, lng, accuracy: Number.isFinite(accuracy) ? accuracy : null })
+        reverseGeocode(lat, lng)
+      },
+      (err) => {
+        setLocationError(err?.code === 1 ? 'permission_denied' : 'gps_failed')
+        setGpsEnabled(false)
+        setLocationSource('ip')
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 15000,
+        timeout: 10000
+      }
+    )
+
+    return () => {
+      if (geolocationWatchIdRef.current != null) {
+        try {
+          navigator.geolocation.clearWatch(geolocationWatchIdRef.current)
+        } catch {}
+        geolocationWatchIdRef.current = null
+      }
+    }
+  }, [gpsEnabled])
 
   const adjustAnalysisFontSize = (delta) => {
     setAnalysisFontSize(prev => Math.min(150, Math.max(75, prev + delta)))
@@ -264,6 +433,26 @@ export default function MainApp() {
           </div>
           <span className="text-white font-bold text-lg">Valora AI</span>
           <span className="text-slate-400 text-xs ml-2">City Intelligence</span>
+
+          <button
+            onClick={() => setGpsEnabled(v => !v)}
+            className={`ml-3 flex items-center gap-2 px-2 py-1 rounded-full border transition text-xs ${
+              gpsEnabled
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20'
+                : 'bg-slate-700/40 border-slate-600 text-slate-200 hover:bg-slate-700/60'
+            }`}
+            title={
+              userLocation?.lat && userLocation?.lng
+                ? `${locationSource.toUpperCase()} · ${userLocation.lat.toFixed(5)}, ${userLocation.lng.toFixed(5)}${userLocation.accuracy ? ` · ±${Math.round(userLocation.accuracy)}m` : ''}`
+                : 'Detect your location'
+            }
+          >
+            {gpsEnabled ? <LocateFixed className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
+            <span className="max-w-[220px] truncate">{locationLabel}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded ${gpsEnabled ? 'bg-emerald-500/20 text-emerald-200' : 'bg-slate-600/40 text-slate-300'}`}>
+              {gpsEnabled ? 'GPS' : 'IP'}
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -538,6 +727,9 @@ export default function MainApp() {
                   agentData={agentData} 
                   setAgentData={setAgentData} 
                   fontSize={chatFontSize}
+                  userLocation={userLocation}
+                  locationLabel={locationLabel}
+                  locationSource={locationSource}
                 />
               </div>
             </>

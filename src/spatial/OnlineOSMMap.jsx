@@ -90,7 +90,6 @@ const PHOTOREALISTIC_CACHE_CONFIG = {
   foveatedScreenSpaceError: true, // GPU optimization - focus on center
   foveatedConeSize: 0.2, // Smaller cone = less detail outside center
   foveatedMinimumScreenSpaceErrorRelaxation: 0.5, // More relaxed outside center
-  foveatedInterpolationCallback: undefined,
   foveatedTimeDelay: 0.1
 }
 
@@ -229,8 +228,23 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const [showWind, setShowWind] = useState(false)
   const [realtimeWeather, setRealtimeWeather] = useState(null)
   const [enableRealtimeWeather, setEnableRealtimeWeather] = useState(false)
+  const [weatherError, setWeatherError] = useState(null)
+  const [weatherLastUpdated, setWeatherLastUpdated] = useState(null)
+  const [weatherMetrics, setWeatherMetrics] = useState({
+    tempC: null,
+    feelsLikeC: null,
+    humidity: null,
+    windSpeedMps: null,
+    windDeg: null,
+    cloudsPct: null,
+    rainMm1h: null,
+    snowMm1h: null,
+    conditionMain: null,
+    conditionDesc: null
+  })
   const rainSystemRef = useRef(null)
   const snowSystemRef = useRef(null)
+  const weatherAppliedRef = useRef({ lastKey: null })
   
   // Drawing tools state
   const [isDrawing, setIsDrawing] = useState(false)
@@ -440,34 +454,73 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
     const fetchWeather = async () => {
       try {
-        // Using OpenWeatherMap API (you'll need to add API key to .env)
-        const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || 'demo'
+        // Vite only exposes env vars that start with VITE_
+        const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || import.meta.env.VITE_OPENWEATHER_API || null
+
+        if (!API_KEY) {
+          setWeatherError('missing_api_key')
+          setRealtimeWeather(null)
+          return
+        }
+
         const response = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${DEFAULT_LOCATION.lat}&lon=${DEFAULT_LOCATION.lng}&appid=${API_KEY}`
+          `https://api.openweathermap.org/data/2.5/weather?lat=${DEFAULT_LOCATION.lat}&lon=${DEFAULT_LOCATION.lng}&appid=${encodeURIComponent(API_KEY)}&units=metric`
         )
+
+        if (response.status === 401) {
+          setWeatherError('invalid_api_key')
+          setRealtimeWeather(null)
+          return
+        }
+
         if (response.ok) {
           const data = await response.json()
           setRealtimeWeather(data)
-          
+          setWeatherError(null)
+          setWeatherLastUpdated(Date.now())
+
+          const conditionMain = data.weather?.[0]?.main?.toLowerCase() || null
+          const conditionDesc = data.weather?.[0]?.description || null
+          const tempC = Number.isFinite(data.main?.temp) ? data.main.temp : null
+          const feelsLikeC = Number.isFinite(data.main?.feels_like) ? data.main.feels_like : null
+          const humidity = Number.isFinite(data.main?.humidity) ? data.main.humidity : null
+          const windSpeedMps = Number.isFinite(data.wind?.speed) ? data.wind.speed : null
+          const windDeg = Number.isFinite(data.wind?.deg) ? data.wind.deg : null
+          const cloudsPct = Number.isFinite(data.clouds?.all) ? data.clouds.all : null
+          const rainMm1h = Number.isFinite(data.rain?.['1h']) ? data.rain['1h'] : null
+          const snowMm1h = Number.isFinite(data.snow?.['1h']) ? data.snow['1h'] : null
+
+          setWeatherMetrics({
+            tempC,
+            feelsLikeC,
+            humidity,
+            windSpeedMps,
+            windDeg,
+            cloudsPct,
+            rainMm1h,
+            snowMm1h,
+            conditionMain,
+            conditionDesc
+          })
+
           // Auto-apply weather effects based on real conditions
-          const weatherCondition = data.weather[0]?.main?.toLowerCase()
-          if (weatherCondition === 'rain' || weatherCondition === 'drizzle' || weatherCondition === 'thunderstorm') {
-            setShowRain(true)
-            setShowSnow(false)
-          } else if (weatherCondition === 'snow') {
-            setShowSnow(true)
-            setShowRain(false)
-          } else if (weatherCondition === 'clouds') {
-            setShowClouds(true)
-          } else {
-            setShowRain(false)
-            setShowSnow(false)
+          const key = `${conditionMain}|${Math.round((cloudsPct ?? 0) / 10)}|${Math.round((windSpeedMps ?? 0) * 2)}|${Math.round((rainMm1h ?? 0) * 10)}|${Math.round((snowMm1h ?? 0) * 10)}`
+          if (weatherAppliedRef.current.lastKey !== key) {
+            const isRain = conditionMain === 'rain' || conditionMain === 'drizzle' || conditionMain === 'thunderstorm' || (rainMm1h != null && rainMm1h > 0)
+            const isSnow = conditionMain === 'snow' || (snowMm1h != null && snowMm1h > 0)
+            const isCloudy = (cloudsPct != null && cloudsPct >= 40) || conditionMain === 'clouds' || conditionMain === 'mist' || conditionMain === 'haze' || conditionMain === 'fog'
+            const isWindy = windSpeedMps != null && windSpeedMps >= 4
+
+            setShowRain(isRain)
+            setShowSnow(isSnow)
+            setShowClouds(isCloudy)
+            setShowWind(isWindy)
+
+            weatherAppliedRef.current.lastKey = key
           }
-          
-          console.log('🌦️ Realtime weather applied:', weatherCondition)
         }
       } catch (err) {
-        console.warn('Failed to fetch realtime weather:', err)
+        setWeatherError('fetch_failed')
       }
     }
 
@@ -1531,7 +1584,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   // Load a single tile and add buildings to scene
   const loadTile = async (tileId, tileUrl) => {
     const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed()) return false
+    if (!viewer || viewer.isDestroyed() || !viewer.entities) return false
     if (loadedTilesRef.current.has(tileId)) return false // Already loaded
 
     try {
@@ -1541,6 +1594,12 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       if (!response.ok) return false
 
       const data = await response.json()
+      
+      // Double-check viewer is still valid before adding entities
+      if (!viewer || viewer.isDestroyed() || !viewer.entities) {
+        console.warn(`Viewer destroyed while loading tile ${tileId}`)
+        return false
+      }
       
       // Add buildings from this tile/database response
       const entities = []
@@ -2713,6 +2772,49 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     }
   }, [showSnow])
 
+  // Realtime weather → effect intensity
+  useEffect(() => {
+    if (!enableRealtimeWeather) return
+
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+
+    const cloudsPct = weatherMetrics.cloudsPct
+    const rainMm1h = weatherMetrics.rainMm1h
+    const snowMm1h = weatherMetrics.snowMm1h
+    const windSpeedMps = weatherMetrics.windSpeedMps
+
+    // Clouds: scale fog density based on cloud cover
+    if (showClouds && Number.isFinite(cloudsPct)) {
+      const pct = Math.max(0, Math.min(100, cloudsPct))
+      viewer.scene.fog.enabled = true
+      viewer.scene.fog.density = 0.00008 + (0.00035 * (pct / 100))
+      viewer.scene.fog.minimumBrightness = 0.65
+    }
+
+    // Rain: scale emission rate based on mm/hr (rough heuristic)
+    if (showRain && rainSystemRef.current) {
+      const mm = Number.isFinite(rainMm1h) ? rainMm1h : 1
+      const intensity = Math.max(0.2, Math.min(1.0, mm / 5))
+      rainSystemRef.current.emissionRate = Math.round(800 + 3200 * intensity)
+      rainSystemRef.current.speed = 12 + 10 * intensity
+    }
+
+    // Snow: scale emission rate based on mm/hr (rough heuristic)
+    if (showSnow && snowSystemRef.current) {
+      const mm = Number.isFinite(snowMm1h) ? snowMm1h : 1
+      const intensity = Math.max(0.2, Math.min(1.0, mm / 3))
+      snowSystemRef.current.emissionRate = Math.round(200 + 900 * intensity)
+      snowSystemRef.current.speed = 2 + 2 * intensity
+    }
+
+    // Wind: simple heuristic (affects 'wind' toggle + slightly increases particle speed)
+    if (showWind && Number.isFinite(windSpeedMps)) {
+      if (rainSystemRef.current) rainSystemRef.current.speed = Math.max(rainSystemRef.current.speed, 12 + windSpeedMps)
+      if (snowSystemRef.current) snowSystemRef.current.speed = Math.max(snowSystemRef.current.speed, 2 + (windSpeedMps / 3))
+    }
+  }, [enableRealtimeWeather, weatherMetrics, showClouds, showRain, showSnow, showWind])
+
   // Weather effects - Clouds (atmospheric effect)
   useEffect(() => {
     const viewer = viewerRef.current
@@ -2720,12 +2822,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
     if (showClouds) {
       viewer.scene.fog.enabled = true
-      viewer.scene.fog.density = 0.0002
-      viewer.scene.fog.minimumBrightness = 0.7
+      if (enableRealtimeWeather && Number.isFinite(weatherMetrics.cloudsPct)) {
+        const pct = Math.max(0, Math.min(100, weatherMetrics.cloudsPct))
+        viewer.scene.fog.density = 0.00008 + (0.00035 * (pct / 100))
+        viewer.scene.fog.minimumBrightness = 0.65
+      } else {
+        viewer.scene.fog.density = 0.0002
+        viewer.scene.fog.minimumBrightness = 0.7
+      }
     } else {
       viewer.scene.fog.enabled = false
     }
-  }, [showClouds])
+  }, [showClouds, enableRealtimeWeather, weatherMetrics.cloudsPct])
 
   // Hide Cesium logo
   useEffect(() => {
@@ -3068,17 +3176,84 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 </label>
                 
                 {/* Current Weather Info */}
-                {realtimeWeather && (
+                {enableRealtimeWeather && weatherError === 'missing_api_key' && (
+                  <div className="mb-2 pb-2 border-b border-slate-700">
+                    <div className="text-[9px] text-amber-300 leading-tight">
+                      Missing API key.
+                    </div>
+                    <div className="text-[9px] text-slate-400 leading-tight mt-1">
+                      Add:
+                      <span className="font-mono text-slate-300"> VITE_OPENWEATHER_API_KEY</span>
+                      <span className="text-slate-400"> in </span>
+                      <span className="font-mono text-slate-300">.env</span>
+                      <span className="text-slate-400"> and restart </span>
+                      <span className="font-mono text-slate-300">npm run dev</span>
+                    </div>
+                  </div>
+                )}
+
+                {enableRealtimeWeather && weatherError === 'invalid_api_key' && (
+                  <div className="mb-2 pb-2 border-b border-slate-700">
+                    <div className="text-[9px] text-red-300 leading-tight">
+                      Invalid OpenWeather key (401).
+                    </div>
+                    <div className="text-[9px] text-slate-400 leading-tight mt-1">
+                      Check:
+                      <span className="font-mono text-slate-300"> VITE_OPENWEATHER_API_KEY</span>
+                    </div>
+                  </div>
+                )}
+
+                {enableRealtimeWeather && weatherError === 'fetch_failed' && (
+                  <div className="mb-2 pb-2 border-b border-slate-700">
+                    <div className="text-[9px] text-red-300 leading-tight">
+                      Weather fetch failed.
+                    </div>
+                  </div>
+                )}
+
+                {realtimeWeather && !weatherError && (
                   <div className="mb-2 pb-2 border-b border-slate-700">
                     <div className="text-[9px] text-slate-400 space-y-0.5">
                       <div className="flex justify-between">
                         <span>Condition:</span>
-                        <span className="text-slate-300 capitalize">{realtimeWeather.weather[0]?.description}</span>
+                        <span className="text-slate-300 capitalize">{weatherMetrics.conditionDesc || realtimeWeather.weather?.[0]?.description}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Temp:</span>
-                        <span className="text-slate-300">{(realtimeWeather.main?.temp - 273.15).toFixed(1)}°C</span>
+                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.tempC) ? `${weatherMetrics.tempC.toFixed(1)}°C` : '—'}</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span>Feels:</span>
+                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.feelsLikeC) ? `${weatherMetrics.feelsLikeC.toFixed(1)}°C` : '—'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Humidity:</span>
+                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.humidity) ? `${weatherMetrics.humidity}%` : '—'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Wind:</span>
+                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.windSpeedMps) ? `${weatherMetrics.windSpeedMps.toFixed(1)} m/s` : '—'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Clouds:</span>
+                        <span className="text-slate-300">{Number.isFinite(weatherMetrics.cloudsPct) ? `${weatherMetrics.cloudsPct}%` : '—'}</span>
+                      </div>
+                      {(Number.isFinite(weatherMetrics.rainMm1h) || Number.isFinite(weatherMetrics.snowMm1h)) && (
+                        <div className="flex justify-between">
+                          <span>Precip:</span>
+                          <span className="text-slate-300">
+                            {Number.isFinite(weatherMetrics.rainMm1h) ? `rain ${weatherMetrics.rainMm1h}mm/h` : ''}
+                            {Number.isFinite(weatherMetrics.rainMm1h) && Number.isFinite(weatherMetrics.snowMm1h) ? ' · ' : ''}
+                            {Number.isFinite(weatherMetrics.snowMm1h) ? `snow ${weatherMetrics.snowMm1h}mm/h` : ''}
+                          </span>
+                        </div>
+                      )}
+                      {weatherLastUpdated && (
+                        <div className="text-[9px] text-slate-500 mt-1">
+                          Updated: {new Date(weatherLastUpdated).toLocaleTimeString()}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

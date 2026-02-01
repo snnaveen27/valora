@@ -408,7 +408,7 @@ function ThinkingPanel({ trace, intent, factsSummary }) {
   )
 }
 
-export default function ChatPanel({ agentData, setAgentData, fontSize = 100 }) {
+export default function ChatPanel({ agentData, setAgentData, fontSize = 100, userLocation = null, locationLabel = null, locationSource = 'ip' }) {
   const [messages, setMessages] = useState([
     { role: 'assistant', content: `Hey there! 👋 I'm **Valora**, your AI assistant for Bangalore real estate.
 
@@ -921,6 +921,14 @@ Just ask naturally — I understand casual conversation too!
           buildingsCount: agentData?.buildingsCount || 0,
           zoom: agentData?.zoom || 'medium'
         },
+        // Include user's precise location for better context
+        userLocation: userLocation ? {
+          lat: userLocation.lat,
+          lng: userLocation.lng,
+          accuracy: userLocation.accuracy,
+          label: locationLabel,
+          source: locationSource
+        } : null,
         // Include viewport analysis for accurate responses
         viewportAnalysis: agentData?.viewportAnalysis || null,
         // Include current analysis metrics
