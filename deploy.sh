@@ -48,7 +48,11 @@ fi
 
 # Install/update dependencies
 echo "📦 Installing dependencies..."
-npm install --production=false
+if [ -f "package-lock.json" ]; then
+  npm ci --include=dev
+else
+  npm install --include=dev
+fi
 
 # Build frontend with production optimizations
 echo "🔨 Building frontend (with compression & code splitting)..."
