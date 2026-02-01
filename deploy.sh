@@ -49,7 +49,10 @@ fi
 # Install/update dependencies
 echo "📦 Installing dependencies..."
 if [ -f "package-lock.json" ]; then
-  npm ci --include=dev
+  if ! npm ci --include=dev; then
+    echo "⚠️  npm ci failed (lock mismatch). Falling back to npm install..."
+    npm install --include=dev
+  fi
 else
   npm install --include=dev
 fi
