@@ -46,9 +46,13 @@ if [ -z "${VALORA_DEPLOY_REEXEC:-}" ] && [ -n "$SCRIPT_SHA_BEFORE" ] && command 
   fi
 fi
 
-# Build frontend
-echo "🔨 Building frontend..."
-npm run build
+# Install/update dependencies
+echo "📦 Installing dependencies..."
+npm install --production=false
+
+# Build frontend with production optimizations
+echo "🔨 Building frontend (with compression & code splitting)..."
+NODE_ENV=production npm run build
 
 # Clean up old PM2 processes
 echo "🧹 Cleaning up old processes..."
@@ -82,6 +86,12 @@ if [ $retry_count -eq $max_retries ]; then
   pm2 logs valora-backend --lines 20 --nostream
 fi
 
+# Show build statistics if available
+if [ -f "dist/stats.html" ]; then
+  echo ""
+  echo "📊 Build statistics generated: dist/stats.html"
+fi
+
 # Show status
 echo ""
 echo "✅ Deployment Complete!"
@@ -89,5 +99,12 @@ echo "======================="
 pm2 list
 
 echo ""
-echo "📊 View logs with: pm2 logs valora-backend"
+echo "🎯 Production Optimizations Active:"
+echo "   • Code splitting (vendor chunks)"
+echo "   • Gzip + Brotli compression"
+echo "   • Lazy loading for heavy components"
+echo "   • Minified with console.log removal"
+echo ""
+echo "📊 View logs: pm2 logs valora-backend"
 echo "🌐 Frontend: https://3.109.34.1.sslip.io/valora/"
+echo "📈 Bundle stats: https://3.109.34.1.sslip.io/valora/stats.html"
