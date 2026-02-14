@@ -17,7 +17,9 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, time
 import sqlite3
+import math
 from pathlib import Path
+from config import config
 
 
 @dataclass
@@ -115,7 +117,7 @@ class Spatial3DReasoning:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
+            db_path = config.DB_PATH
         self.db_path = str(db_path)
     
     def analyze_3d_context(self, lat: float, lng: float, 

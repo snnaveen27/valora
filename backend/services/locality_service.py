@@ -9,16 +9,14 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 from functools import lru_cache
 from datetime import datetime
-
-# Database path - use absolute path from project root
-DB_PATH = Path(__file__).parent.parent.parent / "src" / "data" / "valora.db"
+from config import config
 
 
 class LocalityService:
     """Service for fast locality state lookups."""
     
     def __init__(self, db_path: str = None):
-        self.db_path = db_path or str(DB_PATH)
+        self.db_path = db_path or str(config.DB_PATH)
         self._cache = {}  # In-memory cache
         self._cache_time = None
         self._cache_ttl = 300  # 5 minutes

@@ -20,6 +20,7 @@ import sqlite3
 import math
 import json
 from pathlib import Path
+from config import config
 from typing import Dict, Any, List, Optional, Tuple, Set
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
@@ -82,7 +83,7 @@ class SpatialMemoryGraph:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
+            db_path = config.DB_PATH
         self.db_path = str(db_path)
         
         # In-memory graph structures

@@ -432,10 +432,7 @@ Just ask naturally — I understand casual conversation too!
   const [attachedImage, setAttachedImage] = useState(null)
   const [llmConfig, setLlmConfig] = useState({
     provider: 'local', // 'local' or 'openrouter'
-    local_model: 'qwen3-vl:8b',  // Primary chat
-    local_model_fast: 'llama3.2',  // Quick responses
-    local_model_reasoning: 'deepseek-r1:8b',  // Simulation/reasoning
-    active_model_type: 'primary',  // 'primary', 'fast', 'reasoning'
+    local_model: 'qwen3:4b-instruct',  // Qwen3 4B Fast - default local model
     openrouter_model: 'meta-llama/llama-3.3-70b-instruct:free'
   })
   const [availableModels, setAvailableModels] = useState({ openrouter: [], local: [], loading: false })
@@ -691,11 +688,12 @@ Just ask naturally — I understand casual conversation too!
         const resp = await fetch(`${API_URL}/api/admin/llm-config`)
         if (resp.ok) {
           const data = await resp.json()
-          setLlmConfig({
+          setLlmConfig(prev => ({
+            ...prev,
             provider: data.provider || 'local',
-            local_model: data.local_model || 'llama3.2',
-            openrouter_model: data.openrouter_model || 'meta-llama/llama-3.2-3b-instruct:free'
-          })
+            local_model: data.local_model || 'qwen3:4b-instruct',
+            openrouter_model: data.openrouter_model || 'meta-llama/llama-3.3-70b-instruct:free'
+          }))
         }
       } catch {}
     }
@@ -706,9 +704,7 @@ Just ask naturally — I understand casual conversation too!
   // Save LLM config when changed + unload previous model to free RAM
   const saveLlmConfig = async (newConfig) => {
     const oldModel = llmConfig.local_model
-    const newModel = newConfig.active_model_type === 'fast' ? newConfig.local_model_fast :
-                     newConfig.active_model_type === 'reasoning' ? newConfig.local_model_reasoning :
-                     newConfig.local_model
+    const newModel = newConfig.local_model
     
     setLlmConfig(newConfig)
     
@@ -773,7 +769,12 @@ Just ask naturally — I understand casual conversation too!
   // Streaming chat with SSE - real-time thinking display
   const callAIStreaming = async (userMessage, onThinkingUpdate, onContentUpdate, onComplete) => {
     // Build comprehensive context for AI agent with all analysis data
+    // Stable user_id from localStorage
+    const storedUserId = localStorage.getItem('valora_user_id') || 'anonymous'
+    
     const context = {
+      user_id: storedUserId,
+      thread_id: `chatpanel_${storedUserId}`,
       selectedBuilding: agentData?.selectedBuilding || null,
       selectedLocation: agentData?.selectedLocation || null,
       selectedPlace: agentData?.selectedPlace || null,
@@ -924,11 +925,23 @@ Just ask naturally — I understand casual conversation too!
               onContentUpdate(contentBuffer, thinkingTime)
               break
             case 'done':
-              onComplete({
-                content: contentBuffer || data.full_response || '',
-                thinking: thinkingBuffer || data.full_thinking || '',
-                thinkingTime: data.thinking_time ?? thinkingTime
-              })
+              {
+                let finalContent = contentBuffer || data.full_response || ''
+                let finalThinking = thinkingBuffer || data.full_thinking || ''
+
+                // If the model accidentally put the final answer inside <think>, the UI would show an empty reply.
+                // Recover by promoting thinking -> content.
+                if (!finalContent?.trim() && finalThinking?.trim()) {
+                  finalContent = finalThinking
+                  finalThinking = ''
+                }
+
+                onComplete({
+                  content: finalContent,
+                  thinking: finalThinking,
+                  thinkingTime: data.thinking_time ?? thinkingTime
+                })
+              }
               return
             case 'error':
               onComplete({ content: `Error: ${data.content}`, thinking: '', thinkingTime: 0 })
@@ -937,7 +950,15 @@ Just ask naturally — I understand casual conversation too!
         }
       }
       // If stream ended without done, finalize whatever we have
-      onComplete({ content: contentBuffer, thinking: thinkingBuffer, thinkingTime })
+      {
+        let finalContent = contentBuffer
+        let finalThinking = thinkingBuffer
+        if (!finalContent?.trim() && finalThinking?.trim()) {
+          finalContent = finalThinking
+          finalThinking = ''
+        }
+        onComplete({ content: finalContent, thinking: finalThinking, thinkingTime })
+      }
       return
     } catch (err) {
       console.error('[STREAM] Streaming error:', err)
@@ -949,7 +970,10 @@ Just ask naturally — I understand casual conversation too!
   const callAI = async (userMessage) => {
     try {
       // Build comprehensive context for AI agent with all analysis data
+      const storedUid = localStorage.getItem('valora_user_id') || 'anonymous'
       const context = {
+        user_id: storedUid,
+        thread_id: `chatpanel_${storedUid}`,
         selectedBuilding: agentData?.selectedBuilding || null,
         selectedLocation: agentData?.selectedLocation || null,
         selectedPlace: agentData?.selectedPlace || null,
@@ -1597,7 +1621,7 @@ Just ask naturally — I understand casual conversation too!
               <Settings className="w-3 h-3" />
               <span className="text-[10px]">
                 {llmConfig.provider === 'local' ? (
-                  llmConfig.local_model || 'llama3.2'
+                  llmConfig.local_model || 'qwen3:4b-instruct'
                 ) : (
                   llmConfig.openrouter_model?.split('/').pop().split(':')[0] || 'llama-3.3-70b'
                 )}
@@ -1648,9 +1672,7 @@ Just ask naturally — I understand casual conversation too!
                       ))
                     ) : (
                       <>
-                        <option value="llama3.2">llama3.2</option>
-                        <option value="qwen3-vl:4b">qwen3-vl:4b</option>
-                        <option value="deepseek-r1:8b">deepseek-r1:8b</option>
+                        <option value="qwen3:4b-instruct">Qwen3 4B (Default)</option>
                       </>
                     )}
                   </select>

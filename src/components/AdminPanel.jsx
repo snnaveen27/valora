@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   X, Settings, Database, Server, Cpu, CheckCircle, XCircle, 
   RefreshCw, Play, Zap, HardDrive, Cloud, AlertTriangle,
@@ -23,11 +23,10 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [sanityIncludeChat, setSanityIncludeChat] = useState(false)
   const [processingStatus, setProcessingStatus] = useState(null)
   const [llmConfig, setLlmConfig] = useState({
-    provider: 'openrouter', // 'openrouter' or 'local'
-    openrouter_api_key: '',
-    openrouter_model: 'deepseek/deepseek-chat', // DeepSeek V3.2 (671B) - best value
+    provider: 'ollama',
     local_url: 'http://127.0.0.1:11434/v1/chat/completions',
-    local_model: 'llama3.2'
+    local_model: 'qwen3:4b-instruct',
+    max_context: 8192
   })
   const [llmSaving, setLlmSaving] = useState(false)
   const [llmTestResult, setLlmTestResult] = useState(null)
@@ -44,9 +43,11 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [userAccounts, setUserAccounts] = useState([])
   const [userStats, setUserStats] = useState(null)
   const [loadingUsers, setLoadingUsers] = useState(false)
+  const [userError, setUserError] = useState(null)
   const [editingUser, setEditingUser] = useState(null)
   const [showCreateUser, setShowCreateUser] = useState(false)
   const [newUser, setNewUser] = useState({ email: '', password: '', name: '', tier: 'free', role: 'user' })
+  const [formErrors, setFormErrors] = useState({})
 
   useEffect(() => {
     if (isOpen) {
@@ -58,10 +59,11 @@ export default function AdminPanel({ isOpen, onClose }) {
     }
   }, [isOpen])
 
-  // User Management Functions
-  const fetchUserAccounts = async () => {
+  // User Management Functions with useCallback
+  const fetchUserAccounts = useCallback(async () => {
     if (!token) return
     setLoadingUsers(true)
+    setUserError(null)
     try {
       const [usersResp, statsResp] = await Promise.all([
         fetch(`${API_URL}/api/auth/admin/users`, {
@@ -74,6 +76,8 @@ export default function AdminPanel({ isOpen, onClose }) {
       if (usersResp.ok) {
         const users = await usersResp.json()
         setUserAccounts(users)
+      } else {
+        setUserError('Failed to fetch user accounts')
       }
       if (statsResp.ok) {
         const stats = await statsResp.json()
@@ -81,12 +85,30 @@ export default function AdminPanel({ isOpen, onClose }) {
       }
     } catch (err) {
       console.error('Failed to fetch users:', err)
+      setUserError('Network error while fetching users')
     }
     setLoadingUsers(false)
+  }, [token])
+
+  const validateUserForm = () => {
+    const errors = {}
+    if (!newUser.name || newUser.name.length < 2) {
+      errors.name = 'Name must be at least 2 characters'
+    }
+    if (!newUser.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newUser.email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+    if (!newUser.password || newUser.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters'
+    }
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
-  const createUserAccount = async () => {
-    if (!token || !newUser.email || !newUser.password || !newUser.name) return
+  const createUserAccount = useCallback(async () => {
+    if (!token) return
+    if (!validateUserForm()) return
+    
     try {
       const resp = await fetch(`${API_URL}/api/auth/admin/users?tier=${newUser.tier}&role=${newUser.role}`, {
         method: 'POST',
@@ -103,14 +125,19 @@ export default function AdminPanel({ isOpen, onClose }) {
       if (resp.ok) {
         setShowCreateUser(false)
         setNewUser({ email: '', password: '', name: '', tier: 'free', role: 'user' })
+        setFormErrors({})
         fetchUserAccounts()
+      } else {
+        const err = await resp.json().catch(() => ({ detail: 'Failed to create user' }))
+        setFormErrors({ submit: err.detail || 'Failed to create user' })
       }
     } catch (err) {
       console.error('Failed to create user:', err)
+      setFormErrors({ submit: 'Network error while creating user' })
     }
-  }
+  }, [token, newUser, fetchUserAccounts])
 
-  const updateUserAccount = async (userId, updates) => {
+  const updateUserAccount = useCallback(async (userId, updates) => {
     if (!token) return
     try {
       const resp = await fetch(`${API_URL}/api/auth/admin/users/${userId}`, {
@@ -124,14 +151,18 @@ export default function AdminPanel({ isOpen, onClose }) {
       if (resp.ok) {
         setEditingUser(null)
         fetchUserAccounts()
+      } else {
+        const err = await resp.json().catch(() => ({ detail: 'Update failed' }))
+        alert(err.detail || 'Failed to update user')
       }
     } catch (err) {
       console.error('Failed to update user:', err)
+      alert('Network error while updating user')
     }
-  }
+  }, [token, fetchUserAccounts])
 
-  const deleteUserAccount = async (userId) => {
-    if (!token || !confirm('Are you sure you want to delete this user?')) return
+  const deleteUserAccount = useCallback(async (userId) => {
+    if (!token || !confirm('Are you sure you want to delete this user? This action cannot be undone.')) return
     try {
       const resp = await fetch(`${API_URL}/api/auth/admin/users/${userId}`, {
         method: 'DELETE',
@@ -139,13 +170,17 @@ export default function AdminPanel({ isOpen, onClose }) {
       })
       if (resp.ok) {
         fetchUserAccounts()
+      } else {
+        const err = await resp.json().catch(() => ({ detail: 'Delete failed' }))
+        alert(err.detail || 'Failed to delete user')
       }
     } catch (err) {
       console.error('Failed to delete user:', err)
+      alert('Network error while deleting user')
     }
-  }
+  }, [token, fetchUserAccounts])
 
-  const fetchBrainStatus = async () => {
+  const fetchBrainStatus = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/admin/locality-brain-status`)
       if (resp.ok) {
@@ -155,9 +190,9 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to fetch brain status:', err)
     }
-  }
+  }, [])
 
-  const rebuildBrain = async () => {
+  const rebuildBrain = useCallback(async () => {
     setRebuildingBrain(true)
     setBrainResult(null)
     try {
@@ -173,9 +208,9 @@ export default function AdminPanel({ isOpen, onClose }) {
       setBrainResult({ success: false, message: `Error: ${err.message}` })
     }
     setRebuildingBrain(false)
-  }
+  }, [fetchBrainStatus])
 
-  const fetchSystemStatus = async () => {
+  const fetchSystemStatus = useCallback(async () => {
     setLoading(true)
     try {
       const resp = await fetch(`${API_URL}/api/admin/status`)
@@ -189,9 +224,9 @@ export default function AdminPanel({ isOpen, onClose }) {
       setSystemStatus({ error: 'Failed to connect to backend' })
     }
     setLoading(false)
-  }
+  }, [])
 
-  const fetchUserPreferences = async (userId = prefsUserId) => {
+  const fetchUserPreferences = useCallback(async (userId = prefsUserId) => {
     setLoadingPrefs(true)
     try {
       const resp = await fetch(`${API_URL}/api/preferences/${userId}`)
@@ -206,9 +241,9 @@ export default function AdminPanel({ isOpen, onClose }) {
       setUserPrefs({ error: 'Failed to fetch preferences' })
     }
     setLoadingPrefs(false)
-  }
+  }, [prefsUserId])
 
-  const clearUserPreferences = async (userId = prefsUserId) => {
+  const clearUserPreferences = useCallback(async (userId = prefsUserId) => {
     try {
       const resp = await fetch(`${API_URL}/api/preferences/${userId}`, { method: 'DELETE' })
       if (resp.ok) {
@@ -218,9 +253,9 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to clear preferences:', err)
     }
-  }
+  }, [prefsUserId, fetchUserPreferences])
 
-  const fetchVectorBackend = async () => {
+  const fetchVectorBackend = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/admin/vector-backend`)
       if (resp.ok) {
@@ -230,9 +265,9 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to fetch vector backend:', err)
     }
-  }
+  }, [])
 
-  const toggleVectorBackend = async () => {
+  const toggleVectorBackend = useCallback(async () => {
     const newBackend = vectorBackend === 'pinecone' ? 'faiss' : 'pinecone'
     try {
       const resp = await fetch(`${API_URL}/api/admin/vector-backend`, {
@@ -242,13 +277,16 @@ export default function AdminPanel({ isOpen, onClose }) {
       })
       if (resp.ok) {
         setVectorBackend(newBackend)
+      } else {
+        alert('Failed to toggle vector backend')
       }
     } catch (err) {
       console.error('Failed to toggle vector backend:', err)
+      alert('Network error while toggling backend')
     }
-  }
+  }, [vectorBackend])
 
-  const runTests = async () => {
+  const runTests = useCallback(async () => {
     setRunningTest(true)
     setTestResults(null)
     try {
@@ -256,15 +294,17 @@ export default function AdminPanel({ isOpen, onClose }) {
       if (resp.ok) {
         const data = await resp.json()
         setTestResults(data)
+      } else {
+        setTestResults({ error: 'Failed to run tests' })
       }
     } catch (err) {
       console.error('Failed to run tests:', err)
       setTestResults({ error: 'Failed to run tests' })
     }
     setRunningTest(false)
-  }
+  }, [])
 
-  const runSanityCheck = async () => {
+  const runSanityCheck = useCallback(async () => {
     setRunningSanity(true)
     setSanityResults(null)
     try {
@@ -285,9 +325,9 @@ export default function AdminPanel({ isOpen, onClose }) {
       setSanityResults({ error: 'Failed to run sanity check' })
     }
     setRunningSanity(false)
-  }
+  }, [sanityIncludeChat])
 
-  const fetchProcessingStatus = async () => {
+  const fetchProcessingStatus = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/admin/processing-status`)
       if (resp.ok) {
@@ -297,22 +337,26 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to fetch processing status:', err)
     }
-  }
+  }, [])
 
-  const triggerIndexing = async (target) => {
+  const triggerIndexing = useCallback(async (target) => {
     try {
-      await fetch(`${API_URL}/api/admin/trigger-indexing`, {
+      const resp = await fetch(`${API_URL}/api/admin/trigger-indexing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target })
       })
+      if (!resp.ok) {
+        alert('Failed to trigger indexing')
+      }
       fetchProcessingStatus()
     } catch (err) {
       console.error('Failed to trigger indexing:', err)
+      alert('Network error while triggering indexing')
     }
-  }
+  }, [fetchProcessingStatus])
 
-  const fetchLlmConfig = async () => {
+  const fetchLlmConfig = useCallback(async () => {
     try {
       const resp = await fetch(`${API_URL}/api/admin/llm-config`)
       if (resp.ok) {
@@ -322,9 +366,9 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to fetch LLM config:', err)
     }
-  }
+  }, [])
 
-  const saveLlmConfig = async () => {
+  const saveLlmConfig = useCallback(async () => {
     setLlmSaving(true)
     setLlmTestResult(null)
     try {
@@ -343,9 +387,9 @@ export default function AdminPanel({ isOpen, onClose }) {
       setLlmTestResult({ success: false, message: 'Failed to connect to backend' })
     }
     setLlmSaving(false)
-  }
+  }, [llmConfig])
 
-  const testLlmConnection = async () => {
+  const testLlmConnection = useCallback(async () => {
     setLlmSaving(true)
     setLlmTestResult(null)
     try {
@@ -360,7 +404,7 @@ export default function AdminPanel({ isOpen, onClose }) {
       setLlmTestResult({ success: false, message: 'Failed to test connection' })
     }
     setLlmSaving(false)
-  }
+  }, [llmConfig])
 
   if (!isOpen) return null
 
@@ -477,28 +521,57 @@ export default function AdminPanel({ isOpen, onClose }) {
                     <UserPlus className="w-4 h-4 text-purple-400" />
                     Create New User
                   </h4>
+                  
+                  {/* Submit Error */}
+                  {formErrors.submit && (
+                    <div className="mb-3 p-2 bg-red-500/20 border border-red-500/30 rounded text-red-400 text-sm">
+                      {formErrors.submit}
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      placeholder="Full Name"
-                      value={newUser.name}
-                      onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                      className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email"
-                      value={newUser.email}
-                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                      className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      value={newUser.password}
-                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                      className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
-                    />
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Full Name"
+                        value={newUser.name}
+                        onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                        className={`w-full bg-slate-800 border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500 ${
+                          formErrors.name ? 'border-red-500' : 'border-slate-600'
+                        }`}
+                      />
+                      {formErrors.name && (
+                        <p className="text-red-400 text-xs mt-1">{formErrors.name}</p>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        value={newUser.email}
+                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                        className={`w-full bg-slate-800 border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500 ${
+                          formErrors.email ? 'border-red-500' : 'border-slate-600'
+                        }`}
+                      />
+                      {formErrors.email && (
+                        <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="password"
+                        placeholder="Password (min 6 chars)"
+                        value={newUser.password}
+                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        className={`w-full bg-slate-800 border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500 ${
+                          formErrors.password ? 'border-red-500' : 'border-slate-600'
+                        }`}
+                      />
+                      {formErrors.password && (
+                        <p className="text-red-400 text-xs mt-1">{formErrors.password}</p>
+                      )}
+                    </div>
                     <select
                       value={newUser.tier}
                       onChange={(e) => setNewUser({ ...newUser, tier: e.target.value })}
@@ -512,18 +585,31 @@ export default function AdminPanel({ isOpen, onClose }) {
                   </div>
                   <div className="flex justify-end gap-2 mt-3">
                     <button
-                      onClick={() => setShowCreateUser(false)}
+                      type="button"
+                      onClick={() => {
+                        setShowCreateUser(false)
+                        setFormErrors({})
+                      }}
                       className="px-4 py-2 text-slate-400 hover:text-white transition text-sm"
                     >
                       Cancel
                     </button>
                     <button
+                      type="button"
                       onClick={createUserAccount}
                       className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition"
                     >
                       Create User
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Error Display */}
+              {userError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  {userError}
                 </div>
               )}
 
@@ -1354,121 +1440,59 @@ export default function AdminPanel({ isOpen, onClose }) {
             <div className="space-y-4">
               <h3 className="text-white font-semibold">Configuration</h3>
               
-              {/* LLM Provider Toggle */}
-              <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Bot className="w-5 h-5 text-purple-400" />
-                    <div>
-                      <h4 className="text-white font-medium">LLM Provider</h4>
-                      <p className="text-slate-400 text-xs mt-0.5">
-                        {llmConfig.provider === 'openrouter' 
-                          ? 'Using OpenRouter (cloud API)'
-                          : 'Using Local LLM (offline)'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setLlmConfig(prev => ({ ...prev, provider: 'openrouter' }))}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                        llmConfig.provider === 'openrouter'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
-                      }`}
-                    >
-                      <Globe className="w-4 h-4" />
-                      OpenRouter
-                    </button>
-                    <button
-                      onClick={() => setLlmConfig(prev => ({ ...prev, provider: 'local' }))}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                        llmConfig.provider === 'local'
-                          ? 'bg-green-600 text-white'
-                          : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
-                      }`}
-                    >
-                      <HardDrive className="w-4 h-4" />
-                      Local LLM
-                    </button>
+              {/* Local LLM Settings Only */}
+              <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <HardDrive className="w-5 h-5 text-green-400" />
+                  <div>
+                    <h4 className="text-white font-medium">Local LLM (Ollama)</h4>
+                    <p className="text-slate-400 text-xs mt-0.5">
+                      Using local Ollama instance - fully offline
+                    </p>
                   </div>
                 </div>
 
-                {/* OpenRouter Settings */}
-                {llmConfig.provider === 'openrouter' && (
-                  <div className="space-y-3 mt-4 pt-4 border-t border-slate-600">
-                    <div>
-                      <label className="text-slate-300 text-xs block mb-1">API Key</label>
-                      <input
-                        type="password"
-                        value={llmConfig.openrouter_api_key}
-                        onChange={(e) => setLlmConfig(prev => ({ ...prev, openrouter_api_key: e.target.value }))}
-                        placeholder="sk-or-..."
-                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
-                      />
-                    </div>
-                    <div>
-                    <label className="text-slate-300 text-xs block mb-1">Model</label>
-                    <select
-                      value={llmConfig.openrouter_model}
-                      onChange={(e) => setLlmConfig(prev => ({ ...prev, openrouter_model: e.target.value }))}
-                      className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
-                    >
-                      <optgroup label="Production (Recommended)">
-                        <option value="deepseek/deepseek-chat">DeepSeek V3.2 (671B) - Best Value ⭐</option>
-                        <option value="deepseek/deepseek-reasoner">DeepSeek Reasoner - Deep Analysis</option>
-                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                        <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-                      </optgroup>
-                      <optgroup label="Free Tier">
-                        <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 (Free)</option>
-                        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Free)</option>
-                        <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
-                        <option value="qwen/qwen3-235b-a22b:free">Qwen3 235B (Free)</option>
-                      </optgroup>
-                    </select>
+                <div className="space-y-3 mt-4 pt-4 border-t border-slate-600">
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-3">
+                    <p className="text-green-400 text-xs">
+                      <strong>Offline Mode:</strong> Requires Ollama running locally.
+                    </p>
                   </div>
+                  <div>
+                    <label className="text-slate-300 text-xs block mb-1">Server URL</label>
+                    <input
+                      type="text"
+                      value={llmConfig.local_url}
+                      onChange={(e) => setLlmConfig(prev => ({ ...prev, local_url: e.target.value }))}
+                      placeholder="http://127.0.0.1:11434/v1/chat/completions"
+                      className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500"
+                    />
                   </div>
-                )}
+                  <div>
+                    <label className="text-slate-300 text-xs block mb-1">Model Name</label>
+                    <input
+                      type="text"
+                      value={llmConfig.local_model}
+                      onChange={(e) => setLlmConfig(prev => ({ ...prev, local_model: e.target.value }))}
+                      placeholder="qwen3:4b-instruct"
+                      className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-300 text-xs block mb-1">Max Context (0 = unlimited)</label>
+                    <input
+                      type="number"
+                      value={llmConfig.max_context}
+                      onChange={(e) => setLlmConfig(prev => ({ ...prev, max_context: parseInt(e.target.value) || 0 }))}
+                      placeholder="8192"
+                      min="0"
+                      className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500"
+                    />
+                  </div>
+                </div>
 
-                {/* Local LLM Settings */}
-                {llmConfig.provider === 'local' && (
-                  <div className="space-y-3 mt-4 pt-4 border-t border-slate-600">
-                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-3">
-                      <p className="text-green-400 text-xs">
-                        <strong>Offline Mode:</strong> Requires llama.cpp server running locally with a GGUF model.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-slate-300 text-xs block mb-1">Server URL</label>
-                      <input
-                        type="text"
-                        value={llmConfig.local_url}
-                        onChange={(e) => setLlmConfig(prev => ({ ...prev, local_url: e.target.value }))}
-                        placeholder="http://127.0.0.1:11434/v1/chat/completions"
-                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-slate-300 text-xs block mb-1">Model Name</label>
-                      <input
-                        type="text"
-                        value={llmConfig.local_model}
-                        onChange={(e) => setLlmConfig(prev => ({ ...prev, local_model: e.target.value }))}
-                        placeholder="llama3.2"
-                        className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Test Result */}
                 {llmTestResult && (
-                  <div className={`mt-4 p-3 rounded-lg text-sm ${
-                    llmTestResult.success 
-                      ? 'bg-green-500/10 border border-green-500/30 text-green-400'
-                      : 'bg-red-500/10 border border-red-500/30 text-red-400'
-                  }`}>
+                  <div className={`mt-3 p-2 rounded text-sm ${llmTestResult.success ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                     {llmTestResult.success ? <CheckCircle className="w-4 h-4 inline mr-2" /> : <XCircle className="w-4 h-4 inline mr-2" />}
                     {llmTestResult.message}
                   </div>

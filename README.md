@@ -38,7 +38,16 @@ Valora AI is an **offline-first 3D GIS + AI reasoning platform** for real estate
 
 ---
 
-## Quick Start
+## 📚 Documentation
+
+Complete documentation is available in the [`docs/`](./docs/) folder:
+
+- **[docs/README.md](./docs/README.md)** - Documentation overview and navigation
+- **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)** - Complete system architecture
+- **[docs/AI_LLM.md](./docs/AI_LLM.md)** - Hybrid AI architecture details
+- **[docs/PRODUCTION_DEPLOYMENT.md](./docs/PRODUCTION_DEPLOYMENT.md)** - Production deployment guide
+
+## 🚀 Quick Start
 
 ### Prerequisites
 

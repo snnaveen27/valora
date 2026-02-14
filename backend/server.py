@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 import asyncio
+import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import statistics
@@ -21,17 +22,24 @@ from collections import OrderedDict
 import time
 import os
 from dotenv import load_dotenv
+
+# Structured logging (before any other imports that might log)
+from logging_config import setup_logging
+setup_logging(level=os.getenv("LOG_LEVEL", "INFO"))
+logger = logging.getLogger("valora.server")
+
 from analyzers.area_analyzer import AreaAnalyzer
 from spatial.local_geocoder import get_local_geocoder
+from config import config
 from scrapers import multi_source_scraper
 
 # Load environment variables
 load_dotenv()
 
 # Initialize services - gracefully handle missing folders (database is primary source)
-osm_data_dir = Path(__file__).parent.parent / 'src' / 'data' / 'osm_extracted'
-terrain_dir = Path(__file__).parent.parent / 'src' / 'data' / 'terrain'
-properties_dir = Path(__file__).parent.parent / 'src' / 'data' / 'posted_properties'
+osm_data_dir = config.OSM_DATA_DIR
+terrain_dir = config.TERRAIN_DIR
+properties_dir = config.DATA_DIR / 'posted_properties'
 
 # Area analyzer and geocoder use database as primary, files as fallback
 try:
@@ -65,17 +73,6 @@ try:
 except Exception as e:
     print(f"[WARNING] Property service not available: {e}")
     property_service = None
-
-# Import and initialize property image service (for AI training)
-try:
-    from services.property_image_service import get_image_service
-    image_service = get_image_service()
-    IMAGE_SERVICE_AVAILABLE = True
-    print(f"[OK] Property image service initialized ({len(image_service.training_data)} images)")
-except Exception as e:
-    print(f"[WARNING] Property image service not available: {e}")
-    image_service = None
-    IMAGE_SERVICE_AVAILABLE = False
 
 # Phase 1: Import and initialize RAG, Valuation, and Spatial Reasoning services
 data_dir = Path(__file__).parent.parent / 'src' / 'data'
@@ -128,6 +125,13 @@ except Exception as e:
 from ai.gis_agents import get_gis_orchestrator, IntentRouter, Intent, _compute_market_facts
 from search.query_cache import get_chat_cache
 
+# Ollama client (lazy-loaded by chat_routes.py)
+try:
+    from ai.ollama_client import get_ollama_client
+    print("[OK] Ollama client module available")
+except ImportError:
+    print("[WARNING] Ollama client not available")
+
 # Phase 3: City Intelligence Engine
 try:
     import sys
@@ -169,6 +173,22 @@ print("[OK] Auth routes initialized")
 from routes.payment_routes import router as payment_router
 app.include_router(payment_router)
 print("[OK] Payment routes initialized (Razorpay + Cashfree)")
+
+# Include feedback routes
+from routes.feedback_routes import router as feedback_router
+app.include_router(feedback_router)
+print("[OK] Feedback routes initialized (auto-save + credit rewards)")
+
+# Include unified chat routes (replaces /api/chat, /api/chat/stream, /api/chat/hybrid, /api/chat/stream-opus)
+from routes.chat_routes import router as chat_router, init_chat_deps
+app.include_router(chat_router)
+init_chat_deps(gis_orchestrator=gis_orchestrator)
+print("[OK] Unified chat routes initialized (2 endpoints: /api/chat + /api/chat/stream)")
+
+# Include credits & demo payment routes
+from routes.credits_routes import router as credits_router
+app.include_router(credits_router)
+print("[OK] Credits & demo payment routes initialized")
 
 # CORS for frontend
 _default_origins = [
@@ -382,51 +402,10 @@ BANGALORE_BBOX = {
     "bounded": 1
 }
 
-# LLM Configuration (supports OpenRouter and Local LLM)
-# Default: OpenRouter with DeepSeek V3.1 (671B) - best value for production
+# LLM Configuration — Ollama-only for MVP
+# Cloud LLM config managed by admin_routes.py for future use
 LLM_CONFIG_FILE = Path(__file__).parent / 'llm_config.json'
-
-def load_llm_config():
-    """Load LLM config from file or return defaults."""
-    defaults = {
-        'provider': 'openrouter',  # 'openrouter' or 'local' - default to cloud for production
-        'openrouter_api_key': os.getenv('OPENROUTER_API_KEY', ''),
-        'openrouter_model': os.getenv('OPENROUTER_MODEL', 'deepseek/deepseek-chat'),  # DeepSeek V3.2 (671B)
-        'openrouter_model_reasoning': os.getenv('OPENROUTER_MODEL_REASONING', 'deepseek/deepseek-reasoner'),  # Deep analysis
-        'openrouter_model_vision': os.getenv('OPENROUTER_MODEL_VISION', 'qwen/qwen2.5-vl-72b-instruct'),
-        'local_url': os.getenv('LOCAL_LLM_URL', 'http://127.0.0.1:11434/v1/chat/completions'),
-        'local_model': os.getenv('LOCAL_LLM_MODEL', 'llama3.2'),  # Fallback local model
-        'active_model_type': 'primary',  # 'primary', 'reasoning', or 'vision'
-    }
-    if LLM_CONFIG_FILE.exists():
-        try:
-            with open(LLM_CONFIG_FILE, 'r') as f:
-                saved = json.load(f)
-                defaults.update(saved)
-        except Exception as e:
-            print(f"[WARNING] Failed to load LLM config: {e}")
-    return defaults
-
-def save_llm_config(config: dict):
-    """Save LLM config to file."""
-    try:
-        with open(LLM_CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=2)
-        return True
-    except Exception as e:
-        print(f"[ERROR] Failed to save LLM config: {e}")
-        return False
-
-# Load config at startup
-llm_config = load_llm_config()
-print(f"[OK] LLM Provider: {llm_config['provider']}")
-
-# Legacy env vars for compatibility
-OPENROUTER_API_KEY = llm_config.get('openrouter_api_key') or os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_MODEL = llm_config.get('openrouter_model', "deepseek/deepseek-chat")  # DeepSeek V3.2 (671B)
-OPENROUTER_MODEL_REASONING = llm_config.get('openrouter_model_reasoning', "deepseek/deepseek-reasoner")
-OPENROUTER_MODEL_VISION = llm_config.get('openrouter_model_vision', "qwen/qwen2.5-vl-72b-instruct")
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+print("[OK] LLM Provider: ollama (local, MVP mode)")
 
 # Mapbox configuration
 MAPBOX_API_KEY = os.getenv("MAPBOX_API_KEY", "")
@@ -441,15 +420,6 @@ class PlaceResult(BaseModel):
     lng: float
     type: str
     importance: float
-
-class ChatMessage(BaseModel):
-    role: str
-    content: str
-
-class ChatRequest(BaseModel):
-    messages: List[ChatMessage]
-    context: Optional[Dict[str, Any]] = None  # Map state, selected building, location, etc.
-    bbox: Optional[List[float]] = None
 
 class GeocodeResponse(BaseModel):
     success: bool
@@ -765,7 +735,7 @@ async def get_database_tile(tile_id: str):
         max_lat = lat_start + tile_size
         
         # Direct query - get ALL buildings in tile bounds with polygon data
-        db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+        db_path = config.DB_PATH
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -910,6 +880,85 @@ async def get_buildings_for_viewport(min_lng: float, min_lat: float, max_lng: fl
     except Exception as e:
         print(f"[ERROR] Buildings viewport query failed: {e}")
         return {'type': 'FeatureCollection', 'features': [], 'total': 0, 'error': str(e)}
+
+class BuildingAnalyzeRequest(BaseModel):
+    lat: float
+    lng: float
+    height: Optional[float] = 10
+    levels: Optional[int] = 3
+    buildingType: Optional[str] = "building"
+    area: Optional[float] = 0
+    name: Optional[str] = ""
+
+@app.post("/api/building/analyze")
+async def analyze_building(request: BuildingAnalyzeRequest):
+    """
+    Analyze a specific building - provides structural, spatial, and market context.
+    Called by the map when user clicks a building.
+    """
+    try:
+        lat, lng = request.lat, request.lng
+        height = request.height or 10
+        levels = request.levels or max(1, int(height / 3))
+        building_type = request.buildingType or "building"
+        
+        result = {
+            "success": True,
+            "building": {
+                "lat": lat,
+                "lng": lng,
+                "height": height,
+                "levels": levels,
+                "type": building_type,
+                "name": request.name or f"{building_type.title()} Building",
+                "area_sqm": request.area or round(height * levels * 8, 1),
+            },
+            "structural": {
+                "estimated_age": "Unknown",
+                "construction_type": "RCC" if levels > 3 else "Load Bearing",
+                "floor_area_ratio": round(levels * 0.6, 2),
+                "height_category": "High-rise" if levels > 10 else ("Mid-rise" if levels > 4 else "Low-rise"),
+            },
+            "spatial": None,
+            "market": None,
+            "nearby_properties": [],
+        }
+        
+        # Spatial context
+        if SPATIAL_AVAILABLE and spatial_service:
+            try:
+                summary = spatial_service.get_summary(lat, lng, radius_m=500)
+                result["spatial"] = {
+                    "poi_count": summary.by_category.get('poi', 0),
+                    "transport_count": summary.by_category.get('transport', 0),
+                    "accessibility_score": int(summary.accessibility_score),
+                    "walkability_score": int(summary.walkability_score),
+                }
+            except Exception:
+                pass
+        
+        # Nearby properties for market context
+        try:
+            nearby = property_service.get_nearby(lat, lng, radius_m=500, limit=5)
+            if nearby:
+                props = nearby.get('properties', [])
+                result["nearby_properties"] = props[:5]
+                prices = [p.get('price', 0) for p in props if p.get('price')]
+                if prices:
+                    result["market"] = {
+                        "avg_price_nearby": int(sum(prices) / len(prices)),
+                        "min_price": min(prices),
+                        "max_price": max(prices),
+                        "property_count": len(props),
+                        "estimated_value_per_sqft": int(sum(prices) / len(prices) / max(request.area or 1000, 100)),
+                    }
+        except Exception:
+            pass
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Building analysis error: {str(e)}")
+
 
 @app.get("/api/area/analyze")
 async def analyze_area(lng: float, lat: float, radius: int = 1000):
@@ -1519,960 +1568,13 @@ async def city_brain_insights():
     }
 
 
-def _generate_fallback_response(intent, facts) -> str:
-    """Generate a response from grounded facts when LLM returns empty content."""
-    from ai.gis_agents import Intent
-    
-    name = facts.location_name or "this area"
-    parts = []
-    
-    if intent == Intent.INVESTMENT:
-        parts.append(f"**Investment Analysis: {name}**\n")
-        if facts.locality_archetype:
-            parts.append(f"- **Type:** {facts.locality_archetype.replace('_', ' ').title()}")
-        if facts.locality_growth_stage:
-            parts.append(f"- **Growth Stage:** {facts.locality_growth_stage.replace('_', ' ').title()}")
-        if facts.investment_outlook:
-            parts.append(f"- **Outlook:** {facts.investment_outlook.replace('_', ' ').title()}")
-        if facts.overall_risk_score is not None:
-            parts.append(f"- **Risk Score:** {facts.overall_risk_score:.0f}/100 ({facts.risk_level or 'unknown'})")
-        if facts.active_listings:
-            parts.append(f"- **Active Listings:** {facts.active_listings}")
-        if facts.location_strengths:
-            parts.append(f"\n**Strengths:** " + ", ".join(facts.location_strengths[:3]))
-        if facts.location_weaknesses:
-            parts.append(f"\n**Considerations:** " + ", ".join(facts.location_weaknesses[:3]))
-    
-    elif intent == Intent.ANALYZE_AREA:
-        parts.append(f"**Area Analysis: {name}**\n")
-        if facts.locality_tagline:
-            parts.append(f"*{facts.locality_tagline}*\n")
-        if facts.accessibility_score is not None:
-            parts.append(f"- **Accessibility:** {facts.accessibility_score}/100")
-        if facts.walkability_score is not None:
-            parts.append(f"- **Walkability:** {facts.walkability_score}/100")
-        if facts.active_listings:
-            parts.append(f"- **Active Listings:** {facts.active_listings}")
-        if facts.flood_risk:
-            parts.append(f"- **Flood Risk:** {facts.flood_risk.title()}")
-    
-    elif intent == Intent.NAVIGATE:
-        parts.append(f"Navigating to **{name}** ({facts.lat:.4f}, {facts.lng:.4f}).\n")
-        if facts.locality_tagline:
-            parts.append(f"*{facts.locality_tagline}*")
-    
-    elif intent == Intent.PROPERTY_SEARCH:
-        parts.append(f"**Properties in {name}**\n")
-        if facts.active_listings:
-            parts.append(f"Found **{facts.active_listings}** active listings in this area.")
-        if facts.avg_price_per_sqft:
-            parts.append(f"- **Avg Price:** ₹{facts.avg_price_per_sqft:,.0f}/sqft")
-        if facts.demand_level:
-            parts.append(f"- **Demand:** {facts.demand_level}")
-    
-    else:
-        # Generic response
-        parts.append(f"**{name}**\n")
-        if facts.locality_tagline:
-            parts.append(f"*{facts.locality_tagline}*\n")
-        if facts.accessibility_score is not None:
-            parts.append(f"- Accessibility: {facts.accessibility_score}/100")
-        if facts.active_listings:
-            parts.append(f"- Active Listings: {facts.active_listings}")
-    
-    return "\n".join(parts) if parts else f"Analysis complete for {name}. View the dashboard for details."
-
-
-@app.post("/api/chat")
-async def chat_with_ai(request: ChatRequest):
-    """
-    Phase 2 GIS AI Agent with Multi-Agent Orchestration.
-    
-    Architecture:
-    1. IntentRouter classifies user query
-    2. GIS Orchestrator dispatches to deterministic agents (Spatial, Terrain, Property, RAG)
-    3. Agents collect grounded facts from real data
-    4. LLM synthesizes narrative from facts (never invents data)
-    5. Dashboard populated entirely from computed facts
-    
-    Supports both OpenRouter (cloud) and Local LLM (offline) providers.
-    """
-    import re as re_module
-    from routes.admin_routes import get_active_llm_config
-    from ai.response_templates import get_conversational_response, get_system_prompt
-    
-    # Extract user query
-    user_query = ""
-    if request.messages:
-        user_query = request.messages[-1].content
-    
-    context = request.context or {}
-
-    image_base64 = None
-    try:
-        img = context.get('image')
-        if isinstance(img, dict):
-            image_base64 = img.get('base64')
-    except Exception:
-        image_base64 = None
-    
-    # Classify intent first
-    from ai.gis_agents import IntentRouter
-    selected_building = context.get('selectedBuilding')
-    selected_location = context.get('selectedLocation')
-    selected_place = context.get('selectedPlace')
-    intent = IntentRouter.classify(
-        user_query,
-        has_building=bool(selected_building),
-        has_location=bool(selected_location or selected_place),
-    )
-    
-    # =========================================================================
-    # FAST PATH: Handle conversational intents without LLM
-    # =========================================================================
-    conversational_intents = ['greeting', 'help', 'thanks', 'farewell', 'smalltalk']
-    if intent.value in conversational_intents:
-        response_text = get_conversational_response(intent.value)
-        if response_text:
-            return {
-                "success": True,
-                "message": response_text,
-                "intent": intent.value,
-                "dashboard": None,
-                "ui_actions": [],
-                "simulation": None,
-                "digital_twin_state": None,
-                "facts": {},
-                "facts_summary": {},
-                "reasoning_trace": None,
-                "chain_of_thought": None,
-                "tasks": None,
-                "cached": False,
-                "fast_response": True  # Indicates no LLM was needed
-            }
-
-    # =========================================================================
-    # FAST PATH: Polygon / Buffer / Custom Zone queries (no LLM required)
-    # =========================================================================
-    polygon_analysis = (context or {}).get('polygonAnalysis')
-    buffer_analysis = (context or {}).get('bufferAnalysis')
-    zone_analysis = polygon_analysis or buffer_analysis
-
-    if zone_analysis and user_query:
-        ql = user_query.lower()
-        if any(k in ql for k in ["polygon", "buffer", "zone", "inside this", "drawn"]):
-            zone_type = zone_analysis.get('zone_type') or ('polygon' if polygon_analysis else 'buffer')
-            metrics = zone_analysis.get('metrics', {}) or {}
-            counts = zone_analysis.get('counts', {}) or {}
-            building_stats = zone_analysis.get('building_stats', {}) or {}
-
-            message_lines = []
-            message_lines.append(f"**Custom Zone Analysis ({zone_type})**")
-            if zone_type == 'polygon':
-                area_m2 = metrics.get('area_m2')
-                perim_m = metrics.get('perimeter_m')
-                if area_m2 is not None:
-                    message_lines.append(f"- **Area:** {area_m2:,.0f} m²")
-                if perim_m is not None:
-                    message_lines.append(f"- **Perimeter:** {perim_m:,.0f} m")
-            else:
-                radius_m = metrics.get('radius_m')
-                if radius_m is not None:
-                    message_lines.append(f"- **Radius:** {radius_m:,.0f} m")
-
-            message_lines.append(f"- **Buildings:** {counts.get('buildings', 0)}")
-            message_lines.append(f"- **Properties:** {counts.get('properties', 0)}")
-            message_lines.append(f"- **POIs:** {counts.get('pois', 0)}")
-            message_lines.append(f"- **Transport Stops:** {counts.get('transport_stops', 0)}")
-
-            if building_stats:
-                if building_stats.get('avg_height_m') is not None:
-                    message_lines.append(f"- **Avg building height:** {building_stats.get('avg_height_m'):.1f} m")
-                if building_stats.get('max_height_m') is not None:
-                    message_lines.append(f"- **Max building height:** {building_stats.get('max_height_m'):.1f} m")
-                if building_stats.get('dominant_type'):
-                    message_lines.append(f"- **Dominant building type:** {building_stats.get('dominant_type')}")
-                if building_stats.get('above_30m') is not None:
-                    message_lines.append(f"- **Buildings above 30m:** {building_stats.get('above_30m')}")
-
-            msg = "\n".join(message_lines)
-            return {
-                "success": True,
-                "message": msg,
-                "intent": intent.value,
-                "dashboard": {
-                    "title": f"Zone Analysis ({zone_type})",
-                    "cards": [
-                        {
-                            "title": "Counts",
-                            "items": [
-                                {"label": "Buildings", "value": counts.get('buildings', 0)},
-                                {"label": "Properties", "value": counts.get('properties', 0)},
-                                {"label": "POIs", "value": counts.get('pois', 0)},
-                                {"label": "Transport", "value": counts.get('transport_stops', 0)},
-                            ],
-                        },
-                    ],
-                },
-                "ui_actions": [],
-                "simulation": None,
-                "digital_twin_state": None,
-                "facts": {
-                    "zone_type": zone_type,
-                    "zone_metrics": metrics,
-                    "zone_counts": counts,
-                    "zone_building_stats": building_stats,
-                },
-                "facts_summary": {
-                    "zone_type": zone_type,
-                    "buildings": counts.get('buildings', 0),
-                    "properties": counts.get('properties', 0),
-                    "pois": counts.get('pois', 0),
-                    "transport_stops": counts.get('transport_stops', 0),
-                },
-                "reasoning_trace": None,
-                "chain_of_thought": None,
-                "tasks": None,
-                "cached": False,
-                "fast_response": True,
-            }
-    
-    # Get current LLM config (only needed for non-conversational queries)
-    current_llm_config = get_active_llm_config()
-    llm_provider = current_llm_config.get('provider', 'openrouter')
-    
-    # Validate config based on provider
-    if llm_provider == 'openrouter':
-        api_key = current_llm_config.get('openrouter_api_key', '')
-        if not api_key:
-            raise HTTPException(status_code=503, detail="OpenRouter API key not configured. Go to Admin Panel > Config to set it up.")
-    else:
-        local_url = current_llm_config.get('local_url', '')
-        if not local_url:
-            raise HTTPException(status_code=503, detail="Local LLM URL not configured. Go to Admin Panel > Config to set it up.")
-    
-    # =========================================================================
-    # PHASE 2: Multi-Agent Fact Gathering (No Task System)
-    # =========================================================================
-    import time as time_module
-    fact_start = time_module.time()
-    print(f"[PERF] Starting fact gathering for: {user_query[:50]}")
-    
-    facts, intent, ui_actions, digital_twin_state, reasoning_trace = gis_orchestrator.gather_facts(
-        query=user_query,
-        context=context,
-        intent=intent,
-        task_planner=None,  # Disabled task system
-    )
-    
-    fact_time = time_module.time() - fact_start
-    print(f"[PERF] Fact gathering took {fact_time:.2f}s")
-    
-    # Build dashboard from grounded facts
-    title = facts.location_name or "Analysis"
-    if intent == Intent.ANALYZE_BUILDING and facts.building_type:
-        title = f"{facts.building_type.title()} Building Analysis"
-    elif intent == Intent.PROPERTY_SEARCH:
-        title = f"Properties near {facts.location_name or 'Location'}"
-    elif intent == Intent.SIMULATE:
-        title = f"Simulation: {facts.location_name or 'Area'}"
-    
-    dashboard = facts.to_dashboard(title=title)
-    
-    # Add simulation results to dashboard if present
-    simulation_data = None
-    if facts.simulation_results:
-        simulation_data = facts.simulation_results
-        dashboard["simulation"] = simulation_data
-    
-    # Add viewport info if available
-    viewport = context.get('viewport')
-    viewport_context = ""
-    if viewport:
-        viewport_context = f"\n**Viewport:** Center ~{viewport.get('center', {}).get('lat', 12.97):.2f}, {viewport.get('center', {}).get('lng', 77.64):.2f}, {viewport.get('buildingsCount', 0)} buildings loaded"
-    
-    # Add comprehensive analysis context from Analysis Panel
-    current_analysis = context.get('currentAnalysis', {})
-    viewport_analysis = context.get('viewportAnalysis', {})
-    
-    analysis_context = ""
-    if current_analysis or viewport_analysis:
-        analysis_parts = []
-        
-        # Area name
-        area_name = current_analysis.get('areaName') or viewport_analysis.get('area_name')
-        if area_name:
-            analysis_parts.append(f"**Current Area:** {area_name}")
-        
-        # Market data
-        market = current_analysis.get('market') or viewport_analysis.get('market')
-        if market:
-            analysis_parts.append(f"**Market Data:** ₹{market.get('avg_price_per_sqft', 0):,}/sqft, {market.get('demand_level', 'Medium')} demand, {market.get('price_trend_pct', 0):.1f}% annual growth")
-        
-        # Spatial/Infrastructure
-        spatial = current_analysis.get('spatial') or viewport_analysis.get('spatial')
-        if spatial:
-            analysis_parts.append(f"**Infrastructure:** {spatial.get('poi_count', 0)} POIs, {spatial.get('transport_count', 0)} transport stops, Walkability {spatial.get('walkability_score', 0)}/100, Accessibility {spatial.get('accessibility_score', 0)}/100")
-        
-        # Infrastructure breakdown
-        infra = current_analysis.get('infrastructure') or viewport_analysis.get('infrastructure')
-        if infra:
-            analysis_parts.append(f"**Nearby Amenities (1km):** {infra.get('schools', 0)} schools, {infra.get('hospitals', 0)} hospitals, {infra.get('parks', 0)} parks, {infra.get('metro_stations', 0)} metro stations")
-        
-        # Livability scores
-        livability = current_analysis.get('livability') or viewport_analysis.get('livability')
-        if livability:
-            analysis_parts.append(f"**Livability Index:** Overall {livability.get('overall_score', 0)}/100, Commute {livability.get('commute_score', 0)}/100, Safety {livability.get('safety_index', 0)}/100")
-        
-        # Investment metrics
-        investment = current_analysis.get('investment') or viewport_analysis.get('investment')
-        if investment:
-            analysis_parts.append(f"**Investment Analysis:** Growth potential {investment.get('growth_potential', 0)}/100, Rental yield {investment.get('rental_yield_pct', 0)}%, Risk: {investment.get('risk_level', 'Medium')}, Recommended for: {investment.get('buyer_type', 'End-user')}")
-        
-        # Terrain
-        terrain = current_analysis.get('terrain') or viewport_analysis.get('terrain')
-        if terrain:
-            elev = terrain.get('elevation_m')
-            if isinstance(elev, dict):
-                elev = elev.get('mean', 920)
-            analysis_parts.append(f"**Terrain:** Elevation {elev or 920}m, Flood risk: {terrain.get('flood_risk', 'unknown')}")
-        
-        # Comparison vs city average
-        comparison = current_analysis.get('comparison') or viewport_analysis.get('comparison')
-        if comparison:
-            vs_avg = comparison.get('vs_city_avg', {})
-            analysis_parts.append(f"**vs City Average:** Price {vs_avg.get('price', 0):+.1f}%, Accessibility {vs_avg.get('accessibility', 0):+.1f}, Development stage: {comparison.get('development_stage', 'Growing')}")
-        
-        if analysis_parts:
-            analysis_context = "\n\n**CURRENT ANALYSIS PANEL DATA (use this for accurate responses):**\n" + "\n".join(analysis_parts)
-    
-    # Add simulation context if available
-    simulation = context.get('simulation')
-    simulation_context = ""
-    if simulation and simulation.get('impacts'):
-        sim_impacts = simulation['impacts']
-        simulation_context = f"\n\n**ACTIVE SIMULATION:** Value impact: {sim_impacts.get('property_value_impact', 0)}%, Confidence: {sim_impacts.get('confidence', 0)*100:.0f}%"
-
-    # Add polygon/buffer analysis context if available
-    zone_context = ""
-    try:
-        polygon_analysis = (context or {}).get('polygonAnalysis')
-        buffer_analysis = (context or {}).get('bufferAnalysis')
-        zone_analysis = polygon_analysis or buffer_analysis
-        if zone_analysis:
-            zone_type = zone_analysis.get('zone_type') or ('polygon' if polygon_analysis else 'buffer')
-            metrics = zone_analysis.get('metrics', {}) or {}
-            counts = zone_analysis.get('counts', {}) or {}
-            building_stats = zone_analysis.get('building_stats', {}) or {}
-            zone_context = "\n\n**ACTIVE DRAWN ZONE (use these for polygon/buffer questions):**\n" + json.dumps({
-                "zone_type": zone_type,
-                "metrics": metrics,
-                "counts": counts,
-                "building_stats": building_stats,
-            }, indent=2)
-    except Exception:
-        zone_context = ""
-    
-    # =========================================================================
-    # PHASE 2: LLM Narrative Synthesis (facts only, no invention)
-    # =========================================================================
-    system_prompt = gis_orchestrator.build_system_prompt(intent)
-    
-    # Build context from grounded facts
-    facts_context = facts.to_context_string()
-
-    if image_base64:
-        try:
-            from ai.multimodal_reasoning import get_multimodal_reasoner
-            mm = get_multimodal_reasoner()
-            mm_result = mm.reason(
-                query=user_query,
-                lat=facts.lat,
-                lng=facts.lng,
-                selected_building=selected_building,
-                viewport=context.get('viewport'),
-                buildings_in_view=None,
-                image_base64=image_base64
-            )
-            vu = (mm_result or {}).get('visual_understanding')
-            if vu and vu.get('analysis'):
-                facts_context += "\n\n**USER UPLOADED IMAGE (VISION ANALYSIS):**\n" + str(vu.get('analysis'))
-            else:
-                if (mm_result or {}).get('vlm_available') is False:
-                    facts_context += "\n\n**USER UPLOADED IMAGE:** Vision model not available on this server."
-        except Exception as e:
-            print(f"[VISION] Error processing uploaded image: {e}")
-    
-    # Add simulation facts if present
-    if simulation_data:
-        facts_context += f"\n\n**Simulation Results:**\n{json.dumps(simulation_data['impacts'], indent=2)}"
-
-    # Include all context sources for comprehensive AI awareness
-    full_system = system_prompt + "\n\n**GROUNDED FACTS (use ONLY these):**\n" + facts_context + viewport_context + analysis_context + simulation_context + zone_context
-    
-    messages_with_context = [{"role": "system", "content": full_system}]
-    
-    for msg in request.messages:
-        messages_with_context.append({
-            "role": msg.role,
-            "content": msg.content
-        })
-    
-    # Call LLM for narrative synthesis only (supports OpenRouter or Local LLM)
-    # Reasoning models need longer timeout for chain-of-thought processing
-    chain_of_thought = None
-    thinking_time = 0.0
-    
-    # Check cache first (cache key = query + intent + location)
-    chat_cache = get_chat_cache()
-    cache_key_parts = {
-        'intent': intent.value,
-        'lat': round(facts.lat or 0, 3),
-        'lng': round(facts.lng or 0, 3),
-        'location': facts.location_name or ''
-    }
-    cached_response = chat_cache.get(user_query, **cache_key_parts)
-    
-    if cached_response:
-        print(f"[CACHE HIT] Chat response for: {user_query[:50]}...")
-        ai_message = cached_response.get('message', '')
-        chain_of_thought = cached_response.get('chain_of_thought')
-        thinking_time = cached_response.get('thinking_time', 0.0)
-    else:
-        # No cache, call LLM
-        import time
-        llm_start_time = time.time()
-        try:
-            async with httpx.AsyncClient(timeout=180.0) as client:  # 3 min timeout for reasoning models
-                if llm_provider == 'openrouter':
-                    # OpenRouter (cloud)
-                    response = await client.post(
-                        OPENROUTER_URL,
-                        headers={
-                            "Authorization": f"Bearer {current_llm_config.get('openrouter_api_key', '')}",
-                            "HTTP-Referer": "http://localhost:3000",
-                            "X-Title": "Valora AI - GIS Intelligence"
-                        },
-                        json={
-                            "model": current_llm_config.get('openrouter_model', OPENROUTER_MODEL),
-                            "messages": messages_with_context,
-                            "temperature": 0.5,
-                            "max_tokens": 600
-                        }
-                    )
-                else:
-                    # Local LLM (offline) - use single model
-                    model_name = current_llm_config.get('local_model', 'llama3.2')
-                    
-                    response = await client.post(
-                        current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions'),
-                        json={
-                            "model": model_name,
-                            "messages": messages_with_context,
-                            "temperature": 0.5,
-                            "max_tokens": 600,
-                            "stream": False
-                        }
-                    )
-                
-                if response.status_code != 200:
-                    provider_name = "OpenRouter" if llm_provider == 'openrouter' else "Local LLM"
-                    raise HTTPException(status_code=response.status_code, detail=f"{provider_name} error: {response.text[:200]}")
-                
-                result = response.json()
-                message_obj = result['choices'][0]['message']
-                ai_message = message_obj.get('content', '') or ''
-                
-                # Handle reasoning models: reasoning may be in separate field
-                if message_obj.get('reasoning'):
-                    chain_of_thought = message_obj['reasoning']
-                
-                # Extract chain-of-thought from <think> tags (common format for reasoning models)
-                # Try multiple extraction patterns
-                if "<think>" in ai_message.lower():
-                    # Pattern 1: Standard <think>...</think>
-                    think_match = re_module.search(r"<think>(.*?)</think>", ai_message, re_module.DOTALL | re_module.IGNORECASE)
-                    if think_match:
-                        chain_of_thought = think_match.group(1).strip()
-                        # Remove all <think> blocks from final message
-                        ai_message = re_module.sub(r"<think>.*?</think>", "", ai_message, flags=re_module.DOTALL | re_module.IGNORECASE).strip()
-                    
-                    # Pattern 2: Sometimes thinking is at the start without closing tag
-                    if not chain_of_thought and ai_message.lower().startswith("<think>"):
-                        parts = re_module.split(r"</think>", ai_message, maxsplit=1, flags=re_module.IGNORECASE)
-                        if len(parts) == 2:
-                            chain_of_thought = parts[0].replace("<think>", "").replace("<Think>", "").strip()
-                            ai_message = parts[1].strip()
-                
-                # If content is empty but we have reasoning, generate response from facts
-                if not ai_message.strip() and facts.location_name:
-                    # Generate a basic response from the grounded facts
-                    ai_message = _generate_fallback_response(intent, facts)
-                
-                # Calculate thinking time
-                thinking_time = time.time() - llm_start_time
-                
-                # Cache the response for future use
-                chat_cache.set(user_query, {
-                    'message': ai_message,
-                    'chain_of_thought': chain_of_thought,
-                    'thinking_time': thinking_time
-                }, **cache_key_parts)
-                print(f"[CACHE SET] Chat response cached for: {user_query[:50]}... (thinking time: {thinking_time:.1f}s)")
-            
-        except Exception as e:
-            print(f"[LLM ERROR] {str(e)} - using fallback response")
-            # Use fallback response instead of failing
-            if facts.location_name:
-                ai_message = _generate_fallback_response(intent, facts)
-            else:
-                ai_message = "I encountered an issue processing your request. Please try again or rephrase your query."
-    
-    # Extract SIDEBAR content if present (applies to both cached and fresh responses)
-    sidebar_content = ""
-    if "[SIDEBAR]" in ai_message and "[/SIDEBAR]" in ai_message:
-        match = re_module.search(r"\[SIDEBAR\](.*?)\[/SIDEBAR\]", ai_message, re_module.DOTALL)
-        if match:
-            sidebar_content = match.group(1).strip()
-            ai_message = re_module.sub(r"\[SIDEBAR\].*?\[/SIDEBAR\]", "", ai_message, flags=re_module.DOTALL).strip()
-    
-    if sidebar_content:
-        dashboard["ai_analysis"] = sidebar_content
-    
-    # Ensure dashboard has title
-    if not dashboard.get("title"):
-        dashboard["title"] = title
-
-    # =========================================================================
-    # FACT VERIFICATION: Verify LLM claims against deterministic data
-    # =========================================================================
-    verification_status = "pending"
-    verification_results = []
-    verification_rate = 0
-    
-    if FACT_VERIFIER_AVAILABLE and ai_message:
-        try:
-            verifier = get_fact_verifier()
-            # Extract claims from the LLM response
-            location_context = {"lat": facts.lat, "lng": facts.lng} if facts.lat and facts.lng else None
-            extracted_claims = verifier.extract_claims_from_text(ai_message, location_context)
-            
-            if extracted_claims:
-                # Verify the claims
-                verify_response = verifier.verify_claims(extracted_claims)
-                verification_status = verify_response.overall_status
-                verification_rate = verify_response.verification_rate
-                verification_results = [
-                    {
-                        "claim_id": r.claim_id,
-                        "claim_text": r.claim_text,
-                        "status": r.status,
-                        "confidence": r.confidence,
-                        "rewrite_suggestion": r.rewrite_suggestion
-                    } for r in verify_response.results
-                ]
-                
-                # Log verification for metrics
-                from observability import log_verification
-                log_verification(verification_status, len(extracted_claims), {
-                    "verified": verify_response.verified_count,
-                    "unverified": verify_response.unverified_count
-                })
-            else:
-                verification_status = "no_claims"
-        except Exception as e:
-            print(f"[VERIFIER] Error during verification: {e}")
-            verification_status = "error"
-
-    # Usage tracking removed from chat - handled by frontend/auth context
-    
-    # Add simulation and twin state to response
-    # Build full facts object for frontend explainability
-    facts_data = {
-        "location_name": facts.location_name,
-        "lat": facts.lat,
-        "lng": facts.lng,
-        "poi_count": facts.poi_count,
-        "transport_count": facts.transport_count,
-        "accessibility_score": facts.accessibility_score,
-        "walkability_score": facts.walkability_score,
-        "amenity_density": facts.amenity_density,
-        "avg_price_per_sqft": facts.avg_price_per_sqft,
-        "price_trend_pct": facts.price_trend_pct,
-        "active_listings": facts.active_listings,
-        "demand_level": facts.demand_level,
-        "elevation_m": facts.elevation_m,
-        "flood_risk": facts.flood_risk,
-        "sky_view_factor": facts.sky_view_factor,
-        "view_quality": facts.view_quality,
-        "skyline_character": facts.skyline_character,
-        "optimal_floor": facts.optimal_floor,
-        "locality_archetype": facts.locality_archetype,
-        "locality_growth_stage": facts.locality_growth_stage,
-        "locality_tagline": facts.locality_tagline,
-        "locality_personality": facts.locality_personality,
-        "overall_risk_score": facts.overall_risk_score,
-        "risk_level": facts.risk_level,
-        "risk_profile": facts.risk_profile,
-        "risk_warnings": facts.risk_warnings,
-        "causal_analysis": facts.causal_analysis,
-        "confidence_score": facts.confidence_score,
-        "location_score": facts.location_score,
-        "location_strengths": facts.location_strengths,
-        "location_weaknesses": facts.location_weaknesses,
-        "investment_outlook": facts.investment_outlook,
-    }
-    
-    return {
-        "success": True,
-        "message": ai_message,
-        "intent": intent.value,
-        "dashboard": dashboard if dashboard.get('title') or dashboard.get('cards') else None,
-        "ui_actions": ui_actions,
-        "simulation": simulation_data,
-        "digital_twin_state": digital_twin_state,
-        "facts": facts_data,
-        "facts_summary": {
-            "location": facts.location_name,
-            "poi_count": facts.poi_count,
-            "accessibility": facts.accessibility_score,
-            "walkability": facts.walkability_score,
-            "avg_price_sqft": facts.avg_price_per_sqft,
-            "active_listings": facts.active_listings,
-        },
-        "reasoning_trace": reasoning_trace,
-        "chain_of_thought": chain_of_thought,
-        "thinking_time": thinking_time,
-        "cached": cached_response is not None,
-        # Fact Verification
-        "verification": {
-            "status": verification_status,
-            "rate": verification_rate,
-            "results": verification_results
-        }
-    }
-
 
 # ============================================================================
-# STREAMING CHAT ENDPOINT - Real-time LLM inference with SSE
+# CHAT ENDPOINTS — moved to routes/chat_routes.py
+# /api/chat        (non-streaming JSON)
+# /api/chat/stream (SSE streaming, primary)
+# Pipeline: IntentRouter -> GIS Orchestrator -> Ollama LLM
 # ============================================================================
-
-@app.post("/api/chat/stream")
-async def chat_stream(request: ChatRequest):
-    """
-    Streaming chat endpoint with Server-Sent Events (SSE).
-    Streams thinking/reasoning content in real-time like Ollama.
-    Works with both Qwen VL and DeepSeek R1 models.
-    """
-    
-    async def generate_stream():
-        start_time = time.time()
-        thinking_buffer = ""
-        response_buffer = ""
-        in_thinking = False
-        
-        # Send immediate start signal
-        yield f"data: {json.dumps({'type': 'status', 'content': 'Connected', 'thinking_time': 0})}\n\n"
-        await asyncio.sleep(0.01)  # Flush initial message
-        
-        # Get LLM config
-        current_llm_config = get_active_llm_config()
-        llm_provider = current_llm_config.get('provider', 'local')
-
-        # Use the same grounded-facts pipeline as /api/chat (but stream the final LLM call)
-        user_query = request.messages[-1].content if request.messages else ""
-
-        # =========================================================================
-        # FAST PATH: Polygon / Buffer / Custom Zone queries (no LLM required)
-        # =========================================================================
-        try:
-            ctx = request.context or {}
-            polygon_analysis = ctx.get('polygonAnalysis')
-            buffer_analysis = ctx.get('bufferAnalysis')
-            zone_analysis = polygon_analysis or buffer_analysis
-            if zone_analysis and user_query:
-                ql = user_query.lower()
-                if any(k in ql for k in ["polygon", "buffer", "zone", "inside this", "drawn"]):
-                    zone_type = zone_analysis.get('zone_type') or ('polygon' if polygon_analysis else 'buffer')
-                    metrics = zone_analysis.get('metrics', {}) or {}
-                    counts = zone_analysis.get('counts', {}) or {}
-                    building_stats = zone_analysis.get('building_stats', {}) or {}
-
-                    message_lines = []
-                    message_lines.append(f"**Custom Zone Analysis ({zone_type})**")
-                    if zone_type == 'polygon':
-                        area_m2 = metrics.get('area_m2')
-                        perim_m = metrics.get('perimeter_m')
-                        if area_m2 is not None:
-                            message_lines.append(f"- **Area:** {area_m2:,.0f} m²")
-                        if perim_m is not None:
-                            message_lines.append(f"- **Perimeter:** {perim_m:,.0f} m")
-                    else:
-                        radius_m = metrics.get('radius_m')
-                        if radius_m is not None:
-                            message_lines.append(f"- **Radius:** {radius_m:,.0f} m")
-
-                    message_lines.append(f"- **Buildings:** {counts.get('buildings', 0)}")
-                    message_lines.append(f"- **Properties:** {counts.get('properties', 0)}")
-                    message_lines.append(f"- **POIs:** {counts.get('pois', 0)}")
-                    message_lines.append(f"- **Transport Stops:** {counts.get('transport_stops', 0)}")
-
-                    if building_stats:
-                        if building_stats.get('avg_height_m') is not None:
-                            message_lines.append(f"- **Avg building height:** {building_stats.get('avg_height_m'):.1f} m")
-                        if building_stats.get('max_height_m') is not None:
-                            message_lines.append(f"- **Max building height:** {building_stats.get('max_height_m'):.1f} m")
-                        if building_stats.get('dominant_type'):
-                            message_lines.append(f"- **Dominant building type:** {building_stats.get('dominant_type')}")
-                        if building_stats.get('above_30m') is not None:
-                            message_lines.append(f"- **Buildings above 30m:** {building_stats.get('above_30m')}")
-
-                    content = "\n".join(message_lines)
-                    thinking_time = time.time() - start_time
-                    yield f"data: {json.dumps({'type': 'content', 'content': content, 'thinking_time': thinking_time})}\n\n"
-                    yield f"data: {json.dumps({'type': 'done', 'thinking_time': thinking_time})}\n\n"
-                    return
-        except Exception:
-            pass
-
-        yield f"data: {json.dumps({'type': 'status', 'content': 'Gathering facts...', 'thinking_time': time.time() - start_time})}\n\n"
-        await asyncio.sleep(0.01)
-
-        try:
-            gis_orchestrator = get_gis_orchestrator()
-            intent = IntentRouter.classify(
-                user_query,
-                has_building=bool((request.context or {}).get('selectedBuilding')),
-                has_location=bool((request.context or {}).get('selectedLocation') or (request.context or {}).get('selectedPlace')),
-            )
-            facts, intent, ui_actions, digital_twin_state, reasoning_trace = gis_orchestrator.gather_facts(
-                query=user_query,
-                context=request.context or {},
-                intent=intent,
-                task_planner=None,
-            )
-
-            # Reuse the same system prompt construction as /api/chat
-            system_prompt = gis_orchestrator.build_system_prompt(intent)
-
-            viewport_context = ""
-            viewport = (request.context or {}).get('viewport')
-            if viewport:
-                viewport_context = f"\n\n**VIEWPORT (for context only):**\n{json.dumps(viewport, indent=2)}"
-
-            facts_context = facts.to_context_string()
-
-            zone_context = ""
-            try:
-                ctx = request.context or {}
-                polygon_analysis = ctx.get('polygonAnalysis')
-                buffer_analysis = ctx.get('bufferAnalysis')
-                zone_analysis = polygon_analysis or buffer_analysis
-                if zone_analysis:
-                    zone_type = zone_analysis.get('zone_type') or ('polygon' if polygon_analysis else 'buffer')
-                    metrics = zone_analysis.get('metrics', {}) or {}
-                    counts = zone_analysis.get('counts', {}) or {}
-                    building_stats = zone_analysis.get('building_stats', {}) or {}
-                    zone_context = "\n\n**ACTIVE DRAWN ZONE (use these for polygon/buffer questions):**\n" + json.dumps({
-                        "zone_type": zone_type,
-                        "metrics": metrics,
-                        "counts": counts,
-                        "building_stats": building_stats,
-                    }, indent=2)
-            except Exception:
-                zone_context = ""
-
-            full_system = system_prompt + "\n\n**GROUNDED FACTS (use ONLY these):**\n" + facts_context + viewport_context + zone_context
-            messages = [{"role": "system", "content": full_system}]
-            for msg in request.messages:
-                messages.append({"role": msg.role, "content": msg.content})
-
-        except Exception as e:
-            print(f"[STREAM] Facts gathering error: {e}")
-            # Fall back to a minimal prompt but keep streaming working
-            system_prompt = "You are Valora AI, a city intelligence assistant for Bangalore real estate. Be concise and helpful."
-            messages = [{"role": "system", "content": system_prompt}]
-            for msg in request.messages:
-                messages.append({"role": msg.role, "content": msg.content})
-        
-        try:
-            async with httpx.AsyncClient(timeout=180.0) as client:
-                model_name = current_llm_config.get('local_model', 'llama3.2')
-                local_url = current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions')
-                
-                # For OpenRouter, use non-streaming (they don't support SSE well for free models)
-                if llm_provider == 'openrouter':
-                    yield f"data: {json.dumps({'type': 'status', 'content': 'Processing with cloud model...'})}\n\n"
-                    
-                    response = await client.post(
-                        OPENROUTER_URL,
-                        headers={
-                            "Authorization": f"Bearer {current_llm_config.get('openrouter_api_key', '')}",
-                            "HTTP-Referer": "http://localhost:3000",
-                            "X-Title": "Valora AI"
-                        },
-                        json={
-                            "model": current_llm_config.get('openrouter_model', OPENROUTER_MODEL),
-                            "messages": messages,
-                            "temperature": 0.5,
-                            "max_tokens": 600
-                        }
-                    )
-                    
-                    if response.status_code == 200:
-                        result = response.json()
-                        content = result['choices'][0]['message'].get('content', '')
-                        thinking_time = time.time() - start_time
-                        
-                        yield f"data: {json.dumps({'type': 'content', 'content': content, 'thinking_time': thinking_time})}\n\n"
-                    else:
-                        yield f"data: {json.dumps({'type': 'error', 'content': 'API error'})}\n\n"
-                    
-                    yield f"data: {json.dumps({'type': 'done', 'thinking_time': time.time() - start_time})}\n\n"
-                    return
-                
-                # Local LLM with streaming
-                yield f"data: {json.dumps({'type': 'status', 'content': f'Thinking with {model_name}...'})}\n\n"
-                
-                async with client.stream(
-                    "POST",
-                    local_url,
-                    json={
-                        "model": model_name,
-                        "messages": messages,
-                        "temperature": 0.5,
-                        "max_tokens": 800,
-                        "stream": True
-                    }
-                ) as response:
-                    # DeepSeek-style streaming: reasoning comes in a separate `delta.reasoning` field.
-                    # Some models embed <think> tags in `delta.content`. Support both.
-                    in_reasoning = False
-
-                    # Robust <think> parsing across token boundaries
-                    pending = ""
-                    in_tag_thinking = False
-                    THINK_OPEN = "<think>"
-                    THINK_CLOSE = "</think>"
-                    keep_outside = len(THINK_OPEN) - 1
-                    keep_inside = len(THINK_CLOSE) - 1
-
-                    async for line in response.aiter_lines():
-                        if not line or not line.startswith("data: "):
-                            continue
-                        
-                        data = line[6:]  # Remove "data: " prefix
-                        if data == "[DONE]":
-                            break
-                        
-                        try:
-                            chunk = json.loads(data)
-                            delta = chunk.get('choices', [{}])[0].get('delta', {})
-                            reasoning_token = delta.get('reasoning', '') or ''
-                            content_token = delta.get('content', '') or ''
-
-                            current_time = time.time() - start_time
-
-                            # 1) Stream reasoning field as "thinking" (DeepSeek-style)
-                            if reasoning_token:
-                                if not in_reasoning:
-                                    in_reasoning = True
-                                    yield f"data: {json.dumps({'type': 'thinking_start', 'thinking_time': current_time})}\n\n"
-                                thinking_buffer += reasoning_token
-                                yield f"data: {json.dumps({'type': 'thinking', 'content': reasoning_token, 'thinking_time': current_time})}\n\n"
-
-                            # 2) When normal content begins, close reasoning panel
-                            if content_token and in_reasoning:
-                                in_reasoning = False
-                                yield f"data: {json.dumps({'type': 'thinking_end', 'thinking_time': current_time})}\n\n"
-
-                            # 3) Stream content; also parse optional <think> tags inside content
-                            if not content_token:
-                                continue
-
-                            pending += content_token
-
-                            while True:
-                                pending_lower = pending.lower()
-
-                                if in_tag_thinking:
-                                    close_idx = pending_lower.find(THINK_CLOSE)
-                                    if close_idx != -1:
-                                        part = pending[:close_idx]
-                                        if part:
-                                            thinking_buffer += part
-                                            yield f"data: {json.dumps({'type': 'thinking', 'content': part, 'thinking_time': current_time})}\n\n"
-                                        pending = pending[close_idx + len(THINK_CLOSE):]
-                                        in_tag_thinking = False
-                                        yield f"data: {json.dumps({'type': 'thinking_end', 'thinking_time': current_time})}\n\n"
-                                        continue
-
-                                    if len(pending) > keep_inside:
-                                        part = pending[:-keep_inside]
-                                        if part:
-                                            thinking_buffer += part
-                                            yield f"data: {json.dumps({'type': 'thinking', 'content': part, 'thinking_time': current_time})}\n\n"
-                                        pending = pending[-keep_inside:]
-                                    break
-
-                                else:
-                                    open_idx = pending_lower.find(THINK_OPEN)
-                                    if open_idx != -1:
-                                        part = pending[:open_idx]
-                                        if part:
-                                            response_buffer += part
-                                            yield f"data: {json.dumps({'type': 'content', 'content': part, 'thinking_time': current_time})}\n\n"
-                                        pending = pending[open_idx + len(THINK_OPEN):]
-                                        in_tag_thinking = True
-                                        yield f"data: {json.dumps({'type': 'thinking_start', 'thinking_time': current_time})}\n\n"
-                                        continue
-
-                                    if len(pending) > keep_outside:
-                                        part = pending[:-keep_outside]
-                                        if part:
-                                            response_buffer += part
-                                            yield f"data: {json.dumps({'type': 'content', 'content': part, 'thinking_time': current_time})}\n\n"
-                                        pending = pending[-keep_outside:]
-                                    break
-                        
-                        except json.JSONDecodeError:
-                            continue
-
-                    # Flush remaining pending buffer
-                    if pending:
-                        current_time = time.time() - start_time
-                        if in_tag_thinking:
-                            thinking_buffer += pending
-                            yield f"data: {json.dumps({'type': 'thinking', 'content': pending, 'thinking_time': current_time})}\n\n"
-                            in_tag_thinking = False
-                            yield f"data: {json.dumps({'type': 'thinking_end', 'thinking_time': current_time})}\n\n"
-                        else:
-                            response_buffer += pending
-                            yield f"data: {json.dumps({'type': 'content', 'content': pending, 'thinking_time': current_time})}\n\n"
-
-                    # If the model only sent reasoning and never content, close it
-                    if in_reasoning:
-                        current_time = time.time() - start_time
-                        in_reasoning = False
-                        yield f"data: {json.dumps({'type': 'thinking_end', 'thinking_time': current_time})}\n\n"
-                
-                # Send completion
-                total_time = time.time() - start_time
-                yield f"data: {json.dumps({'type': 'done', 'thinking_time': total_time, 'full_thinking': thinking_buffer, 'full_response': response_buffer})}\n\n"
-                
-        except Exception as e:
-            print(f"[STREAM ERROR] {str(e)}")
-            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
-    
-    return StreamingResponse(
-        generate_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
 
 
 # ============================================================================
@@ -2580,151 +1682,6 @@ async def get_elevation_profile(lat: float, lng: float, radius_km: float = 2.0):
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Elevation profile error: {str(e)}")
-
-
-# ============== PATHFINDING ENDPOINTS ==============
-
-try:
-    from pathfinding_3d import get_pathfinding_service, Pathfinding3D
-    PATHFINDING_AVAILABLE = True
-except ImportError:
-    PATHFINDING_AVAILABLE = False
-    print("[WARNING] Pathfinding service not available")
-
-try:
-    from raster_analysis import get_raster_service, RasterAnalysis
-    RASTER_AVAILABLE = True
-except ImportError:
-    RASTER_AVAILABLE = False
-    print("[WARNING] Raster analysis service not available")
-
-
-@app.get("/api/pathfinding/route")
-async def get_walking_route(
-    start_lat: float, start_lng: float,
-    end_lat: float, end_lng: float,
-    avoid_buildings: bool = True
-):
-    """
-    Calculate walking route between two points using A* algorithm.
-    
-    - start_lat, start_lng: Starting coordinates
-    - end_lat, end_lng: Destination coordinates
-    - avoid_buildings: Whether to route around buildings (default True)
-    
-    Returns route with waypoints, distance, walking time, and elevation changes.
-    """
-    if not PATHFINDING_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Pathfinding service not available")
-    
-    try:
-        pathfinder = get_pathfinding_service()
-        result = pathfinder.find_path(start_lat, start_lng, end_lat, end_lng, avoid_buildings)
-        return result.to_dict()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Pathfinding error: {str(e)}")
-
-
-@app.get("/api/pathfinding/to-nearest")
-async def get_route_to_nearest(
-    lat: float, lng: float,
-    poi_type: str,
-    max_distance_m: float = 2000
-):
-    """
-    Find walking route to nearest POI of given type.
-    
-    - lat, lng: Starting coordinates
-    - poi_type: Type of POI (metro, school, hospital, restaurant, etc.)
-    - max_distance_m: Maximum search radius (default 2000m)
-    
-    Returns route to nearest matching POI.
-    """
-    if not PATHFINDING_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Pathfinding service not available")
-    
-    try:
-        pathfinder = get_pathfinding_service()
-        result = pathfinder.find_path_to_nearest(lat, lng, poi_type, max_distance_m)
-        return result.to_dict()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Pathfinding error: {str(e)}")
-
-
-# ============== FLOOD RISK ENDPOINTS ==============
-
-@app.get("/api/flood-risk/analysis")
-async def get_flood_risk_analysis(lat: float, lng: float, radius_m: float = 500):
-    """
-    Comprehensive flood risk analysis for a location.
-    
-    - lat, lng: Location coordinates
-    - radius_m: Analysis radius in meters (default 500m)
-    
-    Returns flood risk score, zone classification, insurance multiplier, and recommendations.
-    """
-    if not RASTER_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Raster analysis service not available")
-    
-    try:
-        raster = get_raster_service()
-        result = raster.analyze_flood_risk(lat, lng, radius_m)
-        return result.to_dict()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Flood risk analysis error: {str(e)}")
-
-
-@app.get("/api/flood-risk/insurance-estimate")
-async def get_flood_insurance_estimate(lat: float, lng: float):
-    """
-    Get flood insurance risk estimate for a property location.
-    
-    Returns flood zone, insurance multiplier, and annual flood probability.
-    """
-    if not RASTER_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Raster analysis service not available")
-    
-    try:
-        raster = get_raster_service()
-        result = raster.analyze_flood_risk(lat, lng, 300)
-        return {
-            "location": {"lat": lat, "lng": lng},
-            "flood_zone": result.flood_zone,
-            "insurance_multiplier": round(result.insurance_multiplier, 2),
-            "annual_flood_probability": round(result.annual_flood_probability, 2),
-            "risk_level": result.risk_level,
-            "base_premium_multiplier": f"{result.insurance_multiplier:.1f}x",
-            "zone_description": {
-                "A": "High risk - 1% annual flood chance",
-                "AE": "High risk with base flood elevation",
-                "AH": "Shallow flooding area",
-                "X500": "Moderate risk - 0.2% annual chance",
-                "X": "Low risk - minimal flood hazard"
-            }.get(result.flood_zone, "Unknown zone")
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Insurance estimate error: {str(e)}")
-
-
-@app.get("/api/terrain/advanced-analysis")
-async def get_advanced_terrain_analysis(lat: float, lng: float, radius_m: float = 500):
-    """
-    Advanced terrain analysis with drainage patterns and construction suitability.
-    
-    - lat, lng: Center coordinates
-    - radius_m: Analysis radius in meters (default 500m)
-    
-    Returns detailed terrain metrics, drainage analysis, and construction suitability.
-    """
-    if not RASTER_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Raster analysis service not available")
-    
-    try:
-        raster = get_raster_service()
-        result = raster.analyze_terrain_advanced(lat, lng, radius_m)
-        return result.to_dict()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Advanced terrain analysis error: {str(e)}")
 
 
 # ============== PROPERTY ENDPOINTS ==============
@@ -2866,83 +1823,6 @@ async def get_property_categories():
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Categories error: {str(e)}")
-
-# ============== PROPERTY IMAGE ENDPOINTS (AI Training) ==============
-
-@app.get("/api/images/stats")
-async def get_image_stats():
-    """Get statistics about downloaded property images."""
-    if not IMAGE_SERVICE_AVAILABLE:
-        return {"available": False, "message": "Image service not initialized"}
-    return {"available": True, **image_service.get_stats()}
-
-@app.get("/api/images/property/{property_id}")
-async def get_property_images(property_id: str):
-    """Get all images for a specific property."""
-    if not IMAGE_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Image service not available")
-    images = image_service.get_images_for_property(property_id)
-    return {"property_id": property_id, "count": len(images), "images": images}
-
-@app.get("/api/images/locality/{locality}")
-async def get_locality_images(locality: str, limit: int = 10):
-    """Get images from a specific locality."""
-    if not IMAGE_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Image service not available")
-    images = image_service.get_images_by_locality(locality, limit)
-    return {"locality": locality, "count": len(images), "images": images}
-
-@app.get("/api/images/nearby")
-async def get_nearby_images(lat: float, lng: float, radius_km: float = 2.0, limit: int = 10):
-    """Get property images near a location."""
-    if not IMAGE_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Image service not available")
-    images = image_service.get_images_near_location(lat, lng, radius_km, limit)
-    return {"location": {"lat": lat, "lng": lng}, "radius_km": radius_km, "count": len(images), "images": images}
-
-@app.get("/api/images/training/batch")
-async def get_training_batch(batch_size: int = 32, property_type: str = None, listing_type: str = None):
-    """Get a batch of training data with optional filters."""
-    if not IMAGE_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Image service not available")
-    batch = image_service.get_training_batch(batch_size, property_type, listing_type)
-    return {"batch_size": len(batch), "data": batch}
-
-@app.get("/api/images/training/vl-format")
-async def get_vl_training_data():
-    """Get training data in Vision-Language format (for Qwen3-VL)."""
-    if not IMAGE_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Image service not available")
-    vl_data = image_service.prepare_vl_training_data()
-    return {"format": "vision-language", "count": len(vl_data), "sample": vl_data[:5] if vl_data else []}
-
-@app.post("/api/images/training/export")
-async def export_training_data():
-    """Export training data to file for model fine-tuning."""
-    if not IMAGE_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Image service not available")
-    output_path = image_service.export_for_training()
-    return {"success": True, "path": str(output_path), "count": len(image_service.training_data)}
-
-@app.get("/api/images/file/{property_id}/{filename}")
-async def serve_property_image(property_id: str, filename: str):
-    """Serve a property image file."""
-    if not IMAGE_SERVICE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Image service not available")
-    
-    from fastapi.responses import FileResponse
-    image_path = image_service.images_dir / "by_property" / property_id / filename
-    
-    if not image_path.exists():
-        raise HTTPException(status_code=404, detail="Image not found")
-    
-    media_type = "image/jpeg"
-    if filename.endswith(".png"):
-        media_type = "image/png"
-    elif filename.endswith(".webp"):
-        media_type = "image/webp"
-    
-    return FileResponse(image_path, media_type=media_type)
 
 # ============== PHASE 1: SPATIAL REASONING ENDPOINTS ==============
 
@@ -3708,17 +2588,9 @@ async def train_valuation_model():
 
 # ============== ADVANCED INSIGHTS ENDPOINTS ==============
 
-try:
-    from intelligence.advanced_insights import get_insights_service, AdvancedInsightsService
-    INSIGHTS_AVAILABLE = True
-    insights_service = get_insights_service()
-    print("[OK] Advanced Insights Service initialized")
-except Exception as e:
-    INSIGHTS_AVAILABLE = False
-    insights_service = None
-    print(f"[WARNING] Advanced Insights not available: {e}")
-
-
+# Advanced Insights moved to ai/_deprecated/
+INSIGHTS_AVAILABLE = False
+insights_service = None
 @app.get("/api/insights/area")
 async def get_area_insights(lat: float, lng: float, locality: str = None, radius_m: float = 1000):
     """
@@ -3871,7 +2743,7 @@ async def rag_search(
 @app.post("/api/rag/index")
 async def rag_index(force: bool = False):
     """
-    Index all data sources into Pinecone vector database.
+    Rebuild local FAISS vector indexes from the Valora database (offline-first).
     
     - force: If true, clears existing index before re-indexing
     """
@@ -3879,7 +2751,7 @@ async def rag_index(force: bool = False):
         raise HTTPException(status_code=503, detail="RAG service not available")
     
     try:
-        results = rag_service.index_all(properties_dir, osm_data_dir, force_reindex=force)
+        results = rag_service.index_faiss_from_db(force_reindex=force)
         return {
             "success": True,
             "message": "Indexing complete",
@@ -3917,381 +2789,137 @@ async def rag_context(
         raise HTTPException(status_code=500, detail=f"Context error: {str(e)}")
 
 
-# ============== BUILDING ANALYSIS ENDPOINT ==============
-
-class BuildingAnalysisRequest(BaseModel):
-    lat: float
-    lng: float
-    height: Optional[float] = None
-    levels: Optional[int] = None
-    buildingType: Optional[str] = "building"
-    area: Optional[float] = None
-    name: Optional[str] = None
-
-_cache_building_analysis = TTLCache(maxsize=256, ttl_seconds=600)
-
-@app.post("/api/building/analyze")
-async def analyze_building(request: BuildingAnalysisRequest):
-    """
-    Comprehensive building analysis using Phase 1 services.
-    Auto-triggered when user clicks a building on the map.
-    
-    Returns:
-    - Spatial summary (POIs, transport, accessibility/walkability scores)
-    - Valuation estimate and market stats
-    - AI-generated insights
-    - Price trends and area importance
-    """
-    import re
-    
-    lat, lng = request.lat, request.lng
-    cache_key = f"{round(lat, 5)}|{round(lng, 5)}|{request.height}|{request.buildingType}"
-    
-    cached = _cache_building_analysis.get(cache_key)
-    if cached is not None:
-        return cached
-    
-    result = {
-        "success": True,
-        "building": {
-            "lat": lat,
-            "lng": lng,
-            "height": request.height,
-            "levels": request.levels,
-            "type": request.buildingType,
-            "area": request.area,
-            "name": request.name
-        },
-        "spatial": None,
-        "valuation": None,
-        "market": None,
-        "ai_analysis": None,
-        "area_importance": None,
-        "recommendations": []
-    }
-    
-    # 1. Spatial Analysis (Phase 1)
-    if SPATIAL_AVAILABLE:
-        try:
-            summary = spatial_service.get_summary(lat, lng, radius_m=1000)
-            result["spatial"] = {
-                "total_features": summary.total_features,
-                "by_category": summary.by_category,
-                "nearest": summary.nearest,
-                "accessibility_score": summary.accessibility_score,
-                "walkability_score": summary.walkability_score,
-                "amenity_density": summary.amenity_density
-            }
-            
-            # Store spatial factors for AI to analyze
-            result["area_importance"] = {
-                "factors": {
-                    "accessibility": summary.accessibility_score,
-                    "walkability": summary.walkability_score,
-                    "amenity_density": round(summary.amenity_density, 2),
-                    "total_features": summary.total_features,
-                    "poi_count": summary.by_category.get('poi', 0),
-                    "transport_count": summary.by_category.get('transport', 0)
-                }
-            }
-        except Exception as e:
-            print(f"Spatial analysis error: {e}")
-    
-    # 2. Valuation (Phase 1)
-    if VALUATION_AVAILABLE:
-        try:
-            # Estimate property value
-            covered_area = request.area or 1000
-            levels = request.levels or max(1, int((request.height or 10) / 3))
-            bedrooms = max(1, levels)  # Rough estimate
-            
-            prop_type = "residential"
-            if request.buildingType and any(t in request.buildingType.lower() for t in ['commercial', 'office', 'retail', 'shop']):
-                prop_type = "commercial"
-            
-            valuation = valuation_model.valuate(
-                lat=lat,
-                lng=lng,
-                bedrooms=bedrooms,
-                bathrooms=max(1, bedrooms - 1),
-                covered_area=covered_area,
-                floors=levels,
-                property_type=prop_type
-            )
-            
-            result["valuation"] = {
-                "estimated_price": valuation.estimated_price,
-                "price_per_sqft": valuation.price_per_sqft,
-                "confidence": valuation.confidence,
-                "price_range": {
-                    "low": valuation.price_range[0],
-                    "high": valuation.price_range[1]
-                },
-                "factors": valuation.factors,
-                "comparables": valuation.comparables[:3]  # Top 3 comparables
-            }
-            
-            # Market stats - let AI interpret the data
-            market = valuation_model.get_market_stats(lat, lng, radius_km=1.5)
-            if market and market.get('total_properties', 0) > 0:
-                result["market"] = {
-                    "avg_price": market.get('avg_price', 0),
-                    "avg_price_per_sqft": market.get('avg_price_per_sqft', 0),
-                    "total_properties": market.get('total_properties', 0),
-                    "price_range": {
-                        "min": market.get('min_price', 0),
-                        "max": market.get('max_price', 0)
-                    },
-                    "price_variance": market.get('max_price', 0) - market.get('min_price', 0) if market.get('max_price', 0) and market.get('min_price', 0) else 0
-                }
-        except Exception as e:
-            print(f"Valuation error: {e}")
-    
-    # 3. AI-Generated Analysis
-    if OPENROUTER_API_KEY:
-        try:
-            # Build context for AI
-            context_parts = []
-            context_parts.append(f"""**Building Details:**
-- Location: {lat:.5f}, {lng:.5f}
-- Height: {request.height or 'Unknown'}m ({request.levels or 'Unknown'} floors)
-- Type: {request.buildingType or 'Unknown'}
-- Area: {request.area or 'Unknown'}m²""")
-            
-            if result["spatial"]:
-                s = result["spatial"]
-                context_parts.append(f"""**Spatial Analysis (1km radius):**
-- Total Features: {s['total_features']}
-- POIs: {s['by_category'].get('poi', 0)}
-- Transport: {s['by_category'].get('transport', 0)}
-- Accessibility Score: {s['accessibility_score']}/100
-- Walkability Score: {s['walkability_score']}/100
-- Amenity Density: {s['amenity_density']:.2f}/sqkm""")
-            
-            if result["valuation"]:
-                v = result["valuation"]
-                context_parts.append(f"""**Valuation Estimate:**
-- Estimated Price: ₹{v['estimated_price']:,.0f}
-- Price/sqft: ₹{v['price_per_sqft']:,.0f}
-- Confidence: {v['confidence']*100:.0f}%
-- Range: ₹{v['price_range']['low']:,.0f} - ₹{v['price_range']['high']:,.0f}""")
-            
-            if result["market"]:
-                m = result["market"]
-                context_parts.append(f"""**Market Stats (1.5km):**
-- Avg Price: ₹{m['avg_price']:,.0f}
-- Avg Price/sqft: ₹{m['avg_price_per_sqft']:,.0f}
-- Properties: {m['total_properties']}
-- Price Range: ₹{m['price_range']['min']:,.0f} - ₹{m['price_range']['max']:,.0f}
-- Price Variance: ₹{m['price_variance']:,.0f}""")
-            
-            if result["area_importance"]:
-                ai = result["area_importance"]['factors']
-                context_parts.append(f"""**Area Metrics:**
-- Accessibility Score: {ai['accessibility']}/100
-- Walkability Score: {ai['walkability']}/100
-- Amenity Density: {ai['amenity_density']}/sqkm
-- POI Count: {ai['poi_count']}
-- Transport Count: {ai['transport_count']}""")
-            
-            # Get RAG context if available
-            if RAG_AVAILABLE:
-                rag_context = rag_service.get_context_for_query(
-                    f"property investment {request.buildingType} near {lat}, {lng}",
-                    lat=lat, lng=lng, radius_km=2.0, max_results=5
-                )
-                if rag_context:
-                    context_parts.append(f"**Nearby Properties (RAG):**\n{rag_context}")
-            
-            analysis_prompt = """You are Valora AI, a real estate intelligence system. Analyze this building location in Bangalore.
-
-**CRITICAL: Output ONLY valid JSON. No extra text before or after.**
-
-Calculate ALL metrics from the data provided:
-
-1. **area_importance_score** (0-100): Synthesize accessibility (weight: 35%), walkability (30%), amenity density (20%), POI count (10%), transport count (5%)
-2. **area_grade**: A+ (≥90), A (≥80), B+ (≥70), B (≥60), C (≥50), D (≥40), F (<40)
-3. **growth_estimate_1y** (%): Estimate market growth based on: location quality, price variance, amenity density, accessibility. Prime locations (A/A+) = 10-15%, Good (B+/B) = 6-10%, Average (C/D) = 3-6%
-4. **demand_index**: High (A+/A + low vacancy), Medium (B+/B/C), Low (D/F or high variance)
-5. **analysis**: 4-5 paragraphs with **Location Quality**, **Investment Potential**, **Livability**, **Key Risks**, **Recommendation** (Buy/Hold/Avoid)
-6. **recommendations**: 2-4 specific insights based on actual data (e.g., "485 POIs within 1km - exceptional amenity access")
-
-**Output ONLY this JSON (no markdown, no text before/after):**
-{
-  "area_importance_score": <number>,
-  "area_grade": "<letter>",
-  "growth_estimate_1y": <number>,
-  "demand_index": "<High|Medium|Low>",
-  "analysis": "<paragraphs>",
-  "recommendations": ["<specific insight 1>", "<specific insight 2>"]
-}"""
-
-            messages = [
-                {"role": "system", "content": analysis_prompt},
-                {"role": "user", "content": "\n\n".join(context_parts)}
-            ]
-            
-            # Use configured LLM provider (local or OpenRouter)
-            current_llm_config = _load_llm_config()
-            llm_provider = current_llm_config.get('provider', 'local')
-            
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                if llm_provider == 'openrouter':
-                    response = await client.post(
-                        OPENROUTER_URL,
-                        headers={
-                            "Authorization": f"Bearer {current_llm_config.get('openrouter_api_key', OPENROUTER_API_KEY)}",
-                            "HTTP-Referer": "http://localhost:3000",
-                            "X-Title": "Valora AI - Building Analysis"
-                        },
-                        json={
-                            "model": current_llm_config.get('openrouter_model', OPENROUTER_MODEL),
-                            "messages": messages,
-                            "temperature": 0.5,
-                            "max_tokens": 1200
-                        }
-                    )
-                else:
-                    # Local LLM (Ollama)
-                    response = await client.post(
-                        current_llm_config.get('local_url', 'http://127.0.0.1:11434/v1/chat/completions'),
-                        json={
-                            "model": current_llm_config.get('local_model', 'llama3.2'),
-                            "messages": messages,
-                            "temperature": 0.5,
-                            "max_tokens": 1200,
-                            "stream": False
-                        }
-                    )
-                
-                if response.status_code == 200:
-                    ai_result = response.json()
-                    ai_content = ai_result.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
-                    
-                    # Try to parse JSON response from AI
-                    try:
-                        import re
-                        ai_data = None
-                        
-                        # Try parsing as direct JSON first
-                        if ai_content.startswith('{'):
-                            try:
-                                ai_data = json.loads(ai_content)
-                            except:
-                                pass
-                        
-                        # Try extracting from markdown code block
-                        if not ai_data:
-                            json_match = re.search(r'```(?:json)?\s*(\{.+?\})\s*```', ai_content, re.DOTALL)
-                            if json_match:
-                                ai_data = json.loads(json_match.group(1))
-                        
-                        # Try finding any JSON object in the response
-                        if not ai_data:
-                            json_match = re.search(r'(\{[^{}]*"area_importance_score"[^{}]*\})', ai_content, re.DOTALL)
-                            if json_match:
-                                ai_data = json.loads(json_match.group(1))
-                        
-                        if ai_data:
-                            # Use AI-calculated metrics
-                            result["area_importance"]["score"] = ai_data.get("area_importance_score", 0)
-                            result["area_importance"]["grade"] = ai_data.get("area_grade", "C")
-                            
-                            if result.get("market"):
-                                result["market"]["growth_1y"] = ai_data.get("growth_estimate_1y", 0)
-                                result["market"]["demand_index"] = ai_data.get("demand_index", "Medium")
-                            
-                            result["ai_analysis"] = ai_data.get("analysis", "")
-                            result["recommendations"] = ai_data.get("recommendations", [])
-                        else:
-                            # Fallback: store raw text, use defaults
-                            print(f"[WARNING] Could not parse AI JSON, using raw text")
-                            result["ai_analysis"] = ai_content
-                            # Set minimal defaults if AI didn't provide structured data
-                            if "score" not in result.get("area_importance", {}):
-                                result["area_importance"]["score"] = 50
-                                result["area_importance"]["grade"] = "C"
-                    except Exception as parse_err:
-                        print(f"AI response parsing error: {parse_err}")
-                        result["ai_analysis"] = ai_content
-                        if "score" not in result.get("area_importance", {}):
-                            result["area_importance"]["score"] = 50
-                            result["area_importance"]["grade"] = "C"
-        except Exception as e:
-            print(f"AI analysis error: {e}")
-            result["ai_analysis"] = None
-    
-    # Fallback: Generate computed recommendations if AI didn't provide any
-    if "recommendations" not in result or not result["recommendations"]:
-        recommendations = []
-        if result.get("spatial"):
-            s = result["spatial"]
-            if s.get("accessibility_score", 0) >= 80:
-                recommendations.append(f"Excellent accessibility score ({s['accessibility_score']}/100) - prime location for commuters")
-            if s.get("walkability_score", 0) >= 70:
-                recommendations.append(f"High walkability ({s['walkability_score']}/100) - daily errands possible on foot")
-            if s.get("amenity_density", 0) >= 100:
-                recommendations.append(f"{s.get('total_features', 0)} features within 1km - exceptional amenity density")
-            if s.get("by_category", {}).get("transport", 0) >= 5:
-                recommendations.append(f"{s['by_category']['transport']} transport options nearby - excellent connectivity")
-        if result.get("valuation"):
-            v = result["valuation"]
-            if v.get("confidence", 0) >= 0.7:
-                recommendations.append(f"High valuation confidence ({v['confidence']*100:.0f}%) - reliable price estimate")
-        result["recommendations"] = recommendations[:4]  # Max 4 recommendations
-    
-    # Fallback: Ensure market stats exist with computed growth/demand
-    if not result.get("market") and result.get("valuation"):
-        # Create basic market stats from valuation
-        v = result["valuation"]
-        result["market"] = {
-            "avg_price": v.get("estimated_price", 0),
-            "avg_price_per_sqft": v.get("price_per_sqft", 0),
-            "total_properties": 1,
-            "growth_1y": 8.5,  # Bangalore average
-            "demand_index": "Medium"
-        }
-    
-    # Fallback: Ensure area_importance has score/grade
-    if result.get("area_importance") and "score" not in result["area_importance"]:
-        factors = result["area_importance"].get("factors", {})
-        # Calculate score from factors
-        score = (
-            factors.get("accessibility", 50) * 0.35 +
-            factors.get("walkability", 50) * 0.30 +
-            min(100, factors.get("amenity_density", 0) * 0.5) * 0.20 +
-            min(100, factors.get("poi_count", 0) / 5) * 0.10 +
-            min(100, factors.get("transport_count", 0) * 10) * 0.05
-        )
-        result["area_importance"]["score"] = round(score)
-        result["area_importance"]["grade"] = (
-            "A+" if score >= 90 else "A" if score >= 80 else "B+" if score >= 70 else
-            "B" if score >= 60 else "C" if score >= 50 else "D" if score >= 40 else "F"
-        )
-    
-    _cache_building_analysis.set(cache_key, result)
-    return result
-
-
-# ============== PHASE 4: SIMULATION & STORYBOARD ENDPOINTS ==============
+# ============== QUERY SWARM - Deep Analysis Engine ==============
 
 try:
-    from intelligence.simulation_engine import get_simulation_engine, ScenarioInput
-    from intelligence.narrative_generator import get_narrative_generator
-    from engines.digital_twin import get_digital_twin, StateChange
-    from dataclasses import asdict
-    simulation_engine = get_simulation_engine()
-    narrative_generator = get_narrative_generator()
-    digital_twin = get_digital_twin()
-    SIMULATION_AVAILABLE = True
-    print("[OK] Simulation engine initialized")
-    print("[OK] Digital twin engine initialized")
-except Exception as e:
-    print(f"[WARNING] Simulation engine not available: {e}")
-    simulation_engine = None
-    narrative_generator = None
-    digital_twin = None
-    SIMULATION_AVAILABLE = False
+    from ai.query_swarm import get_query_swarm, QueryIntent, SwarmResult
+    from ai.swarm_agents import get_initialized_swarm
+    SWARM_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARNING] Query Swarm not available: {e}")
+    SWARM_AVAILABLE = False
+    get_initialized_swarm = None
+
+
+class SwarmAnalysisRequest(BaseModel):
+    query: str
+    context: Optional[Dict[str, Any]] = None
+    deep_analysis: bool = True  # Enable parallel sub-query execution
+
+
+@app.post("/api/swarm/analyze")
+async def swarm_analyze(request: SwarmAnalysisRequest):
+    """Execute swarm analysis for complex multi-faceted queries."""
+    if not SWARM_AVAILABLE or not get_initialized_swarm:
+        raise HTTPException(status_code=503, detail="Query Swarm not available")
+    
+    try:
+        swarm = get_initialized_swarm()
+        result = await swarm.analyze(request.query, request.context, request.deep_analysis)
+        return {"success": True, "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Swarm analysis error: {str(e)}")
+
+
+# ============== PRODUCTION HEALTH ENDPOINTS ==============
+
+@app.get("/api/health/rag")
+async def rag_health():
+    health = {
+        "status": "unknown",
+        "backend": "faiss",
+        "embedding_model": None,
+        "namespaces": {},
+        "total_vectors": 0,
+        "faiss_available": False,
+        "pinecone_enabled": False,  # Always false - production mode
+    }
+    
+    if not RAG_AVAILABLE:
+        health["status"] = "unavailable"
+        health["error"] = "RAG service not initialized"
+        return health
+    
+    try:
+        # Check embedding model
+        if rag_service.embedding_model is not None:
+            health["embedding_model"] = "all-MiniLM-L6-v2"
+        else:
+            health["embedding_model"] = "not loaded"
+        
+        # Check FAISS store
+        if rag_service.local_store:
+            health["faiss_available"] = True
+            store = rag_service.local_store
+            
+            # Get namespace stats
+            for ns in ['properties', 'pois', 'places', 'transport']:
+                try:
+                    count = store.get_vector_count(ns)
+                    health["namespaces"][ns] = count
+                    health["total_vectors"] += count
+                except:
+                    health["namespaces"][ns] = 0
+        
+        health["status"] = "healthy" if health["total_vectors"] > 0 else "empty"
+        
+    except Exception as e:
+        health["status"] = "error"
+        health["error"] = str(e)
+    
+    return health
+
+
+@app.get("/api/health/system")
+async def system_health():
+    """
+    Comprehensive system health check for production monitoring.
+    """
+    import psutil
+    
+    health = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "services": {},
+        "resources": {},
+    }
+    
+    # Check core services
+    health["services"]["rag"] = RAG_AVAILABLE
+    health["services"]["valuation"] = VALUATION_AVAILABLE
+    health["services"]["spatial_memory"] = SPATIAL_MEMORY_AVAILABLE
+    
+    # Check database
+    try:
+        from database.query_service import get_query_service
+        db = get_query_service()
+        props = db.get_all_properties()
+        health["services"]["database"] = True
+        health["database_stats"] = {
+            "properties": len(props) if props else 0
+        }
+    except Exception as e:
+        health["services"]["database"] = False
+        health["database_error"] = str(e)
+    
+    # Resource usage
+    try:
+        health["resources"]["cpu_percent"] = psutil.cpu_percent()
+        health["resources"]["memory_percent"] = psutil.virtual_memory().percent
+        health["resources"]["disk_percent"] = psutil.disk_usage('/').percent
+    except:
+        pass
+    
+    # Overall status
+    critical_services = ["rag", "database"]
+    if not all(health["services"].get(s, False) for s in critical_services):
+        health["status"] = "degraded"
+    
+    return health
+
+
+# ============== DIGITAL TWIN ENDPOINTS ==============
+# (simulation_engine, narrative_generator, digital_twin initialized at top of file)
 
 class SimulationRequest(BaseModel):
     scenario_type: str  # 'metro_station', 'highway', 'zoning_change', 'infrastructure'
@@ -5042,7 +3670,7 @@ async def get_database_tables():
     """Get list of all tables with row counts."""
     try:
         import sqlite3
-        db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+        db_path = config.DB_PATH
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
         
@@ -5065,7 +3693,7 @@ async def get_database_stats():
     """Get database statistics."""
     try:
         import sqlite3
-        db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+        db_path = config.DB_PATH
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
         
@@ -5114,7 +3742,7 @@ async def get_table_data(table_name: str, limit: int = 50, offset: int = 0):
         if table_name not in allowed_tables:
             return {"success": False, "error": f"Table '{table_name}' not accessible"}
         
-        db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+        db_path = config.DB_PATH
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -6147,8 +4775,8 @@ async def verify_narrative(request: VerifyNarrativeRequest):
             "warnings": response.warnings
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Narrative verification error: {str(e)}")
-
+        print(f"[ERROR] Narrative verification failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to verify narrative: {str(e)}")
 
 @app.get("/api/verifier/status")
 async def verifier_status():
@@ -6304,11 +4932,15 @@ async def auth_rate_limit(request: Request):
 # ============================================================================
 
 try:
-    from spatial_memory import get_spatial_memory, SpatialMemoryService
+    from spatial.spatial_memory import get_spatial_memory, SpatialMemoryService
     SPATIAL_MEMORY_AVAILABLE = True
 except ImportError:
-    SPATIAL_MEMORY_AVAILABLE = False
-    get_spatial_memory = None
+    try:
+        from spatial_memory import get_spatial_memory, SpatialMemoryService
+        SPATIAL_MEMORY_AVAILABLE = True
+    except ImportError:
+        SPATIAL_MEMORY_AVAILABLE = False
+        get_spatial_memory = None
 
 
 class UserPreferencesRequest(BaseModel):
@@ -6414,3 +5046,7 @@ async def clear_user_preferences(user_id: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+

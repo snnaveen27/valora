@@ -1,0 +1,505 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://valora.ai/schemas/planner-response-v1.json",
+  "title": "Valora AI Planner Response Schema",
+  "description": "Production schema for Valora AI's Master Planner - validates query decomposition into tasks, slots, and UI actions",
+  "type": "object",
+  "required": [
+    "query_id",
+    "intent",
+    "intent_confidence",
+    "slots",
+    "tasks",
+    "ui_actions",
+    "facts",
+    "reasoning_summary",
+    "modules"
+  ],
+  "properties": {
+    "query_id": {
+      "type": "string",
+      "description": "Unique identifier for this request",
+      "pattern": "^[a-zA-Z0-9_-]{8,64}$"
+    },
+    "intent": {
+      "type": "string",
+      "description": "Classified intent of the query",
+      "enum": [
+        "property_search",
+        "compare",
+        "commute_optimize",
+        "invest",
+        "analyze_area",
+        "analyze_building",
+        "valuation",
+        "simulate",
+        "navigate",
+        "terrain",
+        "general",
+        "refusal_security"
+      ]
+    },
+    "intent_confidence": {
+      "type": "number",
+      "description": "Confidence score for intent classification (0-1)",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "slots": {
+      "$ref": "#/definitions/slotsSchema"
+    },
+    "tasks": {
+      "type": "array",
+      "description": "Ordered task graph for execution",
+      "items": {
+        "$ref": "#/definitions/taskSchema"
+      },
+      "minItems": 1,
+      "maxItems": 20
+    },
+    "ui_actions": {
+      "type": "array",
+      "description": "UI orchestration actions for frontend",
+      "items": {
+        "$ref": "#/definitions/uiActionSchema"
+      }
+    },
+    "dashboard": {
+      "type": "object",
+      "description": "Optional UI dashboard hints",
+      "additionalProperties": true
+    },
+    "facts": {
+      "$ref": "#/definitions/factsSchema"
+    },
+    "reasoning_summary": {
+      "type": "string",
+      "description": "Human-readable rationale (1-3 lines)",
+      "maxLength": 500
+    },
+    "modules": {
+      "$ref": "#/definitions/modulesSchema"
+    },
+    "examples_used": {
+      "type": "array",
+      "description": "Few-shot example IDs applied",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data_unavailable_reasons": {
+      "type": "array",
+      "description": "Explanations for missing data",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "slotsSchema": {
+      "type": "object",
+      "required": [
+        "raw_text",
+        "intent",
+        "area_or_anchor",
+        "poi",
+        "lat",
+        "lng",
+        "property_type",
+        "configuration",
+        "budget",
+        "purpose",
+        "time_horizon",
+        "preferences",
+        "avoid_constraints",
+        "simulation_params",
+        "ui_command",
+        "raw_filters",
+        "clarify_needed"
+      ],
+      "properties": {
+        "raw_text": {
+          "type": "string",
+          "description": "Original user query"
+        },
+        "intent": {
+          "type": "string",
+          "description": "Normalized intent"
+        },
+        "area_or_anchor": {
+          "type": ["string", "null"],
+          "description": "Canonical area name (e.g., whitefield, manyata tech park)"
+        },
+        "poi": {
+          "type": ["string", "null"],
+          "description": "Specific POI if present"
+        },
+        "lat": {
+          "type": ["number", "null"],
+          "description": "Latitude coordinate",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lng": {
+          "type": ["number", "null"],
+          "description": "Longitude coordinate",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "property_type": {
+          "type": ["string", "null"],
+          "enum": ["apartment", "villa", "plot", "any", null]
+        },
+        "configuration": {
+          "type": ["string", "null"],
+          "enum": ["2bhk", "3bhk", "studio", null]
+        },
+        "budget": {
+          "type": "object",
+          "required": ["min", "max", "currency"],
+          "properties": {
+            "min": {
+              "type": ["number", "null"],
+              "description": "Minimum budget in INR"
+            },
+            "max": {
+              "type": ["number", "null"],
+              "description": "Maximum budget in INR"
+            },
+            "currency": {
+              "type": ["string", "null"],
+              "enum": ["INR", null]
+            }
+          }
+        },
+        "purpose": {
+          "type": ["string", "null"],
+          "enum": ["buy", "rent", "invest", "live", "other", null]
+        },
+        "time_horizon": {
+          "type": ["string", "null"],
+          "enum": ["short_term", "3-5y", "5-10y", "long_term", null]
+        },
+        "preferences": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "quiet",
+              "near_metro",
+              "gated",
+              "schools_nearby",
+              "avoid_orr",
+              "near_park",
+              "commercial_nearby",
+              "greenery"
+            ]
+          }
+        },
+        "avoid_constraints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "avoid_orr",
+              "no_flood",
+              "no_high_rise"
+            ]
+          }
+        },
+        "simulation_params": {
+          "type": "object",
+          "required": ["type", "year", "magnitude"],
+          "properties": {
+            "type": {
+              "type": ["string", "null"],
+              "enum": ["metro", "prr", "airport", "zoning", null]
+            },
+            "year": {
+              "type": ["number", "null"]
+            },
+            "magnitude": {
+              "type": ["string", "null"]
+            }
+          }
+        },
+        "ui_command": {
+          "type": ["string", "null"],
+          "enum": ["navigate", "flyTo", "show_panel", "draw_buffer", null]
+        },
+        "raw_filters": {
+          "type": "object",
+          "properties": {
+            "amenities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "age_max_years": {
+              "type": ["number", "null"]
+            },
+            "min_bhk": {
+              "type": ["number", "null"]
+            }
+          }
+        },
+        "clarify_needed": {
+          "type": "boolean",
+          "description": "Whether clarification is needed"
+        },
+        "clarify_questions": {
+          "type": "array",
+          "description": "Questions to ask user if clarification needed",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2
+        }
+      }
+    },
+    "taskSchema": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "type",
+        "inputs",
+        "outputs",
+        "depends_on",
+        "description",
+        "priority"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique short task ID (e.g., T1, T2)",
+          "pattern": "^[A-Za-z0-9_]{2,20}$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Short human-readable title",
+          "maxLength": 100
+        },
+        "type": {
+          "type": "string",
+          "description": "Task classification",
+          "enum": [
+            "analysis",
+            "data_query",
+            "scoring",
+            "simulation",
+            "rank",
+            "explain",
+            "clarification",
+            "ui_action"
+          ]
+        },
+        "inputs": {
+          "type": "object",
+          "description": "Input references (slot or task outputs)",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "description": "Keys written to task outputs",
+          "items": {
+            "type": "string"
+          }
+        },
+        "depends_on": {
+          "type": "array",
+          "description": "Task IDs this task depends on (must form DAG)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string",
+          "description": "One-sentence readable description",
+          "maxLength": 200
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional metadata",
+          "properties": {
+            "estimated_cost_ms": {
+              "type": "number"
+            },
+            "executor": {
+              "type": "string"
+            },
+            "retry_policy": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "uiActionSchema": {
+      "type": "object",
+      "required": ["action_id", "type", "params", "priority"],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "description": "Unique action identifier"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "map.flyTo",
+            "map.highlight",
+            "panel.open",
+            "panel.switch",
+            "map.draw_buffer",
+            "narration.play"
+          ]
+        },
+        "params": {
+          "type": "object",
+          "description": "Action-specific parameters",
+          "properties": {
+            "lat": {
+              "type": "number"
+            },
+            "lng": {
+              "type": "number"
+            },
+            "zoom": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 22
+            },
+            "radius_m": {
+              "type": "number"
+            },
+            "center": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "panel_id": {
+              "type": "string"
+            },
+            "highlight_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        }
+      }
+    },
+    "factsSchema": {
+      "type": "object",
+      "description": "Deterministic facts with grounding",
+      "properties": {
+        "datasource": {
+          "type": ["string", "null"],
+          "description": "Source of the facts"
+        },
+        "confidence": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "canonical_name": {
+          "type": ["string", "null"]
+        },
+        "lat": {
+          "type": ["number", "null"]
+        },
+        "lng": {
+          "type": ["number", "null"]
+        },
+        "area_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "poi_list": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lng": {
+                "type": "number"
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "refusal_reason": {
+          "type": ["string", "null"],
+          "description": "Reason for refusal if intent is refusal_security"
+        },
+        "data_unavailable_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "modulesSchema": {
+      "type": "object",
+      "description": "Embedded sub-prompts and templates",
+      "properties": {
+        "quietness_scoring_prompt": {
+          "type": "string"
+        },
+        "undervaluation_scoring_prompt": {
+          "type": "string"
+        },
+        "commute_simulation_prompt": {
+          "type": "string"
+        },
+        "valuation_model_prompt": {
+          "type": "string"
+        },
+        "digital_twin_update_template": {
+          "type": "string"
+        },
+        "clarification_template": {
+          "type": "string"
+        },
+        "property_db_schema": {
+          "type": "string"
+        },
+        "geo_poi_schema": {
+          "type": "string"
+        },
+        "ranking_prompt": {
+          "type": "string"
+        },
+        "executor_specs": {
+          "type": "object",
+          "description": "Executor I/O specifications"
+        }
+      }
+    }
+  }
+}

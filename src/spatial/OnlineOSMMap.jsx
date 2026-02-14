@@ -1,9 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo, useCallback } from 'react'
 import * as Cesium from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import '../styles/cesium.css'
 import DrawingTools from '../components/DrawingTools'
 import { API_URL } from '../apiConfig'
+
+// Throttle helper to reduce React re-renders
+const throttle = (fn, wait) => {
+  let lastTime = 0
+  return (...args) => {
+    const now = Date.now()
+    if (now - lastTime >= wait) {
+      lastTime = now
+      fn(...args)
+    }
+  }
+}
 
 window.CESIUM_BASE_URL = '/cesium/'
 
@@ -68,29 +80,30 @@ const HAS_ION_IMAGERY = HAS_ION_TOKEN && Object.values(ION_IMAGERY_ASSETS).some(
 const LOCAL_PHOTOREALISTIC_TILESET_URL = import.meta.env.VITE_LOCAL_PHOTOREALISTIC_TILESET_URL || null
 const USE_LOCAL_PHOTOREALISTIC = Boolean(LOCAL_PHOTOREALISTIC_TILESET_URL)
 
-// Photorealistic tile cache settings (RAM-efficient with GPU optimization)
+// Photorealistic tile cache settings - CONSERVATIVE for smooth performance
 const PHOTOREALISTIC_CACHE_CONFIG = {
-  maximumScreenSpaceError: 2, // Balanced quality vs performance (default: 2)
-  maximumMemoryUsage: 512, // 512MB RAM-efficient (default: 512MB)
-  preloadWhenHidden: false, // Save memory - only load visible tiles
-  preloadFlightDestinations: false, // Save memory
+  maximumScreenSpaceError: 4, // Higher = less detail but better performance
+  maximumMemoryUsage: 512, // 512MB only - reduced to prevent lag
+  cacheBytes: 536870912, // 512MB in bytes
+  preloadWhenHidden: false, // Don't preload - causes lag
+  preloadFlightDestinations: false, // Don't preload - causes lag
   dynamicScreenSpaceError: true,
-  dynamicScreenSpaceErrorDensity: 0.005, // Less aggressive = less RAM
-  dynamicScreenSpaceErrorFactor: 4.0,
-  skipLevelOfDetail: true, // Skip LODs for memory efficiency
-  baseScreenSpaceError: 2048, // Higher = less detail = less RAM
+  dynamicScreenSpaceErrorDensity: 0.01, // Less dense
+  dynamicScreenSpaceErrorFactor: 2.0,
+  skipLevelOfDetail: true, // Skip LODs for performance
+  baseScreenSpaceError: 2048, // Higher = less detail
   skipScreenSpaceErrorFactor: 32, // More aggressive skipping
   skipLevels: 2, // Skip more levels
-  immediatelyLoadDesiredLevelOfDetail: false,
-  loadSiblings: false, // Don't load adjacent tiles = save RAM
+  immediatelyLoadDesiredLevelOfDetail: false, // Load gradually
+  loadSiblings: false, // Don't load siblings - saves memory
   cullWithChildrenBounds: true,
-  cullRequestsWhileMoving: true,
-  cullRequestsWhileMovingMultiplier: 120.0, // More aggressive culling
+  cullRequestsWhileMoving: true, // Cull while moving for smooth panning
+  cullRequestsWhileMovingMultiplier: 10.0, // Aggressive culling while moving
   progressiveResolutionHeightFraction: 0.5, // Less progressive detail
-  foveatedScreenSpaceError: true, // GPU optimization - focus on center
-  foveatedConeSize: 0.2, // Smaller cone = less detail outside center
+  foveatedScreenSpaceError: true,
+  foveatedConeSize: 0.1, // Smaller cone
   foveatedMinimumScreenSpaceErrorRelaxation: 0.5, // More relaxed outside center
-  foveatedTimeDelay: 0.1
+  foveatedTimeDelay: 0.2 // Slower updates
 }
 
 // Backend API for local 3D buildings
@@ -98,6 +111,13 @@ const API_BASE = API_URL
 const TILES_API = `${API_BASE}/api/tiles/viewport`
 const POLYGON_ANALYZE_API = `${API_BASE}/api/spatial/polygon-analyze`
 const BUFFER_ANALYZE_API = `${API_BASE}/api/spatial/buffer-analyze`
+
+// Building display limits for performance optimization
+const MAX_BUILDINGS_DISPLAY = 3000 // Enough for full camera view radius
+const BUILDING_LOAD_RADIUS_KM = 5.0 // 5km radius for click-based loading
+const MAX_TILES_IN_MEMORY = 150 // Allow more tiles in memory
+const EVICTION_GRACE_PERIOD_MS = 30000 // Don't evict tiles loaded less than 30s ago
+const EVICTION_RADIUS_KM = 3.0 // Only evict tiles beyond 3km (always > load radius)
 
 // Bangalore areas for navigation
 const BANGALORE_AREAS = {
@@ -119,8 +139,9 @@ const DEFAULT_LOCATION = {
 }
 
 const MAP_PREFS_KEY = 'valora.mapPreferences'
-const DEFAULT_ORBIT_DISTANCE = 500
-const DEFAULT_ORBIT_PITCH_DEG = -45
+// Closer orbit distance for better building/location inspection (was 500m, now 200m for closer view)
+const DEFAULT_ORBIT_DISTANCE = 200
+const DEFAULT_ORBIT_PITCH_DEG = -35
 
 const loadMapPreferences = () => {
   if (typeof window === 'undefined') return {}
@@ -143,12 +164,23 @@ const saveMapPreferences = (prefs) => {
 }
 
 export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggleMapFullscreen, isMapFullscreen, userLocation, gpsEnabled }) {
+  // Throttle setAgentData to reduce React re-renders (max 1 update per 100ms)
+  const throttledSetAgentData = useRef(null)
+  if (!throttledSetAgentData.current) {
+    throttledSetAgentData.current = throttle((updateFn) => {
+      setAgentData(updateFn)
+    }, 100)
+  }
+  // Use throttled version for frequent updates
+  const updateAgentData = throttledSetAgentData.current
+
   const cesiumContainerRef = useRef(null)
   const viewerRef = useRef(null)
   const loadedTilesRef = useRef(new Set())  // Track loaded tile IDs
   const tileEntitiesRef = useRef({})  // Map of tile_id -> entities[]
   const tileCentersRef = useRef({})  // Map of tile_id -> {lat, lng} for distance-based eviction
   const tileLoadTimesRef = useRef({})  // Map of tile_id -> timestamp to prevent immediate eviction
+  const tileBuildingCountsRef = useRef({}) // Map of tile_id -> building count for limit tracking
   const cameraMoveTimeoutRef = useRef(null)
   const selectedBuildingEntityRef = useRef(null)  // Track currently highlighted building
   const keyDownHandlerRef = useRef(null) // Track key handler so we can remove it on cleanup
@@ -158,6 +190,17 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const rotationTargetRef = useRef(null)
   const ionPhotorealisticTilesetRef = useRef(null)
   const ionOsmBuildingsTilesetRef = useRef(null)
+
+  const selectedLocationRef = useRef(null)
+  const selectedBuildingCoordsRef = useRef(null)
+
+  useEffect(() => {
+    selectedLocationRef.current = agentData?.selectedLocation || null
+  }, [agentData?.selectedLocation])
+
+  useEffect(() => {
+    selectedBuildingCoordsRef.current = agentData?.selectedBuilding?.coordinates || null
+  }, [agentData?.selectedBuilding])
   const ionImageryLayerRef = useRef(null)
   const placesDataSourceRef = useRef(null)
   const initialPrefsRef = useRef(loadMapPreferences())
@@ -168,18 +211,20 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const [buildingsLoaded, setBuildingsLoaded] = useState(false)
   const [buildingsCount, setBuildingsCount] = useState(0)
   const [loadingBuildings, setLoadingBuildings] = useState(false)
+  const loadingBuildingsRef = useRef(false) // Ref-based guard for stale closures
   const [tilesLoaded, setTilesLoaded] = useState(0)
   const [clickRipple, setClickRipple] = useState(null)
   const [canGoBack, setCanGoBack] = useState(false)
   
   // Enhanced layer visibility controls - optimized for RAM efficiency
-  const [showBuildings, setShowBuildings] = useState(() => initialPrefsRef.current.showBuildings ?? true)
-  const [showShadows, setShowShadows] = useState(() => initialPrefsRef.current.showShadows ?? false) // Shadows OFF by default (RAM save)
-  const [showTerrainShadows, setShowTerrainShadows] = useState(() => initialPrefsRef.current.showTerrainShadows ?? false) // Terrain shadows OFF
+  const [showBuildings, setShowBuildings] = useState(() => initialPrefsRef.current.showBuildings ?? true) // Buildings ON by default
+  const showBuildingsRef = useRef(true) // Ref for camera listener closure
+  const [showShadows, setShowShadows] = useState(true) // Shadows always on
+  const [showTerrainShadows, setShowTerrainShadows] = useState(true) // Terrain shadows always on
   const [showTerrain, setShowTerrain] = useState(() => initialPrefsRef.current.showTerrain ?? true) // Terrain enabled by default
   const [terrainExaggeration, setTerrainExaggeration] = useState(() => initialPrefsRef.current.terrainExaggeration ?? 1)
   const [showIonPhotorealistic, setShowIonPhotorealistic] = useState(() => initialPrefsRef.current.showIonPhotorealistic ?? false)
-  const [showIonOsmBuildings, setShowIonOsmBuildings] = useState(() => initialPrefsRef.current.showIonOsmBuildings ?? false)
+  const [showIonOsmBuildings, setShowIonOsmBuildings] = useState(() => (initialPrefsRef.current.showIonOsmBuildings ?? true) && HAS_ION_TOKEN && HAS_ION_OSM_BUILDINGS)
   const [ionImageryType, setIonImageryType] = useState(() => initialPrefsRef.current.ionImageryType ?? 'none') // 'none', 'googleSatellite', 'googleSatelliteLabels', 'bingAerial', etc.
   const [buildingQuality, setBuildingQuality] = useState(() => initialPrefsRef.current.buildingQuality ?? 'medium') // low, medium, high - MEDIUM default for RAM
   
@@ -260,7 +305,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       setShowWind(false)
       weatherAppliedRef.current.lastKey = null
       if (setAgentData) {
-        setAgentData(prev => ({
+        updateAgentData(prev => ({
           ...prev,
           weather: null
         }))
@@ -293,12 +338,36 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     })
   }, [showBuildings, showShadows, showTerrainShadows, showTerrain, terrainExaggeration, showIonPhotorealistic, showIonOsmBuildings, ionImageryType, basemapType, buildingQuality])
 
+  // Terrain exaggeration effect - production grade with proper validation
   useEffect(() => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed() || !viewer.scene?.globe) return
+    
+    // Only apply exaggeration if terrain is actually enabled
+    if (!showTerrain) {
+      console.log('[Terrain] Exaggeration update skipped - terrain disabled')
+      return
+    }
+    
+    // Check if terrain provider is loaded (not EllipsoidTerrainProvider which is flat)
+    const hasRealTerrain = viewer.terrainProvider && 
+      !(viewer.terrainProvider instanceof Cesium.EllipsoidTerrainProvider)
+    
+    if (!hasRealTerrain) {
+      console.warn('[Terrain] Cannot apply exaggeration - no real terrain provider loaded')
+      return
+    }
+    
+    // Apply exaggeration
     viewer.scene.globe.terrainExaggeration = terrainExaggeration
     viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
-  }, [terrainExaggeration])
+    
+    // Force terrain to rebuild with new exaggeration
+    viewer.scene.globe.tileCache.clear()
+    viewer.scene.requestRender()
+    
+    console.log(`[Terrain] Exaggeration updated to ${terrainExaggeration}x`)
+  }, [terrainExaggeration, showTerrain])
 
   // Service Worker cache stats updater
   useEffect(() => {
@@ -375,60 +444,100 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     return () => cancelAnimationFrame(rafId)
   }, [])
 
-  // Aggressive tile eviction for RAM efficiency
+  // Aggressive tile eviction for RAM efficiency and building limit management
   useEffect(() => {
     if (!showBuildings) return
 
     const evictionInterval = setInterval(() => {
       const viewer = viewerRef.current
       if (!viewer || viewer.isDestroyed()) return
+      
+      // Skip eviction if camera is moving for smoother experience
+      if (viewer.camera._isMoving) return
 
-      const cameraPos = viewer.camera.positionCartographic
-      const centerLat = Cesium.Math.toDegrees(cameraPos.latitude)
-      const centerLng = Cesium.Math.toDegrees(cameraPos.longitude)
-
-      const MAX_TILES = 50 // Aggressive limit for RAM
-      const EVICTION_DISTANCE_KM = 5 // Evict tiles > 5km away
-
-      const loadedTiles = Array.from(loadedTilesRef.current)
-      if (loadedTiles.length > MAX_TILES) {
-        // Calculate distances and evict furthest tiles
-        const tilesWithDistance = loadedTiles.map(tileId => {
-          const center = tileCentersRef.current[tileId]
-          if (!center) return { tileId, distance: Infinity }
-          
-          const dx = (center.lng - centerLng) * 111
-          const dy = (center.lat - centerLat) * 111
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          
-          return { tileId, distance }
-        })
-
-        tilesWithDistance.sort((a, b) => b.distance - a.distance)
-
-        // Evict furthest tiles beyond limit
-        const tilesToEvict = tilesWithDistance.slice(MAX_TILES)
-        tilesToEvict.forEach(({ tileId, distance }) => {
-          if (distance > EVICTION_DISTANCE_KM) {
-            const entities = tileEntitiesRef.current[tileId] || []
-            entities.forEach(entity => {
-              try {
-                viewer.entities.remove(entity)
-              } catch (e) {}
-            })
-            delete tileEntitiesRef.current[tileId]
-            delete tileCentersRef.current[tileId]
-            delete tileLoadTimesRef.current[tileId]
-            loadedTilesRef.current.delete(tileId)
-          }
-        })
-
-        const evicted = tilesToEvict.filter(t => t.distance > EVICTION_DISTANCE_KM).length
-        if (evicted > 0) {
-          console.log(`🗑️ RAM optimization: Evicted ${evicted} distant tiles`)
+      // Use camera look-at ground point for eviction distance (same as loading)
+      let centerLat, centerLng
+      const evictCanvas = viewer.scene.canvas
+      const evictRay = viewer.camera.getPickRay(new Cesium.Cartesian2(evictCanvas.clientWidth / 2, evictCanvas.clientHeight / 2))
+      if (evictRay) {
+        const gp = viewer.scene.globe.pick(evictRay, viewer.scene)
+        if (gp) {
+          const gc = Cesium.Cartographic.fromCartesian(gp)
+          centerLat = Cesium.Math.toDegrees(gc.latitude)
+          centerLng = Cesium.Math.toDegrees(gc.longitude)
         }
       }
-    }, 5000) // Check every 5 seconds
+      if (centerLat == null) {
+        const cameraPos = viewer.camera.positionCartographic
+        centerLat = Cesium.Math.toDegrees(cameraPos.latitude)
+        centerLng = Cesium.Math.toDegrees(cameraPos.longitude)
+      }
+
+      // Calculate current building count
+      let currentBuildingCount = Object.values(tileEntitiesRef.current)
+        .reduce((sum, entities) => sum + entities.length, 0)
+
+      // Haversine distance calculator
+      const haversineDistance = (lat1, lng1, lat2, lng2) => {
+        const R = 6371
+        const dLat = (lat2 - lat1) * Math.PI / 180
+        const dLng = (lng2 - lng1) * Math.PI / 180
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLng/2) * Math.sin(dLng/2)
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+      }
+
+      // EVICTION PRIORITY 1: Building count over limit
+      if (currentBuildingCount > MAX_BUILDINGS_DISPLAY) {
+        const allTileIds = Array.from(loadedTilesRef.current)
+        const tilesWithDistance = allTileIds.map(tileId => {
+          const center = tileCentersRef.current[tileId]
+          if (!center) return { tileId, distance: Infinity, count: 0 }
+          const dist = haversineDistance(centerLat, centerLng, center.lat, center.lng)
+          const count = tileBuildingCountsRef.current[tileId] || 0
+          return { tileId, distance: dist, count }
+        })
+
+        // Sort by distance (farthest first)
+        tilesWithDistance.sort((a, b) => b.distance - a.distance)
+
+        // Evict tiles until under limit - protect tiles within view radius and recently loaded
+        let buildingsToEvict = currentBuildingCount - MAX_BUILDINGS_DISPLAY + 200
+        const tilesToEvict = []
+        const now = Date.now()
+
+        for (const tile of tilesWithDistance) {
+          if (buildingsToEvict <= 0) break
+          // Never evict tiles within eviction protection radius
+          if (tile.distance < EVICTION_RADIUS_KM) continue
+          // Don't evict recently loaded tiles (grace period)
+          const loadTime = tileLoadTimesRef.current[tile.tileId] || 0
+          if (now - loadTime < EVICTION_GRACE_PERIOD_MS) continue
+
+          tilesToEvict.push(tile.tileId)
+          buildingsToEvict -= tile.count
+        }
+
+        tilesToEvict.forEach(tileId => {
+          const entities = tileEntitiesRef.current[tileId] || []
+          entities.forEach(entity => {
+            try {
+              viewer.entities.remove(entity)
+            } catch (e) {}
+          })
+          delete tileEntitiesRef.current[tileId]
+          delete tileCentersRef.current[tileId]
+          delete tileLoadTimesRef.current[tileId]
+          delete tileBuildingCountsRef.current[tileId]
+          loadedTilesRef.current.delete(tileId)
+        })
+
+        if (tilesToEvict.length > 0) {
+          console.log(`🗑️ Building limit eviction: Removed ${tilesToEvict.length} tiles`)
+        }
+      }
+    }, 10000) // Check every 10 seconds (less aggressive)
 
     return () => clearInterval(evictionInterval)
   }, [showBuildings])
@@ -533,7 +642,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           setWeatherMetrics(metrics)
 
           if (setAgentData) {
-            setAgentData(prev => ({
+            updateAgentData(prev => ({
               ...prev,
               weather: {
                 updatedAt,
@@ -563,7 +672,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       } catch (err) {
         setWeatherError('fetch_failed')
         if (setAgentData) {
-          setAgentData(prev => ({
+          updateAgentData(prev => ({
             ...prev,
             weather: {
               updatedAt: Date.now(),
@@ -619,7 +728,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
           viewer.scene.primitives.add(tileset)
           ionPhotorealisticTilesetRef.current = tileset
-          console.log('✅ Local photorealistic tileset loaded with enhanced cache')
+          console.log('✅ Ion photorealistic tileset loaded with 2GB in-memory cache')
         } catch (err) {
           console.error('Failed to load local photorealistic tileset:', err)
           if (!cancelled) {
@@ -793,7 +902,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
       const points = agentData?.drawnPolygon
       if (!Array.isArray(points) || points.length < 3) {
-        setAgentData(prev => ({
+        updateAgentData(prev => ({
           ...prev,
           polygonAnalysisPending: false,
           polygonAnalysis: null,
@@ -802,7 +911,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         return
       }
 
-      setAgentData(prev => ({
+      updateAgentData(prev => ({
         ...prev,
         polygonAnalysisLoading: true,
         polygonAnalysisError: null,
@@ -821,7 +930,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         }
 
         const data = await resp.json()
-        setAgentData(prev => ({
+        updateAgentData(prev => ({
           ...prev,
           polygonAnalysisPending: false,
           polygonAnalysisLoading: false,
@@ -829,7 +938,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           polygonAnalysisError: null,
         }))
       } catch (e) {
-        setAgentData(prev => ({
+        updateAgentData(prev => ({
           ...prev,
           polygonAnalysisPending: false,
           polygonAnalysisLoading: false,
@@ -852,7 +961,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       const center = buf?.center
       const radius = buf?.radius
       if (!center?.lat || !center?.lng || !radius) {
-        setAgentData(prev => ({
+        updateAgentData(prev => ({
           ...prev,
           bufferAnalysisPending: false,
           bufferAnalysis: null,
@@ -861,7 +970,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         return
       }
 
-      setAgentData(prev => ({
+      updateAgentData(prev => ({
         ...prev,
         bufferAnalysisLoading: true,
         bufferAnalysisError: null,
@@ -879,7 +988,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         }
 
         const data = await resp.json()
-        setAgentData(prev => ({
+        updateAgentData(prev => ({
           ...prev,
           bufferAnalysisPending: false,
           bufferAnalysisLoading: false,
@@ -887,7 +996,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           bufferAnalysisError: null,
         }))
       } catch (e) {
-        setAgentData(prev => ({
+        updateAgentData(prev => ({
           ...prev,
           bufferAnalysisPending: false,
           bufferAnalysisLoading: false,
@@ -910,47 +1019,59 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
     const kind = String(subtype || '').toLowerCase()
     let fontPx = 12
-    let maxDistance = 35000
+    let maxDistance = 20000
+    let minDistance = 0
 
     if (kind === 'city') {
       fontPx = 18
-      maxDistance = 250000
+      maxDistance = 200000
+      minDistance = 5000
     } else if (kind === 'town') {
-      fontPx = 16
-      maxDistance = 180000
+      fontPx = 15
+      maxDistance = 120000
+      minDistance = 2000
     } else if (kind === 'county') {
-      fontPx = 16
-      maxDistance = 350000
+      fontPx = 15
+      maxDistance = 250000
+      minDistance = 10000
     } else if (kind === 'suburb') {
-      fontPx = 14
-      maxDistance = 70000
-    } else if (kind === 'neighbourhood' || kind === 'quarter') {
-      fontPx = 12
-      maxDistance = 30000
-    } else if (kind === 'village') {
       fontPx = 13
-      maxDistance = 90000
+      maxDistance = 40000
+      minDistance = 500
+    } else if (kind === 'neighbourhood' || kind === 'quarter') {
+      fontPx = 11
+      maxDistance = 15000
+      minDistance = 200
+    } else if (kind === 'village') {
+      fontPx = 12
+      maxDistance = 60000
+      minDistance = 1000
     }
 
     const label = new Cesium.LabelGraphics({
       text: name,
       font: `600 ${fontPx}px Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`,
-      fillColor: Cesium.Color.WHITE,
-      outlineColor: Cesium.Color.fromCssColorString('#0b1220'),
-      outlineWidth: 4,
+      fillColor: Cesium.Color.fromCssColorString('#e2e8f0'),
+      outlineColor: Cesium.Color.fromCssColorString('#0f172a'),
+      outlineWidth: 3,
       style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       showBackground: true,
-      backgroundColor: Cesium.Color.fromCssColorString('#0b1220').withAlpha(0.45),
+      backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.55),
       backgroundPadding: new Cesium.Cartesian2(8, 4),
-      pixelOffset: new Cesium.Cartesian2(0, -12),
+      pixelOffset: new Cesium.Cartesian2(0, -8),
       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-      distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, maxDistance),
-      scaleByDistance: new Cesium.NearFarScalar(1500.0, 1.0, maxDistance, 0.6),
-      translucencyByDistance: new Cesium.NearFarScalar(800.0, 1.0, maxDistance, 0.0),
+      distanceDisplayCondition: new Cesium.DistanceDisplayCondition(minDistance, maxDistance),
+      scaleByDistance: new Cesium.NearFarScalar(2000.0, 1.0, maxDistance, 0.5),
+      translucencyByDistance: new Cesium.NearFarScalar(1500.0, 1.0, maxDistance * 0.8, 0.0),
       disableDepthTestDistance: Number.POSITIVE_INFINITY
     })
 
+    // Remove default GeoJSON billboard/point graphics (causes pink overlapping markers)
+    entity.billboard = undefined
+    entity.point = undefined
+    entity.polygon = undefined
+    entity.polyline = undefined
     entity.label = label
   }
 
@@ -1068,15 +1189,22 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     const isAnalyzing = agentData?.buildingAnalysisLoading || agentData?.locationAnalysisLoading
 
     if (isAnalyzing && !rotationIntervalRef.current && rotationTargetRef.current) {
-      // Start 360° orbit rotation around target at medium distance (800m)
       console.log('🎥 Starting 360° camera orbit')
       const target = rotationTargetRef.current
-      const orbitDistance = DEFAULT_ORBIT_DISTANCE // Consistent distance across terrain/flat modes
+      const orbitDistance = DEFAULT_ORBIT_DISTANCE
       const pitch = Cesium.Math.toRadians(DEFAULT_ORBIT_PITCH_DEG)
+      let heading = viewer.camera.heading || 0
+      
+      // Lock camera to orbit initially
+      try {
+        viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(heading, pitch, orbitDistance))
+      } catch (_) {}
       
       // Stop rotation on any user input (mouse/touch/wheel)
       const stopOnInput = () => {
         stopRotation()
+        // Release camera lock when user intervenes
+        try { viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY) } catch (_) {}
         document.removeEventListener('mousedown', stopOnInput)
         document.removeEventListener('wheel', stopOnInput)
         document.removeEventListener('touchstart', stopOnInput)
@@ -1087,52 +1215,28 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       
       rotationIntervalRef.current = setInterval(() => {
         if (viewer && !viewer.isDestroyed() && target) {
-          // Orbit around target by rotating heading (slower: 0.2° per frame for smoother look)
+          heading += Cesium.Math.toRadians(0.15)
+          // Keep camera locked to lookAt — do NOT release transform each frame
           viewer.camera.lookAt(
             target,
-            new Cesium.HeadingPitchRange(
-              viewer.camera.heading + Cesium.Math.toRadians(0.2),
-              pitch,
-              orbitDistance
-            )
+            new Cesium.HeadingPitchRange(heading, pitch, orbitDistance)
           )
-          viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
         }
       }, 16) // ~60fps
-    } else if (!isAnalyzing) {
+    } else if (!isAnalyzing && rotationIntervalRef.current) {
       stopRotation()
+      // Release camera lock when analysis completes
+      try { viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY) } catch (_) {}
     }
 
     return () => {
       stopRotation()
+      try { if (viewer && !viewer.isDestroyed()) viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY) } catch (_) {}
     }
   }, [agentData?.buildingAnalysisLoading, agentData?.locationAnalysisLoading])
 
   // Apply layer visibility controls
-  useEffect(() => {
-    const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed()) return
-    
-    // Apply buildings visibility and shadow settings
-    Object.values(tileEntitiesRef.current).forEach(entities => {
-      entities.forEach(e => {
-        if (e && e.polygon) {
-          e.show = showBuildings
-          if (e.polygon.shadows) {
-            e.polygon.shadows = showShadows ? Cesium.ShadowMode.ENABLED : Cesium.ShadowMode.DISABLED
-          }
-        }
-      })
-    })
-    
-    // Update shadow map (but not globe lighting - terrain stays simple 3D)
-    if (viewer.scene && viewer.shadowMap) {
-      viewer.shadowMap.enabled = showShadows
-      viewer.scene.globe.enableLighting = false  // Always disabled for simple 3D terrain
-      viewer.scene.globe.shadows = (showTerrain && showTerrainShadows) ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED
-      viewer.shadows = showShadows
-    }
-  }, [showBuildings, showShadows, showTerrain, showTerrainShadows])
+  // Buildings, shadows, terrain are always-on — no toggle sync needed
 
   // Real-time clock - updates every second
   useEffect(() => {
@@ -1142,12 +1246,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     return () => clearInterval(clockInterval)
   }, [])
 
-  // Place labels disabled - AI handles labels
-  // useEffect(() => {
-  //   if (placesDataSourceRef.current) {
-  //     placesDataSourceRef.current.show = showPlaces
-  //   }
-  // }, [showPlaces])
+  // Buildings now load on click — no auto-load on state change needed
 
 
   const flyToArea = (areaKey, height = 1200) => {
@@ -1233,7 +1332,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       },
       duration: 1.5,
       complete: () => {
-        setTimeout(loadTilesForViewport, 500)
+        setTimeout(() => loadBuildingsAtPoint(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng), 500)
       }
     })
   }
@@ -1253,7 +1352,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       },
       duration: 1.2,
       complete: () => {
-        setTimeout(loadTilesForViewport, 500)
+        // Load buildings around the destination
+        const carto = Cesium.Cartographic.fromCartesian(last.destination)
+        if (carto) {
+          const lat = Cesium.Math.toDegrees(carto.latitude)
+          const lng = Cesium.Math.toDegrees(carto.longitude)
+          setTimeout(() => loadBuildingsAtPoint(lat, lng), 500)
+        }
       }
     })
   }
@@ -1499,12 +1604,24 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     
     // Update agentData with polygon
     if (setAgentData) {
-      setAgentData(prev => ({
+      updateAgentData(prev => ({
         ...prev,
         drawnPolygon: polygonPoints,
         polygonAnalysisPending: true
       }))
     }
+    
+    // Auto-dispatch chat query to analyze the drawn area
+    const centroid = polygonPoints.reduce(
+      (acc, p) => ({ lat: acc.lat + p.lat / polygonPoints.length, lng: acc.lng + p.lng / polygonPoints.length }),
+      { lat: 0, lng: 0 }
+    )
+    window.dispatchEvent(new CustomEvent('valora-area-clicked', {
+      detail: {
+        coordinates: centroid,
+        query: `Analyze this custom drawn area at ${centroid.lat.toFixed(4)}, ${centroid.lng.toFixed(4)}. It covers ${polygonPoints.length} boundary points. Provide investment analysis, spatial quality, and market data for this zone.`
+      }
+    }))
   }
   
   const startBufferDraw = () => {
@@ -1577,12 +1694,20 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     
     // Update agentData with buffer
     if (setAgentData) {
-      setAgentData(prev => ({
+      updateAgentData(prev => ({
         ...prev,
         drawnBuffer: { center: { lat, lng }, radius: bufferRadius },
         bufferAnalysisPending: true
       }))
     }
+
+    // Auto-dispatch chat query to analyze the drawn buffer
+    window.dispatchEvent(new CustomEvent('valora-area-clicked', {
+      detail: {
+        coordinates: { lat, lng },
+        query: `Analyze the ${bufferRadius}m radius around ${lat.toFixed(4)}, ${lng.toFixed(4)}. Provide investment analysis, spatial quality, and market data for this buffer zone.`
+      }
+    }))
   }
   
   const cancelDrawing = () => {
@@ -1623,7 +1748,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     
     // Clear from agentData
     if (setAgentData) {
-      setAgentData(prev => ({
+      updateAgentData(prev => ({
         ...prev,
         drawnPolygon: null,
         drawnBuffer: null,
@@ -1655,13 +1780,16 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       
       // Add buildings from this tile/database response
       const entities = []
-      viewer.entities.suspendEvents()
       
       // Track tile center from first building (for distance-based eviction)
       let tileCenterLat = null
       let tileCenterLng = null
       
       const features = data.features || []
+      
+      // Pre-allocate entity data for batch creation
+      const entityDataList = []
+      
       for (const feature of features) {
         const geomType = feature.geometry?.type
         const coords = feature.geometry?.coordinates
@@ -1694,52 +1822,46 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           continue // Skip invalid geometry
         }
 
-        // Enhanced color scheme by building type and height
+        // Light purple theme color scheme for buildings - production grade
         const buildingType = props.building || props.type || 'building'
         const levels = props.levels || Math.round(height / 3)
         
-        let color = '#d1d5db' // Default gray
-        let alpha = 0.95
+        // Light pastel purple gradient based on building height
+        let color = '#c4b5fd'  // Default light purple
+        let alpha = 0.75
+        let outlineAlpha = 0.2
         
-        // Color by building type first, then refine by height
-        if (buildingType.includes('residential') || buildingType.includes('apartments') || buildingType.includes('house')) {
-          // Residential: warm tones
-          if (height > 30) color = '#9ca3af' // High-rise apartments
-          else if (height > 15) color = '#bfbfbf' // Mid-rise
-          else color = '#d4d4d4' // Low-rise houses
-        } else if (buildingType.includes('commercial') || buildingType.includes('retail') || buildingType.includes('shop')) {
-          // Commercial: blue-gray
-          color = '#94a3b8'
-        } else if (buildingType.includes('office')) {
-          // Office: darker gray
-          color = '#64748b'
-        } else if (buildingType.includes('industrial')) {
-          // Industrial: brownish
-          color = '#92857c'
+        if (height > 50) {
+          color = '#a78bfa'  // Medium purple (skyscrapers)
+          alpha = 0.85
+        } else if (height > 30) {
+          color = '#b8a5f8'  // Light-medium purple
+          alpha = 0.80
+        } else if (height > 15) {
+          color = '#c4b5fd'  // Light purple
+          alpha = 0.75
+        } else if (height > 8) {
+          color = '#d8cdf7'  // Very light purple
+          alpha = 0.70
         } else {
-          // Generic by height
-          if (height > 50) color = '#8b92a0'
-          else if (height > 30) color = '#a1a8b5'
-          else if (height > 15) color = '#b8bfc9'
-          else if (height > 8) color = '#cbd2db'
+          color = '#e9e3f8'  // Pale lavender
+          alpha = 0.65
         }
 
-        const entity = viewer.entities.add({
+        entityDataList.push({
           name: props.name || `Building`,
           polygon: {
             hierarchy: polygonHierarchy,
             material: Cesium.Color.fromCssColorString(color).withAlpha(alpha),
-            outline: true,
-            outlineColor: Cesium.Color.fromCssColorString('#ffffff').withAlpha(0.15),
-            outlineWidth: 1,
+            outline: false,
             height: 0,
             extrudedHeight: height,
             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
             extrudedHeightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
             perPositionHeight: false,
             closeTop: true,
-            closeBottom: true,
-            shadows: showShadows ? Cesium.ShadowMode.ENABLED : Cesium.ShadowMode.DISABLED
+            closeBottom: false,
+            shadows: Cesium.ShadowMode.DISABLED
           },
           properties: {
             height: height,
@@ -1752,7 +1874,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             area: props.area || 225 // Default ~15m x 15m
           }
         })
-        entities.push(entity)
         
         // Store first building's centroid as tile center
         if (tileCenterLat === null && centroidLat && centroidLng) {
@@ -1761,7 +1882,16 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         }
       }
       
-      viewer.entities.resumeEvents()
+      // Batch add all entities at once for better performance
+      viewer.entities.suspendEvents()
+      try {
+        for (const entityData of entityDataList) {
+          const entity = viewer.entities.add(entityData)
+          entities.push(entity)
+        }
+      } finally {
+        viewer.entities.resumeEvents()
+      }
       
       // Store entities for this tile
       tileEntitiesRef.current[tileId] = entities
@@ -1785,32 +1915,114 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     }
   }
 
-  // Load tiles for current viewport (progressive, persistent)
+  // Preload in progress flag to prevent concurrent executions
+  const preloadInProgressRef = useRef(false)
+
+  // Preload adjacent tiles for smoother panning (background operation)
+  const preloadAdjacentTiles = async () => {
+    if (preloadInProgressRef.current) return
+    preloadInProgressRef.current = true
+    
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) {
+      preloadInProgressRef.current = false
+      return
+    }
+    
+    // Get camera look-at ground point for preloading (same as main loading)
+    let cameraLat, cameraLng
+    const preCanvas = viewer.scene.canvas
+    const preRay = viewer.camera.getPickRay(new Cesium.Cartesian2(preCanvas.clientWidth / 2, preCanvas.clientHeight / 2))
+    if (preRay) {
+      const gp = viewer.scene.globe.pick(preRay, viewer.scene)
+      if (gp) {
+        const gc = Cesium.Cartographic.fromCartesian(gp)
+        cameraLat = Cesium.Math.toDegrees(gc.latitude)
+        cameraLng = Cesium.Math.toDegrees(gc.longitude)
+      }
+    }
+    if (cameraLat == null) {
+      const cameraCartographic = Cesium.Cartographic.fromCartesian(viewer.camera.position)
+      cameraLng = Cesium.Math.toDegrees(cameraCartographic.longitude)
+      cameraLat = Cesium.Math.toDegrees(cameraCartographic.latitude)
+    }
+    
+    // Double the radius for preloading
+    const preloadRadius = (BUILDING_LOAD_RADIUS_KM * 2) / 111.0
+    
+    const bbox = {
+      min_lng: cameraLng - preloadRadius,
+      min_lat: cameraLat - preloadRadius,
+      max_lng: cameraLng + preloadRadius,
+      max_lat: cameraLat + preloadRadius
+    }
+    
+    try {
+      const params = new URLSearchParams(bbox)
+      const response = await fetch(`${TILES_API}?${params}`)
+      if (!response.ok) return
+      
+      const data = await response.json()
+      const unloadedTiles = data.tiles.filter(t => !loadedTilesRef.current.has(t.id))
+      
+      if (unloadedTiles.length === 0) return
+      
+      // Only preload up to 5 tiles to avoid overwhelming
+      const tilesToPreload = unloadedTiles.slice(0, 5)
+      
+      // Load sequentially to avoid blocking main thread
+      for (const tile of tilesToPreload) {
+        if (!viewer.isDestroyed()) {
+          await loadTile(tile.id, tile.url)
+        }
+      }
+      
+      if (tilesToPreload.length > 0) {
+        console.log(`🔮 Preloaded ${tilesToPreload.length} adjacent tiles`)
+      }
+    } catch (err) {
+      // Silently fail for preloading - not critical
+    } finally {
+      preloadInProgressRef.current = false
+    }
+  }
+
+  // Load tiles for current viewport (progressive, persistent) with building limit
   const loadTilesForViewport = async () => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed()) return
+    if (loadingBuildingsRef.current) return // Ref-based guard for stale closures
 
-    // Get camera position and height for aggressive LOD
-    const cameraCartographic = Cesium.Cartographic.fromCartesian(viewer.camera.position)
-    const cameraHeight = cameraCartographic.height
-    const cameraLng = Cesium.Math.toDegrees(cameraCartographic.longitude)
-    const cameraLat = Cesium.Math.toDegrees(cameraCartographic.latitude)
-
-    // Don't load buildings when too far out (performance)
-    if (cameraHeight > 10000) {
-      setLoadingBuildings(false)
-      return
+    // Get camera look-at point on ground (not eye position) for correct building loading
+    let cameraLat, cameraLng, cameraHeight
+    
+    // Try to get the point the camera is looking at on the ground
+    const canvas = viewer.scene.canvas
+    const centerRay = viewer.camera.getPickRay(new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2))
+    if (centerRay) {
+      const groundPoint = viewer.scene.globe.pick(centerRay, viewer.scene)
+      if (groundPoint) {
+        const groundCarto = Cesium.Cartographic.fromCartesian(groundPoint)
+        cameraLat = Cesium.Math.toDegrees(groundCarto.latitude)
+        cameraLng = Cesium.Math.toDegrees(groundCarto.longitude)
+        cameraHeight = Cesium.Cartographic.fromCartesian(viewer.camera.position).height
+      }
+    }
+    
+    // Fallback to camera eye position if pick fails
+    if (cameraLat == null || cameraLng == null) {
+      const cameraCartographic = Cesium.Cartographic.fromCartesian(viewer.camera.position)
+      cameraHeight = cameraCartographic.height
+      cameraLng = Cesium.Math.toDegrees(cameraCartographic.longitude)
+      cameraLat = Cesium.Math.toDegrees(cameraCartographic.latitude)
     }
 
-    // Aggressive LOD: only load tiles near camera based on height (FASTER LOADING - smaller radius)
-    let loadRadius = 0.008 // ~800m default (reduced from 1km)
-    if (cameraHeight < 500) loadRadius = 0.003      // 300m when very close (reduced)
-    else if (cameraHeight < 1000) loadRadius = 0.006  // 600m (reduced)
-    else if (cameraHeight < 2000) loadRadius = 0.01   // 1km (reduced)
-    else if (cameraHeight < 5000) loadRadius = 0.015  // 1.5km (reduced)
-    else loadRadius = 0.02  // 2km when far (reduced)
+    // Adaptive load radius based on camera height
+    const baseRadius = BUILDING_LOAD_RADIUS_KM / 111.0
+    const heightFactor = Math.min(cameraHeight / 5000, 2.0) // Scale up for higher views
+    const loadRadius = baseRadius * Math.max(0.5, heightFactor)
 
-    // Load only tiles within radius of camera center (not entire viewport)
+    // Load only tiles within radius of camera look-at point
     const bbox = {
       min_lng: cameraLng - loadRadius,
       min_lat: cameraLat - loadRadius,
@@ -1818,13 +2030,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       max_lat: cameraLat + loadRadius
     }
 
-    // RAM Optimization: Distance-based eviction - release buildings far from camera
-    const MAX_TILES_IN_MEMORY = 50  // Increased to prevent premature eviction
-    const loadRadiusKm = loadRadius * 111.0
-    const evictionDistanceKm = loadRadiusKm * 5  // Increased to 5x to keep buildings visible longer
-    const MIN_TILE_AGE_MS = 10000  // Don't evict tiles loaded less than 10 seconds ago
-    
-    // Calculate distance from camera to each tile center
+    // Haversine distance calculator for prioritizing tiles by distance
     const haversineDistance = (lat1, lng1, lat2, lng2) => {
       const R = 6371 // Earth radius in km
       const dLat = (lat2 - lat1) * Math.PI / 180
@@ -1834,72 +2040,60 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 Math.sin(dLng/2) * Math.sin(dLng/2)
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
     }
-    
-    // Distance-based eviction: Remove tiles far from current camera position
-    const allTileIds = Array.from(loadedTilesRef.current)
-    const tilesWithDistance = allTileIds.map(id => {
-      const center = tileCentersRef.current[id]
-      if (!center) return { id, distance: Infinity }
-      const dist = haversineDistance(cameraLat, cameraLng, center.lat, center.lng)
-      return { id, distance: dist }
-    })
-    
-    // Sort by distance (farthest first) and evict tiles beyond eviction distance
-    tilesWithDistance.sort((a, b) => b.distance - a.distance)
-    
-    // Evict tiles that are too far OR if we have too many tiles, BUT not if recently loaded
-    const currentTime = Date.now()
-    const tilesToEvict = tilesWithDistance.filter(t => {
-      const loadTime = tileLoadTimesRef.current[t.id] || 0
-      const tileAge = currentTime - loadTime
-      
-      // Don't evict tiles younger than MIN_TILE_AGE_MS
-      if (tileAge < MIN_TILE_AGE_MS) return false
-      
-      // Evict if too far OR if we have too many tiles
-      return t.distance > evictionDistanceKm || 
-        (loadedTilesRef.current.size > MAX_TILES_IN_MEMORY && t.distance > loadRadiusKm * 2)
-    })
-    
-    if (tilesToEvict.length > 0) {
-      tilesToEvict.forEach(({ id }) => {
-        const entities = tileEntitiesRef.current[id]
-        if (entities) {
-          entities.forEach(e => viewer.entities.remove(e))
-          delete tileEntitiesRef.current[id]
-        }
-        delete tileCentersRef.current[id]
-        delete tileLoadTimesRef.current[id]
-        loadedTilesRef.current.delete(id)
-      })
-      console.log(`🧹 Released ${tilesToEvict.length} distant tiles from RAM (${loadedTilesRef.current.size} tiles remaining)`)
-    }
+
+    // Calculate current total building count
+    let currentBuildingCount = Object.values(tileEntitiesRef.current)
+      .reduce((sum, entities) => sum + entities.length, 0)
 
     try {
       // Get tiles for viewport
       const params = new URLSearchParams(bbox)
       const response = await fetch(`${TILES_API}?${params}`)
-      
+
       if (!response.ok) {
         console.warn('Tiles API not available:', response.status)
         return
       }
 
       const data = await response.json()
-      
+
       // Filter to only unloaded tiles
-      const newTiles = data.tiles.filter(t => !loadedTilesRef.current.has(t.id))
-      
-      if (newTiles.length === 0) return // All tiles already loaded
-      
-      // Limit total tiles to load at once for performance (INCREASED for faster loading)
-      const maxTilesPerLoad = 24  // Increased from 16
-      const tilesToLoad = newTiles.slice(0, maxTilesPerLoad)
-      
+      let newTiles = data.tiles.filter(t => !loadedTilesRef.current.has(t.id))
+
+      if (newTiles.length === 0) {
+        console.log(`[Buildings] All ${data.tiles.length} tiles already loaded, ${currentBuildingCount} buildings showing`)
+        return // All tiles already loaded
+      }
+
+      // Sort tiles by distance from camera (closest first for priority loading)
+      newTiles = newTiles.map(tile => {
+        const tileLng = (tile.min_lng + tile.max_lng) / 2
+        const tileLat = (tile.min_lat + tile.max_lat) / 2
+        const distance = haversineDistance(cameraLat, cameraLng, tileLat, tileLng)
+        return { ...tile, distance }
+      }).sort((a, b) => a.distance - b.distance)
+
+      // Calculate how many buildings we can still load
+      const remainingBuildingSlots = MAX_BUILDINGS_DISPLAY - currentBuildingCount
+      if (remainingBuildingSlots <= 0) {
+        console.log(`⛔ Building limit reached (${MAX_BUILDINGS_DISPLAY}). Not loading new tiles.`)
+        return
+      }
+
+      // Estimate buildings per tile (average ~50 per tile)
+      const avgBuildingsPerTile = 50
+      const maxTilesToLoad = Math.min(
+        Math.ceil(remainingBuildingSlots / avgBuildingsPerTile),
+        20 // Max 20 tiles per load for better coverage
+      )
+
+      const tilesToLoad = newTiles.slice(0, maxTilesToLoad)
+
       if (tilesToLoad.length === 0) return
-      
+
       setLoadingBuildings(true)
-      
+      loadingBuildingsRef.current = true
+
       // Update agentData loading state
       if (setAgentData) {
         setAgentData(prev => ({
@@ -1907,28 +2101,47 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           loadingBuildings: true
         }))
       }
-      
-      // Load tiles in parallel batches (INCREASED for faster loading)
-      const batchSize = 8  // Increased from 4 for faster parallel loading
+
+      // Load tiles in parallel batches - conservative batch size for stability
+      const batchSize = 6 // Balanced for speed without overwhelming
       let loadedCount = 0
-      
+      let buildingsLoaded = 0
+
       for (let i = 0; i < tilesToLoad.length; i += batchSize) {
+        // Check if we're approaching the limit
+        const currentCount = Object.values(tileEntitiesRef.current)
+          .reduce((sum, entities) => sum + entities.length, 0)
+        if (currentCount >= MAX_BUILDINGS_DISPLAY) {
+          console.log(`⛔ Stopping tile load: Building limit reached`)
+          break
+        }
+
         const batch = tilesToLoad.slice(i, i + batchSize)
         const results = await Promise.all(
           batch.map(tile => loadTile(tile.id, tile.url))
         )
         loadedCount += results.filter(r => r).length
+
+        // Count buildings in this batch
+        batch.forEach(tile => {
+          const entities = tileEntitiesRef.current[tile.id]
+          if (entities) {
+            buildingsLoaded += entities.length
+            tileBuildingCountsRef.current[tile.id] = entities.length
+          }
+        })
       }
-      
+
       // Update counts
       const totalBuildings = Object.values(tileEntitiesRef.current)
         .reduce((sum, entities) => sum + entities.length, 0)
-      
+
       setBuildingsCount(totalBuildings)
       setTilesLoaded(loadedTilesRef.current.size)
       setBuildingsLoaded(true)
       setLoadingBuildings(false)
-      
+      loadingBuildingsRef.current = false
+
       // Update agentData with building stats
       if (setAgentData) {
         setAgentData(prev => ({
@@ -1937,15 +2150,147 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           loadingBuildings: false
         }))
       }
-      
+
       if (loadedCount > 0) {
-        console.log(`🏢 Loaded ${loadedCount} new tiles (${totalBuildings} buildings total, ${loadedTilesRef.current.size} tiles)`)
+        console.log(`🏢 Loaded ${loadedCount} tiles (${buildingsLoaded} new buildings, ${totalBuildings} total)`)
       }
     } catch (err) {
       console.warn('Failed to load tiles:', err.message)
       setLoadingBuildings(false)
+      loadingBuildingsRef.current = false
     }
   }
+
+  // Clear ALL loaded building tiles from the scene
+  const clearAllBuildings = () => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return 0
+    let cleared = 0
+    viewer.entities.suspendEvents()
+    try {
+      for (const tileId of loadedTilesRef.current) {
+        const entities = tileEntitiesRef.current[tileId] || []
+        entities.forEach(entity => { try { viewer.entities.remove(entity) } catch (_) {} })
+        cleared += entities.length
+      }
+      tileEntitiesRef.current = {}
+      tileCentersRef.current = {}
+      tileLoadTimesRef.current = {}
+      tileBuildingCountsRef.current = {}
+      loadedTilesRef.current.clear()
+    } finally {
+      viewer.entities.resumeEvents()
+    }
+    if (cleared > 0) {
+      setBuildingsCount(0)
+      setTilesLoaded(0)
+      console.log(`🗑️ Cleared all ${cleared} buildings from scene`)
+    }
+    return cleared
+  }
+
+  // Load buildings in 5km radius around a clicked point
+  const loadBuildingsAtPoint = async (centerLat, centerLng) => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return
+    if (loadingBuildingsRef.current) return
+
+    // CRITICAL: Clear ALL existing buildings first so buildings always
+    // appear around the selected location, not a previous one
+    clearAllBuildings()
+
+    const radiusDeg = BUILDING_LOAD_RADIUS_KM / 111.0
+    const bbox = {
+      min_lng: centerLng - radiusDeg,
+      min_lat: centerLat - radiusDeg,
+      max_lng: centerLng + radiusDeg,
+      max_lat: centerLat + radiusDeg
+    }
+
+    let currentBuildingCount = Object.values(tileEntitiesRef.current)
+      .reduce((sum, ents) => sum + ents.length, 0)
+
+    try {
+      const params = new URLSearchParams(bbox)
+      const response = await fetch(`${TILES_API}?${params}`)
+      if (!response.ok) return
+
+      const data = await response.json()
+      let newTiles = data.tiles.filter(t => !loadedTilesRef.current.has(t.id))
+      if (newTiles.length === 0) {
+        console.log(`[Click] All ${data.tiles.length} tiles already loaded around (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)})`)
+        return
+      }
+
+      // Sort closest first
+      newTiles = newTiles.map(tile => {
+        const tileLng = (tile.min_lng + tile.max_lng) / 2
+        const tileLat = (tile.min_lat + tile.max_lat) / 2
+        return { ...tile, distance: haversine(centerLat, centerLng, tileLat, tileLng) }
+      }).sort((a, b) => a.distance - b.distance)
+
+      const remainingSlots = MAX_BUILDINGS_DISPLAY - currentBuildingCount
+      if (remainingSlots <= 0) return
+
+      const maxTiles = Math.min(Math.ceil(remainingSlots / 50), 25)
+      const tilesToLoad = newTiles.slice(0, maxTiles)
+      if (tilesToLoad.length === 0) return
+
+      setLoadingBuildings(true)
+      loadingBuildingsRef.current = true
+      if (setAgentData) setAgentData(prev => ({ ...prev, loadingBuildings: true }))
+
+      const batchSize = 6
+      let loadedCount = 0
+      let buildingsAdded = 0
+
+      for (let i = 0; i < tilesToLoad.length; i += batchSize) {
+        const curCount = Object.values(tileEntitiesRef.current).reduce((s, e) => s + e.length, 0)
+        if (curCount >= MAX_BUILDINGS_DISPLAY) break
+
+        const batch = tilesToLoad.slice(i, i + batchSize)
+        const results = await Promise.all(batch.map(tile => loadTile(tile.id, tile.url)))
+        loadedCount += results.filter(r => r).length
+
+        batch.forEach(tile => {
+          const entities = tileEntitiesRef.current[tile.id]
+          if (entities) {
+            buildingsAdded += entities.length
+            tileBuildingCountsRef.current[tile.id] = entities.length
+          }
+        })
+      }
+
+      const totalBuildings = Object.values(tileEntitiesRef.current).reduce((s, e) => s + e.length, 0)
+      setBuildingsCount(totalBuildings)
+      setTilesLoaded(loadedTilesRef.current.size)
+      setBuildingsLoaded(true)
+      setLoadingBuildings(false)
+      loadingBuildingsRef.current = false
+      if (setAgentData) setAgentData(prev => ({ ...prev, buildingsCount: totalBuildings, loadingBuildings: false }))
+
+      if (loadedCount > 0) {
+        console.log(`🏢 Click-loaded ${loadedCount} tiles (${buildingsAdded} buildings) around (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}), ${totalBuildings} total`)
+      }
+    } catch (err) {
+      console.warn('Failed to load buildings at point:', err.message)
+      setLoadingBuildings(false)
+      loadingBuildingsRef.current = false
+    }
+  }
+
+  // Keep refs in sync for camera listener closure
+  const loadBuildingsAtPointRef = useRef(loadBuildingsAtPoint)
+  const loadTilesForViewportRef = useRef(loadTilesForViewport)
+  const preloadAdjacentTilesRef = useRef(preloadAdjacentTiles)
+  useEffect(() => {
+    loadBuildingsAtPointRef.current = loadBuildingsAtPoint
+    loadTilesForViewportRef.current = loadTilesForViewport
+    preloadAdjacentTilesRef.current = preloadAdjacentTiles
+  })
+  useEffect(() => {
+    showBuildingsRef.current = showBuildings
+  }, [showBuildings])
 
   // Handle flyTo commands from chat
   useEffect(() => {
@@ -1957,6 +2302,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       const latNum = Number(lat)
       const lngNum = Number(lng)
       if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return
+
+      // Stop any active rotation before flying to new location
+      stopRotation()
+      try { viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY) } catch (_) {}
 
       const camera = viewer.camera
       lastCameraViewRef.current = {
@@ -1979,20 +2328,24 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       placeMarkerRef.current = viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(lngNum, latNum),
         point: {
-          pixelSize: 10,
-          color: Cesium.Color.fromCssColorString('#3b82f6'),
+          pixelSize: 14,
+          color: Cesium.Color.fromCssColorString('#8b5cf6'),
           outlineColor: Cesium.Color.WHITE,
-          outlineWidth: 2,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+          outlineWidth: 3,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
         },
         label: {
-          text: placeName,
-          font: '14px sans-serif',
+          text: `📍 ${placeName}`,
+          font: 'bold 13px Inter, system-ui, sans-serif',
           fillColor: Cesium.Color.WHITE,
-          outlineColor: Cesium.Color.fromCssColorString('#111827'),
+          outlineColor: Cesium.Color.fromCssColorString('#0f172a'),
           outlineWidth: 3,
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cesium.Cartesian2(0, -24),
+          showBackground: true,
+          backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85),
+          backgroundPadding: new Cesium.Cartesian2(10, 6),
+          pixelOffset: new Cesium.Cartesian2(0, -28),
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY
@@ -2003,6 +2356,25 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       const terrainHeight = getTerrainHeight(lngNum, latNum)
       const adjustedHeight = height + terrainHeight
       
+      // Set rotation target for orbit during analysis
+      rotationTargetRef.current = getTerrainAwareTarget(lngNum, latNum)
+      
+      // Ensure buildings layer is ON so loaded buildings are visible
+      if (!showBuildingsRef.current) {
+        setShowBuildings(true)
+        showBuildingsRef.current = true
+      }
+
+      // Force-reset loading guard in case a previous load got stuck
+      loadingBuildingsRef.current = false
+
+      let buildingsTriggered = false
+      const triggerBuildingLoad = () => {
+        if (buildingsTriggered) return
+        buildingsTriggered = true
+        loadBuildingsAtPointRef.current(latNum, lngNum)
+      }
+
       viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, adjustedHeight),
         orientation: {
@@ -2010,13 +2382,16 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           pitch: Cesium.Math.toRadians(-45),
           roll: 0
         },
-        duration: 2.5,
+        duration: 2.0,
         complete: () => {
-          // Load buildings after flyTo completes
-          setTimeout(loadTilesForViewport, 500)
+          // Load buildings around the flyTo destination
+          setTimeout(triggerBuildingLoad, 300)
         }
       })
-      setTimeout(() => { if (setAgentData) setAgentData(prev => ({ ...prev, flyTo: null })) }, 3000)
+      // Fallback: if complete callback doesn't fire (e.g. flight interrupted), load anyway
+      setTimeout(triggerBuildingLoad, 2800)
+      // Clear flyTo after camera flight + building load completes
+      setTimeout(() => { if (setAgentData) setAgentData(prev => ({ ...prev, flyTo: null })) }, 5000)
     }
   }, [agentData?.flyTo, setAgentData])
 
@@ -2039,41 +2414,153 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         })
         propertyMarkersRef.current = []
         
-        // Add new property markers
+        // Create canvas-rendered property billboard
+        const createPropertyCanvas = (index, bhk, price, type) => {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          const dpr = 2 // High-DPI
+          
+          // Layout
+          const priceText = price ? `₹${price >= 10000000 ? (price / 10000000).toFixed(1) + 'Cr' : (price / 100000).toFixed(0) + 'L'}` : ''
+          const bhkText = bhk ? `${bhk}BHK` : ''
+          const typeText = type ? String(type).substring(0, 12) : ''
+          const line1 = [bhkText, typeText].filter(Boolean).join(' · ') || `Property ${index + 1}`
+          const line2 = priceText
+          
+          ctx.font = `bold ${13 * dpr}px Inter, system-ui, sans-serif`
+          const w1 = ctx.measureText(line1).width
+          ctx.font = `bold ${15 * dpr}px Inter, system-ui, sans-serif`
+          const w2 = line2 ? ctx.measureText(line2).width : 0
+          
+          const padX = 14 * dpr
+          const padY = 8 * dpr
+          const gap = line2 ? 4 * dpr : 0
+          const lineH1 = 16 * dpr
+          const lineH2 = line2 ? 18 * dpr : 0
+          const indexW = 24 * dpr
+          const w = Math.max(w1, w2) + padX * 2 + indexW + 8 * dpr
+          const h = padY * 2 + lineH1 + gap + lineH2
+          const pointerH = 8 * dpr
+          
+          canvas.width = w
+          canvas.height = h + pointerH
+          
+          // Background with subtle gradient
+          const grad = ctx.createLinearGradient(0, 0, 0, h)
+          grad.addColorStop(0, 'rgba(15, 23, 42, 0.95)')
+          grad.addColorStop(1, 'rgba(30, 41, 59, 0.95)')
+          
+          // Rounded rect
+          const r = 6 * dpr
+          ctx.beginPath()
+          ctx.moveTo(r, 0)
+          ctx.lineTo(w - r, 0)
+          ctx.quadraticCurveTo(w, 0, w, r)
+          ctx.lineTo(w, h - r)
+          ctx.quadraticCurveTo(w, h, w - r, h)
+          ctx.lineTo(w / 2 + pointerH, h)
+          ctx.lineTo(w / 2, h + pointerH)
+          ctx.lineTo(w / 2 - pointerH, h)
+          ctx.lineTo(r, h)
+          ctx.quadraticCurveTo(0, h, 0, h - r)
+          ctx.lineTo(0, r)
+          ctx.quadraticCurveTo(0, 0, r, 0)
+          ctx.closePath()
+          ctx.fillStyle = grad
+          ctx.fill()
+          
+          // Left accent border
+          ctx.fillStyle = '#8b5cf6'
+          ctx.fillRect(0, 6 * dpr, 3 * dpr, h - 12 * dpr)
+          
+          // Index badge
+          const badgeX = padX - 2 * dpr
+          const badgeY = padY
+          const badgeR = 10 * dpr
+          ctx.beginPath()
+          ctx.arc(badgeX + badgeR, badgeY + badgeR, badgeR, 0, Math.PI * 2)
+          ctx.fillStyle = '#8b5cf6'
+          ctx.fill()
+          ctx.font = `bold ${11 * dpr}px Inter, system-ui, sans-serif`
+          ctx.fillStyle = '#ffffff'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(String(index + 1), badgeX + badgeR, badgeY + badgeR)
+          
+          // Line 1: BHK · Type
+          const textX = badgeX + badgeR * 2 + 8 * dpr
+          ctx.textAlign = 'left'
+          ctx.textBaseline = 'top'
+          ctx.font = `600 ${13 * dpr}px Inter, system-ui, sans-serif`
+          ctx.fillStyle = '#e2e8f0'
+          ctx.fillText(line1, textX, padY + 2 * dpr)
+          
+          // Line 2: Price (if exists)
+          if (line2) {
+            ctx.font = `bold ${15 * dpr}px Inter, system-ui, sans-serif`
+            ctx.fillStyle = '#a78bfa'
+            ctx.fillText(line2, textX, padY + lineH1 + gap)
+          }
+          
+          return canvas
+        }
+        
+        // Add new property markers with modern design
+        // Group properties by coordinate so overlapping ones stack vertically
+        const coordGroups = {}
         properties.forEach((prop, index) => {
           if (!prop.lat || !prop.lng) return
-          
-          const priceLabel = prop.price ? `₹${(prop.price / 100000).toFixed(1)}L` : ''
-          const bhkLabel = prop.bedrooms ? `${prop.bedrooms}BHK` : ''
-          const label = [bhkLabel, priceLabel].filter(Boolean).join(' • ') || `Property ${index + 1}`
-          
-          const marker = viewer.entities.add({
-            position: Cesium.Cartesian3.fromDegrees(prop.lng, prop.lat),
-            point: {
-              pixelSize: 12,
-              color: Cesium.Color.fromCssColorString('#22c55e'),
-              outlineColor: Cesium.Color.WHITE,
-              outlineWidth: 2,
-              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-            },
-            label: {
-              text: label,
-              font: '12px sans-serif',
-              fillColor: Cesium.Color.WHITE,
-              outlineColor: Cesium.Color.fromCssColorString('#111827'),
-              outlineWidth: 2,
-              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-              pixelOffset: new Cesium.Cartesian2(0, -20),
-              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
-              showBackground: true,
-              backgroundColor: Cesium.Color.fromCssColorString('#22c55e').withAlpha(0.8),
-              backgroundPadding: new Cesium.Cartesian2(6, 3)
-            }
-          })
-          propertyMarkersRef.current.push(marker)
+          const key = `${Number(prop.lat).toFixed(5)}_${Number(prop.lng).toFixed(5)}`
+          if (!coordGroups[key]) coordGroups[key] = []
+          coordGroups[key].push({ ...prop, _originalIndex: index })
         })
+
+        let firstProp = null
+        Object.values(coordGroups).forEach(group => {
+          group.forEach((prop, stackIndex) => {
+            if (!firstProp) firstProp = prop
+            const index = prop._originalIndex
+            
+            const canvas = createPropertyCanvas(
+              index,
+              prop.bedrooms,
+              prop.price,
+              prop.property_type || prop.type
+            )
+            
+            // Stack vertically: each card at same coord gets 60m height offset
+            const verticalOffset = stackIndex * 60
+            
+            const marker = viewer.entities.add({
+              name: `property_marker_${index}`,
+              position: Cesium.Cartesian3.fromDegrees(prop.lng, prop.lat, verticalOffset),
+              billboard: {
+                image: canvas,
+                width: canvas.width / 2,
+                height: canvas.height / 2,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                heightReference: verticalOffset > 0 ? Cesium.HeightReference.RELATIVE_TO_GROUND : Cesium.HeightReference.CLAMP_TO_GROUND,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                scaleByDistance: new Cesium.NearFarScalar(500, 1.0, 15000, 0.5),
+                translucencyByDistance: new Cesium.NearFarScalar(500, 1.0, 25000, 0.3),
+                eyeOffset: new Cesium.Cartesian3(0, 0, -(index * 0.5))
+              },
+              properties: {
+                isPropertyMarker: true,
+                propertyIndex: index,
+                propertyData: JSON.stringify(prop)
+              }
+            })
+            propertyMarkersRef.current.push(marker)
+          })
+        })
+        
+        // Also trigger building load at the center of properties
+        if (firstProp && loadBuildingsAtPointRef.current) {
+          loadingBuildingsRef.current = false
+          loadBuildingsAtPointRef.current(Number(firstProp.lat), Number(firstProp.lng))
+        }
         return
       }
       
@@ -2100,20 +2587,24 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         placeMarkerRef.current = viewer.entities.add({
           position: Cesium.Cartesian3.fromDegrees(lngNum, latNum),
           point: {
-            pixelSize: 10,
-            color: Cesium.Color.fromCssColorString('#3b82f6'),
+            pixelSize: 14,
+            color: Cesium.Color.fromCssColorString('#8b5cf6'),
             outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 2,
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+            outlineWidth: 3,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY
           },
           label: {
-            text: 'Selected location',
-            font: '14px sans-serif',
+            text: '📍 Selected location',
+            font: 'bold 13px Inter, system-ui, sans-serif',
             fillColor: Cesium.Color.WHITE,
-            outlineColor: Cesium.Color.fromCssColorString('#111827'),
+            outlineColor: Cesium.Color.fromCssColorString('#0f172a'),
             outlineWidth: 3,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            pixelOffset: new Cesium.Cartesian2(0, -24),
+            showBackground: true,
+            backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85),
+            backgroundPadding: new Cesium.Cartesian2(10, 6),
+            pixelOffset: new Cesium.Cartesian2(0, -28),
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
             disableDepthTestDistance: Number.POSITIVE_INFINITY
@@ -2125,6 +2616,20 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         const terrainHeight = getTerrainHeight(lngNum, latNum)
         const adjustedHeight = height + terrainHeight
         
+        // Ensure buildings layer is ON
+        if (!showBuildingsRef.current) {
+          setShowBuildings(true)
+          showBuildingsRef.current = true
+        }
+        loadingBuildingsRef.current = false
+
+        let centerBuildingsTriggered = false
+        const triggerCenterBuildings = () => {
+          if (centerBuildingsTriggered) return
+          centerBuildingsTriggered = true
+          loadBuildingsAtPointRef.current(latNum, lngNum)
+        }
+
         viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, adjustedHeight),
           orientation: {
@@ -2132,17 +2637,63 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             pitch: Cesium.Math.toRadians(-45),
             roll: 0
           },
-          duration: 2.5
+          duration: 2.5,
+          complete: () => setTimeout(triggerCenterBuildings, 500)
         })
+        setTimeout(triggerCenterBuildings, 3500)
       }
     }
     
+    // Agentic step visual feedback — pulse ring on map during autonomous reasoning
+    const pulseEntityRef = { current: null }
+    const handleAgenticStep = (e) => {
+      const viewer = viewerRef.current
+      if (!viewer || viewer.isDestroyed()) return
+
+      const selectedLoc = selectedLocationRef.current || selectedBuildingCoordsRef.current
+      if (!selectedLoc?.lat || !selectedLoc?.lng) return
+
+      // Remove previous pulse
+      if (pulseEntityRef.current) {
+        try { viewer.entities.remove(pulseEntityRef.current) } catch (_) {}
+      }
+
+      // Add expanding pulse ring at analysis location
+      const center = Cesium.Cartesian3.fromDegrees(selectedLoc.lng, selectedLoc.lat)
+      pulseEntityRef.current = viewer.entities.add({
+        position: center,
+        ellipse: {
+          semiMajorAxis: 200,
+          semiMinorAxis: 200,
+          height: 0,
+          material: Cesium.Color.fromCssColorString('#8b5cf6').withAlpha(0.15),
+          outline: true,
+          outlineColor: Cesium.Color.fromCssColorString('#8b5cf6').withAlpha(0.6),
+          outlineWidth: 2,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+        }
+      })
+
+      // Auto-remove pulse after 2 seconds
+      setTimeout(() => {
+        if (pulseEntityRef.current) {
+          try { viewer.entities.remove(pulseEntityRef.current) } catch (_) {}
+          pulseEntityRef.current = null
+        }
+      }, 2000)
+    }
+
     window.addEventListener('valora-map-command', handleMapCommand)
     window.addEventListener('valora-ui-command', handleMapCommand)
+    window.addEventListener('valora-agentic-step', handleAgenticStep)
     
     return () => {
       window.removeEventListener('valora-map-command', handleMapCommand)
       window.removeEventListener('valora-ui-command', handleMapCommand)
+      window.removeEventListener('valora-agentic-step', handleAgenticStep)
+      if (pulseEntityRef.current) {
+        try { viewerRef.current?.entities?.remove(pulseEntityRef.current) } catch (_) {}
+      }
     }
   }, [])
 
@@ -2158,19 +2709,66 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         const canvas = document.createElement('canvas')
         const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
         const hasGPU = !!gl
-        const gpuVendor = hasGPU ? gl.getParameter(gl.VENDOR) : 'Unknown'
-        const gpuRenderer = hasGPU ? gl.getParameter(gl.RENDERER) : 'Unknown'
         
-        // Detect if dedicated GPU (NVIDIA, AMD) vs integrated (Intel)
-        const isDedicatedGPU = gpuRenderer.toLowerCase().includes('nvidia') || 
-                               gpuRenderer.toLowerCase().includes('amd') || 
-                               gpuRenderer.toLowerCase().includes('radeon') ||
-                               gpuRenderer.toLowerCase().includes('geforce') ||
-                               gpuRenderer.toLowerCase().includes('rtx') ||
-                               gpuRenderer.toLowerCase().includes('gtx')
+        // Get GPU info - use UNMASKED_RENDERER_WEBGL for actual GPU name
+        let gpuVendor = hasGPU ? gl.getParameter(gl.VENDOR) : 'Unknown'
+        let gpuRenderer = hasGPU ? gl.getParameter(gl.RENDERER) : 'Unknown'
         
-        console.log(`🎮 GPU Detected: ${gpuVendor} - ${gpuRenderer}`)
-        console.log(`🚀 GPU Type: ${isDedicatedGPU ? 'DEDICATED (High Performance Mode)' : 'INTEGRATED (Balanced Mode)'}`)
+        // Try to get unmasked GPU info (actual GPU name, not "WebGL")
+        let debugInfoAvailable = false
+        if (hasGPU) {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info')
+          if (debugInfo) {
+            debugInfoAvailable = true
+            const unmaskedVendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL)
+            const unmaskedRenderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
+            if (unmaskedVendor) gpuVendor = unmaskedVendor
+            if (unmaskedRenderer) gpuRenderer = unmaskedRenderer
+            
+            // Debug logging for GPU detection
+            console.log('🔍 RAW GPU Detection:', {
+              vendor: unmaskedVendor,
+              renderer: unmaskedRenderer,
+              standardVendor: gl.getParameter(gl.VENDOR),
+              standardRenderer: gl.getParameter(gl.RENDERER),
+              hasNVIDIA: unmaskedRenderer?.toLowerCase().includes('nvidia'),
+              hasAMD: unmaskedRenderer?.toLowerCase().includes('amd') || unmaskedRenderer?.toLowerCase().includes('radeon'),
+              hasIntel: unmaskedRenderer?.toLowerCase().includes('intel')
+            })
+          } else {
+            console.warn('⚠️ WEBGL_debug_renderer_info not available - GPU detection may be inaccurate')
+          }
+        }
+        
+        // GPU detection - AMD optimized as default for best APU performance
+        const gpuRendererLower = gpuRenderer.toLowerCase()
+        const isNVIDIA = gpuRendererLower.includes('nvidia') || 
+                         gpuRendererLower.includes('geforce') || 
+                         gpuRendererLower.includes('rtx') || 
+                         gpuRendererLower.includes('gtx') ||
+                         gpuRendererLower.includes('quadro') ||
+                         gpuRendererLower.includes('tesla')
+        const isAMD = gpuRendererLower.includes('amd') || 
+                      gpuRendererLower.includes('radeon') ||
+                      gpuRendererLower.includes('ati')
+        const isIntel = gpuRendererLower.includes('intel')
+        
+        // AMD is now treated as dedicated GPU for optimal APU performance
+        const isDedicatedGPU = isNVIDIA || isAMD
+        const isAPU = isAMD // AMD APUs are optimized for this workload
+        
+        // Log GPU detection for debugging
+        console.log('%c🎮 GPU DETECTION RESULT:', 'font-size: 14px; font-weight: bold; color: #8b5cf6;')
+        console.log(`   Vendor: ${gpuVendor}`)
+        console.log(`   Renderer: ${gpuRenderer}`)
+        console.log(`   Type: ${isAMD ? 'AMD APU (Optimized)' : isNVIDIA ? 'NVIDIA (Dedicated)' : isIntel ? 'Intel (Integrated)' : 'Unknown'}`)
+        console.log(`   Is APU: ${isAPU}`)
+        console.log(`   Is Dedicated: ${isDedicatedGPU}`)
+        
+        // AMD APU optimization message
+        if (isAMD) {
+          console.log('%c🚀 AMD APU detected - using optimized settings for shared memory architecture', 'color: #10b981;')
+        }
         
         const viewer = new Cesium.Viewer(cesiumContainerRef.current, {
           animation: false,
@@ -2184,11 +2782,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           timeline: false,
           navigationHelpButton: false,
           creditContainer: document.createElement('div'),
-          shadows: true,
+          shadows: false, // Controlled by showShadows state
           shouldAnimate: true,
           terrainShadows: Cesium.ShadowMode.DISABLED,
-          requestRenderMode: true, // RAM optimization - only render when needed
-          maximumRenderTimeChange: 0.0, // GPU optimization - render every frame change
+          requestRenderMode: false, // DISABLED: Smooth continuous rendering for panning (was causing lag even at 60fps)
+          // maximumRenderTimeChange removed - not needed when requestRenderMode is false
           contextOptions: {
             webgl: {
               alpha: false, // GPU optimization - no alpha channel
@@ -2211,18 +2809,37 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           isDedicated: isDedicatedGPU
         })
 
-        // Auto-configure quality based on GPU type
-        if (isDedicatedGPU) {
+        // Auto-configure quality based on GPU type - AMD APU optimized
+        if (isAPU) {
+          console.log('🚀 AMD APU: Enabling optimized settings for shared memory architecture')
+          
+          // AMD APU optimized shadow settings - lower resolution for shared memory
+          viewer.shadowMap.enabled = true
+          viewer.shadowMap.darkness = 0.75
+          viewer.shadowMap.size = 2048 // 2K shadows optimal for AMD APUs
+          viewer.shadowMap.softShadows = false // Disable soft shadows for APU performance
+          viewer.shadows = true
+          
+          // High building quality for AMD APUs (they handle it well)
+          setBuildingQuality('high')
+          
+          // Native resolution scale for sharp rendering
+          viewer.resolutionScale = window.devicePixelRatio || 1.0
+          
+          // AMD APU specific optimizations
+          viewer.scene.globe.tileCacheSize = 1024 // Larger cache for AMD APUs
+          viewer.scene.fog.enabled = false // Disable fog for better performance
+          
+          console.log('✅ AMD APU optimized: 2K shadows, high quality, shared memory optimized')
+        } else if (isDedicatedGPU) {
           console.log('🚀 DEDICATED GPU: Enabling high-end graphics for better simulations & storytelling')
           
-          // High-quality shadows for dedicated GPU
+          // High-quality shadow configuration for dedicated GPU
           viewer.shadowMap.enabled = true
           viewer.shadowMap.darkness = 0.7
           viewer.shadowMap.size = 4096 // 4K shadow maps
           viewer.shadowMap.softShadows = true
-          
-          // Enable building shadows by default
-          setShowShadows(true)
+          viewer.shadows = true
           
           // Set high building quality
           setBuildingQuality('high')
@@ -2234,14 +2851,12 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         } else {
           console.log('⚖️ INTEGRATED GPU: Using balanced graphics settings')
           
-          // Balanced shadows for integrated GPU
+          // Balanced shadow configuration for integrated GPU
           viewer.shadowMap.enabled = true
           viewer.shadowMap.darkness = 0.6
           viewer.shadowMap.size = 2048
           viewer.shadowMap.softShadows = false // Disable soft shadows for performance
-          
-          // Shadows off by default for integrated GPU
-          setShowShadows(false)
+          viewer.shadows = true
           
           // Medium building quality
           setBuildingQuality('medium')
@@ -2277,12 +2892,16 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           switchBasemap(basemapType)
         }
 
-        // Configure globe - disable lighting to prevent dark terrain appearance
+        // Configure globe with maximum cache for smooth performance
         viewer.scene.globe.show = true
         viewer.scene.globe.enableLighting = false  // Disabled to keep terrain bright
         viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#f0f0f0')
         viewer.scene.globe.terrainExaggeration = terrainExaggeration
         viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
+        
+        // MAXIMUM CACHE SETTINGS for smooth panning
+        viewer.scene.globe.tileCacheSize = 512 // Maximum tile cache (was default ~20MB)
+        viewer.scene.globe.lodUpdateInterval = 0 // Update LOD immediately for smoother transitions
         // Disable depth test against terrain so buildings at height 0 are visible
         // (buildings are extruded from ellipsoid surface, not terrain surface)
         viewer.scene.globe.depthTestAgainstTerrain = false
@@ -2335,17 +2954,46 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         // Place labels disabled - AI will handle labels in cinematic storyboard
         // await ensurePlacesLabelsLoaded()
 
-        // Track camera changes
-        viewer.camera.changed.addEventListener(updateHeading)
+        // Camera movement tracking for performance optimization
+        let isCameraMoving = false
+        let cameraMoveStartTime = 0
+        const CAMERA_MOVE_DELAY_MS = 50 // Reduced from 100ms for faster building display
         
-        // Track camera movement end to load buildings and update mapCenter (FASTER TRIGGER)
-        viewer.camera.moveEnd.addEventListener(() => {
+        // Preload timeout ref for predictive loading
+        const preloadTimeoutRef = { current: null }
+        
+        // Track camera movement start - pause expensive operations
+        viewer.camera.moveStart.addEventListener(() => {
+          isCameraMoving = true
+          cameraMoveStartTime = Date.now()
+          
+          // Keep shadows enabled for better visuals during movement
+          // Don't disable - it causes flickering
+          
+          // Cancel any pending building load
           clearTimeout(cameraMoveTimeoutRef.current)
+        })
+        
+        // Track camera movement end with throttling
+        let lastMoveEndTime = 0
+        const MOVE_END_THROTTLE_MS = 25 // Reduced from 50ms for faster response
+        
+        viewer.camera.moveEnd.addEventListener(() => {
+          const now = Date.now()
+          
+          // Throttle moveEnd processing
+          if (now - lastMoveEndTime < MOVE_END_THROTTLE_MS) {
+            return
+          }
+          lastMoveEndTime = now
+          
+          clearTimeout(cameraMoveTimeoutRef.current)
+          clearTimeout(preloadTimeoutRef.current)
+          
           cameraMoveTimeoutRef.current = setTimeout(() => {
-            // Only load tiles if buildings are enabled
-            if (showBuildings) {
-              loadTilesForViewport()
-            }
+            isCameraMoving = false
+            
+            // Buildings now load on click only (not on camera move) for better performance
             
             // Update mapCenter in agentData for viewport analysis
             if (setAgentData && viewer && !viewer.isDestroyed()) {
@@ -2356,16 +3004,35 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 const height = cameraCartographic.height
                 
                 if (Number.isFinite(centerLat) && Number.isFinite(centerLng)) {
-                  setAgentData(prev => ({
+                  // Compute viewport bounds for viewport-aware context
+                  let viewportBounds = null
+                  try {
+                    const canvas = viewer.scene.canvas
+                    const topLeft = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(0, 0), viewer.scene.globe.ellipsoid)
+                    const bottomRight = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(canvas.clientWidth, canvas.clientHeight), viewer.scene.globe.ellipsoid)
+                    if (topLeft && bottomRight) {
+                      const tlCarto = Cesium.Cartographic.fromCartesian(topLeft)
+                      const brCarto = Cesium.Cartographic.fromCartesian(bottomRight)
+                      viewportBounds = {
+                        north: Cesium.Math.toDegrees(tlCarto.latitude),
+                        south: Cesium.Math.toDegrees(brCarto.latitude),
+                        west: Cesium.Math.toDegrees(tlCarto.longitude),
+                        east: Cesium.Math.toDegrees(brCarto.longitude)
+                      }
+                    }
+                  } catch (_) {}
+
+                  updateAgentData(prev => ({
                     ...prev,
-                    mapCenter: { lat: centerLat, lng: centerLng, height }
+                    mapCenter: { lat: centerLat, lng: centerLng, height },
+                    viewportBounds
                   }))
                 }
               } catch (e) {
                 console.warn('Failed to update mapCenter:', e)
               }
             }
-          }, 200)  // Reduced from 500ms to 200ms for faster loading
+          }, CAMERA_MOVE_DELAY_MS)
         })
 
         // Function to deselect building
@@ -2373,18 +3040,22 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           if (selectedBuildingEntityRef.current && selectedBuildingEntityRef.current.polygon) {
             const entity = selectedBuildingEntityRef.current
             const height = entity.properties?.height?.getValue() || 10
-            let color = '#e8e8e8'
-            if (height > 50) color = '#9ca3af'
-            else if (height > 30) color = '#a8a8a8'
-            else if (height > 15) color = '#c4c4c4'
-            else if (height > 8) color = '#d4d4d4'
-            entity.polygon.material = Cesium.Color.fromCssColorString(color).withAlpha(0.9)
+            
+            // Light pastel purple gradient based on building height
+            let color = '#c4b5fd'  // Default light purple
+            if (height > 50) color = '#a78bfa'  // Medium purple (skyscrapers)
+            else if (height > 30) color = '#b8a5f8'  // Light-medium purple
+            else if (height > 15) color = '#c4b5fd'  // Light purple
+            else if (height > 8) color = '#d8cdf7'  // Very light purple
+            else color = '#e9e3f8'  // Pale lavender
+            
+            entity.polygon.material = Cesium.Color.fromCssColorString(color).withAlpha(0.75)
             entity.polygon.outline = false
             selectedBuildingEntityRef.current = null
           }
           
           if (setAgentData) {
-            setAgentData(prev => ({
+            updateAgentData(prev => ({
               ...prev,
               selectedBuilding: null,
               buildingAnalysis: null,
@@ -2403,12 +3074,16 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           
           // Set loading state
           if (setAgentData) {
-            setAgentData(prev => ({
+            updateAgentData(prev => ({
               ...prev,
               buildingAnalysisLoading: true,
               buildingAnalysis: null
             }))
           }
+          
+          // Start rotation immediately for better UX
+          // (rotation is managed by the useEffect that watches buildingAnalysisLoading)
+          // No need to duplicate rotation logic here — setting the loading state triggers it
           
           // Open analysis panel
           window.dispatchEvent(new CustomEvent('valora-ui-command', {
@@ -2436,7 +3111,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             if (response.ok) {
               const analysis = await response.json()
               if (setAgentData) {
-                setAgentData(prev => ({
+                updateAgentData(prev => ({
                   ...prev,
                   buildingAnalysisLoading: false,
                   buildingAnalysis: analysis
@@ -2446,7 +3121,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             } else {
               console.warn('Building analysis failed:', response.status)
               if (setAgentData) {
-                setAgentData(prev => ({
+                updateAgentData(prev => ({
                   ...prev,
                   buildingAnalysisLoading: false
                 }))
@@ -2455,7 +3130,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           } catch (err) {
             console.error('Building analysis error:', err)
             if (setAgentData) {
-              setAgentData(prev => ({
+              updateAgentData(prev => ({
                 ...prev,
                 buildingAnalysisLoading: false
               }))
@@ -2476,6 +3151,60 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           }
 
           const pickedObject = viewer.scene.pick(click.position)
+
+          // Check if a property marker was clicked (interactive property cards)
+          if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
+            const entity = pickedObject.id
+            const isPropertyMarker = entity.properties?.isPropertyMarker?.getValue?.()
+            
+            if (isPropertyMarker) {
+              try {
+                const propData = JSON.parse(entity.properties.propertyData.getValue())
+                const propIndex = entity.properties.propertyIndex.getValue()
+                const propLat = Number(propData.lat)
+                const propLng = Number(propData.lng)
+                
+                if (Number.isFinite(propLat) && Number.isFinite(propLng)) {
+                  // Fly closer to the property
+                  const target = getTerrainAwareTarget(propLng, propLat, 15)
+                  rotationTargetRef.current = target
+                  const orbitDistance = 200
+                  const orbitPitch = Cesium.Math.toRadians(-35)
+                  
+                  viewer.camera.flyToBoundingSphere(
+                    new Cesium.BoundingSphere(target, orbitDistance / 2),
+                    {
+                      duration: 1.5,
+                      offset: new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance)
+                    }
+                  )
+                  
+                  // Update agentData with selected property
+                  if (setAgentData) {
+                    updateAgentData(prev => ({
+                      ...prev,
+                      selectedProperty: { ...propData, index: propIndex },
+                      selectedBuilding: null
+                    }))
+                  }
+                  
+                  // Dispatch event for chat panel
+                  const bhk = propData.bedrooms ? `${propData.bedrooms}BHK` : ''
+                  const pType = propData.property_type || propData.type || 'property'
+                  const price = propData.price ? `₹${propData.price >= 10000000 ? (propData.price / 10000000).toFixed(1) + 'Cr' : (propData.price / 100000).toFixed(0) + 'L'}` : ''
+                  window.dispatchEvent(new CustomEvent('valora-property-clicked', {
+                    detail: {
+                      property: propData,
+                      query: `Tell me about this ${bhk} ${pType} ${price ? 'priced at ' + price : ''} at coordinates ${propLat.toFixed(5)}, ${propLng.toFixed(5)}. Analyze its value, neighbourhood quality, and investment potential.`
+                    }
+                  }))
+                }
+              } catch (err) {
+                console.warn('Property marker click error:', err)
+              }
+              return
+            }
+          }
 
           // If building picked, select it
           if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
@@ -2538,11 +3267,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             }
 
             if (setAgentData) {
-              setAgentData(prev => ({
+              updateAgentData(prev => ({
                 ...prev,
                 selectedBuilding: buildingData
               }))
             }
+
+            // Load neighbourhood buildings around the clicked building (5km radius)
+            loadBuildingsAtPointRef.current(lat, lng)
 
             // Auto-trigger comprehensive building analysis
             analyzeBuildingAsync(buildingData)
@@ -2576,7 +3308,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               }
               
               if (setAgentData) {
-                setAgentData(prev => ({
+                updateAgentData(prev => ({
                   ...prev,
                   selectedLocation: locationData.coordinates,
                   selectedBuilding: null,
@@ -2604,11 +3336,35 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 }
               )
               
+              // Load neighbourhood buildings around the clicked point (5km radius)
+              loadBuildingsAtPointRef.current(clickLat, clickLng)
+              
               // Trigger location analysis
               analyzeLocationAsync(clickLat, clickLng)
+              
+              // Dispatch event for chat panel to auto-analyze the area
+              window.dispatchEvent(new CustomEvent('valora-area-clicked', {
+                detail: {
+                  coordinates: { lat: clickLat, lng: clickLng },
+                  query: `Analyze the area around coordinates ${clickLat.toFixed(5)}, ${clickLng.toFixed(5)}. Provide insights on property values, neighbourhood quality, nearby amenities, connectivity, investment potential, and growth trajectory.`
+                }
+              }))
             }
           }
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+        
+        // Hover handler: change cursor to pointer on interactive entities
+        viewer.screenSpaceEventHandler.setInputAction((movement) => {
+          const canvas = viewer.scene.canvas
+          const picked = viewer.scene.pick(movement.endPosition)
+          if (Cesium.defined(picked) && picked.id?.properties?.isPropertyMarker?.getValue?.()) {
+            canvas.style.cursor = 'pointer'
+          } else if (Cesium.defined(picked) && picked.id?.polygon) {
+            canvas.style.cursor = 'pointer'
+          } else {
+            canvas.style.cursor = 'default'
+          }
+        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
         
         // Analyze any clicked location (properties, lands, empty areas)
         const analyzeLocationAsync = async (lat, lng) => {
@@ -2616,7 +3372,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           
           // Set loading state
           if (setAgentData) {
-            setAgentData(prev => ({
+            updateAgentData(prev => ({
               ...prev,
               locationAnalysisLoading: true,
               locationAnalysis: null
@@ -2641,7 +3397,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             if (response.ok) {
               const analysis = await response.json()
               if (setAgentData) {
-                setAgentData(prev => ({
+                updateAgentData(prev => ({
                   ...prev,
                   locationAnalysisLoading: false,
                   locationAnalysis: analysis
@@ -2651,7 +3407,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             } else {
               console.warn('Location analysis failed:', response.status)
               if (setAgentData) {
-                setAgentData(prev => ({
+                updateAgentData(prev => ({
                   ...prev,
                   locationAnalysisLoading: false
                 }))
@@ -2660,7 +3416,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           } catch (err) {
             console.error('Location analysis error:', err)
             if (setAgentData) {
-              setAgentData(prev => ({
+              updateAgentData(prev => ({
                 ...prev,
                 locationAnalysisLoading: false
               }))
@@ -2683,17 +3439,15 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
         // Update agentData
         if (setAgentData) {
-          setAgentData(prev => ({
+          updateAgentData(prev => ({
             ...prev,
             mapCenter: { lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng },
             mapLoaded: true
           }))
         }
 
-        // Load initial buildings only when enabled
-        if (showBuildings) {
-          setTimeout(() => loadTilesForViewport(), 1500)
-        }
+        // Buildings load on click/navigation — NOT auto-loaded at startup
+        // This prevents buildings from appearing at wrong location
 
         // Initialize terrain if enabled by default
         if (showTerrain) {
@@ -2703,14 +3457,19 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 // Switch to 3D globe mode for terrain
                 viewer.scene.mode = Cesium.SceneMode.SCENE3D
                 
-                // Load Cesium Ion terrain
-                viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(ION_TERRAIN_ASSET_ID, {
-                  requestWaterMask: true,
-                  requestVertexNormals: true
-                })
+                // Load Cesium Ion terrain with validation
+                if (!HAS_ION_TOKEN) {
+                  console.warn('[Terrain] No Cesium Ion token — terrain disabled. Set VITE_CESIUM_TOKEN in .env')
+                } else {
+                  viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(ION_TERRAIN_ASSET_ID, {
+                    requestWaterMask: true,
+                    requestVertexNormals: true
+                  })
+                  console.log('✅ Cesium Ion terrain loaded (asset', ION_TERRAIN_ASSET_ID, ')')
+                }
                 
-                // Terrain shadows controlled by separate checkbox
-                viewer.scene.globe.shadows = showTerrainShadows ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED
+                // Terrain shadows always on
+                viewer.scene.globe.shadows = Cesium.ShadowMode.RECEIVE_ONLY
                 viewer.scene.globe.enableLighting = false  // No day/night effects
                 viewer.scene.globe.terrainExaggeration = terrainExaggeration
                 viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
@@ -3027,8 +3786,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             }
           })
 
-          // Load buildings for this area
-          setTimeout(loadTilesForViewport, 2500)
+          // Load buildings for this area (click-to-load)
+          const { lat: aLat, lng: aLng } = data.profile.coordinates
+          setTimeout(() => loadBuildingsAtPoint(aLat, aLng), 2500)
         }
       } catch (err) {
         console.warn('Failed to fly to locality:', err)
@@ -3187,13 +3947,21 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
           {/* Performance & Cache Info */}
           <div className="flex items-center gap-3 text-[10px] text-slate-400 mr-2">
-            {/* GPU Type Badge */}
-            {gpuInfo.isDedicated && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-600/20 border border-purple-500/30 rounded">
+            {gpuInfo.isDedicated ? (
+              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-600/20 border border-purple-500/30 rounded" title={`${gpuInfo.vendor} - ${gpuInfo.renderer}`}>
                 <svg className="w-3 h-3 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <span className="font-semibold text-purple-300">Dedicated GPU</span>
+                <span className="font-semibold text-purple-300 truncate max-w-[140px]">
+                  {gpuInfo.renderer.includes('NVIDIA') || gpuInfo.renderer.includes('GeForce') || gpuInfo.renderer.includes('RTX') || gpuInfo.renderer.includes('GTX') ? 'NVIDIA' : 
+                   gpuInfo.renderer.includes('AMD') || gpuInfo.renderer.includes('Radeon') ? 'AMD' : 
+                   gpuInfo.renderer.includes('Intel') ? 'Intel' : 
+                   gpuInfo.renderer.split(' ')[0]}
+                </span>
+              </div>
+            ) : gpuInfo.renderer !== 'Unknown' && (
+              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-700/50 rounded" title={gpuInfo.renderer}>
+                <span className="font-mono text-slate-300">{gpuInfo.renderer.split(' ')[0]}</span>
               </div>
             )}
             <div className="flex items-center gap-1">
@@ -3208,7 +3976,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               <span className="font-mono">{tilesLoaded} tiles</span>
             </div>
             {(ionCacheStats.totalTiles > 0 || buildingCacheStats.totalTiles > 0) && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" title={`Ion: ${(ionCacheStats.totalSize/1048576).toFixed(1)}MB, Buildings: ${(buildingCacheStats.totalSize/1048576).toFixed(1)}MB`}>
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                 </svg>
@@ -3242,151 +4010,27 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             {/* Layers Dropdown Panel */}
             {showLayerPanel && (
               <div className="absolute top-full left-0 mt-1 bg-slate-900 border border-slate-700 shadow-2xl p-3 min-w-[220px] z-[60] rounded-sm">
-                {/* 3D Layers */}
+                {/* Always-on 3D status */}
                 <div className="mb-2">
-                  <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">3D Layers</div>
+                  <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">3D Layers (Always On)</div>
+                  <div className="space-y-1 text-[10px] text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span>Buildings &bull; {buildingsCount} loaded</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span>Shadows &bull; Terrain</span>
+                    </div>
+                    <div className="text-[9px] text-slate-500 mt-1">Click on map to load neighbourhood buildings</div>
+                  </div>
+                </div>
+
+                {/* Ion Layers */}
+                <div className="pt-2 border-t border-slate-700 mb-2">
+                  <div className="text-[10px] text-slate-500 mb-1.5 font-semibold">Ion Layers</div>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showBuildings}
-                        onChange={(e) => {
-                          setShowBuildings(e.target.checked)
-                          const viewer = viewerRef.current
-                          if (viewer && !viewer.isDestroyed()) {
-                            viewer.entities.values.forEach(entity => {
-                              if (entity.polygon) entity.show = e.target.checked
-                            })
-                          }
-                        }}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                      />
-                      Buildings
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showShadows}
-                        onChange={(e) => {
-                          setShowShadows(e.target.checked)
-                          const viewer = viewerRef.current
-                          if (viewer && !viewer.isDestroyed()) {
-                            viewer.shadows = e.target.checked
-                            viewer.shadowMap.enabled = e.target.checked
-                          }
-                        }}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                      />
-                      Building Shadows
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showTerrainShadows}
-                        onChange={(e) => {
-                          setShowTerrainShadows(e.target.checked)
-                          const viewer = viewerRef.current
-                          if (viewer && !viewer.isDestroyed()) {
-                            viewer.scene.globe.shadows = (showTerrain && e.target.checked) ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED
-                          }
-                        }}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                      />
-                      Terrain Shadows
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={showTerrain}
-                        onChange={async (e) => {
-                          setShowTerrain(e.target.checked)
-                          const viewer = viewerRef.current
-                          if (viewer && !viewer.isDestroyed()) {
-                            if (e.target.checked) {
-                              try {
-                                // Switch to 3D globe mode for terrain
-                                viewer.scene.mode = Cesium.SceneMode.SCENE3D
-                                
-                                // Load Cesium Ion terrain (basemap stays as selected)
-                                viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(ION_TERRAIN_ASSET_ID, {
-                                  requestWaterMask: true,
-                                  requestVertexNormals: true
-                                })
-                                
-                                // Terrain shadows controlled by separate checkbox
-                                viewer.scene.globe.shadows = showTerrainShadows ? Cesium.ShadowMode.RECEIVE_ONLY : Cesium.ShadowMode.DISABLED
-                                viewer.scene.globe.enableLighting = false  // No day/night effects
-                                viewer.scene.globe.terrainExaggeration = terrainExaggeration
-                                viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
-                                
-                                // Enable depth test so buildings with heightReference properly clamp to terrain
-                                viewer.scene.globe.depthTestAgainstTerrain = true
-                                
-                                // Enable sky and atmosphere for 3D globe
-                                viewer.scene.skyBox = new Cesium.SkyBox({
-                                  sources: {
-                                    positiveX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_px.jpg'),
-                                    negativeX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mx.jpg'),
-                                    positiveY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_py.jpg'),
-                                    negativeY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_my.jpg'),
-                                    positiveZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_pz.jpg'),
-                                    negativeZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mz.jpg')
-                                  }
-                                })
-                                viewer.scene.skyAtmosphere = new Cesium.SkyAtmosphere()
-                                
-                                console.log('✅ 3D terrain enabled - receives building shadows only')
-                              } catch (err) {
-                                console.error('Failed to load Cesium Ion terrain:', err)
-                                viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
-                              }
-                            } else {
-                              // Switch back to flat terrain (basemap stays as selected)
-                              viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider()
-                              
-                              // Disable depth test for flat terrain
-                              viewer.scene.globe.depthTestAgainstTerrain = false
-                              
-                              // Terrain has no shadows - simple 3D only
-                              viewer.scene.globe.shadows = Cesium.ShadowMode.DISABLED
-                              
-                              // Disable sky and atmosphere for flat terrain
-                              viewer.scene.skyBox = undefined
-                              viewer.scene.skyAtmosphere = undefined
-                              
-                              console.log('✅ Flat terrain enabled with current basemap')
-                            }
-                          }
-                        }}
-                        className="w-3 h-3 rounded bg-slate-700 border-slate-600 text-blue-600"
-                      />
-                      Terrain
-                    </label>
-                    <div className="mt-2">
-                      <div className="text-[10px] text-slate-500 mb-1">Terrain Exaggeration</div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="5"
-                          step="0.5"
-                          value={terrainExaggeration}
-                          onChange={(e) => {
-                            const viewer = viewerRef.current
-                            const newValue = Number(e.target.value)
-                            setTerrainExaggeration(newValue)
-                            if (viewer && !viewer.isDestroyed() && viewer.scene?.globe) {
-                              viewer.scene.globe.terrainExaggeration = newValue
-                            }
-                          }}
-                          className="w-full accent-blue-600"
-                        />
-                        <span className="text-[10px] text-slate-300 w-9 text-right">
-                          {terrainExaggeration.toFixed(1)}x
-                        </span>
-                      </div>
-                    </div>
-                    <label className="mt-2 flex items-center gap-2 cursor-pointer text-xs text-slate-300 hover:text-white">
                       <input
                         type="checkbox"
                         checked={showIonPhotorealistic}
@@ -3535,7 +4179,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                       orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45), roll: 0 },
                       duration: 2
                     })
-                    setTimeout(loadTilesForViewport, 2500)
+                    setTimeout(() => loadBuildingsAtPoint(lat, lon), 2500)
                   }
                   setShowSearchResults(false)
                   setSearchQuery(result.display_name.split(',')[0])
@@ -3847,4 +4491,4 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   )
 }
 
-export default OnlineOSMMap
+export default memo(OnlineOSMMap)

@@ -277,7 +277,9 @@ class LocalGeocoder:
             print(f"  [OK] Loaded {len(self.pois)} POIs from DB")
             
         except Exception as e:
-            print(f"[WARNING] Database not available, falling back to files: {e}")
+            print(f"[ERROR] Failed to load from database: {e}")
+            import traceback
+            traceback.print_exc()
             self._load_from_files()
         
         self.loaded = True
@@ -427,6 +429,46 @@ class LocalGeocoder:
             })
         
         return results
+    
+    def reverse(self, lat: float, lng: float, radius_km: float = 2.0) -> Optional[Dict[str, Any]]:
+        """
+        Reverse geocode: find nearest place to coordinates.
+        Returns dict with name, type, lat, lng.
+        """
+        # Simple distance calculation
+        def distance(p1_lat, p1_lng, p2_lat, p2_lng):
+            from math import radians, cos, sin, asin, sqrt
+            dLat = radians(p2_lat - p1_lat)
+            dLng = radians(p2_lng - p1_lng)
+            a = sin(dLat/2) * sin(dLat/2) + cos(radians(p1_lat)) * cos(radians(p2_lat)) * sin(dLng/2) * sin(dLng/2)
+            return 6371 * 2 * asin(sqrt(a))
+        
+        nearest = None
+        nearest_dist = radius_km
+        
+        # Check all locations
+        all_locations = []
+        all_locations.extend(self.places)
+        all_locations.extend(self.transport)
+        all_locations.extend(self.pois)
+        
+        for loc in all_locations:
+            if loc.get('lat') and loc.get('lng'):
+                dist = distance(lat, lng, loc['lat'], loc['lng'])
+                if dist < nearest_dist:
+                    nearest_dist = dist
+                    nearest = loc
+        
+        if nearest:
+            return {
+                'name': nearest['name'],
+                'type': nearest.get('type', 'place'),
+                'lat': nearest['lat'],
+                'lng': nearest['lng'],
+                'distance_km': nearest_dist
+            }
+        
+        return None
     
     def geocode(self, query: str) -> Optional[Dict[str, Any]]:
         """Get the best match for a query"""

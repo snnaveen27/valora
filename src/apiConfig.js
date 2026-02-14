@@ -4,6 +4,10 @@
  */
 
 const getApiUrl = () => {
+  if (import.meta.env.DEV) {
+    // Use relative path in development to leverage Vite proxy
+    return import.meta.env.VITE_API_URL || '';
+  }
   // Check if explicit URL is provided in environment
   if (import.meta.env.VITE_API_URL) {
     if (typeof window !== 'undefined') {

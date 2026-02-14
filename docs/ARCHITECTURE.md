@@ -1,397 +1,433 @@
-# Valora AI - Next-Gen 3D GIS Agent Architecture
+# Valora Architecture
+> **System Architecture, AI Components, and Developer Guide — February 2026**
 
-**Vision: An AI that reasons about 3D urban space like humans do**
+## Table of Contents
 
----
-
-## Core Principle
-
-> **Geometry + Simulation + Memory + Causal Models = True 3D Intelligence**  
-> **The LLM is only the narrator and planner.**
-
-The LLM never invents spatial facts. All 3D understanding comes from deterministic engines that compute geometry, visibility, relationships, and impacts. The LLM orchestrates these tools and narrates results.
-
----
-
-## Architecture Layers
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        VALORA NEXT-GEN 3D GIS AGENT                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  LAYER 5: LLM ORCHESTRATOR (Narrator + Planner)                            │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │  • Tool Selection: Which spatial tool to call?                        │ │
-│  │  • Query Planning: Break complex queries into tool calls              │ │
-│  │  • Narrative Synthesis: Convert facts to human-readable insights     │ │
-│  │  • NEVER invents spatial facts - only uses tool outputs              │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-│                                    ▲                                        │
-│                                    │ Tool Calls + Facts                     │
-│                                    ▼                                        │
-│  LAYER 4: SPATIAL TOOL REGISTRY                                            │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │  Offline Internal Tools (JSON Schema)                                 │ │
-│  │  ├── get_3d_context(lat, lng, floor_height, radius)                  │ │
-│  │  ├── find_buildings_blocking_view(from_lat, from_lng, to_lat, to_lng)│ │
-│  │  ├── get_shadow_at_time(lat, lng, hour)                              │ │
-│  │  ├── query_spatial_graph(relationship, entity_a, entity_b)           │ │
-│  │  ├── simulate_infrastructure(type, location, params)                 │ │
-│  │  ├── search_properties(filters, spatial_scope)                       │ │
-│  │  ├── get_locality_profile(name)                                      │ │
-│  │  └── ui_command(action, payload)                                     │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-│                                    ▲                                        │
-│                                    │ Deterministic Computation              │
-│                                    ▼                                        │
-│  LAYER 3: 3D REASONING ENGINES                                             │
-│  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐           │
-│  │ SPATIAL 3D       │ │ VIEWSHED         │ │ SHADOW           │           │
-│  │ • Neighbors      │ │ • Ray casting    │ │ • Sun position   │           │
-│  │ • Volumes        │ │ • Visibility     │ │ • Shadow length  │           │
-│  │ • Sky view       │ │ • Landmarks      │ │ • Impact zones   │           │
-│  │ • Skyline        │ │ • Floor compare  │ │ • Time of day    │           │
-│  └──────────────────┘ └──────────────────┘ └──────────────────┘           │
-│  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐           │
-│  │ OCCLUSION        │ │ PATH 3D          │ │ SCENE UNDERSTAND │           │
-│  │ • Line of sight  │ │ • 3D routing     │ │ • Urban character│           │
-│  │ • Blocking query │ │ • Elevation      │ │ • Density class  │           │
-│  │ • View corridors │ │ • Vertical access│ │ • Morphology     │           │
-│  └──────────────────┘ └──────────────────┘ └──────────────────┘           │
-│                                    ▲                                        │
-│                                    │ Spatial Relationships                  │
-│                                    ▼                                        │
-│  LAYER 2: SPATIAL MEMORY GRAPH                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │  Entity Nodes:                                                        │ │
-│  │  • Buildings (686K) with height, type, footprint                     │ │
-│  │  • POIs (27K) with category, rating                                  │ │
-│  │  • Transport (5K) with type, routes                                  │ │
-│  │  • Localities (788) with profiles                                    │ │
-│  │                                                                       │ │
-│  │  Relationship Edges:                                                  │ │
-│  │  • BLOCKS_VIEW(building_a, building_b, direction)                    │ │
-│  │  • SHADOWS(building_a, building_b, time_range)                       │ │
-│  │  • WITHIN_WALK(entity_a, entity_b, minutes)                          │ │
-│  │  • OVERLOOKS(building, landmark)                                     │ │
-│  │  • ADJACENT_TO(building_a, building_b)                               │ │
-│  │  • IN_LOCALITY(building, locality)                                   │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-│                                    ▲                                        │
-│                                    │ Raw Geometry                           │
-│                                    ▼                                        │
-│  LAYER 1: 3D WORLD DATABASE                                                │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │  SQLite + Spatial Indexes                                             │ │
-│  │  • buildings: 686K with polygon_coords, height, centroid             │ │
-│  │  • pois: 27K with lat/lng, category                                  │ │
-│  │  • terrain: elevation grid, flood zones                              │ │
-│  │  • roads: 335K segments                                              │ │
-│  │  • properties: 42K listings                                          │ │
-│  │                                                                       │ │
-│  │  FAISS Vector Index (77K embeddings for semantic search)             │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+1. [Quick Start](#1-quick-start)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Intelligent Model Router](#3-intelligent-model-router)
+4. [Core Components](#4-core-components)
+5. [Resilience & Observability](#5-resilience--observability)
+6. [API Reference](#6-api-reference)
+7. [Data Layer](#7-data-layer)
+8. [Testing](#8-testing)
+9. [Configuration](#9-configuration)
 
 ---
 
-## Current State vs Target State
+## 1. Quick Start
 
-### ✅ Already Implemented (Layer 1-3 Partial)
+```bash
+# Backend
+pip install -r backend/requirements.txt
+cd backend && python server.py        # http://localhost:8000
 
-| Component | File | Capabilities |
-|-----------|------|--------------|
-| **3D World DB** | `valora.db` | 686K buildings, 27K POIs, 335K roads |
-| **Spatial 3D** | `spatial_3d_reasoning.py` | Neighbors, volumes, sky view, skyline |
-| **Viewshed** | `viewshed_analyzer.py` | Ray casting, visibility, floor compare |
-| **Building Analyzer** | `building_analyzer.py` | 3D analysis, view quality, rooftop |
-| **Shadow** | `spatial_3d_reasoning.py` | Basic shadow impact (single time) |
-| **Simulation** | `simulation_engine.py` | Causal graph, what-if scenarios |
-| **Knowledge** | `locality_service.py` | 788 locality profiles |
+# Frontend
+npm install && npm run dev            # http://localhost:5173
+```
 
-### 🔶 Gaps to Fill (Layer 2-4)
-
-| Gap | Impact | Effort |
-|-----|--------|--------|
-| **Spatial Memory Graph** | Enable relational queries ("buildings behind the mall") | Medium |
-| **Occlusion Engine** | Answer "what blocks the lake view?" | Medium |
-| **Tool Schema** | LLM-directed tool calling with validation | Low |
-| **Temporal Shadow** | Shadow movement through day | Low |
-| **Scene Understanding** | Urban morphology from viewport | Medium |
-| **Spatial Language NLU** | Parse "near", "behind", "overlooking" | Medium |
+Try: "Find 2BHK in Whitefield under 80L" or "Compare Koramangala vs HSR Layout"
 
 ---
 
-## Target Capabilities
+## 2. Architecture Overview
 
-### Human-Like 3D Queries the Agent Should Handle
+### 2.1 Core Principle
+
+> **Truth Firewall + Intelligent Model Routing + Learning-Aware Selection = Production AI**
+
+- **Local-first**: Default `qwen3:8b` via Ollama — fast, free, always available
+- **Cloud toggle**: User enables cloud in the UI → router auto-selects optimal cloud model
+- **Cloud priority**: OpenRouter (primary) → Ollama Cloud (fallback)
+- **Truth Firewall**: LLM only narrates verified facts from GIS agents — never invents data
+- **Learning-aware**: SQLite tracks model latency/success → influences future selection
+
+### 2.2 Request Flow
 
 ```
-# Visibility Queries
-"Which buildings block the lake view from this apartment?"
-"Can I see Cubbon Park from floor 15?"
-"What's visible from the rooftop?"
-
-# Spatial Relationship Queries  
-"Buildings behind Embassy Tech Park"
-"Properties overlooking the metro line"
-"Apartments facing east with morning sun"
-
-# Comparative 3D Queries
-"Compare floor 5 vs floor 15 for views"
-"Which direction has the least shadow?"
-"Best floor for natural light in this building"
-
-# Temporal 3D Queries
-"How does sunlight change through the day here?"
-"Evening shadow impact from neighboring towers"
-"Winter vs summer sun exposure"
-
-# Complex Reasoning
-"If a 40-floor tower is built next door, how does my view change?"
-"Best 3BHK with lake view under 1.5 crore"
-"Quiet apartments away from highway noise"
+User Query  [request_id generated]
+    ↓
+┌──────────────────────────────────────────────────────────────┐
+│  1. INTENT CLASSIFICATION (IntentRouter)                     │
+│     Pattern matching → LLM fallback for ambiguous queries    │
+├──────────────────────────────────────────────────────────────┤
+│  1b. CACHE CHECK (QueryCache)                                │
+│     Cache hit → return stored response immediately           │
+├──────────────────────────────────────────────────────────────┤
+│  2. GIS AGENTS (Deterministic Fact Gathering)                │
+│     Geocoder · Spatial · Terrain · Property · RAG            │
+│     → Grounded facts from database (never LLM-generated)    │
+├──────────────────────────────────────────────────────────────┤
+│  3. INTELLIGENT MODEL ROUTER (cost-aware)                    │
+│     Query complexity scoring (0.0–1.0)                       │
+│     + Cloud toggle check (cloud_enabled)                     │
+│     + User tier adjustment (free → higher threshold)         │
+│     + Learning bonus from SQLite perf tracker                │
+│     → Selects: local qwen3:8b | Ollama cloud | OpenRouter   │
+├──────────────────────────────────────────────────────────────┤
+│  4. CIRCUIT BREAKER CHECK                                    │
+│     Ollama / OpenRouter breaker → fallback if OPEN           │
+├──────────────────────────────────────────────────────────────┤
+│  5. LLM STREAMING                                            │
+│     SSE events: intent → task_progress → model_selection     │
+│     → thinking → content → verification → metadata → done    │
+├──────────────────────────────────────────────────────────────┤
+│  6. POST-LLM FACT VERIFICATION (Truth Firewall)              │
+│     Extract claims → verify against GIS facts                │
+│     → Emit verification SSE event                            │
+├──────────────────────────────────────────────────────────────┤
+│  7. PERFORMANCE RECORDING + CACHE STORE                      │
+│     model + intent + latency + success → SQLite              │
+│     response → QueryCache (10-min TTL)                       │
+│     pipeline_metrics SSE event emitted                       │
+└──────────────────────────────────────────────────────────────┘
 ```
+
+### 2.3 Data Scale
+
+| Metric | Count |
+|--------|-------|
+| Properties | 42,452 |
+| Buildings | 686,370 |
+| POIs | 26,961 |
+| Transport | 5,384 |
+| Roads | 334,784 |
+| **Total** | **1.6M+** |
 
 ---
 
-## Implementation Roadmap
+## 3. Intelligent Model Router
 
-### Phase 1: Tool Schema (1-2 days)
+**File:** `backend/ai/model_router.py`
 
-Create formal JSON schema for all spatial tools so LLM can call them reliably.
+### 3.1 How It Works
 
-**File:** `backend/spatial_tools_schema.json`
+The router scores query complexity (0.0–1.0) using:
+- **Intent type**: simulate/comparison/investment = heavy (+0.35), analyze/search/valuation = medium (+0.15)
+- **Reasoning signals**: regex patterns for multi-step, financial, comparative queries
+- **Image presence**: routes to vision models (+0.4)
+- **Conversation depth**: long threads need more context
+- **Learned bonus**: SQLite tracks success/latency per model+intent → ±0.3 adjustment
 
-```json
-{
-  "tools": [
-    {
-      "name": "get_3d_context",
-      "description": "Analyze 3D spatial context at a location and floor height",
-      "parameters": {
-        "lat": {"type": "number", "required": true},
-        "lng": {"type": "number", "required": true},
-        "floor_height_m": {"type": "number", "default": 0},
-        "radius_m": {"type": "number", "default": 200}
-      },
-      "returns": "Spatial3DAnalysis"
-    },
-    {
-      "name": "find_view_blockers",
-      "description": "Find buildings that block view from point A toward point B",
-      "parameters": {
-        "from_lat": {"type": "number", "required": true},
-        "from_lng": {"type": "number", "required": true},
-        "from_height_m": {"type": "number", "required": true},
-        "toward_direction": {"type": "string", "enum": ["N","NE","E","SE","S","SW","W","NW"]},
-        "max_distance_m": {"type": "number", "default": 500}
-      },
-      "returns": "List[BlockingBuilding]"
-    },
-    {
-      "name": "get_shadow_timeline",
-      "description": "Get shadow impact through the day at a location",
-      "parameters": {
-        "lat": {"type": "number", "required": true},
-        "lng": {"type": "number", "required": true},
-        "hours": {"type": "array", "items": {"type": "integer"}, "default": [8,10,12,14,16,18]}
-      },
-      "returns": "List[ShadowAnalysis]"
-    },
-    {
-      "name": "query_spatial_relationship",
-      "description": "Query spatial relationships between entities",
-      "parameters": {
-        "relationship": {"type": "string", "enum": ["BLOCKS_VIEW","SHADOWS","OVERLOOKS","ADJACENT_TO","WITHIN_WALK"]},
-        "entity_type": {"type": "string", "enum": ["building","poi","locality","property"]},
-        "reference_lat": {"type": "number"},
-        "reference_lng": {"type": "number"},
-        "filter": {"type": "object"}
-      },
-      "returns": "List[RelatedEntity]"
-    },
-    {
-      "name": "compare_floors",
-      "description": "Compare view quality across multiple floors",
-      "parameters": {
-        "lat": {"type": "number", "required": true},
-        "lng": {"type": "number", "required": true},
-        "floors": {"type": "array", "items": {"type": "integer"}, "default": [1,5,10,15]}
-      },
-      "returns": "FloorComparison"
-    },
-    {
-      "name": "simulate_new_building",
-      "description": "Simulate impact of a new building on surroundings",
-      "parameters": {
-        "lat": {"type": "number", "required": true},
-        "lng": {"type": "number", "required": true},
-        "height_m": {"type": "number", "required": true},
-        "footprint_m2": {"type": "number", "default": 500}
-      },
-      "returns": "SimulationImpact"
-    }
-  ]
-}
+### 3.2 Escalation Thresholds
+
+| Score Range | Action | Free-tier Adjusted |
+|-------------|--------|--------------------|
+| 0.0 – 0.34 | Local `qwen3:8b` | 0.0 – 0.54 |
+| 0.35 – 0.59 | Fastest cloud model (medium) | 0.55 – 0.79 |
+| 0.60 – 1.0 | Best reasoning cloud model (high) | 0.80 – 1.0 |
+| Images attached | Best vision model | Same |
+
+**Cost-aware routing**: Free-tier users have thresholds raised by +0.20, so only truly complex queries escalate to cloud. This conserves their limited daily cloud credits.
+
+### 3.3 Cloud Provider Priority
+
+1. **OpenRouter** (if `OPENROUTER_API_KEY` is set): `deepseek/deepseek-chat`, `deepseek/deepseek-reasoner`, `qwen/qwen2.5-vl-72b-instruct`
+2. **Ollama Cloud** (fallback): `kimi-k2.5:cloud`, `deepseek-v3.2:cloud`, `qwen3-vl:235b-instruct-cloud`
+3. **Local** (always available): `qwen3:8b`
+
+### 3.4 Cloud Toggle (Frontend)
+
+`ChatInputBar.jsx` has a toggle that sets `llm_config.cloud_enabled`:
+- **OFF** (default): Only local models available to router
+- **ON**: Router can escalate to cloud models based on complexity
+
+### 3.5 Learning-Aware Routing
+
+**File:** `backend/model_performance.db` (SQLite)
+
+```sql
+CREATE TABLE model_perf (
+    model TEXT, intent TEXT, complexity_score REAL,
+    latency_ms INTEGER, success INTEGER, tokens_generated INTEGER,
+    timestamp REAL
+);
 ```
 
-### Phase 2: Spatial Memory Graph (3-5 days)
-
-Create a graph layer that precomputes and caches spatial relationships.
-
-**File:** `backend/spatial_memory_graph.py`
-
-```python
-# Core relationships to precompute
-RELATIONSHIPS = [
-    "BLOCKS_VIEW",      # building A blocks view from building B in direction D
-    "SHADOWS",          # building A casts shadow on building B at time T
-    "OVERLOOKS",        # building A has view of landmark L
-    "ADJACENT_TO",      # building A is within 50m of building B
-    "WITHIN_WALK",      # entity A is within N minutes walk of entity B
-    "IN_LOCALITY",      # building A is in locality L
-]
-
-# Graph can be:
-# - NetworkX (in-memory, simple)
-# - SQLite with relationship table (persistent, queryable)
-# - Neo4j (future, for complex traversals)
-```
-
-### Phase 3: Occlusion Engine (2-3 days)
-
-Add true line-of-sight and view corridor analysis.
-
-**File:** `backend/occlusion_engine.py`
-
-```python
-class OcclusionEngine:
-    def find_blockers(self, from_point, toward_direction, observer_height):
-        """Find all buildings that block view in a direction."""
-        pass
-    
-    def get_view_corridor(self, from_point, to_landmark, observer_height):
-        """Get the corridor of buildings between observer and landmark."""
-        pass
-    
-    def can_see(self, from_point, from_height, to_point, to_height):
-        """Check if line of sight exists between two 3D points."""
-        pass
-```
-
-### Phase 4: Strengthen System Prompts (1 day)
-
-Add explicit grounding rules to prevent LLM hallucination.
-
-**Add to `backend/response_templates.py`:**
-
-```python
-SYSTEM_CONSTITUTION = """
-# VALORA AI AGENT RULES
-
-## CORE CONSTRAINTS
-1. OFFLINE ONLY - Never mention or use external APIs, websites, or online data
-2. GROUNDED FACTS ONLY - Only use data from the [FACTS] block below
-3. NO INVENTION - If data is missing, say "I don't have data for X" 
-4. CONFIDENCE - Always state confidence level (high/medium/low)
-
-## OUTPUT FORMAT
-- Use short bullet points
-- Include specific numbers from facts
-- State assumptions explicitly
-- End with actionable next step
-
-## SPATIAL REASONING
-- All 3D facts come from spatial tools, never invent heights/views/shadows
-- When comparing floors, use compare_floors tool output
-- For visibility queries, use viewshed tool output
-"""
-```
-
-### Phase 5: Spatial Language Understanding (3-5 days)
-
-Parse natural language spatial references.
-
-**File:** `backend/spatial_nlp.py` (enhance existing)
-
-```python
-SPATIAL_PATTERNS = {
-    "behind": {"relationship": "OPPOSITE_DIRECTION", "reference": True},
-    "in front of": {"relationship": "SAME_DIRECTION", "reference": True},
-    "overlooking": {"relationship": "OVERLOOKS", "requires_height": True},
-    "near": {"relationship": "WITHIN_WALK", "default_minutes": 10},
-    "facing": {"relationship": "VIEW_DIRECTION", "requires_direction": True},
-    "between": {"relationship": "CORRIDOR", "requires_two_refs": True},
-}
-```
+After each query, the system records model performance. When selecting models, the router queries the last 20 records per model+intent and computes a bonus (−0.3 to +0.3) based on success rate and latency.
 
 ---
 
-## Data Flow: Example Query
+## 4. Core Components
 
-**Query:** "Which buildings block the lake view from this apartment on floor 10?"
+### 4.1 GIS Agent Orchestrator (`ai/gis_agents.py`)
 
-```
-1. Intent Router → SPATIAL_QUERY (view blocker)
+Deterministic agents that collect grounded facts.
 
-2. LLM Planner selects tools:
-   - get_3d_context(lat, lng, floor_height=30)
-   - find_view_blockers(lat, lng, height=30, toward="lake_direction")
+**Intent Types:**
+| Intent | Example |
+|--------|---------|
+| `navigate` | "Show me Indiranagar" |
+| `analyze_area` | "Analyze Whitefield for livability" |
+| `analyze_building` | "Analyze this building's shadow" |
+| `property_search` | "Find 2BHK under 80L in Whitefield" |
+| `valuation` | "Estimate value of 1200 sqft" |
+| `terrain` | "Show terrain around Whitefield" |
+| `comparison` | "Compare Koramangala vs HSR" |
+| `simulate` | "What if metro comes to Whitefield?" |
+| `investment` | "Best areas for investment" |
+| `market_trend` | "Price trend in Koramangala" |
 
-3. Spatial 3D Engine executes:
-   - Gets buildings in 500m radius
-   - Calculates line-of-sight to lake
-   - Returns: [Building_A (height=45m, dist=80m), Building_B (height=38m, dist=150m)]
+**GIS Agents:** Geocoder, Spatial, Terrain, Property, RAG, City Intelligence
 
-4. LLM Narrator synthesizes:
-   "Two buildings partially block the lake view from floor 10:
-    - Building A (45m tall, 80m away) blocks ~40% of lake view
-    - Building B (38m tall, 150m away) blocks ~15%
-    Recommendation: Floor 15+ would have unobstructed lake views."
+### 4.2 LLM Clients
 
-5. UI Actions:
-   - Highlight blocking buildings in red on 3D map
-   - Draw view corridor overlay
-```
-
----
-
-## Key Metrics
-
-| Metric | Current | Target |
-|--------|---------|--------|
-| 3D Query Types Supported | 5 | 15 |
-| Spatial Relationships | 0 (computed on-demand) | 6 precomputed |
-| Tool Schema Coverage | 0% | 100% |
-| Avg 3D Query Response | 1-2s | <500ms (with graph) |
-| LLM Hallucination Rate | ~5% | <1% (with grounding) |
-
----
-
-## Files to Create/Modify
-
-| Action | File | Purpose |
+| Client | File | Purpose |
 |--------|------|---------|
-| CREATE | `backend/spatial_tools_schema.json` | Formal tool definitions |
-| CREATE | `backend/spatial_memory_graph.py` | Relationship graph |
-| CREATE | `backend/occlusion_engine.py` | Line-of-sight queries |
-| MODIFY | `backend/response_templates.py` | Add system constitution |
-| MODIFY | `backend/spatial_nlp.py` | Spatial language patterns |
-| MODIFY | `backend/gis_agents.py` | Tool-calling integration |
+| Ollama (local) | `ai/ollama_client.py` | Default `qwen3:8b`, port 11434 |
+| OpenRouter | `routes/chat_routes.py` (`_stream_openrouter`) | Cloud streaming via API |
+
+### 4.3 File Structure
+
+```
+backend/
+├── ai/
+│   ├── model_router.py             # Intelligent model selection (learning-aware)
+│   ├── gis_agents.py               # GIS Agent Orchestrator + IntentRouter
+│   ├── ollama_client.py            # Local LLM (Ollama)
+│   ├── prompts.py                  # Intent-specific system prompts
+│   ├── rag_service.py              # FAISS vector search + embeddings
+│   ├── fact_verifier.py            # Truth Firewall (post-LLM verification)
+│   ├── tools_registry.py           # Dynamic tool system
+│   └── credits_rate_limiter.py     # Credit system (thread-local SQLite)
+├── core/
+│   ├── circuit_breaker.py          # Circuit breaker pattern for LLM calls
+│   ├── sqlite_pool.py             # Thread-local SQLite connection manager
+│   └── cache_layer.py             # Core caching utilities
+├── search/
+│   └── query_cache.py             # LRU+TTL cache (RAG, property, chat)
+├── middleware/
+│   └── rate_limit.py              # IP-based burst/DDoS protection only
+├── routes/
+│   ├── chat_routes.py              # /api/chat + /api/chat/stream (primary)
+│   ├── auth_routes.py              # Login, signup, user management
+│   ├── admin_routes.py             # System status, config, tests
+│   ├── credits_routes.py           # Credit balance, purchase, upgrade
+│   ├── payment_routes.py           # Razorpay, Cashfree, Stripe webhooks
+│   └── feedback_routes.py          # Auto-save feedback + credit rewards
+├── city_intelligence/              # Locality personality, risk indexes
+├── analyzers/                      # Area, building, terrain analysis
+├── auth/                           # JWT auth, user database
+├── tests/
+│   ├── test_valora_suite.py        # Unified test suite (96.9% pass rate)
+│   └── test_results_complete.md    # Auto-generated test report
+├── server.py                       # FastAPI app + router initialization
+├── model_performance.db            # Learning-aware routing data (SQLite)
+└── requirements.txt
+```
+
+```
+src/
+├── components/
+│   ├── chat/
+│   │   ├── EnhancedChatPanel.jsx   # Main chat panel + SSE streaming
+│   │   ├── ChatInputBar.jsx        # Cloud toggle + input
+│   │   └── WindsurfThinkingPanel.jsx # Task banner + model display
+│   ├── AdminPanel.jsx              # System admin
+│   └── AnalysisPanel.jsx           # Area analysis display
+├── spatial/
+│   └── OnlineOSMMap.jsx            # Cesium 3D map + terrain
+└── App.jsx
+```
 
 ---
 
-## Summary
+## 5. Resilience & Observability
 
-Valora already has strong 3D reasoning primitives. The next-gen upgrade is about:
+### 5.1 Circuit Breakers
 
-1. **Formalizing tools** → LLM reliably calls spatial functions
-2. **Caching relationships** → Fast graph queries for "behind", "blocking", "overlooking"
-3. **Stronger grounding** → LLM never invents spatial facts
-4. **Richer queries** → "Which buildings block the lake view?" becomes answerable
+**File:** `core/circuit_breaker.py`
 
-This architecture makes Valora a **true 3D reasoning agent** that understands urban space like humans do—not just lat/lng, but height, visibility, shadows, and spatial relationships.
+Protects against cascading failures when LLM providers are down.
+
+| Breaker | Threshold | Recovery |
+|---------|-----------|----------|
+| `ollama` | 3 failures | 30s timeout |
+| `openrouter` | 5 failures | 60s timeout |
+
+States: **CLOSED** → (failures exceed threshold) → **OPEN** → (recovery timeout) → **HALF_OPEN** → (success) → **CLOSED**
+
+When open, requests fall back to `_generate_fallback_response()` which synthesizes a basic response from grounded facts only.
+
+### 5.2 Chat Response Cache
+
+**File:** `search/query_cache.py` → `get_chat_cache()`
+
+- Keyed on `query + intent` (avoids stale cross-intent hits)
+- LRU eviction with 10-minute TTL
+- Wired into both `/api/chat` and `/api/chat/stream`
+- Cache hits skip the entire LLM pipeline (facts + routing + streaming)
+- Cache stores: message, dashboard, ui_actions, facts, verification
+
+### 5.3 Post-LLM Fact Verification
+
+**File:** `ai/fact_verifier.py`
+
+After LLM generates a response, the Truth Firewall extracts verifiable claims (prices, distances, counts, spatial, sunlight, zoning) and checks them against the grounded facts already gathered by GIS agents.
+
+- Emits a `verification` SSE event with: total claims, verified count, status, warnings
+- Included in the `metadata` event and cached responses
+- Tolerances: 15% for prices, 20% for distances, 10% for counts
+
+### 5.4 SQLite Connection Pooling
+
+**File:** `core/sqlite_pool.py`
+
+Thread-local connection manager preventing `database is locked` errors.
+
+| Pool Name | Database | Consumers |
+|-----------|----------|----------|
+| `model_perf` | `model_performance.db` | Model router |
+| `conversation_memory` | `conversation_memory.db` | Chat routes |
+| `credits` | `valora_credits.db` | Credits rate limiter |
+
+All connections use **WAL mode** + **5s busy timeout** for concurrent read/write.
+
+### 5.5 Rate Limiting (Two Layers)
+
+| Layer | File | Scope | Purpose |
+|-------|------|-------|---------|
+| **IP burst** | `middleware/rate_limit.py` | Per-IP, 200 req/hr | DDoS/abuse protection |
+| **Credits** | `ai/credits_rate_limiter.py` | Per-user, tier-based | Business logic limits |
+
+The middleware handles infrastructure protection only. Per-user accounting (daily/monthly limits, credit costs per action) lives in the credits system, checked inside chat endpoints.
+
+### 5.6 Request Tracing
+
+Every streaming request gets a 12-char `request_id` (UUID prefix) that is:
+- Logged at each pipeline stage with timing
+- Included in every SSE event (`request_id` field)
+- Emitted as a `pipeline_metrics` event before `done`
+
+**Metrics collected:** `intent_ms`, `facts_ms`, `route_ms`, `llm_ms`, `total_ms`, `model`, `provider`, `escalated`
+
+---
+
+## 6. API Reference
+
+### 5.1 Chat Endpoints
+
+**Streaming (primary):**
+```http
+POST /api/chat/stream
+Content-Type: application/json
+
+{
+  "messages": [{"role": "user", "content": "Find 2BHK in Whitefield"}],
+  "context": {
+    "user_id": "user_123",
+    "llm_config": {"provider": "ollama", "local_model": "qwen3:8b", "cloud_enabled": false}
+  }
+}
+```
+
+**SSE Events:**
+```
+data: {"type": "status", "content": "Connected"}
+data: {"type": "intent_detected", "intent": "property_search", "task_graph": {...}}
+data: {"type": "task_progress", ...}
+data: {"type": "model_selection", "model": "qwen3:8b", "is_cloud": false, "complexity_score": 0.15}
+data: {"type": "thinking", "content": "..."}
+data: {"type": "content", "content": "I found 15 matching..."}
+data: {"type": "metadata", "intent": "property_search", "dashboard": {...}, "ui_actions": [...]}
+data: {"type": "verification", "verification": {"total_claims": 3, "verified": 2, "status": "partially_verified"}}
+data: {"type": "pipeline_metrics", "metrics": {"intent_ms": 5, "facts_ms": 120, "route_ms": 2, "llm_ms": 2800, "total_ms": 3100}}
+data: {"type": "done", "thinking_time": 3.1, "request_id": "a1b2c3d4e5f6"}
+```
+
+**Non-streaming:**
+```http
+POST /api/chat
+```
+
+### 5.2 Other Endpoints
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/admin/health` | GET | System health check |
+| `/api/admin/status` | GET | Full system status (admin) |
+| `/api/admin/run-tests` | POST | Run backend health tests (admin) |
+| `/api/auth/login` | POST | Email/password login |
+| `/api/auth/signup` | POST | Create account |
+| `/api/auth/me` | GET | Current user profile |
+| `/api/auth/tiers` | GET | Subscription tiers |
+| `/api/credits/{user_id}` | GET | Credit balance |
+| `/api/credits/plans` | GET | Subscription plans |
+| `/api/credits/purchase` | POST | Buy credits |
+| `/api/credits/upgrade` | POST | Upgrade tier |
+| `/api/payments/subscribe` | POST | Create subscription |
+| `/api/payments/verify` | POST | Verify payment |
+| `/api/feedback/submit` | POST | Submit feedback + earn credits |
+
+---
+
+## 7. Data Layer
+
+### 6.1 Databases
+
+| Database | Tech | Purpose |
+|----------|------|---------|
+| World DB | SQLite + SpatialLite | 686K buildings, 42K properties, 27K POIs |
+| Terrain | PostgreSQL | 33×33 heightmaps per tile |
+| Vector Search | FAISS | 77K embeddings (384-dim) |
+| Model Performance | SQLite | Learning-aware routing data |
+| User Auth | SQLite | Users, sessions, usage logs |
+| Credits | SQLite | Balances, payments, usage |
+
+### 6.2 Terrain
+
+- **Provider**: `DatabaseTerrainProvider` (native, no external dependencies)
+- **Coverage**: Bengaluru (77.15–78.30°E, 12.50–13.55°N)
+- **Cache**: LRU 200 tiles (~4MB), 4 concurrent requests max
+- **Exaggeration**: 0.5×–3.0× via UI slider
+
+---
+
+## 8. Testing
+
+**Run:**
+```bash
+cd backend
+python -m tests.test_valora_suite          # Unit + integration tests
+python -m tests.test_valora_suite --live   # + live LLM streaming
+```
+
+**Coverage (8 sections, 64 tests):**
+| Section | Tests | Pass Rate |
+|---------|-------|-----------|
+| Intent Classification | 40 | 100% |
+| Model Routing | 8 | 100% |
+| Learning-Aware Routing | 2 | 100% |
+| API Endpoints | 7 | 71% (2 infra issues) |
+| Slot Extraction | 3 | 100% |
+| Stress Tests | 3 | 100% |
+| OpenRouter Config | 1 | 100% |
+| **Total** | **64** | **96.9%** |
+
+Report auto-generated at `backend/tests/test_results_complete.md`.
+
+---
+
+## 9. Configuration
+
+### 8.1 Environment (`backend/.env`)
+
+```bash
+OPENROUTER_API_KEY=sk-or-v1-...     # Cloud LLM (optional)
+LOCAL_LLM_URL=http://127.0.0.1:11434/v1/chat/completions
+LOCAL_LLM_MODEL=qwen3:8b
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/valora
+JWT_SECRET=your-secret-key
+```
+
+### 8.2 Frontend Cloud Toggle
+
+The `ChatInputBar` has a toggle button:
+- **Local** (default): Only `qwen3:8b` used, no cloud API calls
+- **Cloud**: Model router auto-selects from local + cloud pool based on query complexity
+
+No model dropdown — the intelligent router handles selection automatically.
+
+---
+
+*Valora AI — Production architecture with learning-aware model routing, circuit breakers, fact verification, and request tracing. February 2026.*

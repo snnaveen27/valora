@@ -1,0 +1,496 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Valora AI Master Planner API",
+    "version": "2025.2.5",
+    "description": "Production API for Valora AI's real estate task planning and orchestration"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000/api",
+      "description": "Local development"
+    }
+  ],
+  "paths": {
+    "/plan": {
+      "post": {
+        "summary": "Generate execution plan from user query",
+        "description": "Converts raw user query into structured tasks, slots, and UI actions",
+        "operationId": "createPlan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful plan generation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Security refusal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityRefusal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/stream": {
+      "post": {
+        "summary": "Stream execution plan events",
+        "description": "SSE streaming version that yields events as planning progresses",
+        "operationId": "createPlanStream",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream of planning events",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/SSEEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execute": {
+      "post": {
+        "summary": "Execute task graph",
+        "description": "Execute the generated task graph with real executors",
+        "operationId": "executePlan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Execution results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecuteResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PlanRequest": {
+        "type": "object",
+        "required": ["query"],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Raw user query text",
+            "example": "Find 2BHK properties in Whitefield near tech parks but quieter pockets"
+          },
+          "context": {
+            "type": "object",
+            "description": "Optional context for planning",
+            "properties": {
+              "userLocation": {
+                "type": "object",
+                "properties": {
+                  "lat": { "type": "number" },
+                  "lng": { "type": "number" }
+                }
+              },
+              "selectedBuilding": { "type": "object" },
+              "mapCenter": {
+                "type": "object",
+                "properties": {
+                  "lat": { "type": "number" },
+                  "lng": { "type": "number" }
+                }
+              }
+            }
+          },
+          "options": {
+            "type": "object",
+            "properties": {
+              "maxTasks": {
+                "type": "integer",
+                "default": 12,
+                "maximum": 20
+              },
+              "includeModules": {
+                "type": "boolean",
+                "default": true
+              },
+              "stream": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        }
+      },
+      "PlanResponse": {
+        "type": "object",
+        "description": "Complete planner response",
+        "allOf": [
+          { "$ref": "#/components/schemas/BasePlanResponse" },
+          {
+            "properties": {
+              "tasks": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/Task" }
+              },
+              "execution_order": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Topologically sorted task IDs"
+              }
+            }
+          }
+        ]
+      },
+      "BasePlanResponse": {
+        "type": "object",
+        "required": [
+          "query_id",
+          "intent",
+          "intent_confidence",
+          "slots",
+          "tasks",
+          "ui_actions",
+          "facts",
+          "reasoning_summary",
+          "modules"
+        ],
+        "properties": {
+          "query_id": {
+            "type": "string",
+            "example": "plan_abc123"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "property_search",
+              "compare",
+              "commute_optimize",
+              "invest",
+              "analyze_area",
+              "analyze_building",
+              "valuation",
+              "simulate",
+              "navigate",
+              "general",
+              "refusal_security"
+            ]
+          },
+          "intent_confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "example": 0.92
+          },
+          "slots": {
+            "$ref": "#/components/schemas/Slots"
+          },
+          "tasks": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Task" }
+          },
+          "ui_actions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/UIAction" }
+          },
+          "facts": {
+            "$ref": "#/components/schemas/Facts"
+          },
+          "reasoning_summary": {
+            "type": "string",
+            "example": "Property search with quietness preference in Whitefield area"
+          },
+          "modules": {
+            "$ref": "#/components/schemas/Modules"
+          },
+          "examples_used": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["ex2_whitefield_2bhk_quiet"]
+          }
+        }
+      },
+      "Slots": {
+        "type": "object",
+        "properties": {
+          "raw_text": { "type": "string" },
+          "intent": { "type": "string" },
+          "area_or_anchor": { "type": ["string", "null"], "example": "whitefield" },
+          "poi": { "type": ["string", "null"] },
+          "lat": { "type": ["number", "null"], "example": 12.9716 },
+          "lng": { "type": ["number", "null"], "example": 77.5946 },
+          "property_type": { "type": ["string", "null"], "enum": ["apartment", "villa", "plot", "any", null] },
+          "configuration": { "type": ["string", "null"], "enum": ["2bhk", "3bhk", "studio", null] },
+          "budget": {
+            "type": "object",
+            "properties": {
+              "min": { "type": ["number", "null"], "example": 5000000 },
+              "max": { "type": ["number", "null"], "example": 10000000 },
+              "currency": { "type": ["string", "null"], "example": "INR" }
+            }
+          },
+          "purpose": { "type": ["string", "null"], "enum": ["buy", "rent", "invest", "live", "other", null] },
+          "time_horizon": { "type": ["string", "null"], "enum": ["short_term", "3-5y", "5-10y", "long_term", null] },
+          "preferences": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["quiet", "near_metro", "gated"]
+          },
+          "avoid_constraints": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["avoid_orr"]
+          },
+          "simulation_params": {
+            "type": "object",
+            "properties": {
+              "type": { "type": ["string", "null"], "enum": ["metro", "prr", "airport", "zoning", null] },
+              "year": { "type": ["number", "null"] },
+              "magnitude": { "type": ["string", "null"] }
+            }
+          },
+          "ui_command": { "type": ["string", "null"], "enum": ["navigate", "flyTo", "show_panel", "draw_buffer", null] },
+          "raw_filters": { "type": "object" },
+          "clarify_needed": { "type": "boolean" },
+          "clarify_questions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxItems": 2
+          }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "required": ["id", "title", "type", "inputs", "outputs", "depends_on", "description", "priority"],
+        "properties": {
+          "id": { "type": "string", "example": "T1", "pattern": "^[A-Za-z0-9_]{2,20}$" },
+          "title": { "type": "string", "example": "normalize_slots" },
+          "type": {
+            "type": "string",
+            "enum": ["analysis", "data_query", "scoring", "simulation", "rank", "explain", "clarification", "ui_action"]
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "example": { "area_or_anchor": "slots.area_or_anchor" }
+          },
+          "outputs": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["normalized_slots"]
+          },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["T1"]
+          },
+          "description": { "type": "string", "example": "Normalize input slots and validate extracted values" },
+          "priority": { "type": "string", "enum": ["high", "medium", "low"], "example": "high" },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "estimated_cost_ms": { "type": "number", "example": 120 },
+              "executor": { "type": "string", "example": "navigation_engine" }
+            }
+          }
+        }
+      },
+      "UIAction": {
+        "type": "object",
+        "required": ["action_id", "type", "params", "priority"],
+        "properties": {
+          "action_id": { "type": "string", "example": "ui_1" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "map.flyTo",
+              "map.highlight",
+              "panel.open",
+              "panel.switch",
+              "map.draw_buffer",
+              "narration.play"
+            ]
+          },
+          "params": {
+            "type": "object",
+            "properties": {
+              "lat": { "type": "number" },
+              "lng": { "type": "number" },
+              "zoom": { "type": "number", "minimum": 1, "maximum": 22 },
+              "radius_m": { "type": "number" },
+              "center": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+              "panel_id": { "type": "string" },
+              "highlight_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "priority": { "type": "string", "enum": ["high", "medium", "low"] }
+        }
+      },
+      "Facts": {
+        "type": "object",
+        "properties": {
+          "datasource": { "type": ["string", "null"], "example": "internal_db" },
+          "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "example": 0.85 },
+          "canonical_name": { "type": ["string", "null"], "example": "Whitefield" },
+          "lat": { "type": ["number", "null"], "example": 12.9716 },
+          "lng": { "type": ["number", "null"], "example": 77.5946 },
+          "area_names": { "type": "array", "items": { "type": "string" } },
+          "poi_list": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "lat": { "type": "number" },
+                "lng": { "type": "number" },
+                "type": { "type": "string" }
+              }
+            }
+          },
+          "refusal_reason": { "type": ["string", "null"] },
+          "data_unavailable_reasons": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Modules": {
+        "type": "object",
+        "properties": {
+          "quietness_scoring_prompt": { "type": "string" },
+          "undervaluation_scoring_prompt": { "type": "string" },
+          "commute_simulation_prompt": { "type": "string" },
+          "valuation_model_prompt": { "type": "string" },
+          "digital_twin_update_template": { "type": "string" },
+          "clarification_template": { "type": "string" },
+          "property_db_schema": { "type": "string" },
+          "geo_poi_schema": { "type": "string" },
+          "ranking_prompt": { "type": "string" },
+          "executor_specs": { "type": "object" }
+        }
+      },
+      "ExecuteRequest": {
+        "type": "object",
+        "required": ["query_id", "tasks"],
+        "properties": {
+          "query_id": { "type": "string" },
+          "tasks": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Task" }
+          },
+          "slots": { "$ref": "#/components/schemas/Slots" },
+          "context": { "type": "object" },
+          "parallel": { "type": "boolean", "default": true }
+        }
+      },
+      "ExecuteResponse": {
+        "type": "object",
+        "properties": {
+          "query_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["success", "partial", "failed"] },
+          "results": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "completed_tasks": { "type": "array", "items": { "type": "string" } },
+          "failed_tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "task_id": { "type": "string" },
+                "error": { "type": "string" }
+              }
+            }
+          },
+          "execution_time_ms": { "type": "number" }
+        }
+      },
+      "SSEEvent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "intent_classification_start",
+              "intent_detected",
+              "task_progress",
+              "task_complete",
+              "intent_classification_complete",
+              "error"
+            ]
+          },
+          "query_id": { "type": "string" },
+          "data": { "type": "object" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "code": { "type": "string" },
+          "details": { "type": "object" }
+        }
+      },
+      "SecurityRefusal": {
+        "type": "object",
+        "properties": {
+          "intent": { "type": "string", "enum": ["refusal_security"] },
+          "facts": {
+            "type": "object",
+            "properties": {
+              "refusal_reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

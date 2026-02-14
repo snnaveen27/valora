@@ -287,10 +287,46 @@ async def verify_payment(
     
     if not verified:
         raise HTTPException(status_code=400, detail="Payment verification failed")
-    
-    # TODO: Credit units to user account based on order details
-    # This would parse the order notes/metadata to determine units to add
-    
+
+    # Credit units to user account.
+    # NOTE: For production gateways this should be driven by verified metadata / order notes.
+    # For our offline/dev dummy payment service, order IDs include the pack info:
+    #   dummy_topup_<userId>_<packId>
+    units_to_add = None
+    source = f"{request.gateway}_purchase"
+    transaction_id = request.order_id
+
+    try:
+        from services.payment_service import TOPUP_PACKS
+    except Exception:
+        TOPUP_PACKS = {}
+
+    if isinstance(request.order_id, str) and request.order_id.startswith("dummy_topup_"):
+        parts = request.order_id.split("_")
+        # dummy_topup_<userId>_<packId>
+        if len(parts) >= 4:
+            pack_id = "_".join(parts[3:])
+            pack = TOPUP_PACKS.get(pack_id)
+            if pack:
+                units_to_add = int(pack.get("units") or 0)
+
+    if units_to_add and units_to_add > 0:
+        try:
+            from usage_tracker import get_usage_tracker
+            tracker = get_usage_tracker()
+            ok = tracker.add_units(
+                user_id=user.id,
+                units=units_to_add,
+                source=source,
+                transaction_id=transaction_id,
+            )
+            if not ok:
+                raise HTTPException(status_code=500, detail="Payment verified but failed to credit units")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Payment verified but crediting failed: {str(e)}")
+
     db = get_user_database()
     db.log_usage(user.id, "payment_verified", f"Order: {request.order_id}, Gateway: {request.gateway}")
     
@@ -298,6 +334,7 @@ async def verify_payment(
         "success": True,
         "verified": True,
         "message": "Payment verified successfully",
+        "units_added": units_to_add or 0,
     }
 
 

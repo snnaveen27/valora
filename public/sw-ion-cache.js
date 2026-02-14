@@ -38,6 +38,44 @@ let buildingCacheStats = {
   lastUpdate: Date.now()
 }
 
+// Cache size limits (in number of tiles)
+const MAX_ION_TILES = 200 // Reduced from 500
+const MAX_BUILDING_TILES = 5000 // Reduced from 10000
+
+// Building display limits for performance optimization
+const MAX_BUILDINGS_DISPLAY = 20000 // Reduced from 50000
+const BUILDING_LOAD_RADIUS_KM = 1 // Reduced from 2km
+const MAX_TILES_IN_MEMORY = 100 // Reduced from 200
+
+// LRU tracking for cache eviction
+const tileAccessTimes = new Map()
+
+// Photorealistic tile cache settings - CONSERVATIVE for smooth performance
+const PHOTOREALISTIC_CACHE_CONFIG = {
+  maximumScreenSpaceError: 4, // Higher = less detail but better performance
+  maximumMemoryUsage: 512, // 512MB only - reduced from 2GB to prevent lag
+  cacheBytes: 536870912, // 512MB in bytes
+  preloadWhenHidden: false, // Don't preload - causes lag
+  preloadFlightDestinations: false, // Don't preload - causes lag
+  dynamicScreenSpaceError: true,
+  dynamicScreenSpaceErrorDensity: 0.01, // Less dense
+  dynamicScreenSpaceErrorFactor: 2.0,
+  skipLevelOfDetail: true, // Skip LODs for performance
+  baseScreenSpaceError: 2048, // Higher = less detail
+  skipScreenSpaceErrorFactor: 32, // More aggressive skipping
+  skipLevels: 2, // Skip more levels
+  immediatelyLoadDesiredLevelOfDetail: false, // Load gradually
+  loadSiblings: false, // Don't load siblings - saves memory
+  cullWithChildrenBounds: true,
+  cullRequestsWhileMoving: true, // Cull while moving for smooth panning
+  cullRequestsWhileMovingMultiplier: 10.0, // Aggressive culling while moving
+  progressiveResolutionHeightFraction: 0.5, // Less progressive detail
+  foveatedScreenSpaceError: true,
+  foveatedConeSize: 0.1, // Smaller cone
+  foveatedMinimumScreenSpaceErrorRelaxation: 0.5, // More relaxed outside center
+  foveatedTimeDelay: 0.2 // Slower updates
+}
+
 // Check if URL matches Ion tile patterns
 function isIonTileRequest(url) {
   return ION_TILE_PATTERNS.some(pattern => pattern.test(url))
@@ -46,6 +84,42 @@ function isIonTileRequest(url) {
 // Check if URL matches building tile patterns
 function isBuildingTileRequest(url) {
   return BUILDING_TILE_PATTERNS.some(pattern => pattern.test(url))
+}
+
+// Manage cache size with LRU eviction
+async function manageCacheSize(cacheName, maxItems) {
+  const cache = await caches.open(cacheName)
+  const keys = await cache.keys()
+  
+  if (keys.length <= maxItems) return
+  
+  // Sort by access time (oldest first)
+  const sortedKeys = keys.sort((a, b) => {
+    const timeA = tileAccessTimes.get(a.url) || 0
+    const timeB = tileAccessTimes.get(b.url) || 0
+    return timeA - timeB
+  })
+  
+  // Delete oldest items until under limit
+  const toDelete = sortedKeys.slice(0, keys.length - maxItems)
+  for (const request of toDelete) {
+    await cache.delete(request)
+    tileAccessTimes.delete(request.url)
+  }
+  
+  console.log(`🧹 Cache cleaned: removed ${toDelete.length} old tiles`)
+}
+
+// Update access time for LRU tracking
+function updateTileAccessTime(url) {
+  tileAccessTimes.set(url, Date.now())
+  // Clean up old entries periodically
+  if (tileAccessTimes.size > 2000) {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000 // 24 hours
+    for (const [key, time] of tileAccessTimes) {
+      if (time < cutoff) tileAccessTimes.delete(key)
+    }
+  }
 }
 
 // Get cache size estimate
@@ -150,6 +224,8 @@ self.addEventListener('fetch', (event) => {
     caches.open(cacheName).then(cache => {
       return cache.match(event.request).then(cachedResponse => {
         if (cachedResponse) {
+          // Update access time for LRU tracking
+          updateTileAccessTime(event.request.url)
           console.log(`📦 ${tileType} from cache:`, url.substring(url.lastIndexOf('/') + 1))
           return cachedResponse
         }
@@ -161,9 +237,15 @@ self.addEventListener('fetch', (event) => {
             // Clone response before caching
             const responseToCache = networkResponse.clone()
             
+            // Manage cache size before adding new tile
+            const maxItems = isIonTile ? MAX_ION_TILES : MAX_BUILDING_TILES
+            
             cache.put(event.request, responseToCache).then(() => {
+              updateTileAccessTime(event.request.url)
               console.log(`💾 Cached ${tileType} tile:`, url.substring(url.lastIndexOf('/') + 1))
               updateCacheStats()
+              // Clean up old tiles in background
+              manageCacheSize(cacheName, maxItems)
             })
           }
           

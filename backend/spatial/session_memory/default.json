@@ -1,0 +1,972 @@
+{
+  "session_id": "default",
+  "session_start": "2026-02-12T03:56:52.334163",
+  "visits": [
+    {
+      "lat": 12.9782379,
+      "lng": 77.64322254,
+      "name": "Building",
+      "timestamp": "2026-02-03T15:00:19.197244",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.971037480000001,
+      "lng": 77.64101148,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:06:31.777544",
+      "intent": "investment",
+      "duration_seconds": 269.80964,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.971037480000001,
+      "lng": 77.64101148,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:11:01.587184",
+      "intent": "navigate",
+      "duration_seconds": 413.796818,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97754042,
+      "lng": 77.6406504,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:17:55.384002",
+      "intent": "investment",
+      "duration_seconds": 191.749401,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97754042,
+      "lng": 77.6406504,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:21:07.133403",
+      "intent": "property_search",
+      "duration_seconds": 13.693401,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97754042,
+      "lng": 77.6406504,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:21:20.826804",
+      "intent": "analyze_building",
+      "duration_seconds": 21.004047,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97754042,
+      "lng": 77.6406504,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:21:41.830851",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97754042,
+      "lng": 77.6406504,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:28:20.175886",
+      "intent": "navigate",
+      "duration_seconds": 136.954402,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97754042,
+      "lng": 77.6406504,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:30:37.130288",
+      "intent": "navigate",
+      "duration_seconds": 24.723185,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97754042,
+      "lng": 77.6406504,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:31:01.853473",
+      "intent": "greeting",
+      "duration_seconds": 9.171008,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97754042,
+      "lng": 77.6406504,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:31:11.024481",
+      "intent": "analyze_building",
+      "duration_seconds": 23.248944,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97754042,
+      "lng": 77.6406504,
+      "name": "Building",
+      "timestamp": "2026-02-03T20:31:34.273425",
+      "intent": "analyze_building",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.988799460000001,
+      "lng": 77.64699119999999,
+      "name": "Building",
+      "timestamp": "2026-02-05T19:53:36.412383",
+      "intent": "analyze_building",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.965171948031141,
+      "lng": 77.7425349425683,
+      "name": "Selected Location",
+      "timestamp": "2026-02-05T20:25:56.771345",
+      "intent": "greeting",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9782379,
+      "lng": 77.64322254,
+      "name": "Building",
+      "timestamp": "2026-02-06T00:44:07.539481",
+      "intent": "investment",
+      "duration_seconds": 171.669272,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9782379,
+      "lng": 77.64322254,
+      "name": "Building",
+      "timestamp": "2026-02-06T00:46:59.209753",
+      "intent": "analyze_building",
+      "duration_seconds": 172.642214,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9782379,
+      "lng": 77.64322254,
+      "name": "Building",
+      "timestamp": "2026-02-06T00:49:51.851967",
+      "intent": "analyze_building",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-06T01:28:42.229935",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-06T01:32:55.217922",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-06T01:34:42.275241",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-06T20:34:12.487987",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-07T15:41:43.282069",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0236209,
+      "lng": 77.5503358,
+      "name": "E",
+      "timestamp": "2026-02-09T19:32:07.966492",
+      "intent": "property_search",
+      "duration_seconds": 39.472559,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0236209,
+      "lng": 77.5503358,
+      "name": "E",
+      "timestamp": "2026-02-09T19:32:47.439051",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0236209,
+      "lng": 77.5503358,
+      "name": "E",
+      "timestamp": "2026-02-09T19:43:57.127562",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-09T23:26:43.524341",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0236209,
+      "lng": 77.5503358,
+      "name": "E",
+      "timestamp": "2026-02-09T23:56:37.071812",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-10T00:36:41.918277",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T01:29:26.559555",
+      "intent": "investment",
+      "duration_seconds": 46.57843,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T01:30:13.137985",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T01:45:39.694242",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0236209,
+      "lng": 77.5503358,
+      "name": "E",
+      "timestamp": "2026-02-10T01:52:15.006042",
+      "intent": "property_search",
+      "duration_seconds": 39.336592,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-10T01:52:54.342634",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T01:53:53.695829",
+      "intent": "investment",
+      "duration_seconds": 46.110658,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-10T01:54:39.806487",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T01:56:39.677883",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T06:23:33.965345",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:17:12.678862",
+      "intent": "investment",
+      "duration_seconds": 82.968169,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:18:35.647031",
+      "intent": "investment",
+      "duration_seconds": 65.046024,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:19:40.693055",
+      "intent": "investment",
+      "duration_seconds": 260.137145,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:24:00.830200",
+      "intent": "investment",
+      "duration_seconds": 30.635727,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:24:31.465927",
+      "intent": "investment",
+      "duration_seconds": 32.510031,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:25:03.975958",
+      "intent": "investment",
+      "duration_seconds": 55.411174,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:25:59.387132",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0236209,
+      "lng": 77.5503358,
+      "name": "E",
+      "timestamp": "2026-02-10T07:31:52.893017",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9914,
+      "lng": 77.5521,
+      "name": "Rajajinagar",
+      "timestamp": "2026-02-10T07:33:27.157076",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:38:02.071913",
+      "intent": "investment",
+      "duration_seconds": 169.04598,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:40:51.117893",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-10T07:50:28.944701",
+      "intent": "investment",
+      "duration_seconds": 79.760298,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T07:51:48.704999",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T08:15:43.802811",
+      "intent": "investment",
+      "duration_seconds": 244.496246,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-10T08:19:48.299057",
+      "intent": "property_search",
+      "duration_seconds": 141.284229,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-10T08:22:09.583286",
+      "intent": "property_search",
+      "duration_seconds": 185.017904,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-10T08:25:14.601190",
+      "intent": "investment",
+      "duration_seconds": 287.068486,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-10T08:30:01.669676",
+      "intent": "comparison",
+      "duration_seconds": 45.054197,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-10T08:30:46.723873",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-11T04:20:02.567234",
+      "intent": "investment",
+      "duration_seconds": 1550.793935,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-11T04:45:53.361169",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0236209,
+      "lng": 77.5503358,
+      "name": "E",
+      "timestamp": "2026-02-11T19:48:15.458364",
+      "intent": "property_search",
+      "duration_seconds": 36.184569,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-11T19:48:51.642933",
+      "intent": "navigate",
+      "duration_seconds": 15.662285,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-11T19:49:07.305218",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "Indiranagar",
+      "timestamp": "2026-02-11T20:46:53.523259",
+      "intent": "property_search",
+      "duration_seconds": 236.48493,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-11T20:50:50.008189",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.023149,
+      "lng": 77.5504697,
+      "name": "G",
+      "timestamp": "2026-02-11T21:12:48.786033",
+      "intent": "navigate",
+      "duration_seconds": 357.768814,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-11T21:18:46.554847",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-11T21:23:50.583572",
+      "intent": "investment",
+      "duration_seconds": 450.629316,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-11T21:31:21.212888",
+      "intent": "analyze_area",
+      "duration_seconds": 59.847243,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-11T21:32:21.060131",
+      "intent": "comparison",
+      "duration_seconds": 122.815837,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-11T21:34:23.875968",
+      "intent": "property_search",
+      "duration_seconds": 24.476599,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-11T21:34:48.352567",
+      "intent": "property_search",
+      "duration_seconds": 36.660102,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-11T21:35:25.012669",
+      "intent": "investment",
+      "duration_seconds": 21.706472,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-11T21:35:46.719141",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-11T21:46:55.840433",
+      "intent": "comparison",
+      "duration_seconds": 119.374593,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-11T21:48:55.215026",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-12T04:00:29.649826",
+      "intent": "analyze_area",
+      "duration_seconds": 98.994202,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.8456,
+      "lng": 77.6603,
+      "name": "Electronic City",
+      "timestamp": "2026-02-12T04:02:08.644028",
+      "intent": "navigate",
+      "duration_seconds": 37.814993,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.925,
+      "lng": 77.58,
+      "name": "Jayanagar",
+      "timestamp": "2026-02-12T04:02:46.459021",
+      "intent": "navigate",
+      "duration_seconds": 57.953045,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9116,
+      "lng": 77.6474,
+      "name": "HSR Layout",
+      "timestamp": "2026-02-12T04:03:44.412066",
+      "intent": "navigate",
+      "duration_seconds": 129.974066,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-12T04:05:54.386132",
+      "intent": "navigate",
+      "duration_seconds": 201.050213,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-12T04:09:15.436345",
+      "intent": "navigate",
+      "duration_seconds": 122.712918,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-12T04:11:18.149263",
+      "intent": "analyze_area",
+      "duration_seconds": 162.405667,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9758,
+      "lng": 77.6066,
+      "name": "MG Road",
+      "timestamp": "2026-02-12T04:14:00.554930",
+      "intent": "property_search",
+      "duration_seconds": 95.510623,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "Indiranagar",
+      "timestamp": "2026-02-12T04:15:36.065553",
+      "intent": "investment",
+      "duration_seconds": 340.665413,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-12T04:21:16.730966",
+      "intent": "navigate",
+      "duration_seconds": 60.847699,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-12T04:22:17.578665",
+      "intent": "navigate",
+      "duration_seconds": 480.865715,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "Indiranagar",
+      "timestamp": "2026-02-12T04:30:18.444380",
+      "intent": "property_search",
+      "duration_seconds": 86.86845,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-12T04:31:45.312830",
+      "intent": "navigate",
+      "duration_seconds": 61.347,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9177,
+      "lng": 77.6238,
+      "name": "Silk Board",
+      "timestamp": "2026-02-12T04:32:46.659830",
+      "intent": "terrain",
+      "duration_seconds": 48.400476,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.926,
+      "lng": 77.6762,
+      "name": "Bellandur",
+      "timestamp": "2026-02-12T04:33:35.060306",
+      "intent": "analyze_area",
+      "duration_seconds": 102.203806,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9116,
+      "lng": 77.6474,
+      "name": "HSR Layout",
+      "timestamp": "2026-02-12T04:35:17.264112",
+      "intent": "comparison",
+      "duration_seconds": 612.095222,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9177,
+      "lng": 77.6238,
+      "name": "Silk Board",
+      "timestamp": "2026-02-12T04:45:29.359334",
+      "intent": "terrain",
+      "duration_seconds": 839.590518,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "Indiranagar",
+      "timestamp": "2026-02-12T04:59:28.949852",
+      "intent": "property_search",
+      "duration_seconds": 105.354143,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "Indiranagar",
+      "timestamp": "2026-02-12T05:01:14.303995",
+      "intent": "terrain",
+      "duration_seconds": 57.349999,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.8456,
+      "lng": 77.6603,
+      "name": "Electronic City",
+      "timestamp": "2026-02-12T05:02:11.653994",
+      "intent": "navigate",
+      "duration_seconds": 47.437784,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9716,
+      "lng": 77.6412,
+      "name": "Indiranagar",
+      "timestamp": "2026-02-12T05:02:59.091778",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    }
+  ],
+  "preferences": {
+    "preferred_areas": [
+      "building",
+      "whitefield",
+      "a",
+      "hebbal",
+      "e"
+    ],
+    "preferred_property_types": [],
+    "budget_range": null,
+    "preferred_amenities": [],
+    "avoid_areas": [],
+    "exploration_style": "focused"
+  },
+  "comparisons": [],
+  "last_updated": "2026-02-12T05:02:59.093282"
+}

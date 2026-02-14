@@ -9,12 +9,12 @@ Provides advanced spatial analysis including:
 - Unified spatial query API
 """
 
-import json
 import math
+import json
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
+from config import config
 
 try:
     import h3
@@ -88,10 +88,10 @@ class SpatialReasoningService:
     Advanced spatial reasoning with H3 indexing and 3D analysis.
     """
     
-    def __init__(self, data_dir: Path):
-        self.data_dir = data_dir
-        self.osm_dir = data_dir / 'osm_extracted'
-        self.terrain_dir = data_dir / 'terrain'
+    def __init__(self, data_dir: Path | None = None):
+        self.data_dir = data_dir or config.DATA_DIR
+        self.osm_dir = self.data_dir / 'osm_extracted'
+        self.terrain_dir = self.data_dir / 'terrain'
         
         # Spatial indices
         self.poi_index: Dict[str, List[Dict]] = defaultdict(list)  # h3_index -> POIs

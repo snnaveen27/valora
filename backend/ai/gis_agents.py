@@ -102,11 +102,15 @@ except ImportError:
     get_solar_engine = None
 
 try:
-    from spatial_memory_graph import get_spatial_graph
+    from spatial.spatial_memory_graph import get_spatial_graph
     SPATIAL_GRAPH_AVAILABLE = True
 except ImportError:
-    SPATIAL_GRAPH_AVAILABLE = False
-    get_spatial_graph = None
+    try:
+        from spatial_memory_graph import get_spatial_graph
+        SPATIAL_GRAPH_AVAILABLE = True
+    except ImportError:
+        SPATIAL_GRAPH_AVAILABLE = False
+        get_spatial_graph = None
 
 
 def _parse_posted_date(value: Any) -> Optional[datetime]:
@@ -232,6 +236,7 @@ class AgentFacts:
     """Structured facts collected by agents. All values are grounded in data."""
     # Location context
     location_name: Optional[str] = None
+    nearby_locality_name: Optional[str] = None  # Nearest known locality when exact name unavailable
     lat: Optional[float] = None
     lng: Optional[float] = None
     
@@ -320,6 +325,10 @@ class AgentFacts:
     ai_confidence_factors: Optional[List[str]] = None
     reasoning_chain: Optional[List[str]] = None
     
+    # Spatial reasoning mode flag (Phase 2.3: GIS Enhancement)
+    requires_spatial_reasoning: bool = False
+    spatial_reasoning_injection: Optional[str] = None
+    
     # Phase 3: City Intelligence Engine
     locality_archetype: Optional[str] = None
     locality_growth_stage: Optional[str] = None
@@ -351,12 +360,19 @@ class AgentFacts:
             return "✓ **Moderate Confidence**: Analysis based on available data, but some details may be estimated."
         return None
     
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert facts to dictionary for JSON serialization."""
+        from dataclasses import asdict
+        return asdict(self)
+    
     def to_context_string(self) -> str:
         """Convert facts to a structured context string for LLM."""
         parts = []
         
         if self.location_name:
             parts.append(f"**Location:** {self.location_name}")
+            if self.nearby_locality_name and self.nearby_locality_name != self.location_name:
+                parts.append(f"  - Nearest known locality: {self.nearby_locality_name}")
             if self.lat and self.lng:
                 parts.append(f"  - Coordinates: {self.lat:.5f}, {self.lng:.5f}")
         
@@ -597,6 +613,123 @@ class AgentFacts:
         return dashboard
 
 
+# =============================================================================
+# SPATIAL REASONING MODE - Task Classifier & Injection
+# =============================================================================
+
+SPATIAL_REASONING_KEYWORDS = [
+    # 3D/View related
+    'view', 'views', 'skyline', 'shadow', 'sunlight', 'floor', 'height', 'tall', 
+    'building', 'buildings', 'visibility', 'obstruction', 'blocked', 'open sky',
+    'sky view', 'optimal floor', 'best floor', 'top floor', 'high-rise', 'mid-rise',
+    
+    # Spatial/Geographic
+    'near', 'nearby', 'close to', 'distance', 'direction', 'north', 'south', 
+    'east', 'west', 'adjacent', 'proximity', 'within', 'radius', 'km', 'meter',
+    'location', 'area', 'region', 'zone', 'corridor', 'boundary',
+    
+    # Planning/Zoning
+    'planning', 'zoning', 'development', 'density', 'land use', 'commercial',
+    'residential', 'mixed use', 'industrial', 'fsi', 'far', 'setback',
+    'regulation', 'compliance', 'permit', 'approval',
+    
+    # Impact/Analysis
+    'impact', 'effect', 'consequence', 'tradeoff', 'advantage', 'disadvantage',
+    'pro', 'con', 'risk', 'benefit', 'assess', 'evaluate', 'analyze',
+    
+    # Infrastructure
+    'metro', 'station', 'road', 'highway', 'connectivity', 'access', 'transport',
+    'infrastructure', 'amenity', 'facility', 'school', 'hospital', 'park',
+    
+    # Terrain/Environment
+    'terrain', 'elevation', 'slope', 'flood', 'drainage', 'waterlogging',
+    'topography', 'ground', 'soil', 'lake', 'water body',
+    
+    # Comparison/Relative
+    'compare', 'versus', 'vs', 'better', 'worse', 'prefer', 'difference',
+    'similar', 'alternative', 'option',
+    
+    # Investment with spatial context
+    'where should', 'best area', 'best location', 'which locality', 'recommend area',
+]
+
+SPATIAL_REASONING_INJECTION = """
+## SPATIAL REASONING MODE ACTIVATED
+
+This query requires deep spatial reasoning. Follow this process:
+
+**Step 1: Construct Mental Spatial Model**
+- Identify the geographic location and boundaries
+- Note the urban fabric (building types, density, land use)
+- Identify key spatial features (metro, lakes, main roads, landmarks)
+
+**Step 2: Describe Spatial Relationships**
+- Adjacency: What is next to what?
+- Distance: How far are key destinations?
+- Direction: Which direction are important features?
+- Scale: Micro-location vs neighborhood vs corridor context
+
+**Step 3: Consider Multiple Viewpoints**
+- Pedestrian perspective (walkability, street-level experience)
+- Resident perspective (daily commute, amenities access)
+- Investor perspective (growth trajectory, connectivity premium)
+- Developer perspective (density potential, infrastructure capacity)
+
+**Step 4: Analyze Impacts and Tradeoffs**
+- What are the positive spatial factors?
+- What are the constraints or risks?
+- What are the development implications?
+
+**Step 5: Provide Structured Answer**
+Format your response as:
+1. **Spatial Context** - Location, urban character, key features
+2. **Key Relationships** - Adjacency, connectivity, distance to destinations  
+3. **Impacts / Tradeoffs** - Pros, cons, development implications
+4. **Conclusion** - Clear recommendation with spatial justification
+"""
+
+
+def is_spatial_reasoning_task(query: str, intent: 'Intent' = None) -> bool:
+    """
+    Lightweight task classifier to detect if a query requires spatial reasoning mode.
+    Uses keyword/intent rules - no ML required.
+    
+    Returns True if spatial reasoning mode should be activated.
+    """
+    q_lower = query.lower()
+    
+    # Intent-based classification (high confidence)
+    spatial_intents = {
+        'terrain', 'comparison', 'simulate', 'analyze_area', 'analyze_building',
+        'navigate', 'recommendation', 'investment'
+    }
+    if intent and intent.value in spatial_intents:
+        return True
+    
+    # Keyword-based classification
+    keyword_count = sum(1 for kw in SPATIAL_REASONING_KEYWORDS if kw in q_lower)
+    
+    # If 2+ spatial keywords found, activate spatial reasoning
+    if keyword_count >= 2:
+        return True
+    
+    # Single keyword with spatial question patterns
+    spatial_question_patterns = [
+        r'\b(where|which|what area|what location|how far|how close)\b',
+        r'\b(best|optimal|ideal|recommended)\s+(floor|area|location|zone)\b',
+        r'\b(impact|effect|influence)\s+of\b',
+        r'\b(compare|vs|versus|between)\b',
+        r'\bwhat if\b',
+    ]
+    
+    for pattern in spatial_question_patterns:
+        if re.search(pattern, q_lower):
+            if keyword_count >= 1:
+                return True
+    
+    return False
+
+
 class IntentRouter:
     """Classifies user intent from query text."""
     
@@ -672,7 +805,7 @@ class IntentRouter:
         r'\b(under|below|above)\s*\d+\s*(lakh|lac|cr|crore)?\b',
         r'\b(\d+\s*bhk|\d+\s*bedroom)\b',
         r'\b(real estate|realty|homes?)\b',
-        r'\b(villa|duplex|penthouse|studio)\b',
+        r'\b(villas?|duplex|penthouses?|studio)\b',
         r'\b(commercial|office|shop|warehouse|industrial)\s*(space|property)?\b',
         r'\b(top|best)\s*(properties|apartments?|flats?|houses?|listings?)\b',
     ]
@@ -919,10 +1052,14 @@ class GISAgentOrchestrator:
         session_id = context.get('session_id', 'default')
         spatial_memory = None
         try:
-            from spatial_memory import get_spatial_memory
+            from spatial.spatial_memory import get_spatial_memory
             spatial_memory = get_spatial_memory(session_id)
-        except Exception as e:
-            print(f"[GIS] Spatial memory init error: {e}")
+        except ImportError:
+            try:
+                from spatial_memory import get_spatial_memory
+                spatial_memory = get_spatial_memory(session_id)
+            except Exception as e:
+                print(f"[GIS] Spatial memory init error: {e}")
         
         # Extract context
         selected_building = context.get('selectedBuilding')
@@ -978,6 +1115,14 @@ class GISAgentOrchestrator:
                 has_location=bool(selected_location or selected_place),
             )
         
+        # Phase 2.3: Detect if spatial reasoning mode should be activated
+        facts.requires_spatial_reasoning = is_spatial_reasoning_task(query, intent)
+        if facts.requires_spatial_reasoning:
+            facts.spatial_reasoning_injection = SPATIAL_REASONING_INJECTION
+            if not facts.ai_capabilities_used:
+                facts.ai_capabilities_used = []
+            facts.ai_capabilities_used.append("spatial_reasoning_mode")
+        
         # Determine location to analyze
         lat, lng, location_name = None, None, None
         
@@ -998,6 +1143,15 @@ class GISAgentOrchestrator:
                         location_name = reverse_result.get('name') or reverse_result.get('locality')
                 except Exception:
                     pass
+            # Fallback: find nearest known locality by coordinates
+            if not location_name and lat and lng:
+                try:
+                    from locality_service import get_locality_service
+                    nearby_loc = get_locality_service().get_nearby_locality(lat, lng, radius_km=3.0)
+                    if nearby_loc:
+                        location_name = nearby_loc.get('locality_name')
+                except Exception:
+                    pass
             if not location_name:
                 location_name = selected_building.get('name', 'Selected Building')
         elif selected_location:
@@ -1012,8 +1166,18 @@ class GISAgentOrchestrator:
                         location_name = reverse_result.get('name') or reverse_result.get('locality')
                 except Exception:
                     pass
+            # Fallback: find nearest known locality by coordinates
+            if not location_name and lat and lng:
+                try:
+                    from locality_service import get_locality_service
+                    nearby_loc = get_locality_service().get_nearby_locality(lat, lng, radius_km=3.0)
+                    if nearby_loc:
+                        location_name = nearby_loc.get('locality_name')
+                        print(f"[GIS] Reverse geocode failed, using nearest locality: {location_name}")
+                except Exception:
+                    pass
             if not location_name:
-                location_name = selected_location.get('name', 'Selected Location')
+                location_name = f"Area at {lat:.4f}, {lng:.4f}" if lat and lng else 'Selected Location'
         
         # Enhanced: Use Spatial NLP for better query understanding
         parsed_spatial = None
@@ -1074,6 +1238,17 @@ class GISAgentOrchestrator:
             try:
                 from locality_service import get_locality_state, get_locality_service
                 locality_state = get_locality_state(location_name)
+                
+                # Fallback: coordinate-based nearest locality lookup
+                if not locality_state and lat and lng:
+                    nearby_loc = get_locality_service().get_nearby_locality(lat, lng, radius_km=3.0)
+                    if nearby_loc:
+                        locality_state = nearby_loc
+                        # Update location_name to the actual locality for better LLM context
+                        actual_name = nearby_loc.get('locality_name')
+                        if actual_name and actual_name != location_name:
+                            facts.nearby_locality_name = actual_name
+                            print(f"[GIS] Name lookup failed for '{location_name}', using nearest: {actual_name}")
                 
                 if locality_state:
                     # Use precomputed data instead of computing on the fly
@@ -1187,8 +1362,8 @@ class GISAgentOrchestrator:
             except Exception as e:
                 print(f"Area analyzer error: {e}")
         
-        # Gather terrain facts
-        if lat and lng and self.terrain_service and intent in [Intent.TERRAIN, Intent.ANALYZE_AREA, Intent.VALUATION]:
+        # Gather terrain facts (for ALL location-based intents, not just terrain/area)
+        if lat and lng and self.terrain_service:
             next_task(f"Analyzed terrain and flood risk")
             try:
                 terrain = self.terrain_service.get_terrain_analysis(lat, lng)
@@ -1405,10 +1580,15 @@ class GISAgentOrchestrator:
                 print(f"[GIS] AI context error: {e}")
         
         # Gather market facts (deterministic from property data)
+        # Use progressively wider radius to ensure we find data
         if lat and lng and self.property_service:
             next_task(f"Retrieved market data and trends")
             try:
-                market = _compute_market_facts(self.property_service, lat, lng, 1500)
+                market = None
+                for radius in [1500, 3000, 5000]:
+                    market = _compute_market_facts(self.property_service, lat, lng, radius)
+                    if market and market.get('active_listings', 0) > 0:
+                        break
                 if market:
                     facts.avg_price_per_sqft = market.get('avg_price_per_sqft')
                     facts.price_trend_pct = market.get('price_trend_pct')
@@ -1498,6 +1678,9 @@ class GISAgentOrchestrator:
                         "name": p.get('name', 'Property'),
                         "price": p.get('price'),
                         "bedrooms": p.get('bedrooms'),
+                        "property_type": p.get('property_type'),
+                        "locality": p.get('locality') or p.get('area_name'),
+                        "area": p.get('total_area_sqft') or p.get('covered_area'),
                     }
                     for p in props[:10]
                     if p.get('latitude') and p.get('longitude')

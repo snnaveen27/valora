@@ -5,6 +5,7 @@ Uses DATABASE as primary source (terrain_grid table)
 
 import json
 from pathlib import Path
+from config import config
 from typing import Dict, List, Optional, Tuple
 
 try:
@@ -13,8 +14,8 @@ except ImportError:
     np = None
 
 class TerrainService:
-    def __init__(self, terrain_dir: Path):
-        self.terrain_dir = terrain_dir
+    def __init__(self, terrain_dir: Path | None = None):
+        self.terrain_dir = terrain_dir or config.TERRAIN_DIR
         self.db = None
         self.loaded = False
         self._init_db()
@@ -27,7 +28,7 @@ class TerrainService:
                 from backend.database.db_service import DatabaseService
             except ImportError:
                 from database.db_service import DatabaseService
-            db_path = self.terrain_dir.parent / 'valora.db'
+            db_path = config.DB_PATH
             self.db = DatabaseService(str(db_path))
             
             # Check if terrain_grid table exists

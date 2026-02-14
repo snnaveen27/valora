@@ -1789,6 +1789,306 @@ Explain your reasoning in a short version and a detailed version
 ```
 
 ---
- 
+
+## 🏗️ Construction & Development Queries
+
+### New Launch & Pre-Launch
+```
+Show me new launch projects in Whitefield
+Pre-launch offers in Sarjapur Road
+Upcoming residential projects in Bangalore
+Builder projects launching in 2026
+```
+
+### Under Construction
+```
+Track construction progress of my shortlisted property
+Which projects will be ready by December 2026?
+Under construction 2BHK in Koramangala
+Show me projects with RERA registration
+```
+
+### Project Quality & Builder Analysis
+```
+Which builder has the best track record in Bangalore?
+Quality comparison: Prestige vs Sobha vs Brigade
+Show me projects by top 10 builders
+Analyze this builder's delivery history
+```
+
+### Construction Status
+```
+Is this project on track or delayed?
+Show delayed projects in Bangalore
+Projects completed in last 6 months
+```
+
+---
+
+## 🌦️ Weather & Environment Impact Queries
+
+### Seasonal Analysis
+```
+How does monsoon affect Koramangala?
+Areas with water logging problems in Bangalore
+Best areas to buy considering summer heat
+Rain impact analysis for Whitefield
+```
+
+### Air Quality & Environment
+```
+Which areas have better air quality?
+Show me pollution-free zones in Bangalore
+Areas with good tree cover and greenery
+Environmentally friendly neighborhoods
+```
+
+### Water Resources
+```
+Areas with good groundwater levels
+Which localities face water shortage?
+Best areas with reliable water supply
+Water table analysis for Sarjapur Road
+```
+
+### Climate Risk Assessment
+```
+Climate risk analysis for Bangalore areas
+Future flood risk prediction for Bellandur
+Heat island effect in Electronic City
+```
+
+---
+
+## 📅 Time-Based & Temporal Queries
+
+### Best Time to Buy/Sell
+```
+When is the best time to buy in Bangalore?
+Best month to invest in Whitefield
+Is now a good time to sell in Koramangala?
+Market timing analysis for investment
+```
+
+### Seasonal Trends
+```
+Do prices drop during monsoon?
+Rental demand patterns throughout the year
+Festive season impact on property prices
+Year-end discounts on new projects
+```
+
+### Historical Timeline
+```
+Price history last 10 years for Whitefield
+How has Koramangala changed since 2015?
+Evolution of Electronic City as IT hub
+```
+
+---
+
+## 🚨 Emergency & Alert Queries
+
+### Flood Alerts
+```
+Is it safe to buy in flood-prone areas?
+Real-time flood warning for Bangalore areas
+Which areas flooded in 2024?
+Post-flood recovery analysis for Bellandur
+```
+
+### Disaster Preparedness
+```
+Earthquake risk zones in Bangalore
+Fire safety compliance in residential areas
+Emergency services accessibility by area
+```
+
+### Safety Analysis
+```
+Safest areas for families in Bangalore
+Crime rate analysis by locality
+Areas with good street lighting
+```
+
+---
+
+## 🔄 Property Lifecycle Queries
+
+### New vs Resale vs Plot
+```
+Should I buy new or resale in Whitefield?
+New apartment vs resale: pros and cons
+Investment: Plot or apartment in Bangalore?
+```
+
+### Property Aging
+```
+How old are buildings in Indiranagar?
+Average building age by area
+Areas with newer constructions
+```
+
+### Renovation Potential
+```
+Areas with good resale renovation potential
+Bangalore localities with vintage charm
+Best areas for property flipping
+```
+
+---
+
+## 🏢 Commercial & Mixed-Use Queries
+
+### Commercial Investment
+```
+Best commercial properties in Bangalore
+Office space investment potential
+Show me retail spaces for investment
+Co-working space trends by area
+```
+
+### Mixed-Use Development
+```
+Mixed-use projects in Bangalore
+Areas with live-work-play concept
+Commercial-residential combo areas
+```
+
+### Business Districts
+```
+Analyze CBD (Central Business District)
+MG Road commercial potential
+Evolution of ORR as business corridor
+```
+
+---
+
+## 📊 Analytics & Statistics Queries
+
+### Demographics
+```
+Population density by Bangalore area
+Age demographics of residents in Koramangala
+IT professional concentration by locality
+```
+
+### Economic Indicators
+```
+Per capita income by Bangalore area
+Job growth in different corridors
+Economic activity heatmap of Bangalore
+```
+
+### Infrastructure Density
+```
+Road density analysis by area
+Public transport coverage score
+Parking availability index
+```
+
+---
+
+## 🎯 Advanced Intent Combinations
+
+### Complex Multi-Factor
+```
+Find 2BHK near metro, under 80L, low flood risk, good schools
+Recommend areas: IT job, family, 1CR, park nearby
+Best investment: appreciation + rental yield + low risk
+```
+
+### Conditional Queries
+```
+If budget is 80L, where should I buy?
+Should I buy in Whitefield if I work in EC?
+Compare options assuming 5 year horizon
+```
+
+### Hypothetical Scenarios
+```
+What if I work from home, where to buy?
+If schools are priority, which area?
+Best area if commute doesn't matter?
+```
+
+---
+
+## 💡 Pro Tips & Strategy Queries
+
+### Negotiation Strategy
+```
+How to negotiate property price in Bangalore?
+Token advance percentage in Bangalore
+What's a good discount to ask for?
+```
+
+### Portfolio Strategy
+```
+Build a 3-property portfolio in Bangalore
+Diversify: spread across which areas?
+Entry-exit strategy for Bangalore RE
+```
+
+### Risk Management
+```
+Hedging strategies for RE investment
+How to verify builder credibility?
+Insurance recommendations for Bangalore RE
+```
+
+---
+
+## 🎓 Learning & Educational Queries
+
+### Bangalore RE Education
+```
+Explain Bangalore real estate micro-markets
+How to read a BDA layout plan?
+Understanding Bangalore zoning regulations
+```
+
+### Investment Education
+```
+Real estate investment basics for Bangalore
+REITs vs direct property in Bangalore
+Tax implications of Bangalore property
+```
+
+### Legal Education
+```
+Property registration process in Bangalore
+Stamp duty calculation for Karnataka
+Khata transfer process explained
+```
+
+---
+
+## 🔍 Deep Analysis Queries
+
+### Root Cause Analysis
+```
+Why is Whitefield more expensive than EC?
+What drives prices in Koramangala?
+Root causes of traffic in Silk Board area
+```
+
+### Correlation Analysis
+```
+Relationship between metro and prices
+How does IT hiring affect RE prices?
+Correlation: schools and property values
+```
+
+### Predictive Analysis
+```
+Predict Whitefield prices next 3 years
+Forecast rental yields in Sarjapur
+Will ORR traffic improve with metro?
+```
+
+---
+
  *Generated: January 2026*
  *Platform: Valora AI v2.0 - City Intelligence Platform*
+ *Query Count: 800+ test queries covering all intents and edge cases*

@@ -43,7 +43,7 @@ class HybridSearchEngine:
         """
         
         # Strategy 1: RAG-first (semantic understanding)
-        if use_rag and query and self.rag and self.rag.index:
+        if use_rag and query and self.rag and (getattr(self.rag, 'local_store', None) or getattr(self.rag, 'index', None)):
             return self._rag_first_search(
                 query, lat, lng, radius_m, locality,
                 property_type, listing_type,
@@ -210,9 +210,9 @@ def get_hybrid_search(db_service=None, rag_service=None):
     
     if rag_service is None:
         try:
-            from backend.rag_service import get_rag_service
+            from ai.rag_service import get_rag_service
         except ImportError:
-            from rag_service import get_rag_service
-        rag_service = get_rag_service(Path(__file__).parent.parent / 'src' / 'data')
+            from backend.ai.rag_service import get_rag_service
+        rag_service = get_rag_service(Path(__file__).resolve().parent.parent.parent / 'src' / 'data')
     
     return HybridSearchEngine(db_service, rag_service)

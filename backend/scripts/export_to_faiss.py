@@ -1,6 +1,7 @@
-"""
-Export Pinecone vectors to FAISS local store
-Run this to create offline FAISS backup
+""" 
+Build / refresh FAISS local vector store from the Valora database.
+
+This is the preferred offline-first RAG indexing pipeline.
 """
 
 import sys
@@ -8,10 +9,10 @@ from pathlib import Path
 from typing import List, Dict, Any
 import time
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend.rag_service import RAGService
-from backend.local_vector_store import get_local_store, FAISS_AVAILABLE
+from ai.rag_service import RAGService
+from search.local_vector_store import get_local_store, FAISS_AVAILABLE
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -48,7 +49,7 @@ def export_namespace(
 
 def export_properties(rag: RAGService, local_store, batch_size: int):
     """Export properties from database and embed."""
-    from backend.database.query_service import get_query_service
+    from database.query_service import get_query_service
     
     db = get_query_service()
     
@@ -150,7 +151,7 @@ def export_properties(rag: RAGService, local_store, batch_size: int):
 
 def export_pois(rag: RAGService, local_store, batch_size: int):
     """Export POIs from database."""
-    from backend.database.query_service import get_query_service
+    from database.query_service import get_query_service
     
     db = get_query_service()
     try:
@@ -174,8 +175,15 @@ def export_pois(rag: RAGService, local_store, batch_size: int):
         if not text.strip():
             continue
         
-        lat = poi.get("latitude", 0.0) or 0.0
-        lng = poi.get("longitude", 0.0) or 0.0
+        # Query service returns lat/lng aliases; fall back to latitude/longitude if present
+        lat = poi.get("lat")
+        lng = poi.get("lng")
+        if lat is None:
+            lat = poi.get("latitude")
+        if lng is None:
+            lng = poi.get("longitude")
+        lat = float(lat or 0.0)
+        lng = float(lng or 0.0)
         
         vectors_batch.append({
             "id": poi.get("poi_id", f"poi_{total}"),
@@ -186,8 +194,8 @@ def export_pois(rag: RAGService, local_store, batch_size: int):
                 "name": str(poi.get("name") or "")[:200],
                 "category": str(poi.get("category") or ""),
                 "subcategory": str(poi.get("subcategory") or ""),
-                "lat": float(lat),
-                "lng": float(lng),
+                "lat": lat,
+                "lng": lng,
             }
         })
         total += 1
@@ -206,7 +214,7 @@ def export_pois(rag: RAGService, local_store, batch_size: int):
 
 def export_places(rag: RAGService, local_store, batch_size: int):
     """Export places from database."""
-    from backend.database.query_service import get_query_service
+    from database.query_service import get_query_service
     
     db = get_query_service()
     try:
@@ -224,13 +232,19 @@ def export_places(rag: RAGService, local_store, batch_size: int):
     total = 0
     
     for place in places:
-        text = f"{place.get('name', '')} {place.get('type', '')} {place.get('city', '')}"
+        text = f"{place.get('name', '')} {place.get('type', '')} Bangalore"
         
         if not text.strip():
             continue
         
-        lat = place.get("latitude", 0.0) or 0.0
-        lng = place.get("longitude", 0.0) or 0.0
+        lat = place.get("lat")
+        lng = place.get("lng")
+        if lat is None:
+            lat = place.get("latitude")
+        if lng is None:
+            lng = place.get("longitude")
+        lat = float(lat or 0.0)
+        lng = float(lng or 0.0)
         
         vectors_batch.append({
             "id": place.get("place_id", f"place_{total}"),
@@ -240,8 +254,8 @@ def export_places(rag: RAGService, local_store, batch_size: int):
                 "text": str(text[:500]),
                 "name": str(place.get("name") or "")[:200],
                 "place_type": str(place.get("type") or ""),
-                "lat": float(lat),
-                "lng": float(lng),
+                "lat": lat,
+                "lng": lng,
             }
         })
         total += 1
@@ -259,7 +273,7 @@ def export_places(rag: RAGService, local_store, batch_size: int):
 
 def export_transport(rag: RAGService, local_store, batch_size: int):
     """Export transport stops from database."""
-    from backend.database.query_service import get_query_service
+    from database.query_service import get_query_service
     
     db = get_query_service()
     try:
@@ -277,13 +291,19 @@ def export_transport(rag: RAGService, local_store, batch_size: int):
     total = 0
     
     for stop in stops:
-        text = f"{stop.get('name', '')} {stop.get('type', '')} {stop.get('route', '')}"
+        text = f"{stop.get('name', '')} {stop.get('type', '')} {stop.get('line_name', '')}"
         
         if not text.strip():
             continue
         
-        lat = stop.get("latitude", 0.0) or 0.0
-        lng = stop.get("longitude", 0.0) or 0.0
+        lat = stop.get("lat")
+        lng = stop.get("lng")
+        if lat is None:
+            lat = stop.get("latitude")
+        if lng is None:
+            lng = stop.get("longitude")
+        lat = float(lat or 0.0)
+        lng = float(lng or 0.0)
         
         vectors_batch.append({
             "id": stop.get("stop_id", f"stop_{total}"),
@@ -293,9 +313,9 @@ def export_transport(rag: RAGService, local_store, batch_size: int):
                 "text": str(text[:500]),
                 "name": str(stop.get("name") or "")[:200],
                 "transport_type": str(stop.get("type") or ""),
-                "route": str(stop.get("route") or ""),
-                "lat": float(lat),
-                "lng": float(lng),
+                "line_name": str(stop.get("line_name") or ""),
+                "lat": lat,
+                "lng": lng,
             }
         })
         total += 1
@@ -340,7 +360,7 @@ def main(incremental: bool = True):
         return
     
     # Initialize services
-    data_dir = Path(__file__).parent.parent / 'src' / 'data'
+    data_dir = Path(__file__).resolve().parent.parent.parent / 'src' / 'data'
     rag = RAGService(data_dir)
     local_store = get_local_store(data_dir)
     

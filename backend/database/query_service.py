@@ -8,11 +8,12 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from functools import lru_cache
 import logging
+from config import config
 
 logger = logging.getLogger(__name__)
 
 # Database path
-DB_PATH = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
+DB_PATH = config.DB_PATH
 
 
 class DatabaseQueryService:

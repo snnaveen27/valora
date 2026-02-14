@@ -7,11 +7,12 @@ import { API_URL } from '../apiConfig'
 // Lazy load heavy components
 const OnlineOSMMap = lazy(() => import('../spatial/OnlineOSMMap'))
 const AnalysisPanel = lazy(() => import('./AnalysisPanel'))
-const ChatPanel = lazy(() => import('./ChatPanel'))
+const EnhancedChatPanel = lazy(() => import('./chat/EnhancedChatPanel'))
 const AdminPanel = lazy(() => import('./AdminPanel'))
 const ScrapeController = lazy(() => import('./ScrapeController'))
 const CinemaOverlay = lazy(() => import('./CinemaOverlay'))
 const PaymentCheckout = lazy(() => import('./PaymentCheckout'))
+const TopTaskBanner = lazy(() => import('./TopTaskBanner'))
 
 // Loading spinner component
 const ComponentLoader = () => (
@@ -43,6 +44,11 @@ export default function MainApp() {
   const [isCinemaMode, setIsCinemaMode] = useState(false)
   const [cinemaNarration, setCinemaNarration] = useState('')
   const [isCinemaPaused, setIsCinemaPaused] = useState(false)
+  
+  // Top task banner state
+  const [taskBannerData, setTaskBannerData] = useState(null)
+  const [showTaskBanner, setShowTaskBanner] = useState(false)
+  const [currentQuery, setCurrentQuery] = useState('')
 
   const [userLocation, setUserLocation] = useState(null)
   const [locationLabel, setLocationLabel] = useState('Detecting…')
@@ -367,6 +373,19 @@ export default function MainApp() {
     }
   }
 
+  // Handle streaming task data from chat
+  const handleTaskStreaming = (data) => {
+    setTaskBannerData(data)
+    setShowTaskBanner(true)
+    if (data?.query) {
+      setCurrentQuery(data.query)
+    }
+    // Hide banner when done (after a delay)
+    if (data?.type === 'done') {
+      setTimeout(() => setShowTaskBanner(false), 3000)
+    }
+  }
+
   const toggleAnalysisWidth = () => {
     setAnalysisWidth(prev => prev === 'narrow' ? 'wide' : 'narrow')
   }
@@ -580,6 +599,16 @@ export default function MainApp() {
         </div>
       </div>
 
+      {/* Top Task Banner - Centered with animations */}
+      <Suspense fallback={null}>
+        <TopTaskBanner
+          query={currentQuery}
+          streamingData={taskBannerData}
+          isVisible={showTaskBanner}
+          onClose={() => setShowTaskBanner(false)}
+        />
+      </Suspense>
+
       {/* Main Content - 3 Panel Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Analysis Panel */}
@@ -700,7 +729,7 @@ export default function MainApp() {
 
         {/* Right Chat Panel */}
         <div 
-          className="h-full bg-slate-800 border-l border-slate-700 flex flex-col transition-all duration-300"
+          className="h-full bg-slate-800 border-l border-slate-700 flex flex-col transition-all duration-300 relative"
           style={{
             width: getChatWidth(),
             minWidth: isChatOpen && !isAnalysisFullscreen && !isMapFullscreen ? (isChatFullscreen ? '600px' : '280px') : '0px',
@@ -758,13 +787,16 @@ export default function MainApp() {
               </div>
               <div className="flex-1 overflow-hidden">
                 <Suspense fallback={<ComponentLoader />}>
-                  <ChatPanel 
+                  <EnhancedChatPanel 
                     agentData={agentData} 
                     setAgentData={setAgentData} 
                     fontSize={chatFontSize}
                     userLocation={userLocation}
                     locationLabel={locationLabel}
                     locationSource={locationSource}
+                    onTaskStreaming={handleTaskStreaming}
+                    onSidebarOpen={() => setChatWidth('wide')}
+                    onSidebarClose={() => setChatWidth('narrow')}
                   />
                 </Suspense>
               </div>
@@ -772,7 +804,8 @@ export default function MainApp() {
           ) : (
             <button
               onClick={() => setIsChatOpen(true)}
-              className="h-full w-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition"
+              className="h-full w-full flex items-center justify-end pr-2 text-slate-400 hover:text-white hover:bg-slate-700 transition"
+              title="Open Chat"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>

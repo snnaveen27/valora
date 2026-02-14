@@ -5,7 +5,7 @@ Generates 3D storyboards with camera paths, overlays, and narration
 
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
-from simulation_engine import ScenarioDeltas
+from .simulation_engine import ScenarioDeltas
 
 @dataclass
 class StoryboardStep:

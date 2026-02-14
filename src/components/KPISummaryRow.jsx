@@ -9,7 +9,7 @@ function MomentumBadge({ momentum }) {
   const config = {
     hot: { icon: Flame, color: 'text-orange-400 bg-orange-500/20', label: 'Hot' },
     warming: { icon: TrendingUp, color: 'text-yellow-400 bg-yellow-500/20', label: 'Warming' },
-    neutral: { icon: ThermometerSun, color: 'text-slate-400 bg-slate-500/20', label: 'Neutral' },
+    neutral: { icon: ThermometerSun, color: 'text-slate-300 bg-slate-500/20', label: 'Neutral' },
     cooling: { icon: Snowflake, color: 'text-blue-400 bg-blue-500/20', label: 'Cooling' }
   }
   
@@ -70,12 +70,12 @@ function ConfidenceIndicator({ confidence, drivers = [] }) {
         onMouseLeave={() => setShowTooltip(false)}
       >
         <div className={`text-lg font-bold ${getColor(confidence)}`}>{confidence}%</div>
-        <Info className="w-3 h-3 text-slate-500" />
+        <Info className="w-3 h-3 text-slate-400" />
       </div>
       
       {showTooltip && drivers.length > 0 && (
         <div className="absolute top-full left-0 mt-1 p-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 min-w-[180px]">
-          <div className="text-[9px] text-slate-400 mb-1">Confidence Drivers:</div>
+          <div className="text-[9px] text-slate-300 mb-1">Confidence Drivers:</div>
           {drivers.map((d, i) => (
             <div key={i} className="text-[10px] text-slate-300 flex justify-between">
               <span>{d.name}</span>
@@ -117,13 +117,13 @@ export default function KPISummaryRow({
           </button>
           <div className="min-w-0">
             <div className="text-white font-semibold text-sm truncate max-w-[140px]">{locality || 'Current Location'}</div>
-            <div className="text-slate-500 text-[9px]">Analysis Zone</div>
+            <div className="text-slate-400 text-[9px]">Analysis Zone</div>
           </div>
         </div>
         
         {/* Median Price - compact card style */}
         <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-          <div className="text-slate-400 text-[9px] uppercase tracking-wide">₹/sqft</div>
+          <div className="text-slate-300 text-[9px] uppercase tracking-wide">₹/sqft</div>
           <div className="text-white font-bold text-base">
             {medianPrice ? `₹${medianPrice.toLocaleString()}` : '—'}
           </div>
@@ -141,19 +141,19 @@ export default function KPISummaryRow({
         
         {/* Momentum - compact card */}
         <div className="bg-slate-900/50 rounded-lg p-2 flex flex-col items-center justify-center">
-          <div className="text-slate-400 text-[9px] uppercase tracking-wide mb-1">Momentum</div>
+          <div className="text-slate-300 text-[9px] uppercase tracking-wide mb-1">Momentum</div>
           <MomentumBadge momentum={momentum || 'neutral'} />
         </div>
         
         {/* Risk Index - compact card */}
         <div className="bg-slate-900/50 rounded-lg p-2 flex flex-col items-center justify-center">
-          <div className="text-slate-400 text-[9px] uppercase tracking-wide mb-1">Risk</div>
+          <div className="text-slate-300 text-[9px] uppercase tracking-wide mb-1">Risk</div>
           <RiskGauge riskScore={riskScore || 50} />
         </div>
         
         {/* Confidence - compact card */}
         <div className="bg-slate-900/50 rounded-lg p-2 flex flex-col items-center justify-center">
-          <div className="text-slate-400 text-[9px] uppercase tracking-wide mb-1">Confidence</div>
+          <div className="text-slate-300 text-[9px] uppercase tracking-wide mb-1">Confidence</div>
           <ConfidenceIndicator 
             confidence={confidence || 75} 
             drivers={confidenceDrivers}

@@ -18,7 +18,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import math
 import json
+import time
 from pathlib import Path
+from config import config
 
 
 @dataclass
@@ -115,10 +117,10 @@ class RealTimeDataService:
         """Initialize database connection."""
         try:
             from database.db_service import DatabaseService
-            db_path = Path(__file__).parent / 'database' / '..' / '..' / 'src' / 'data' / 'valora.db'
-            self.db_service = DatabaseService(str(db_path.resolve()))
+            self.db_service = DatabaseService(str(config.DB_PATH))
         except Exception as e:
             print(f"[RealTimeDataService] Database init error: {e}")
+            self.db_service = None
     
     def get_traffic_conditions(self, lat: float, lng: float, 
                                location_name: str = None) -> TrafficCondition:

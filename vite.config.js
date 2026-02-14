@@ -57,8 +57,16 @@ export default defineConfig({
     CESIUM_BASE_URL: JSON.stringify(isProduction ? '/valora/cesium/' : '/cesium/')
   },
   server: {
-    port: 3000,
-    open: true
+    port: 3000,  // Standard port for development
+    host: '0.0.0.0',
+    open: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
   esbuild: {
     drop: isProduction ? ['console', 'debugger'] : [],

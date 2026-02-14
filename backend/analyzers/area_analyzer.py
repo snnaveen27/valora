@@ -48,7 +48,7 @@ class AreaAnalyzer:
                 pois = self._db.get_all_pois()
                 self._pois_cache = {'features': [
                     {'properties': {'name': p.get('name'), 'category': p.get('category'), 'subcategory': p.get('subcategory')},
-                     'geometry': {'coordinates': [p.get('lng'), p.get('lat')]}}
+                     'geometry': {'type': 'Point', 'coordinates': [p.get('lng'), p.get('lat')]}}
                     for p in pois if p.get('lat') and p.get('lng')
                 ]}
             else:
@@ -65,8 +65,8 @@ class AreaAnalyzer:
             if self._db:
                 transport = self._db.get_all_transport()
                 self._transport_cache = {'features': [
-                    {'properties': {'name': t.get('name'), 'type': t.get('type')},
-                     'geometry': {'coordinates': [t.get('lng'), t.get('lat')]}}
+                    {'properties': {'name': t.get('name'), 'type': t.get('type'), 'category': t.get('type')},
+                     'geometry': {'type': 'Point', 'coordinates': [t.get('lng'), t.get('lat')]}}
                     for t in transport if t.get('lat') and t.get('lng')
                 ]}
             else:
@@ -129,8 +129,8 @@ class AreaAnalyzer:
         top_pois = []
         for poi in nearby_pois:
             props = poi['properties']
-            poi_type = props.get('type', 'unknown')
-            subtype = props.get('subtype', 'unknown')
+            poi_type = props.get('type') or props.get('category', 'unknown')
+            subtype = props.get('subtype') or props.get('subcategory', 'unknown')
             
             key = f"{poi_type}_{subtype}"
             poi_counts[key] = poi_counts.get(key, 0) + 1
@@ -156,7 +156,8 @@ class AreaAnalyzer:
         transport_stops = []
         for t in nearby_transport:
             props = t['properties']
-            if props.get('type') == 'transport' and props.get('name'):
+            t_type = props.get('type') or props.get('category', '')
+            if props.get('name'):
                 coords = t['geometry']['coordinates']
                 dist = self._distance(coords[0], coords[1], lng, lat)
                 transport_stops.append({

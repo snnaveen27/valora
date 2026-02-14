@@ -90,13 +90,13 @@ function LocalityCard({ locality, onExplore, onAskAbout }) {
         <div className="grid grid-cols-2 gap-1.5 text-[10px] mb-2">
           {locality.personality?.tech_orientation !== undefined && (
             <div className="flex items-center gap-1">
-              <span className="text-slate-400">Tech:</span>
+              <span className="text-slate-300">Tech:</span>
               <span className="text-blue-400 font-medium">{locality.personality.tech_orientation}/100</span>
             </div>
           )}
           {locality.personality?.family_friendliness !== undefined && (
             <div className="flex items-center gap-1">
-              <span className="text-slate-400">Family:</span>
+              <span className="text-slate-300">Family:</span>
               <span className="text-green-400 font-medium">{locality.personality.family_friendliness}/100</span>
             </div>
           )}
@@ -146,14 +146,14 @@ function PropertyComparisonCard({ properties, onCompare }) {
       </div>
       <div className="p-2">
         <div className="grid grid-cols-3 gap-1 text-[10px] mb-2">
-          <div className="font-medium text-slate-400">Metric</div>
+          <div className="font-medium text-slate-300">Metric</div>
           <div className="font-medium text-center truncate">{prop1.locality || 'Property 1'}</div>
           <div className="font-medium text-center truncate">{prop2.locality || 'Property 2'}</div>
         </div>
         
         {/* Price comparison */}
         <div className="grid grid-cols-3 gap-1 text-[10px] border-t border-slate-700/50 py-1">
-          <div className="text-slate-400">Price</div>
+          <div className="text-slate-300">Price</div>
           <div className={`text-center ${getColor(compareValue(prop2.price, prop1.price, false))}`}>
             ₹{(prop1.price / 100000).toFixed(1)}L
           </div>
@@ -164,7 +164,7 @@ function PropertyComparisonCard({ properties, onCompare }) {
         
         {/* Area comparison */}
         <div className="grid grid-cols-3 gap-1 text-[10px] border-t border-slate-700/50 py-1">
-          <div className="text-slate-400">Area</div>
+          <div className="text-slate-300">Area</div>
           <div className={`text-center ${getColor(compareValue(prop1.area_sqft, prop2.area_sqft))}`}>
             {prop1.area_sqft} sqft
           </div>
@@ -175,7 +175,7 @@ function PropertyComparisonCard({ properties, onCompare }) {
         
         {/* Price/sqft comparison */}
         <div className="grid grid-cols-3 gap-1 text-[10px] border-t border-slate-700/50 py-1">
-          <div className="text-slate-400">₹/sqft</div>
+          <div className="text-slate-300">₹/sqft</div>
           <div className={`text-center ${getColor(compareValue(prop2.price_per_sqft || 0, prop1.price_per_sqft || 0, false))}`}>
             ₹{Math.round(prop1.price_per_sqft || prop1.price / prop1.area_sqft)}
           </div>

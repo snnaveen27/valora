@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from contextlib import contextmanager
 import logging
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class DatabaseService:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent / "valora.db"
+            db_path = config.DB_PATH
         else:
             db_path = Path(db_path)
         

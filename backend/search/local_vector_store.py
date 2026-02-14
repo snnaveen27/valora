@@ -325,6 +325,16 @@ class LocalVectorStore:
         
         return stats
     
+    def get_vector_count(self, namespace: str = "default") -> int:
+        """Get vector count for a specific namespace."""
+        if namespace not in self.indexes:
+            # Try to load the namespace
+            self.load(namespace)
+        
+        if namespace in self.indexes:
+            return self.indexes[namespace].ntotal
+        return 0
+    
     def delete_namespace(self, namespace: str = "default"):
         """Delete a namespace and its files."""
         if namespace in self.indexes:
@@ -353,9 +363,13 @@ class LocalVectorStore:
         # Delete all FAISS files
         for file_path in self.store_dir.glob("*.faiss"):
             file_path.unlink()
+        for file_path in self.store_dir.glob("*.index"):
+            file_path.unlink()
         for file_path in self.store_dir.glob("*_metadata.pkl"):
             file_path.unlink()
         for file_path in self.store_dir.glob("*_idmap.pkl"):
+            file_path.unlink()
+        for file_path in self.store_dir.glob("*_ids.json"):
             file_path.unlink()
         
         print(f"[OK] Cleared all FAISS namespaces")
@@ -371,8 +385,8 @@ def get_local_store(data_dir: Optional[Path] = None) -> LocalVectorStore:
     
     if _local_store is None:
         if data_dir is None:
-            # Default to src/data
-            data_dir = Path(__file__).parent.parent / 'src' / 'data'
+            # Default to <project_root>/src/data
+            data_dir = Path(__file__).resolve().parent.parent.parent / 'src' / 'data'
         
         _local_store = LocalVectorStore(data_dir)
         

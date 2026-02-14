@@ -106,15 +106,43 @@ export default function PriceTimeSeriesChart({
     return () => window.removeEventListener('resize', updateWidth)
   }, [])
   
-  // Fetch or generate data
+  // Fetch real data from backend, fallback to generated sample
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
-    // TODO: Replace with actual API call
-    // fetch(`${API_URL}/api/valuation/market-stats?locality=${locality}&range=${range}`)
-    const months = range === '1y' ? 12 : range === '2y' ? 24 : 36
-    const sampleData = generateSampleData(months)
-    setData(sampleData)
-    setLoading(false)
+    const days = range === '1y' ? 365 : range === '2y' ? 730 : 1095
+
+    const fetchData = async () => {
+      try {
+        // Try locality trend endpoint first
+        if (locality) {
+          const res = await fetch(`${API_URL}/api/insights/locality-trend?locality=${encodeURIComponent(locality)}&days=${days}`)
+          if (res.ok) {
+            const json = await res.json()
+            if (json.success && json.data?.length > 0) {
+              if (!cancelled) { setData(json.data); setLoading(false) }
+              return
+            }
+          }
+        }
+        // Fallback: market stats with coordinate-based lookup
+        if (lat && lng) {
+          const res = await fetch(`${API_URL}/api/valuation/market-stats?lat=${lat}&lng=${lng}&radius=2`)
+          if (res.ok) {
+            const json = await res.json()
+            if (json.success && json.data?.price_history?.length > 0) {
+              if (!cancelled) { setData(json.data.price_history); setLoading(false) }
+              return
+            }
+          }
+        }
+      } catch (_) {}
+      // Fallback to generated sample data
+      const months = range === '1y' ? 12 : range === '2y' ? 24 : 36
+      if (!cancelled) { setData(generateSampleData(months)); setLoading(false) }
+    }
+    fetchData()
+    return () => { cancelled = true }
   }, [locality, lat, lng, range])
   
   // Calculate chart dimensions and paths
