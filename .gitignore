@@ -77,6 +77,10 @@ src/data/
 # ML model files
 backend/*.pkl
 
+# Large model files (use Git LFS if needed)
+*.gguf
+data/tuned_model/*.gguf
+
 # Sensitive configuration (keep templates only)
 backend/config/pricing_config.json
 backend/admin_config.json
