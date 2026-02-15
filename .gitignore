@@ -122,6 +122,14 @@ test_*.png
 # Large files in storage (exclude from git)
 storage/faiss/
 storage/database/
+storage/tileset.json
 valora.db
 valora_credits.db
 *.gguf
+
+# SQLite temporary files
+*.db-shm
+*.db-wal
+
+# Null file from Windows
+nul

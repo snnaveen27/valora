@@ -303,47 +303,63 @@ _cache_rag_search = TTLCache(maxsize=512, ttl_seconds=300)
 # Note: Market computation logic moved to gis_agents.py for Phase 2 multi-agent orchestration
 
 def load_tileset_index():
-    """Load tileset index - prefer database, fallback to files"""
+    """Load tileset index - use cached tileset.json for production performance"""
     global tileset_index
     
-    # Try database first (check if buildings exist)
+    storage_dir = Path(__file__).parent.parent / 'storage'
+    cached_tileset_path = storage_dir / 'tileset.json'
+    
+    # Try to load cached tileset first (fastest)
+    if cached_tileset_path.exists():
+        try:
+            with open(cached_tileset_path, 'r') as f:
+                tileset_index = json.load(f)
+            total_buildings = sum(t.get('count', 0) for t in tileset_index.get('tiles', {}).values())
+            print(f"[OK] Loaded cached tileset: {len(tileset_index['tiles'])} tiles, {total_buildings} buildings")
+            return
+        except Exception as e:
+            print(f"[WARNING] Failed to load cached tileset: {e}")
+    
+    # Try database and generate tileset
     try:
         from database.query_service import get_query_service
         query_service = get_query_service()
         
-        # Check if database has buildings with coordinates
+        # Check if database has buildings
         test_query = query_service.db.execute(
             "SELECT COUNT(*) as cnt FROM buildings WHERE latitude IS NOT NULL AND longitude IS NOT NULL LIMIT 1"
         )
         has_buildings = test_query[0]['cnt'] > 0 if test_query else False
         
         if has_buildings:
-            # Load tileset structure from data.zip or generate grid
-            tileset_path = Path(__file__).parent.parent / 'storage' / 'data.zip'
-            if tileset_path.exists():
-                try:
-                    import zipfile
-                    with zipfile.ZipFile(tileset_path, 'r') as z:
-                        tileset_index = json.loads(z.read('3dtiles/tileset.json'))
-                    # Mark as database source
-                    tileset_index['source'] = 'database'
-                    print(f"[OK] Using database for buildings: {len(tileset_index['tiles'])} tiles, {tileset_index['totalBuildings']} buildings")
-                    return
-                except Exception as e:
-                    print(f"[WARNING] Failed to load tileset structure: {e}")
-            
-            # Generate tile grid
+            print("[INFO] Generating tileset from database...")
             tiles = {}
             tile_size = 0.01
+            
+            # Get all building counts by tile in one query
+            count_data = query_service.db.execute("""
+                SELECT 
+                    CAST(longitude * 100 AS INTEGER) as lng_idx,
+                    CAST(latitude * 100 AS INTEGER) as lat_idx,
+                    COUNT(*) as cnt
+                FROM buildings 
+                WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+                GROUP BY lng_idx, lat_idx
+            """)
+            
+            count_lookup = {f"{row['lng_idx']}_{row['lat_idx']}": row['cnt'] for row in count_data}
+            
             for lng_start in range(7740, 7780):
                 for lat_start in range(1280, 1310):
                     lng = lng_start / 100
                     lat = lat_start / 100
                     tile_id = f"{lng_start}_{lat_start}"
+                    count = count_lookup.get(tile_id, 0)
+                    
                     tiles[tile_id] = {
                         'min_lng': lng, 'max_lng': lng + tile_size,
                         'min_lat': lat, 'max_lat': lat + tile_size,
-                        'max_height': 30, 'count': 0
+                        'max_height': 30, 'count': count
                     }
             
             tileset_index = {
@@ -351,13 +367,22 @@ def load_tileset_index():
                 'totalBuildings': query_service.get_database_stats().get('buildings', 0),
                 'source': 'database'
             }
+            
+            # Cache tileset for fast future loads
+            try:
+                with open(cached_tileset_path, 'w') as f:
+                    json.dump(tileset_index, f)
+                print(f"[OK] Cached tileset to {cached_tileset_path}")
+            except Exception as e:
+                print(f"[WARNING] Failed to cache tileset: {e}")
+            
             print(f"[OK] Using database for buildings: {len(tiles)} tiles")
             return
     except Exception as e:
         print(f"[WARNING] Database check failed: {e}")
     
     # Fallback to file-based tiles
-    tileset_path = Path(__file__).parent.parent / 'storage' / 'data.zip'
+    tileset_path = storage_dir / 'data.zip'
     if tileset_path.exists():
         try:
             import zipfile
