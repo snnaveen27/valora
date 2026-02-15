@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud, Loader2, Activity, CheckCircle2 } from 'lucide-react'
 
 import { API_URL } from '../apiConfig'
 
@@ -48,7 +48,126 @@ export default function MainApp() {
   // Top task banner state
   const [taskBannerData, setTaskBannerData] = useState(null)
   const [showTaskBanner, setShowTaskBanner] = useState(false)
+  const [showFloatingBanner, setShowFloatingBanner] = useState(false) // Hidden by default
   const [currentQuery, setCurrentQuery] = useState('')
+  const [lastTaskProgress, setLastTaskProgress] = useState(null)
+  const [isTaskCancelled, setIsTaskCancelled] = useState(false)
+  const [taskHistory, setTaskHistory] = useState([]) // Track task history
+
+  // Update last task progress when taskBannerData changes
+  useEffect(() => {
+    if (taskBannerData) {
+      const type = taskBannerData.type
+      
+      if (type === 'task_cancelled') {
+        setLastTaskProgress({ step: 'Stopped', detail: 'Query cancelled by user', percent: 0, timestamp: Date.now() })
+        setIsTaskCancelled(true)
+        setShowTaskBanner(false) // Hide floating banner
+        setShowFloatingBanner(false)
+        // Add to history
+        setTaskHistory(prev => [...prev.slice(-4), { step: 'Stopped', detail: 'Query cancelled', percent: 0, timestamp: Date.now() }])
+        // Auto-clear after 2 seconds
+        setTimeout(() => {
+          setLastTaskProgress(null)
+          setIsTaskCancelled(false)
+        }, 2000)
+        return
+      }
+      
+      // Reset cancelled state on new tasks and show floating banner
+      if (type === 'intent_classification_start') {
+        setIsTaskCancelled(false)
+        setTaskHistory([]) // Clear history for new query
+        setShowTaskBanner(true)
+        setShowFloatingBanner(true) // Auto-show floating banner
+      }
+      
+      if (type === 'done') {
+        setLastTaskProgress({ step: 'Done', detail: 'Complete!', percent: 100, timestamp: Date.now() })
+        setIsTaskCancelled(false)
+        setTaskHistory(prev => [...prev.slice(-4), { step: 'Done', detail: 'Complete!', percent: 100, timestamp: Date.now() }])
+        // Auto-clear after 3 seconds
+        setTimeout(() => setLastTaskProgress(null), 3000)
+        return
+      }
+      if (type === 'intent_classification_start') {
+        setLastTaskProgress({ step: 'Step 1/1', detail: 'Analyzing...', percent: 5, timestamp: Date.now() })
+        return
+      }
+      if (type === 'intent_detected') {
+        const total = taskBannerData.task_graph?.tasks?.length || 1
+        const progress = { step: `Step 1/${total}`, detail: `Intent: ${taskBannerData.intent?.replace(/_/g, ' ') || 'Processing'}`, percent: 15, timestamp: Date.now() }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      if (type === 'task_started') {
+        const progressStr = taskBannerData.progress || '1/1'
+        const [current, total] = progressStr.split('/').map(Number)
+        const progress = { step: `Step ${current}/${total}`, detail: taskBannerData.task_name || 'Processing', percent: Math.round(((current - 0.5) / total) * 100), timestamp: Date.now() }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      if (type === 'task_completed') {
+        const progressStr = taskBannerData.progress || '1/1'
+        const [current, total] = progressStr.split('/').map(Number)
+        const progress = { step: `Step ${current}/${total}`, detail: `Completed: ${taskBannerData.task_name || 'Task'}`, percent: Math.round((current / total) * 100), timestamp: Date.now() }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      if (type === 'agentic_start') {
+        const progress = { step: 'AI', detail: 'Deep analysis...', percent: 30, timestamp: Date.now() }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      if (type === 'agentic_action') {
+        const toolName = taskBannerData.tool?.replace(/_/g, ' ') || 'Analysis'
+        const thought = taskBannerData.thought?.substring(0, 60) || ''
+        const detail = thought ? `${toolName}: ${thought}...` : toolName
+        const progress = { step: 'AI Analysis', detail, percent: 50, timestamp: Date.now() }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      // Handle model selection
+      if (type === 'model_selection') {
+        const modelName = taskBannerData.model || 'AI Model'
+        const progress = { 
+          step: 'Selecting Model', 
+          detail: `Using ${modelName}${taskBannerData.reasoning ? ': ' + taskBannerData.reasoning.substring(0, 50) + '...' : ''}`, 
+          percent: 20, 
+          timestamp: Date.now() 
+        }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      // Handle agentic observation
+      if (type === 'agentic_observation') {
+        const observation = taskBannerData.observation?.substring(0, 70) || 'Processing data...'
+        const progress = { step: 'Processing', detail: observation, percent: 60, timestamp: Date.now() }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      // Handle any other task types dynamically
+      if (taskBannerData.task_name || taskBannerData.message || taskBannerData.content) {
+        const detail = taskBannerData.task_name || taskBannerData.message || taskBannerData.content
+        const progressStr = taskBannerData.progress || ''
+        const percent = taskBannerData.percent || taskBannerData.progress_percent || 0
+        const step = progressStr || 'Processing'
+        const progress = { step, detail: detail.substring(0, 80), percent, timestamp: Date.now() }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+      }
+    }
+  }, [taskBannerData])
 
   const [userLocation, setUserLocation] = useState(null)
   const [locationLabel, setLocationLabel] = useState('Detecting…')
@@ -454,17 +573,18 @@ export default function MainApp() {
   return (
     <div className="h-screen w-screen bg-slate-900 overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="h-12 bg-slate-800 border-b border-slate-700 px-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="h-12 bg-slate-800/95 border-b border-slate-700 px-4 flex items-center shrink-0 backdrop-blur-sm">
+        {/* Left Section - Logo & Location */}
+        <div className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="text-white font-bold text-lg">Valora AI</span>
-          <span className="text-slate-400 text-xs ml-2">City Intelligence</span>
+          <span className="text-white font-bold text-lg hidden sm:block">Valora AI</span>
+          <span className="text-slate-400 text-xs ml-2 hidden lg:block">City Intelligence</span>
 
           <button
             onClick={() => setGpsEnabled(v => !v)}
-            className={`ml-3 flex items-center gap-2 px-2 py-1 rounded-full border transition text-xs ${
+            className={`ml-2 flex items-center gap-2 px-2 py-1 rounded-full border transition text-xs ${
               gpsEnabled
                 ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20'
                 : 'bg-slate-700/40 border-slate-600 text-slate-200 hover:bg-slate-700/60'
@@ -476,33 +596,163 @@ export default function MainApp() {
             }
           >
             {gpsEnabled ? <LocateFixed className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
-            <span className="max-w-[220px] truncate">{locationLabel}</span>
+            <span className="max-w-[120px] xl:max-w-[180px] truncate hidden sm:block">{locationLabel}</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded ${gpsEnabled ? 'bg-emerald-500/20 text-emerald-200' : 'bg-slate-600/40 text-slate-300'}`}>
               {gpsEnabled ? 'GPS' : 'IP'}
             </span>
           </button>
 
           {gpsEnabled && agentData?.weather?.metrics && !agentData?.weather?.error && (
-            <div className="ml-2 flex items-center gap-2 px-2 py-1 rounded-full border border-slate-600 bg-slate-700/40 text-xs text-slate-200">
+            <div className="hidden md:flex ml-2 items-center gap-2 px-2 py-1 rounded-full border border-slate-600 bg-slate-700/40 text-xs text-slate-200">
               <Cloud className="w-3.5 h-3.5 text-blue-300" />
-              <span className="capitalize text-slate-200">{agentData.weather.metrics.conditionDesc || '—'}</span>
-              <span className="text-slate-400">·</span>
+              <span className="capitalize text-slate-200 hidden lg:block">{agentData.weather.metrics.conditionDesc || '—'}</span>
+              <span className="text-slate-400 hidden lg:block">·</span>
               <span className="font-mono text-slate-200">
-                {Number.isFinite(agentData.weather.metrics.tempC) ? `${agentData.weather.metrics.tempC.toFixed(1)}°C` : '—'}
-              </span>
-              <span className="text-slate-400">·</span>
-              <span className="font-mono text-slate-200">
-                {Number.isFinite(agentData.weather.metrics.windSpeedMps) ? `${agentData.weather.metrics.windSpeedMps.toFixed(1)} m/s` : '—'}
-              </span>
-              <span className="text-slate-400">·</span>
-              <span className="font-mono text-slate-200">
-                {Number.isFinite(agentData.weather.metrics.cloudsPct) ? `${agentData.weather.metrics.cloudsPct}%` : '—'}
+                {Number.isFinite(agentData.weather.metrics.tempC) ? `${agentData.weather.metrics.tempC.toFixed(0)}°C` : '—'}
               </span>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Center Section - Task Progress (Adaptive & Centered) */}
+        <div className="flex-1 flex justify-center px-4 min-w-0">
+          {lastTaskProgress && (
+            <button
+              onClick={() => setShowFloatingBanner(!showFloatingBanner)}
+              className={`flex items-center gap-3 px-4 py-1.5 rounded-lg transition-all duration-300 group w-full max-w-2xl relative overflow-hidden ${
+                lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled
+                  ? 'bg-slate-900 border border-violet-500/60'
+                  : 'bg-slate-800 border border-slate-700 hover:border-violet-500/40'
+              }`}
+              title={showFloatingBanner ? "Hide detailed view" : "Click for detailed view"}
+            >
+              {/* Animated Inner Glow - Processing Effect */}
+              {lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled && (
+                <>
+                  {/* Rolling gradient background */}
+                  <div 
+                    className="absolute inset-0 rounded-lg opacity-30"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), rgba(168, 85, 247, 0.4), rgba(139, 92, 246, 0.4), transparent)',
+                      backgroundSize: '200% 100%',
+                      animation: 'gradient-roll 2s linear infinite'
+                    }}
+                  />
+                  {/* Pulsing background glow */}
+                  <div 
+                    className="absolute inset-0 rounded-lg"
+                    style={{
+                      background: 'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15) 0%, transparent 70%)',
+                      animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                    }}
+                  />
+                  {/* Animated border glow */}
+                  <div 
+                    className="absolute inset-0 rounded-lg"
+                    style={{
+                      boxShadow: 'inset 0 0 20px rgba(139, 92, 246, 0.2), inset 0 0 40px rgba(139, 92, 246, 0.1)',
+                      animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                    }}
+                  />
+                  {/* Corner accents */}
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-violet-500/60 rounded-tl-lg" 
+                       style={{ animation: 'pulse 2s infinite' }} />
+                  <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-violet-500/60 rounded-tr-lg"
+                       style={{ animation: 'pulse 2s infinite 0.5s' }} />
+                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-violet-500/60 rounded-bl-lg"
+                       style={{ animation: 'pulse 2s infinite 1s' }} />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-violet-500/60 rounded-br-lg"
+                       style={{ animation: 'pulse 2s infinite 1.5s' }} />
+                </>
+              )}
+
+              {/* Progress Ring with Glow */}
+              <div className="relative w-7 h-7 flex-shrink-0 z-10">
+                {/* Glow Effect */}
+                {lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled && (
+                  <div className="absolute inset-0 rounded-full bg-violet-500/40 animate-pulse" />
+                )}
+                <svg className="w-full h-full -rotate-90 relative z-10" viewBox="0 0 28 28">
+                  <circle cx="14" cy="14" r="11" className="stroke-slate-700 fill-none" strokeWidth="2.5" />
+                  <circle
+                    cx="14" cy="14" r="11"
+                    fill="none"
+                    stroke={isTaskCancelled ? '#ef4444' : lastTaskProgress.percent === 100 ? '#10b981' : '#8b5cf6'}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 11}
+                    strokeDashoffset={2 * Math.PI * 11 * (1 - lastTaskProgress.percent / 100)}
+                    className="transition-all duration-500"
+                    style={{
+                      filter: lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled
+                        ? 'drop-shadow(0 0 4px rgba(139, 92, 246, 0.6))'
+                        : 'none'
+                    }}
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-white z-20">
+                  {lastTaskProgress.percent}%
+                </span>
+              </div>
+
+              {/* Task Info - Single Line */}
+              <div className="flex-1 min-w-0 flex flex-col justify-center z-10">
+                <div className="flex items-center gap-2">
+                  {/* Step counter */}
+                  <span className={`text-sm font-semibold whitespace-nowrap ${
+                    isTaskCancelled ? 'text-red-400' :
+                    lastTaskProgress.percent === 100 ? 'text-emerald-400' : 'text-violet-200'
+                  }`}>
+                    {lastTaskProgress.step}
+                  </span>
+
+                  {/* Separator */}
+                  <span className="text-slate-600">|</span>
+
+                  {/* Task detail */}
+                  <span className="text-sm text-slate-300 truncate flex-1">
+                    {lastTaskProgress.detail}
+                  </span>
+
+                  {/* Running indicator */}
+                  {lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled && (
+                    <span className="flex gap-0.5 flex-shrink-0">
+                      <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </span>
+                  )}
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full h-1.5 bg-slate-700/50 rounded-full mt-1.5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      isTaskCancelled ? 'bg-red-500' :
+                      lastTaskProgress.percent === 100 ? 'bg-emerald-500' : 'bg-violet-500'
+                    }`}
+                    style={{ width: `${lastTaskProgress.percent}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Right side - step count and toggle */}
+              <div className="flex items-center gap-2 flex-shrink-0 z-10">
+                {taskHistory.length > 0 && (
+                  <span className="text-[10px] text-slate-500 font-mono bg-slate-900/50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                    {taskHistory.filter(t => t.percent === 100).length}/{taskHistory.length}
+                  </span>
+                )}
+                <ChevronRight
+                  className={`w-4 h-4 text-violet-400 transition-transform duration-200 ${showFloatingBanner ? 'rotate-90' : ''}`}
+                />
+              </div>
+            </button>
+          )}
+        </div>
+
+        {/* Right Section - User Menu */}
+        <div className="flex items-center gap-2 shrink-0">
           {/* Tier Badge */}
           {user && (
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
@@ -599,13 +849,14 @@ export default function MainApp() {
         </div>
       </div>
 
-      {/* Top Task Banner - Centered with animations */}
+      {/* Top Task Banner - Floating on map (always expanded) */}
       <Suspense fallback={null}>
         <TopTaskBanner
           query={currentQuery}
           streamingData={taskBannerData}
-          isVisible={showTaskBanner}
-          onClose={() => setShowTaskBanner(false)}
+          isVisible={showTaskBanner && showFloatingBanner}
+          onClose={() => setShowFloatingBanner(false)}
+          taskProgress={lastTaskProgress}
         />
       </Suspense>
 

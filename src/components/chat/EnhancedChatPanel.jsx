@@ -975,8 +975,16 @@ export default function EnhancedChatPanel({
       abortController.abort()
       setAbortController(null)
       setIsLoading(false)
+      
+      // Emit task cancelled event for task panel
+      if (onTaskStreaming) {
+        onTaskStreaming({
+          type: 'task_cancelled',
+          query: input || currentQuery
+        })
+      }
     }
-  }, [abortController])
+  }, [abortController, onTaskStreaming, input, currentQuery])
   
   // Send message handler
   const handleSendMessage = useCallback(async (messageOverride = null, skipUserMessage = false) => {

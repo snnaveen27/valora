@@ -123,10 +123,10 @@ async def get_system_status(admin: User = Depends(require_admin)) -> Dict[str, A
     try:
         from database.query_service import get_query_service
         from database.db_service import DatabaseService
-        from pathlib import Path
+        from config import config
         
         db = get_query_service()
-        db_path = Path(__file__).parent / 'database' / '..' / '..' / 'src' / 'data' / 'valora.db'
+        db_path = config.DB_PATH
         db_service = DatabaseService(str(db_path.resolve()))
         
         props_count = db.get_properties_count()
@@ -975,8 +975,9 @@ async def rebuild_locality_brain() -> Dict[str, Any]:
 async def get_locality_brain_status() -> Dict[str, Any]:
     """Get status of the locality brain."""
     import sqlite3
+    from config import config
     
-    db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+    db_path = config.DB_PATH
     
     try:
         conn = sqlite3.connect(str(db_path))

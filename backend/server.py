@@ -39,7 +39,7 @@ load_dotenv()
 # Initialize services - gracefully handle missing folders (database is primary source)
 osm_data_dir = config.OSM_DATA_DIR
 terrain_dir = config.TERRAIN_DIR
-properties_dir = config.DATA_DIR / 'posted_properties'
+properties_dir = config.POSTED_PROPERTIES_DIR
 
 # Area analyzer and geocoder use database as primary, files as fallback
 try:
@@ -75,11 +75,12 @@ except Exception as e:
     property_service = None
 
 # Phase 1: Import and initialize RAG, Valuation, and Spatial Reasoning services
-data_dir = Path(__file__).parent.parent / 'src' / 'data'
+data_dir = config.STORAGE_DIR
+faiss_dir = config.FAISS_DIR
 
 try:
     from ai.rag_service import get_rag_service
-    rag_service = get_rag_service(data_dir)
+    rag_service = get_rag_service(faiss_dir)
     RAG_AVAILABLE = True
 except Exception as e:
     print(f"[WARNING] RAG service not available: {e}")
@@ -318,7 +319,7 @@ def load_tileset_index():
         
         if has_buildings:
             # Load tileset structure from data.zip or generate grid
-            tileset_path = Path(__file__).parent.parent / 'src' / 'data' / 'data.zip'
+            tileset_path = Path(__file__).parent.parent / 'storage' / 'data.zip'
             if tileset_path.exists():
                 try:
                     import zipfile
@@ -356,7 +357,7 @@ def load_tileset_index():
         print(f"[WARNING] Database check failed: {e}")
     
     # Fallback to file-based tiles
-    tileset_path = Path(__file__).parent.parent / 'src' / 'data' / 'data.zip'
+    tileset_path = Path(__file__).parent.parent / 'storage' / 'data.zip'
     if tileset_path.exists():
         try:
             import zipfile
@@ -389,7 +390,7 @@ async def get_local_map_tile(z: int, x: int, y: int):
     )
 
 # Mount static files for buildings (using StaticFiles after CORS middleware)
-tiles_dir = Path(__file__).parent.parent / 'src' / 'data' / '3dtiles' / 'tiles'
+tiles_dir = Path(__file__).parent.parent / 'storage' / '3dtiles' / 'tiles'
 if tiles_dir.exists():
     app.mount("/tiles", StaticFiles(directory=str(tiles_dir)), name="tiles")
 
@@ -701,7 +702,7 @@ async def get_file_tile(tile_id: str):
     """Get tile data from data.zip file"""
     try:
         import zipfile
-        zip_path = Path(__file__).parent.parent / 'src' / 'data' / 'data.zip'
+        zip_path = Path(__file__).parent.parent / 'storage' / 'data.zip'
         
         if not zip_path.exists():
             raise HTTPException(status_code=404, detail="Data zip not found")
@@ -3781,7 +3782,8 @@ async def execute_database_query(request: dict):
             if kw in query_upper:
                 return {"success": False, "error": f"Query contains forbidden keyword: {kw}"}
         
-        db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+        from config import config
+        db_path = config.DB_PATH
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -3803,7 +3805,7 @@ async def execute_database_query(request: dict):
 async def save_scraper_config(config: dict):
     """Save scraper configuration to JSON file."""
     try:
-        config_file = Path(__file__).parent.parent / "src" / "data" / "scraper_config.json"
+        config_file = Path(__file__).parent.parent / "storage" / "scraper_config.json"
         config_file.parent.mkdir(parents=True, exist_ok=True)
         
         with open(config_file, "w", encoding="utf-8") as f:
@@ -3817,7 +3819,7 @@ async def save_scraper_config(config: dict):
 async def load_scraper_config():
     """Load scraper configuration from JSON file."""
     try:
-        config_file = Path(__file__).parent.parent / "src" / "data" / "scraper_config.json"
+        config_file = Path(__file__).parent.parent / "storage" / "scraper_config.json"
         
         if not config_file.exists():
             return {"success": False, "config": None, "message": "No saved configuration found"}

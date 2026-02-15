@@ -191,3 +191,13 @@ body {
     transform: translateX(0);
   }
 }
+
+/* Gradient rolling animation for processing tasks */
+@keyframes gradient-roll {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}

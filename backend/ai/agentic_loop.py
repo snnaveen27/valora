@@ -206,13 +206,38 @@ class AgenticLoop:
                 t_tool = time.time()
                 tool_success = False
                 try:
-                    # Check memory first
+            # Check memory first
                     cached = self.memory.recall(action, action_params)
                     if cached:
                         observation = json.dumps(cached, indent=2)
                         observation = str(observation)[:2000]
                         tool_success = True
                         logger.info(f"[AgenticLoop] Memory hit for {action}")
+                        # For memory hits, check if we can finalize immediately
+                        if self._has_sufficient_data(observation):
+                            logger.info(f"[AgenticLoop] Sufficient cached data, finalizing")
+                            step.observation = observation
+                            final_answer = await self._generate_final_answer(
+                                query=query,
+                                steps=self.current_plan.steps + [step],
+                                llm_client=llm_client
+                            )
+                            step.is_final = True
+                            step.reflection = "Using cached data - finalizing immediately"
+                            self.current_plan.steps.append(step)
+                            self.current_plan.final_answer = final_answer
+                            self.current_plan.completed_at = datetime.now()
+                            self.current_plan.confidence = 0.85  # High confidence for cached data
+                            yield {
+                                "type": "agent_final",
+                                "step_number": step_count,
+                                "thought": thought,
+                                "reflection": step.reflection,
+                                "final_answer": final_answer,
+                                "confidence": self.current_plan.confidence,
+                                "plan": self.current_plan.to_dict()
+                            }
+                            return  # Exit early after yielding final
                     else:
                         tool = self.tool_registry.get_tool(action)
                         if tool:
@@ -653,6 +678,32 @@ class AgenticLoop:
         if "error" in obs:
             score *= 0.2
         return min(round(score, 2), 1.0)
+    
+    @staticmethod
+    def _has_sufficient_data(observation: str) -> bool:
+        """Check if observation has sufficient data to finalize early."""
+        if not observation:
+            return False
+        obs = observation.lower()
+        # Check for meaningful data markers
+        has_data = False
+        # Has numeric data
+        import re
+        nums = re.findall(r'\d+\.?\d*', obs)
+        if len(nums) >= 3:
+            has_data = True
+        # Has key metrics or substantial content
+        data_keywords = ["price", "count", "score", "sqft", "rating", "area", "roi", "cagr", "growth"]
+        keyword_count = sum(1 for kw in data_keywords if kw in obs)
+        if keyword_count >= 2:
+            has_data = True
+        # Has substantial length with data
+        if len(observation) > 500 and len(nums) >= 2:
+            has_data = True
+        # Not just an error
+        if "error" in obs and len(observation) < 200:
+            has_data = False
+        return has_data
 
 
 # Singleton instance

@@ -118,3 +118,10 @@ desktop.ini
 
 # Test screenshots
 test_*.png
+
+# Large files in storage (exclude from git)
+storage/faiss/
+storage/database/
+valora.db
+valora_credits.db
+*.gguf

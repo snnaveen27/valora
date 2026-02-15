@@ -872,17 +872,32 @@ async def chat(request: ChatRequest):
 # Endpoint 2: /api/chat/stream  (SSE streaming — primary for frontend)
 # ---------------------------------------------------------------------------
 @router.post("/api/chat/stream")
-async def chat_stream(request: ChatRequest):
+async def chat_stream(request: ChatRequest, http_request: Request):
     """
     Streaming chat endpoint with Server-Sent Events.
     Emits: intent_classification_start, intent_detected, task_progress,
            thinking, thinking_end, content, metadata, done, error
     
     Pipeline: IntentRouter → GIS Orchestrator → Ollama streaming → SSE
+    Supports cancellation when client disconnects.
     """
     user_query = request.messages[-1].content if request.messages else ""
     context = request.context or {}
     user_id = context.get("user_id", "anonymous")
+    
+    # Track if client disconnected
+    is_cancelled = False
+    
+    def check_cancelled():
+        """Check if client has disconnected."""
+        nonlocal is_cancelled
+        if is_cancelled:
+            return True
+        # Check if client disconnected (FastAPI/Starlette way)
+        if http_request.is_disconnected():
+            is_cancelled = True
+            return True
+        return False
 
     # Credits check (before starting stream)
     allowed, rate_result = _check_credits(user_id)
@@ -914,6 +929,13 @@ async def chat_stream(request: ChatRequest):
         def _sse(data: dict) -> str:
             data.setdefault("request_id", request_id)
             return f"data: {json.dumps(data)}\n\n"
+        
+        async def check_cancelled():
+            """Check if client has disconnected to save computation."""
+            if await http_request.is_disconnected():
+                logger.info(f"[{request_id}] Client disconnected, cancelling processing")
+                return True
+            return False
 
         logger.info(f"[{request_id}] Stream start: '{user_query[:60]}' user={user_id}")
 

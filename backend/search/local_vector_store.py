@@ -39,7 +39,7 @@ class LocalVectorStore:
     def __init__(self, data_dir: Path, dimension: int = 384):
         self.data_dir = Path(data_dir)
         self.dimension = dimension
-        self.store_dir = self.data_dir / 'faiss_store'
+        self.store_dir = self.data_dir
         self.store_dir.mkdir(exist_ok=True)
         
         # Separate indexes for each namespace
@@ -385,8 +385,8 @@ def get_local_store(data_dir: Optional[Path] = None) -> LocalVectorStore:
     
     if _local_store is None:
         if data_dir is None:
-            # Default to <project_root>/src/data
-            data_dir = Path(__file__).resolve().parent.parent.parent / 'src' / 'data'
+            from config import config
+            data_dir = config.FAISS_DIR
         
         _local_store = LocalVectorStore(data_dir)
         

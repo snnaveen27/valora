@@ -30,7 +30,7 @@ const getApiUrl = () => {
                     window.location.hostname === '127.0.0.1';
     
     if (isLocal) {
-      return 'http://localhost:8000';
+      return 'http://localhost:8001';
     }
   }
 

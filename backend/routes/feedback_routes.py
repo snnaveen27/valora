@@ -20,7 +20,8 @@ except Exception:
     User = None
 
 # Database path - use valora_memory.db for feedback storage
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'valora_memory.db')
+from config import config
+DB_PATH = str(config.DB_PATH.parent / 'valora_memory.db')
 
 
 def get_db_connection():
