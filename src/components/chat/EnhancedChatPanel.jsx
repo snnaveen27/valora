@@ -941,6 +941,12 @@ export default function EnhancedChatPanel({
             if (a.action === 'flyTo' && a.lat != null && a.lng != null) {
               setAgentData(prev => ({ ...prev, flyTo: { lat: a.lat, lng: a.lng, zoom: a.zoom || 18 } }))
             }
+            if (a.action === 'load_buildings' && a.lat != null && a.lng != null) {
+              // Trigger building loading via custom event
+              window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
+                detail: { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 3 }
+              }))
+            }
             if (['switchTab', 'openPanel', 'closePanel', 'highlightProperties'].includes(a.action)) {
               window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: a }))
             }

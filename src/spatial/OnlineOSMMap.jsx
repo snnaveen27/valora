@@ -2713,10 +2713,21 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     window.addEventListener('valora-ui-command', handleMapCommand)
     window.addEventListener('valora-agentic-step', handleAgenticStep)
     
+    // Listen for building load commands from Task Planner
+    const handleLoadBuildings = (e) => {
+      const { lat, lng, radius_km } = e.detail || {}
+      if (lat != null && lng != null) {
+        console.log(`[Map] Loading buildings from Task Planner: ${lat.toFixed(4)}, ${lng.toFixed(4)}, radius: ${radius_km}km`)
+        loadBuildingsAtPointRef.current(lat, lng)
+      }
+    }
+    window.addEventListener('valora-load-buildings', handleLoadBuildings)
+    
     return () => {
       window.removeEventListener('valora-map-command', handleMapCommand)
       window.removeEventListener('valora-ui-command', handleMapCommand)
       window.removeEventListener('valora-agentic-step', handleAgenticStep)
+      window.removeEventListener('valora-load-buildings', handleLoadBuildings)
       if (pulseEntityRef.current) {
         try { viewerRef.current?.entities?.remove(pulseEntityRef.current) } catch (_) {}
       }
