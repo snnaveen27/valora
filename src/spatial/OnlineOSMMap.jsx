@@ -214,6 +214,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const loadingBuildingsRef = useRef(false) // Ref-based guard for stale closures
   const [tilesLoaded, setTilesLoaded] = useState(0)
   const [clickRipple, setClickRipple] = useState(null)
+  
+  // Debug: Log buildings count changes
+  useEffect(() => {
+    console.log(`[Debug] Buildings count updated: ${buildingsCount}`)
+  }, [buildingsCount])
   const [canGoBack, setCanGoBack] = useState(false)
   
   // Enhanced layer visibility controls - optimized for RAM efficiency
@@ -2212,10 +2217,15 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
     try {
       const params = new URLSearchParams(bbox)
+      console.log(`🔍 Fetching tiles for bbox: ${JSON.stringify(bbox)}`)
       const response = await fetch(`${TILES_API}?${params}`)
-      if (!response.ok) return
+      if (!response.ok) {
+        console.error(`❌ Failed to fetch tiles: ${response.status} ${response.statusText}`)
+        return
+      }
 
       const data = await response.json()
+      console.log(`📦 Found ${data.tiles?.length || 0} tiles in area`)
       let newTiles = data.tiles.filter(t => !loadedTilesRef.current.has(t.id))
       if (newTiles.length === 0) {
         console.log(`[Click] All ${data.tiles.length} tiles already loaded around (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)})`)
@@ -2262,15 +2272,31 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       }
 
       const totalBuildings = Object.values(tileEntitiesRef.current).reduce((s, e) => s + e.length, 0)
-      setBuildingsCount(totalBuildings)
-      setTilesLoaded(loadedTilesRef.current.size)
+      
+      // Update state with proper batching to ensure UI updates
+      const updateCount = totalBuildings
+      const updateTiles = loadedTilesRef.current.size
+      
+      setBuildingsCount(updateCount)
+      setTilesLoaded(updateTiles)
       setBuildingsLoaded(true)
       setLoadingBuildings(false)
       loadingBuildingsRef.current = false
-      if (setAgentData) setAgentData(prev => ({ ...prev, buildingsCount: totalBuildings, loadingBuildings: false }))
+      
+      // Sync with agentData for cross-component visibility
+      if (setAgentData) {
+        setAgentData(prev => ({ 
+          ...prev, 
+          buildingsCount: updateCount, 
+          loadingBuildings: false,
+          tilesLoaded: updateTiles 
+        }))
+      }
 
       if (loadedCount > 0) {
-        console.log(`🏢 Click-loaded ${loadedCount} tiles (${buildingsAdded} buildings) around (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}), ${totalBuildings} total`)
+        console.log(`🏢 Click-loaded ${loadedCount} tiles (${buildingsAdded} buildings) around (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}), ${updateCount} total`)
+      } else if (tilesToLoad.length > 0) {
+        console.warn(`⚠️ Attempted to load ${tilesToLoad.length} tiles but none succeeded`)
       }
     } catch (err) {
       console.warn('Failed to load buildings at point:', err.message)
