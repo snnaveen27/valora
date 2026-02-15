@@ -532,6 +532,141 @@ def generate_report(suite: SuiteResults) -> str:
 # MAIN
 # ---------------------------------------------------------------------------
 
+def test_building_loading_integration(suite: SuiteResults):
+    """Test building loading and task planner integration."""
+    print("\n" + "=" * 60)
+    print("SECTION 8: BUILDING LOADING & TASK PLANNER")
+    print("=" * 60)
+
+    # Test 1: Task Planner load_buildings task creation
+    try:
+        from ai.production_task_planner import ProductionTaskPlanner, Task
+        planner = ProductionTaskPlanner()
+        
+        # Test analyze_area intent includes load_buildings task
+        tasks = planner.create_task_plan("analyze Whitefield area", {"intent": "analyze_area", "location": "Whitefield"})
+        load_buildings_tasks = [t for t in tasks if t.type == "load_buildings"]
+        has_load_buildings = len(load_buildings_tasks) > 0
+        
+        suite.add(TestResult(
+            "bld_01", 
+            "Task Planner", 
+            "analyze_area includes load_buildings task", 
+            has_load_buildings,
+            details=f"Found {len(load_buildings_tasks)} load_buildings tasks"
+        ))
+        icon = "✅" if has_load_buildings else "❌"
+        print(f"  {icon} bld_01: analyze_area intent {'includes' if has_load_buildings else 'missing'} load_buildings task")
+        
+        # Test property_search intent includes load_buildings task
+        tasks = planner.create_task_plan("3BHK in Koramangala", {"intent": "property_search", "location": "Koramangala", "bhk": 3})
+        load_buildings_tasks = [t for t in tasks if t.type == "load_buildings"]
+        has_load_buildings = len(load_buildings_tasks) > 0
+        
+        suite.add(TestResult(
+            "bld_02", 
+            "Task Planner", 
+            "property_search includes load_buildings task", 
+            has_load_buildings,
+            details=f"Found {len(load_buildings_tasks)} load_buildings tasks"
+        ))
+        icon = "✅" if has_load_buildings else "❌"
+        print(f"  {icon} bld_02: property_search intent {'includes' if has_load_buildings else 'missing'} load_buildings task")
+        
+    except Exception as e:
+        suite.add(TestResult("bld_01", "Task Planner", "load_buildings task creation", False, error=str(e)))
+        suite.add(TestResult("bld_02", "Task Planner", "property_search building load", False, error=str(e)))
+        print(f"  ❌ bld_01/bld_02: ERROR {e}")
+
+    # Test 2: Tileset generation and caching
+    try:
+        from pathlib import Path
+        tileset_path = Path(__file__).parent.parent.parent / "storage" / "tileset.json"
+        manifest_path = Path(__file__).parent.parent.parent / "storage" / "tiles" / "bangalore" / "manifest.json"
+        
+        tileset_exists = tileset_path.exists()
+        manifest_exists = manifest_path.exists()
+        
+        suite.add(TestResult(
+            "bld_03", 
+            "Tile Generation", 
+            "Tileset cache exists", 
+            tileset_exists,
+            details=f"tileset.json: {tileset_exists}"
+        ))
+        icon = "✅" if tileset_exists else "❌"
+        print(f"  {icon} bld_03: Tileset cache {'exists' if tileset_exists else 'missing'}")
+        
+        suite.add(TestResult(
+            "bld_04", 
+            "Tile Generation", 
+            "Bangalore manifest exists", 
+            manifest_exists,
+            details=f"manifest.json: {manifest_exists}"
+        ))
+        icon = "✅" if manifest_exists else "❌"
+        print(f"  {icon} bld_04: Bangalore manifest {'exists' if manifest_exists else 'missing'}")
+        
+        # Verify manifest has correct structure
+        if manifest_exists:
+            import json
+            with open(manifest_path) as f:
+                manifest = json.load(f)
+            
+            has_required_fields = all(k in manifest for k in ["region", "total_tiles", "total_buildings", "bounds"])
+            suite.add(TestResult(
+                "bld_05", 
+                "Tile Generation", 
+                "Manifest structure valid", 
+                has_required_fields,
+                details=f"Fields: {list(manifest.keys())}"
+            ))
+            icon = "✅" if has_required_fields else "❌"
+            print(f"  {icon} bld_05: Manifest structure {'valid' if has_required_fields else 'invalid'}")
+        else:
+            suite.add(TestResult("bld_05", "Tile Generation", "Manifest structure", False, error="Manifest not found"))
+            print(f"  ❌ bld_05: Manifest structure - manifest not found")
+            
+    except Exception as e:
+        suite.add(TestResult("bld_03", "Tile Generation", "Tileset validation", False, error=str(e)))
+        print(f"  ❌ bld_03/04/05: ERROR {e}")
+
+    # Test 3: API endpoint for tiles
+    try:
+        import requests
+        base_url = "http://localhost:8000"
+        response = requests.get(f"{base_url}/api/tiles/viewport?min_lng=77.6&min_lat=12.9&max_lng=77.7&max_lat=13.0", timeout=5)
+        
+        endpoint_works = response.status_code == 200
+        suite.add(TestResult(
+            "bld_06", 
+            "API", 
+            "Tiles viewport endpoint", 
+            endpoint_works,
+            details=f"Status: {response.status_code}"
+        ))
+        icon = "✅" if endpoint_works else "❌"
+        print(f"  {icon} bld_06: Tiles endpoint {'works' if endpoint_works else 'failed'} (status {response.status_code})")
+        
+        if endpoint_works:
+            data = response.json()
+            has_tiles = "tiles" in data and len(data["tiles"]) > 0
+            suite.add(TestResult(
+                "bld_07", 
+                "API", 
+                "Returns tile list", 
+                has_tiles,
+                details=f"Tiles: {len(data.get('tiles', []))}"
+            ))
+            icon = "✅" if has_tiles else "❌"
+            print(f"  {icon} bld_07: Returns {len(data.get('tiles', []))} tiles")
+            
+    except Exception as e:
+        suite.add(TestResult("bld_06", "API", "Tiles endpoint", False, error=str(e)))
+        suite.add(TestResult("bld_07", "API", "Tile list", False, error=str(e)))
+        print(f"  ❌ bld_06/07: ERROR {e}")
+
+
 def main():
     live = "--live" in sys.argv
     base_url = "http://localhost:8000"
@@ -555,6 +690,7 @@ def main():
     test_slot_extraction(suite)
     test_stress_queries(suite)
     test_openrouter_availability(suite)
+    test_building_loading_integration(suite)
 
     if live:
         test_streaming_chat(suite, base_url)
