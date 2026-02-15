@@ -216,6 +216,19 @@ class ProductionTaskPlanner:
                     priority=1
                 ),
                 Task(
+                    id="t2b_load_buildings",
+                    type="load_buildings",
+                    name="Load search area buildings",
+                    description="Load 3D buildings for context",
+                    params={
+                        "location": slots.get('location'),
+                        "radius_km": 2,
+                        "filter_type": "apartment"
+                    },
+                    dependencies=["t2_flyto"],
+                    priority=1
+                ),
+                Task(
                     id="t3_query",
                     type="gis_operation",
                     name="Spatial property query",
@@ -226,7 +239,7 @@ class ProductionTaskPlanner:
                         "radius": slots.get('radius', 2000),
                         "filters": {"bhk": slots.get('bhk'), "budget_max": slots.get('budget')}
                     },
-                    dependencies=["t1_parse"],
+                    dependencies=["t1_parse", "t2b_load_buildings"],
                     priority=1
                 ),
                 Task(
@@ -251,6 +264,19 @@ class ProductionTaskPlanner:
                     priority=1
                 ),
                 Task(
+                    id="t1b_load_buildings",
+                    type="load_buildings",
+                    name="Load area buildings",
+                    description="Load 3D buildings for visual context",
+                    params={
+                        "location": slots.get('location'),
+                        "radius_km": 3,
+                        "priority": "high"
+                    },
+                    dependencies=["t1_flyto"],
+                    priority=1
+                ),
+                Task(
                     id="t2_metrics",
                     type="gis_operation",
                     name="Compute area metrics",
@@ -260,6 +286,7 @@ class ProductionTaskPlanner:
                         "location": slots.get('location'),
                         "metrics": ["price_trend", "livability", "connectivity", "risk"]
                     },
+                    dependencies=["t1b_load_buildings"],
                     priority=1
                 ),
                 Task(
@@ -666,6 +693,21 @@ class ProductionTaskPlanner:
             elif task.type == "data_fetch":
                 result = await self._execute_data_fetch(task)
             
+            elif task.type == "load_buildings":
+                # Building loading task - returns building load parameters for frontend
+                location = task.params.get('location', '')
+                lat, lng = await self._geocode_location(location)
+                radius_km = task.params.get('radius_km', 3)
+                
+                result = {
+                    "action": "load_buildings",
+                    "location": location,
+                    "coordinates": {"lat": lat, "lng": lng},
+                    "radius_km": radius_km,
+                    "summary": f"Loading buildings in {radius_km}km radius around {location}",
+                    "visual_update": True
+                }
+            
             else:
                 result = {"status": "completed", "summary": task.name}
             
@@ -678,7 +720,7 @@ class ProductionTaskPlanner:
                 task_id=task.id,
                 result=result,
                 duration_ms=duration,
-                map_actions_executed=[task.params] if task.type == "map_action" else []
+                map_actions_executed=[task.params] if task.type in ("map_action", "load_buildings") else []
             )
             
         except Exception as e:
