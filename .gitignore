@@ -133,3 +133,7 @@ valora_credits.db
 
 # Null file from Windows
 nul
+
+# Generated tiles (large files - regenerate via script)
+storage/tiles/**/*.json
+!storage/tiles/**/manifest.json
