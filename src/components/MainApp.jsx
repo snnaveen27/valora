@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud, Loader2, Activity, CheckCircle2 } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud, Loader2, Activity, CheckCircle2, Circle } from 'lucide-react'
 
 import { API_URL } from '../apiConfig'
 
@@ -614,7 +614,7 @@ export default function MainApp() {
           )}
         </div>
 
-        {/* Center Section - Task Progress (Adaptive & Centered) */}
+        {/* Center Section - Task Progress with Mini Todo List */}
         <div className="flex-1 flex justify-center px-4 min-w-0">
           {lastTaskProgress && (
             <button
@@ -666,33 +666,27 @@ export default function MainApp() {
                 </>
               )}
 
-              {/* Progress Ring with Glow */}
-              <div className="relative w-7 h-7 flex-shrink-0 z-10">
-                {/* Glow Effect */}
-                {lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled && (
-                  <div className="absolute inset-0 rounded-full bg-violet-500/40 animate-pulse" />
+              {/* Mini Todo List with Ticks - Show last 3 tasks */}
+              <div className="flex items-center gap-1.5 flex-shrink-0 z-10">
+                {taskHistory.slice(-3).map((task, index) => (
+                  <div key={index} className="flex items-center justify-center">
+                    {task.percent === 100 ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    ) : task.percent > 0 ? (
+                      <Loader2 className="w-4 h-4 text-violet-400 animate-spin" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-slate-600" />
+                    )}
+                  </div>
+                ))}
+                {/* Show placeholder circles if no history yet */}
+                {taskHistory.length === 0 && (
+                  <>
+                    <Circle className="w-4 h-4 text-slate-600" />
+                    <Circle className="w-4 h-4 text-slate-600" />
+                    <Circle className="w-4 h-4 text-slate-600" />
+                  </>
                 )}
-                <svg className="w-full h-full -rotate-90 relative z-10" viewBox="0 0 28 28">
-                  <circle cx="14" cy="14" r="11" className="stroke-slate-700 fill-none" strokeWidth="2.5" />
-                  <circle
-                    cx="14" cy="14" r="11"
-                    fill="none"
-                    stroke={isTaskCancelled ? '#ef4444' : lastTaskProgress.percent === 100 ? '#10b981' : '#8b5cf6'}
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeDasharray={2 * Math.PI * 11}
-                    strokeDashoffset={2 * Math.PI * 11 * (1 - lastTaskProgress.percent / 100)}
-                    className="transition-all duration-500"
-                    style={{
-                      filter: lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled
-                        ? 'drop-shadow(0 0 4px rgba(139, 92, 246, 0.6))'
-                        : 'none'
-                    }}
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-white z-20">
-                  {lastTaskProgress.percent}%
-                </span>
               </div>
 
               {/* Task Info - Single Line */}
@@ -878,6 +872,7 @@ export default function MainApp() {
           isVisible={showTaskBanner && showFloatingBanner}
           onClose={() => setShowFloatingBanner(false)}
           taskProgress={lastTaskProgress}
+          taskHistory={taskHistory}
         />
       </Suspense>
 

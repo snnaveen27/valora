@@ -1,9 +1,9 @@
 # Valora AI — Test Results
 
-**Generated:** 2026-02-10T03:25:14.232439
-**Duration:** 42228ms
-**Total:** 64 | **Passed:** 57 | **Failed:** 7
-**Pass Rate:** 89.1%
+**Generated:** 2026-02-15T22:15:26.087879
+**Duration:** 15314ms
+**Total:** 64 | **Passed:** 63 | **Failed:** 1
+**Pass Rate:** 98.4%
 
 ## Summary by Section
 
@@ -12,7 +12,7 @@
 | Intent Classification | 40 | 40 | 0 | 100.0% |
 | Model Routing | 8 | 8 | 0 | 100.0% |
 | Learning | 2 | 2 | 0 | 100.0% |
-| API Endpoints | 7 | 0 | 7 | 0.0% |
+| API Endpoints | 7 | 6 | 1 | 85.7% |
 | Slot Extraction | 3 | 3 | 0 | 100.0% |
 | Stress Tests | 3 | 3 | 0 | 100.0% |
 | OpenRouter | 1 | 1 | 0 | 100.0% |
@@ -66,33 +66,33 @@
 
 | ID | Test | Status | Duration | Details |
 |----|------|--------|----------|---------|
-| route_01 | hello | ✅ PASS | 5ms | model=qwen3:8b score=0.00 cloud=OK(want=False,got=False) |
-| route_02 | Show me Koramangala | ✅ PASS | 3ms | model=qwen3:8b score=0.00 cloud=OK(want=False,got=False) |
-| route_03 | Tell me about Whitefield | ✅ PASS | 2ms | model=qwen3:8b score=0.15 cloud=OK(want=False,got=False) |
-| route_04 | Compare Whitefield vs Electronic City for investme | ✅ PASS | 4ms | model=kimi-k2.5:cloud score=0.65 cloud=OK(want=True,got=True) |
-| route_05 | Simulate metro impact on Sarjapur Road prices with | ✅ PASS | 2ms | model=kimi-k2.5:cloud score=0.45 cloud=OK(want=True,got=True) |
-| route_06 | Analyze this property photo | ✅ PASS | 2ms | model=qwen3-vl:235b-instruct-cloud score=0.65 cloud=OK(want=True,got=True) vision=OK |
-| route_07 | Find 2BHK in Whitefield under 80L, compare with Sa | ✅ PASS | 3ms | model=kimi-k2.5:cloud score=0.35 cloud=OK(want=True,got=True) |
-| route_08 | What is the price per sqft in Koramangala? | ✅ PASS | 3ms | model=qwen3:8b score=0.15 cloud=OK(want=False,got=False) |
+| route_01 | hello | ✅ PASS | 20ms | model=qwen3:8b score=0.00 cloud=OK(want=False,got=False) |
+| route_02 | Show me Koramangala | ✅ PASS | - | model=qwen3:8b score=0.00 cloud=OK(want=False,got=False) |
+| route_03 | Tell me about Whitefield | ✅ PASS | - | model=qwen3:8b score=0.15 cloud=OK(want=False,got=False) |
+| route_04 | Compare Whitefield vs Electronic City for investme | ✅ PASS | - | model=kimi-k2.5:cloud score=0.65 cloud=OK(want=True,got=True) |
+| route_05 | Simulate metro impact on Sarjapur Road prices with | ✅ PASS | - | model=kimi-k2.5:cloud score=0.45 cloud=OK(want=True,got=True) |
+| route_06 | Analyze this property photo | ✅ PASS | - | model=qwen3-vl:235b-instruct-cloud score=0.65 cloud=OK(want=True,got=True) vision=OK |
+| route_07 | Find 2BHK in Whitefield under 80L, compare with Sa | ✅ PASS | - | model=kimi-k2.5:cloud score=0.35 cloud=OK(want=True,got=True) |
+| route_08 | What is the price per sqft in Koramangala? | ✅ PASS | - | model=qwen3:8b score=0.15 cloud=OK(want=False,got=False) |
 
 ## Learning
 
 | ID | Test | Status | Duration | Details |
 |----|------|--------|----------|---------|
 | learn_01 | Performance tracking + bonus | ✅ PASS | - | good_bonus=0.200, bad_bonus=-0.300 |
-| learn_02 | SQLite perf DB exists | ✅ PASS | - | C:\Users\Nvnsa\Downloads\New folder\realestate\CascadeProjects\windsurf-project\backend\model_performance.db |
+| learn_02 | SQLite perf DB exists | ✅ PASS | - | C:\Users\Nvnsa\Downloads\New folder\realestate\CascadeProjects\valora_fresh\storage\database\model_performance.db |
 
 ## API Endpoints
 
 | ID | Test | Status | Duration | Details |
 |----|------|--------|----------|---------|
-| ep_health | /api/admin/health | ❌ FAIL | 4107ms | <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it> |
-| ep_auth_tiers | /api/auth/tiers | ❌ FAIL | 4073ms | <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it> |
-| ep_credits | /api/credits/test_user_001 | ❌ FAIL | 4069ms | <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it> |
-| ep_plans | /api/credits/plans | ❌ FAIL | 4084ms | <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it> |
-| ep_topup | /api/credits/topup-packs | ❌ FAIL | 4075ms | <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it> |
-| ep_pay_plans | /api/payments/plans | ❌ FAIL | 4044ms | <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it> |
-| ep_pay_config | /api/payments/config | ❌ FAIL | 4065ms | <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it> |
+| ep_health | /api/admin/health | ✅ PASS | 2814ms | GET /api/admin/health → 200 (2814ms) |
+| ep_auth_tiers | /api/auth/tiers | ✅ PASS | 2040ms | GET /api/auth/tiers → 200 (2040ms) |
+| ep_credits | /api/credits/test_user_001 | ✅ PASS | 2053ms | GET /api/credits/test_user_001 → 200 (2053ms) |
+| ep_plans | /api/credits/plans | ✅ PASS | 2031ms | GET /api/credits/plans → 200 (2031ms) |
+| ep_topup | /api/credits/topup-packs | ✅ PASS | 2047ms | GET /api/credits/topup-packs → 200 (2047ms) |
+| ep_pay_plans | /api/payments/plans | ✅ PASS | 2042ms | GET /api/payments/plans → 200 (2042ms) |
+| ep_pay_config | /api/payments/config | ❌ FAIL | 2049ms | HTTP Error 500: Internal Server Error |
 
 ## Slot Extraction
 
@@ -106,7 +106,7 @@
 
 | ID | Test | Status | Duration | Details |
 |----|------|--------|----------|---------|
-| stress_01 | I work near Manyata Tech Park but only go twice a  | ✅ PASS | - | intent=investment, model=deepseek/deepseek-chat, score=0.50, escalated=True |
+| stress_01 | I work near Manyata Tech Park but only go twice a  | ✅ PASS | - | intent=investment, model=kimi-k2.5:cloud, score=0.50, escalated=True |
 | stress_02 | Analyze Sarjapur Road and simulate what happens to | ✅ PASS | - | intent=simulate, model=kimi-k2.5:cloud, score=0.50, escalated=True |
 | stress_03 | Find 3BHK in Koramangala under 50 lakhs with 2000  | ✅ PASS | - | intent=property_search, model=kimi-k2.5:cloud, score=0.40, escalated=True |
 
@@ -118,20 +118,8 @@
 
 ## Failed Tests — Action Items
 
-- **ep_health** (API Endpoints): /api/admin/health
-  - Error: `<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>`
-- **ep_auth_tiers** (API Endpoints): /api/auth/tiers
-  - Error: `<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>`
-- **ep_credits** (API Endpoints): /api/credits/test_user_001
-  - Error: `<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>`
-- **ep_plans** (API Endpoints): /api/credits/plans
-  - Error: `<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>`
-- **ep_topup** (API Endpoints): /api/credits/topup-packs
-  - Error: `<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>`
-- **ep_pay_plans** (API Endpoints): /api/payments/plans
-  - Error: `<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>`
 - **ep_pay_config** (API Endpoints): /api/payments/config
-  - Error: `<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>`
+  - Error: `HTTP Error 500: Internal Server Error`
 
 ## Architecture
 

@@ -34,20 +34,33 @@ export default function ChatInputBar({
   // Focus input on mount
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  // Fetch available models on mount
+  // Fetch available models on mount with retry
   useEffect(() => {
-    const fetchModels = async () => {
+    const fetchModels = async (retryCount = 0) => {
       setLoadingModels(true)
       try {
         const response = await fetch(`${API_URL}/api/admin/llm-models`)
         if (response.ok) {
           const data = await response.json()
           setAvailableModels(data.local || [])
+          console.log('[ChatInputBar] Loaded models:', data.local?.length || 0, 'local models')
         } else {
           console.error('[ChatInputBar] Failed to fetch models:', response.status, response.statusText)
+          // Retry up to 3 times with exponential backoff
+          if (retryCount < 3) {
+            const delay = Math.pow(2, retryCount) * 1000 // 1s, 2s, 4s
+            console.log(`[ChatInputBar] Retrying in ${delay}ms...`)
+            setTimeout(() => fetchModels(retryCount + 1), delay)
+          }
         }
       } catch (error) {
-        console.warn('Failed to fetch models:', error)
+        console.warn('[ChatInputBar] Failed to fetch models:', error.message)
+        // Retry up to 3 times with exponential backoff
+        if (retryCount < 3) {
+          const delay = Math.pow(2, retryCount) * 1000 // 1s, 2s, 4s
+          console.log(`[ChatInputBar] Retrying in ${delay}ms...`)
+          setTimeout(() => fetchModels(retryCount + 1), delay)
+        }
       } finally {
         setLoadingModels(false)
       }

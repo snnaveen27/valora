@@ -108,7 +108,7 @@ class BuildingAnalyzer:
         """Initialize database connection."""
         try:
             from database.db_service import DatabaseService
-            db_path = Path(__file__).parent / 'database' / '..' / '..' / 'src' / 'data' / 'valora.db'
+            db_path = Path(__file__).parent / 'database' / '..' / '..' / 'storage' / 'valora.db'
             self.db_service = DatabaseService(str(db_path.resolve()))
         except Exception as e:
             print(f"[BuildingAnalyzer] Database init error: {e}")
@@ -504,7 +504,7 @@ class BuildingAnalyzer:
         
         # Phase 1.2: Viewshed Analysis
         try:
-            from viewshed_analyzer import get_viewshed_analyzer
+            from analyzers.viewshed_analyzer import get_viewshed_analyzer
             viewshed = get_viewshed_analyzer()
             vs_result = viewshed.analyze_viewshed(lat, lng, floor=analysis.floors)
             analysis.viewshed_result = vs_result.to_dict()

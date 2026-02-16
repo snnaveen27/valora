@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Database path
-DB_PATH = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+DB_PATH = Path(__file__).parent.parent / "storage" / "valora.db"
 
 
 def migrate_locality_state(db_path: str = None):

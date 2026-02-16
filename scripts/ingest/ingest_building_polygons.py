@@ -10,8 +10,8 @@ from typing import Dict, Any, List
 import sys
 
 # Paths
-GEOJSON_PATH = Path(__file__).parent.parent / "src" / "data" / "data_backup_extracted" / "data_backup" / "buildings.geojson"
-DB_PATH = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+GEOJSON_PATH = Path(__file__).parent.parent / "storage" / "data_backup_extracted" / "data_backup" / "buildings.geojson"
+DB_PATH = Path(__file__).parent.parent / "storage" / "valora.db"
 
 
 def add_polygon_column():

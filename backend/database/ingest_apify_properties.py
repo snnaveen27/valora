@@ -31,9 +31,9 @@ APIFY_BASE_URL = "https://api.apify.com/v2"
 
 # Directories
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DB_PATH = BASE_DIR / "src" / "data" / "valora.db"
+DB_PATH = BASE_DIR / "storage" / "valora.db"
 TEMP_DIR = BASE_DIR / "scripts" / "ingest" / "temp_apify_downloads"
-POSTED_PROPERTIES_DIR = BASE_DIR / "src" / "data" / "posted_properties"
+POSTED_PROPERTIES_DIR = BASE_DIR / "storage" / "posted_properties"
 
 
 def fetch_all_actor_runs() -> List[Dict]:

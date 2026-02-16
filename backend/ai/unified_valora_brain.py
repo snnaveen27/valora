@@ -482,6 +482,27 @@ class UnifiedValoraBrain:
                 action_data["action"] = "flyTo"
             ui_actions.append(action_data)
         
+        # Add load_buildings actions from task results
+        print(f"[UnifiedBrain] Processing {len(unified_result.task_results)} task results for ui_actions")
+        print(f"[UnifiedBrain] Task types: {[t.task_id for t in unified_result.task_results]}")
+        for task_result in unified_result.task_results:
+            print(f"[UnifiedBrain] Checking task {task_result.task_id}: success={task_result.success}, has_result={task_result.result is not None}")
+            if task_result.success and task_result.result:
+                result_data = task_result.result
+                print(f"[UnifiedBrain] Task {task_result.task_id}: result_type={type(result_data)}, action={result_data.get('action') if isinstance(result_data, dict) else 'N/A'}")
+                if isinstance(result_data, dict) and result_data.get("action") == "load_buildings":
+                    coords = result_data.get("coordinates", {})
+                    action_data = {
+                        "action": "load_buildings",
+                        "lat": coords.get("lat"),
+                        "lng": coords.get("lng"),
+                        "radius_km": result_data.get("radius_km", 2)
+                    }
+                    ui_actions.append(action_data)
+                    print(f"[UnifiedBrain] ✅ Added load_buildings to ui_actions: {action_data}")
+            else:
+                print(f"[UnifiedBrain] Task {task_result.task_id} skipped: success={task_result.success}, result={task_result.result}")
+        
         # Add tab switching based on intent
         tab_map = {
             "analyze_area": "insights",
@@ -495,6 +516,7 @@ class UnifiedValoraBrain:
             ui_actions.append({"action": "switchTab", "value": tab_map[unified_result.intent]})
         
         # Yield metadata event for frontend panel/map integration
+        print(f"[UnifiedBrain] 📤 Yielding metadata with {len(ui_actions)} ui_actions")
         yield {
             "type": "metadata",
             "ui_actions": ui_actions,

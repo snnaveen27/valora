@@ -166,10 +166,10 @@ def main():
     # Check for PBF file in multiple locations
     project_root = Path(__file__).parent.parent
     possible_paths = [
-        project_root / 'src' / 'data' / 'data_backup_temp' / 'raw' / 'bengaluru.pbf',
-        project_root / 'src' / 'data' / 'data_backup' / 'raw' / 'bengaluru.pbf',
-        project_root / 'src' / 'data' / 'raw' / 'bengaluru.pbf',
-        project_root / 'src' / 'data' / 'bengaluru.pbf',
+        project_root / 'storage' / 'data_backup_temp' / 'raw' / 'bengaluru.pbf',
+        project_root / 'storage' / 'data_backup' / 'raw' / 'bengaluru.pbf',
+        project_root / 'storage' / 'raw' / 'bengaluru.pbf',
+        project_root / 'storage' / 'bengaluru.pbf',
     ]
     
     pbf_path = None
@@ -185,7 +185,7 @@ def main():
             print(f"  - {p}")
         return
     
-    db_path = project_root / 'src' / 'data' / 'valora.db'
+    db_path = project_root / 'storage' / 'valora.db'
     
     print("=" * 70)
     print("ROAD EXTRACTION FROM OSM PBF (Python)")

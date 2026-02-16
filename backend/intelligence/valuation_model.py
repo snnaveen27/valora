@@ -67,9 +67,11 @@ class PropertyValuationModel:
     
     def __init__(self, data_dir: Path):
         self.data_dir = data_dir
-        self.properties_dir = data_dir / 'posted_properties'
-        self.osm_dir = data_dir / 'osm_extracted'
-        self.model_dir = data_dir.parent / 'backend' / 'models'
+        from config import config
+        self.properties_dir = config.DATA_DIR / 'posted_properties'
+        self.osm_dir = config.DATA_DIR / 'osm_extracted'
+        from config import config
+        self.model_dir = config.MODELS_DIR
         
         self.model = None
         self.scaler = None
@@ -692,6 +694,6 @@ def get_valuation_model(data_dir: Path = None) -> PropertyValuationModel:
     global _valuation_model
     if _valuation_model is None:
         if data_dir is None:
-            data_dir = Path(__file__).parent.parent / 'src' / 'data'
+            data_dir = Path(__file__).parent.parent / 'storage'
         _valuation_model = PropertyValuationModel(data_dir)
     return _valuation_model

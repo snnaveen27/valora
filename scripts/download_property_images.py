@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Paths
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
-DB_PATH = PROJECT_DIR / "src" / "data" / "valora.db"
+DB_PATH = PROJECT_DIR / "storage" / "valora.db"
 IMAGES_DIR = PROJECT_DIR / "data" / "property_images"
 METADATA_PATH = IMAGES_DIR / "image_metadata.json"
 TRAINING_DATA_PATH = IMAGES_DIR / "training_data.jsonl"

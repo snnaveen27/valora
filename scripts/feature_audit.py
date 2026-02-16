@@ -138,7 +138,7 @@ def check_missing_features():
     
     # Check empty database tables
     import sqlite3
-    db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+    db_path = Path(__file__).parent.parent / "storage" / "valora.db"
     conn = sqlite3.connect(str(db_path))
     cursor = conn.cursor()
     

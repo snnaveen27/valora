@@ -6,7 +6,7 @@ from pathlib import Path
 import random
 
 def main():
-    db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+    db_path = Path(__file__).parent.parent / 'storage' / 'valora.db'
     
     print(f"Database: {db_path}")
     print("=" * 70)

@@ -2,7 +2,7 @@
 import sqlite3
 from pathlib import Path
 
-db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+db_path = Path(__file__).parent.parent / "storage" / "valora.db"
 conn = sqlite3.connect(str(db_path))
 cursor = conn.cursor()
 

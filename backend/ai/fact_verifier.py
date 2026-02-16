@@ -144,7 +144,7 @@ class FactVerifier:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
+            db_path = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
         self.db_path = str(db_path)
         
         # Lazy-load agents
@@ -172,34 +172,24 @@ class FactVerifier:
     def _get_spatial_3d(self):
         if self._spatial_3d is None:
             try:
-                from spatial_3d_reasoning import get_spatial_3d_reasoning
+                from spatial.spatial_3d_reasoning import get_spatial_3d_reasoning
                 self._spatial_3d = get_spatial_3d_reasoning()
             except ImportError:
                 pass
         return self._spatial_3d
     
     def _get_occlusion(self):
-        if self._occlusion is None:
-            try:
-                from occlusion_engine import get_occlusion_engine
-                self._occlusion = get_occlusion_engine()
-            except ImportError:
-                pass
-        return self._occlusion
+        # Occlusion engine module removed - functionality integrated elsewhere
+        return None
     
     def _get_solar(self):
-        if self._solar is None:
-            try:
-                from solar_engine import get_solar_engine
-                self._solar = get_solar_engine()
-            except ImportError:
-                pass
-        return self._solar
+        # Solar engine module removed - functionality integrated elsewhere
+        return None
     
     def _get_regulatory(self):
         if self._regulatory is None:
             try:
-                from regulatory_intelligence import get_regulatory_intelligence
+                from intelligence.regulatory_intelligence import get_regulatory_intelligence
                 self._regulatory = get_regulatory_intelligence()
             except ImportError:
                 pass

@@ -269,6 +269,42 @@ export default function EnhancedChatPanel({
       setActiveTabId(newSession.id)
       saveSession(newSession)
     }
+    
+    // Check for active request from previous session (page refresh recovery)
+    const activeRequest = JSON.parse(localStorage.getItem('valora_active_request') || 'null')
+    if (activeRequest && activeRequest.query) {
+      console.log('[EnhancedChatPanel] Recovering active request:', activeRequest)
+      // Restore the task banner state
+      setCurrentQuery(activeRequest.query)
+      setIsProcessing(true)
+      setIsLoading(true)
+      setStreamingData({
+        stage: 'recovering',
+        query: activeRequest.query,
+        request_id: activeRequest.request_id
+      })
+      
+      // Notify parent about recovery
+      if (onTaskStreaming) {
+        onTaskStreaming({
+          type: 'recovering',
+          query: activeRequest.query,
+          request_id: activeRequest.request_id,
+          stage: 'reconnecting'
+        })
+      }
+      
+      // Clear the active request after a delay (assume it completed or failed)
+      // In production, you'd poll the backend for actual status
+      setTimeout(() => {
+        localStorage.removeItem('valora_active_request')
+        setIsProcessing(false)
+        setIsLoading(false)
+        if (onTaskStreaming) {
+          onTaskStreaming({ type: 'task_recovered_done' })
+        }
+      }, 3000)
+    }
   }, [])
   
   // Persist open tabs to localStorage
@@ -460,11 +496,20 @@ export default function EnhancedChatPanel({
     
     const handleAreaClick = async (e) => {
       if (isLoading) return
-      const { coordinates, query } = e.detail || {}
+      const { coordinates, query, skipFlyTo } = e.detail || {}
       if (!coordinates || !query) return
       
+      // Store the clicked coordinates to prevent backend flyTo from overriding them
+      if (skipFlyTo && setAgentData) {
+        setAgentData(prev => ({ 
+          ...prev, 
+          clickedLocation: coordinates,
+          flyTo: null // Clear any pending flyTo
+        }))
+      }
+      
       addMessage({ role: 'user', content: `📍 Analyzing area at ${coordinates.lat.toFixed(4)}, ${coordinates.lng.toFixed(4)}` })
-      await handleSendMessage(query, true)
+      await handleSendMessage(query, true, { skipFlyTo: true, clickedCoordinates: coordinates })
     }
     
     const handlePropertyClick = async (e) => {
@@ -557,36 +602,50 @@ export default function EnhancedChatPanel({
   useEffect(() => { fetchCredits() }, [fetchCredits])
 
   // Build context for AI
-  const buildContext = useCallback(() => ({
-    user_id: userId,
-    thread_id: currentSession?.id || null,
-    selectedBuilding: agentData?.selectedBuilding || null,
-    selectedLocation: agentData?.selectedLocation || null,
-    selectedPlace: agentData?.selectedPlace || null,
-    mapCenter: agentData?.mapCenter || null,
-    viewportBounds: agentData?.viewportBounds || null,
-    viewportAnalysis: agentData?.viewportAnalysis || null,
-    currentAnalysis: {
-      areaName: agentData?.viewportAnalysis?.area_name,
-      market: agentData?.viewportAnalysis?.market,
-      spatial: agentData?.viewportAnalysis?.spatial,
-    },
-    explainability: agentData?.explainability || null,
-    simulation: agentData?.simulation || null,
-    userLocation: userLocation ? { lat: userLocation.lat, lng: userLocation.lng, label: locationLabel } : null,
-    image: attachedImages?.length > 0 ? attachedImages : null,
-    agentic_mode: llmConfig.agentic_mode ?? null,  // null=auto, true=always, false=never
-    llm_config: {
-      provider: llmConfig.provider || 'ollama',
-      local_model: llmConfig.local_model || 'qwen3:4b-instruct',
-      cloud_enabled: llmConfig.cloud_enabled ?? false,
+  const buildContext = useCallback(() => {
+    // Get clicked coordinates if available (from map click)
+    const skipInfo = window._valoraSkipFlyTo
+    const clickedCoordinates = (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) 
+      ? skipInfo.coordinates 
+      : null
+    const skipFlyTo = clickedCoordinates ? true : false
+    
+    return {
+      user_id: userId,
+      thread_id: currentSession?.id || null,
+      selectedBuilding: agentData?.selectedBuilding || null,
+      selectedLocation: clickedCoordinates || agentData?.selectedLocation || null,
+      selectedPlace: agentData?.selectedPlace || null,
+      mapCenter: agentData?.mapCenter || null,
+      viewportBounds: agentData?.viewportBounds || null,
+      viewportAnalysis: agentData?.viewportAnalysis || null,
+      currentAnalysis: {
+        areaName: agentData?.viewportAnalysis?.area_name,
+        market: agentData?.viewportAnalysis?.market,
+        spatial: agentData?.viewportAnalysis?.spatial,
+      },
+      explainability: agentData?.explainability || null,
+      simulation: agentData?.simulation || null,
+      userLocation: userLocation ? { lat: userLocation.lat, lng: userLocation.lng, label: locationLabel } : null,
+      image: attachedImages?.length > 0 ? attachedImages : null,
+      agentic_mode: llmConfig.agentic_mode ?? null,  // null=auto, true=always, false=never
+      llm_config: {
+        provider: llmConfig.provider || 'ollama',
+        local_model: llmConfig.local_model || 'qwen3:4b-instruct',
+        cloud_enabled: llmConfig.cloud_enabled ?? false,
+      },
+      // Pass skipFlyTo and clickedCoordinates for backend to use exact clicked location
+      skipFlyTo: skipFlyTo,
+      clickedCoordinates: clickedCoordinates
     }
-  }), [userId, currentSession?.id, agentData, userLocation, locationLabel, attachedImages, llmConfig])
+  }, [userId, currentSession?.id, agentData, userLocation, locationLabel, attachedImages, llmConfig])
   
   // Streaming chat with abort support
   const callAIStreaming = useCallback(async (userMessage, onThinking, onContent, onComplete, signal) => {
     let capturedUIActions = []
     let capturedIntent = null
+    let uiActionsProcessed = false // Track if UI actions have been processed to avoid duplicates
+    let capturedRequestId = null
     
     try {
       const messages = currentSession?.messages?.filter(m => m.role !== 'system').map(m => ({
@@ -644,6 +703,7 @@ export default function EnhancedChatPanel({
           
           const dataStr = dataLines.join('\n')
           if (dataStr === '[DONE]') {
+            localStorage.removeItem('valora_active_request') // Clear active request on completion
             onComplete({ content: contentBuffer, thinking: thinkingBuffer, thinkingTime })
             return
           }
@@ -657,6 +717,16 @@ export default function EnhancedChatPanel({
           }
           
           thinkingTime = data.thinking_time ?? thinkingTime
+          
+          // Store request_id when we first get it for recovery on refresh
+          if (data.request_id && !capturedRequestId) {
+            capturedRequestId = data.request_id
+            localStorage.setItem('valora_active_request', JSON.stringify({
+              request_id: data.request_id,
+              query: userMessage,
+              timestamp: Date.now()
+            }))
+          }
           
           switch (data.type) {
             case 'intent_classification_start':
@@ -814,9 +884,50 @@ export default function EnhancedChatPanel({
               if (data.content) contentBuffer += data.content
               onContent(contentBuffer, thinkingTime)
               break
+            case 'ui_actions_early':
+              // EARLY UI actions - dispatch immediately so map moves BEFORE LLM response
+              // This is the ONLY place UI actions are processed during streaming
+              console.log('[ChatPanel] 🚀 Received EARLY UI actions:', data.ui_actions)
+              if (data.ui_actions && setAgentData) {
+                capturedUIActions = data.ui_actions
+                uiActionsProcessed = true // Mark as processed to avoid duplicate handling
+                for (const action of data.ui_actions) {
+                  if (action.action === 'flyTo' && action.lat != null && action.lng != null) {
+                    // Check if we should skip flyTo (user clicked on map, camera already there)
+                    const skipInfo = window._valoraSkipFlyTo
+                    if (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) {
+                      console.log('[ChatPanel] 🚫 Skipping flyTo entirely - user clicked on map, camera already at location')
+                      // Don't set flyTo at all - the map click handler already moved the camera
+                    } else {
+                      console.log('[ChatPanel]  EARLY flyTo:', { lat: action.lat, lng: action.lng, zoom: action.zoom })
+                      setAgentData(prev => ({ ...prev, flyTo: { lat: action.lat, lng: action.lng, zoom: action.zoom || 18 } }))
+                    }
+                  }
+                  if (action.action === 'load_buildings' && action.lat != null && action.lng != null) {
+                    // Use clicked coordinates for load_buildings too
+                    const skipInfo = window._valoraSkipFlyTo
+                    const lat = (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) ? skipInfo.coordinates.lat : action.lat
+                    const lng = (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) ? skipInfo.coordinates.lng : action.lng
+                    console.log('[ChatPanel] 📤 EARLY load_buildings:', { lat, lng, radius_km: action.radius_km || 5 })
+                    window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
+                      detail: { lat, lng, radius_km: action.radius_km || 5 }
+                    }))
+                  }
+                  if (['switchTab', 'openPanel', 'closePanel', 'highlightProperties'].includes(action.action)) {
+                    window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: action }))
+                  }
+                }
+              }
+              if (data.intent) capturedIntent = data.intent
+              break
             case 'metadata':
               // Capture ui_actions, intent, dashboard, and facts for map/panel integration
-              if (data.ui_actions) capturedUIActions = data.ui_actions
+              console.log('[ChatPanel] 📨 Received metadata:', { ui_actions_count: data.ui_actions?.length, intent: data.intent })
+              // Only capture ui_actions if not already processed (fallback for non-early flow)
+              if (data.ui_actions && !uiActionsProcessed) {
+                capturedUIActions = data.ui_actions
+                console.log('[ChatPanel] 📋 capturedUIActions (fallback):', capturedUIActions)
+              }
               if (data.intent) capturedIntent = data.intent
               
               // Update agentData with dashboard and facts for analysis panel
@@ -851,11 +962,20 @@ export default function EnhancedChatPanel({
               }
               if (onTaskStreaming) onTaskStreaming(doneData)
               
-              // Dispatch UI actions for map integration
-              if (setAgentData && capturedUIActions.length > 0) {
+              // Process UI actions ONLY if not already processed in ui_actions_early
+              // This handles the fallback case where ui_actions_early was not sent
+              if (!uiActionsProcessed && setAgentData && capturedUIActions.length > 0) {
+                console.log('[ChatPanel] 📋 Processing UI actions (fallback in done handler):', capturedUIActions)
                 for (const action of capturedUIActions) {
                   if (action.action === 'flyTo' && action.lat != null && action.lng != null) {
+                    console.log('[ChatPanel] 📤 Dispatching flyTo:', { lat: action.lat, lng: action.lng, zoom: action.zoom })
                     setAgentData(prev => ({ ...prev, flyTo: { lat: action.lat, lng: action.lng, zoom: action.zoom || 18 } }))
+                  }
+                  if (action.action === 'load_buildings' && action.lat != null && action.lng != null) {
+                    console.log('[ChatPanel] 📤 Dispatching load_buildings:', { lat: action.lat, lng: action.lng, radius_km: action.radius_km || 5 })
+                    window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
+                      detail: { lat: action.lat, lng: action.lng, radius_km: action.radius_km || 5 }
+                    }))
                   }
                   if (['switchTab', 'openPanel', 'closePanel', 'highlightProperties'].includes(action.action)) {
                     window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: action }))
@@ -863,6 +983,7 @@ export default function EnhancedChatPanel({
                 }
               }
               
+              localStorage.removeItem('valora_active_request') // Clear on completion
               onComplete({ 
                 content: finalContent, 
                 thinking: finalThinking, 
@@ -872,9 +993,12 @@ export default function EnhancedChatPanel({
               })
               return
             case 'error':
-              // Rate limit error — show upgrade prompt
+              localStorage.removeItem('valora_active_request') // Clear on error
+              // Rate limit error — show the actual reason from backend
               if (data.credits) {
-                const upgradeMsg = `⚠️ **Credit limit reached** (${data.credits.remaining}/${data.credits.total} remaining, ${data.credits.tier} tier).\n\nUpgrade your plan or purchase more credits to continue using Valora AI.`
+                // Use the actual error content which has the real reason (e.g., daily limit)
+                const errorMsg = data.content || `Credit limit reached (${data.credits.remaining}/${data.credits.total} remaining, ${data.credits.tier} tier).`
+                const upgradeMsg = `⚠️ **${errorMsg}**\n\nYou have ${data.credits.remaining}/${data.credits.total} monthly credits remaining (${data.credits.tier} tier). Check if you've hit a daily limit. Upgrade your plan or wait for reset.`
                 onComplete({ content: upgradeMsg, thinking: '', thinkingTime: 0, rateLimited: true })
               } else {
                 onComplete({ content: `Error: ${data.content}`, thinking: '', thinkingTime: 0 })
@@ -885,8 +1009,10 @@ export default function EnhancedChatPanel({
         }
       }
       
+      localStorage.removeItem('valora_active_request') // Clear active request
       onComplete({ content: contentBuffer || thinkingBuffer, thinking: thinkingBuffer, thinkingTime })
     } catch (err) {
+      localStorage.removeItem('valora_active_request') // Clear active request on error
       if (err.name === 'AbortError') {
         console.log('[Stream] Aborted by user')
         onComplete({ content: '🛑 Stopped by user', thinking: '', thinkingTime: 0 })
@@ -937,14 +1063,17 @@ export default function EnhancedChatPanel({
         
         // Dispatch UI commands
         if (Array.isArray(data?.ui_actions)) {
+          console.log('[ChatPanel] 📋 Processing UI actions (non-streaming):', data.ui_actions)
           for (const a of data.ui_actions) {
             if (a.action === 'flyTo' && a.lat != null && a.lng != null) {
+              console.log('[ChatPanel] 📤 Dispatching flyTo (non-streaming):', { lat: a.lat, lng: a.lng, zoom: a.zoom })
               setAgentData(prev => ({ ...prev, flyTo: { lat: a.lat, lng: a.lng, zoom: a.zoom || 18 } }))
             }
             if (a.action === 'load_buildings' && a.lat != null && a.lng != null) {
               // Trigger building loading via custom event
+              console.log('[ChatPanel] 📤 Dispatching load_buildings (non-streaming):', { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 5 })
               window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
-                detail: { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 3 }
+                detail: { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 5 }
               }))
             }
             if (['switchTab', 'openPanel', 'closePanel', 'highlightProperties'].includes(a.action)) {
@@ -982,6 +1111,9 @@ export default function EnhancedChatPanel({
       setAbortController(null)
       setIsLoading(false)
       
+      // Clear active request from localStorage
+      localStorage.removeItem('valora_active_request')
+      
       // Emit task cancelled event for task panel
       if (onTaskStreaming) {
         onTaskStreaming({
@@ -993,9 +1125,24 @@ export default function EnhancedChatPanel({
   }, [abortController, onTaskStreaming, input, currentQuery])
   
   // Send message handler
-  const handleSendMessage = useCallback(async (messageOverride = null, skipUserMessage = false) => {
+  const handleSendMessage = useCallback(async (messageOverride = null, skipUserMessage = false, options = {}) => {
+    const { skipFlyTo, clickedCoordinates } = options
     const userMessage = messageOverride || input.trim()
     if (!userMessage || isLoading) return
+    
+    // Store skipFlyTo flag for use in streaming response handler
+    if (skipFlyTo && clickedCoordinates) {
+      window._valoraSkipFlyTo = { 
+        skip: true, 
+        coordinates: clickedCoordinates,
+        timestamp: Date.now()
+      }
+    }
+    
+    // FIX Issue 2 & 3: Dispatch new query event to clear old markers and reset panels
+    window.dispatchEvent(new CustomEvent('valora-new-query', {
+      detail: { query: userMessage }
+    }))
     
     setInput('')
     setIsLoading(true)

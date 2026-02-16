@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('src/data/valora.db')
+conn = sqlite3.connect('storage/database/valora.db')
 cursor = conn.cursor()
 
 # Check all tables

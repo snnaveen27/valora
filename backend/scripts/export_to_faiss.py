@@ -359,8 +359,9 @@ def main(incremental: bool = True):
         print("[ERROR] FAISS not available. Install: pip install faiss-cpu")
         return
     
-    # Initialize services
-    data_dir = Path(__file__).resolve().parent.parent.parent / 'src' / 'data'
+    # Initialize services - use config.FAISS_DIR for correct path
+    from config import config
+    data_dir = config.FAISS_DIR  # Use storage/faiss/ directory
     rag = RAGService(data_dir)
     local_store = get_local_store(data_dir)
     

@@ -8,8 +8,8 @@ import json
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "src" / "data" / "valora.db"
-OPENCITY_DIR = BASE_DIR / "src" / "data" / "opencity_downloads"
+DB_PATH = BASE_DIR / "storage" / "valora.db"
+OPENCITY_DIR = BASE_DIR / "storage" / "opencity_downloads"
 
 
 def ingest_schools():

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import threading
 import time
 
-from multi_source_scraper import (
+from scrapers.multi_source_scraper import (
     APIFY_TOKEN, APIFY_BASE_URL, ACTORS,
     job_states, job_states_lock, ScrapeJobState,
     make_job_id, update_job_status, fetch_dataset_items,

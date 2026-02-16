@@ -335,6 +335,117 @@ class LocalVectorStore:
             return self.indexes[namespace].ntotal
         return 0
     
+    def namespace_exists(self, namespace: str) -> bool:
+        """
+        Check if a namespace exists and has vectors.
+        
+        Args:
+            namespace: Namespace name to check
+            
+        Returns:
+            True if namespace exists and has vectors, False otherwise
+        """
+        # Check if already loaded in memory
+        if namespace in self.indexes:
+            return self.indexes[namespace].ntotal > 0
+        
+        # Check if exists on disk
+        index_path = self._get_index_path(namespace)
+        if index_path.exists():
+            # Try to load it
+            return self.load(namespace)
+        
+        return False
+    
+    def list_namespaces(self, include_empty: bool = False) -> List[str]:
+        """
+        List all available namespaces.
+        
+        Args:
+            include_empty: If True, include namespaces with 0 vectors
+            
+        Returns:
+            List of namespace names
+        """
+        namespaces = set()
+        
+        # Add loaded namespaces
+        for namespace, index in self.indexes.items():
+            if include_empty or index.ntotal > 0:
+                namespaces.add(namespace)
+        
+        # Add namespaces from disk (not yet loaded)
+        for file_path in self.store_dir.glob("*.faiss"):
+            namespace = file_path.stem
+            if include_empty:
+                namespaces.add(namespace)
+            else:
+                # Check if it has vectors
+                if namespace not in self.indexes:
+                    self.load(namespace)
+                if namespace in self.indexes and self.indexes[namespace].ntotal > 0:
+                    namespaces.add(namespace)
+        
+        return sorted(list(namespaces))
+    
+    def get_namespace_info(self, namespace: str) -> Dict[str, Any]:
+        """
+        Get detailed information about a namespace.
+        
+        Args:
+            namespace: Namespace name
+            
+        Returns:
+            Dict with namespace information
+        """
+        info = {
+            "name": namespace,
+            "exists": False,
+            "vector_count": 0,
+            "dimension": self.dimension,
+            "loaded": False,
+            "on_disk": False
+        }
+        
+        # Check if on disk
+        index_path = self._get_index_path(namespace)
+        info["on_disk"] = index_path.exists()
+        
+        # Check if loaded in memory
+        if namespace in self.indexes:
+            info["loaded"] = True
+            info["exists"] = True
+            info["vector_count"] = self.indexes[namespace].ntotal
+        elif info["on_disk"]:
+            # Load and check
+            if self.load(namespace):
+                info["loaded"] = True
+                info["exists"] = True
+                info["vector_count"] = self.indexes[namespace].ntotal
+        
+        return info
+    
+    def get_all_namespace_info(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get information about all namespaces.
+        
+        Returns:
+            Dict mapping namespace names to their info
+        """
+        result = {}
+        
+        # Get loaded namespaces
+        for namespace in self.indexes.keys():
+            result[namespace] = self.get_namespace_info(namespace)
+        
+        # Get namespaces from disk
+        for file_path in self.store_dir.glob("*.faiss"):
+            namespace = file_path.stem
+            if namespace not in result:
+                result[namespace] = self.get_namespace_info(namespace)
+        
+        return result
+    
     def delete_namespace(self, namespace: str = "default"):
         """Delete a namespace and its files."""
         if namespace in self.indexes:

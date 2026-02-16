@@ -11,7 +11,7 @@ import random
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DOWNLOAD_DIR = BASE_DIR / "src" / "data" / "gis_priority"
+DOWNLOAD_DIR = BASE_DIR / "storage" / "gis_priority"
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 CKAN_API = "https://data.opencity.in/api/3/action"

@@ -2,7 +2,7 @@
 import sqlite3
 from pathlib import Path
 
-db_path = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+db_path = Path(__file__).parent.parent / "storage" / "valora.db"
 print(f"DB: {db_path}")
 print(f"Size: {db_path.stat().st_size / 1024 / 1024:.1f} MB")
 

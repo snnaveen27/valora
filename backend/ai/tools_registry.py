@@ -138,11 +138,80 @@ def _get_orchestrator():
         return None
 
 
-def _tool_geocode(location: str, **kwargs) -> Dict:
-    """Geocode a location name to coordinates."""
+def _parse_coordinates_from_string(location: str) -> tuple:
+    """
+    Parse coordinates from a string.
+    Handles formats like:
+    - "12.97980, 77.63804"
+    - "Area at 12.97980, 77.63804"
+    - "12.97980,77.63804"
+    
+    Returns: (lat, lng, cleaned_location) or (None, None, location) if not coordinates
+    """
+    import re
+    
+    if not location or not isinstance(location, str):
+        return None, None, location
+    
+    # Pattern to match coordinates: two decimal numbers separated by comma (with optional space)
+    # Also handles "Area at X, Y" format
+    coord_pattern = r'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)'
+    
+    # Try to find coordinates in the string
+    match = re.search(coord_pattern, location)
+    if match:
+        try:
+            lat = float(match.group(1))
+            lng = float(match.group(2))
+            
+            # Validate coordinate ranges (valid lat/lng)
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                # Clean up location name - remove coordinate pattern
+                cleaned = re.sub(r'^Area at\s+', '', location)
+                cleaned = re.sub(r'\s*' + coord_pattern + r'\s*$', '', cleaned)
+                if not cleaned or cleaned.strip() == '':
+                    cleaned = f"Area at {lat:.5f}, {lng:.5f}"
+                return lat, lng, cleaned
+        except (ValueError, TypeError):
+            pass
+    
+    return None, None, location
+
+
+def _tool_geocode(location: str = None, lat: float = None, lng: float = None, **kwargs) -> Dict:
+    """Geocode a location name to coordinates, or reverse geocode coordinates to a location name."""
     orch = _get_orchestrator()
     if not orch or not orch.geocoder:
         return {"error": "Geocoder not available"}
+    
+    # Try to parse coordinates from location string first
+    if location and (lat is None or lng is None):
+        parsed_lat, parsed_lng, _ = _parse_coordinates_from_string(location)
+        if parsed_lat is not None and parsed_lng is not None:
+            lat = parsed_lat
+            lng = parsed_lng
+    
+    # Check if this is a reverse geocode request (coordinates provided)
+    if lat is not None and lng is not None:
+        try:
+            reverse_result = orch.geocoder.reverse(lat, lng)
+            if reverse_result:
+                return {
+                    "reverse": True,
+                    "lat": lat,
+                    "lng": lng,
+                    "found": True,
+                    "name": reverse_result.get("name", "Unknown location"),
+                    "address": reverse_result.get("address", ""),
+                }
+            return {"reverse": True, "lat": lat, "lng": lng, "found": False, "name": "Unknown location"}
+        except Exception as e:
+            return {"error": str(e)}
+    
+    # Forward geocode (location name to coordinates)
+    if not location:
+        return {"error": "Either 'location' or both 'lat' and 'lng' must be provided"}
+    
     try:
         results = orch.geocoder.search(location, limit=3)
         if not results:
@@ -165,7 +234,23 @@ def _tool_area_analysis(location: str, lat: float = None, lng: float = None, **k
     if not orch:
         return {"error": "Orchestrator not available"}
 
-    # Geocode if no coordinates
+    # Handle dict location parameter (LLM might pass {"lat": x, "lng": y})
+    if isinstance(location, dict):
+        lat = lat or location.get("lat")
+        lng = lng or location.get("lng")
+        location = f"Area at {lat}, {lng}" if lat and lng else str(location)
+    elif not isinstance(location, str):
+        location = str(location) if location else "Unknown location"
+
+    # Try to parse coordinates from location string (e.g., "12.97980, 77.63804")
+    if lat is None or lng is None:
+        parsed_lat, parsed_lng, cleaned_location = _parse_coordinates_from_string(location)
+        if parsed_lat is not None and parsed_lng is not None:
+            lat = parsed_lat
+            lng = parsed_lng
+            location = cleaned_location
+
+    # Geocode if still no coordinates
     if lat is None or lng is None:
         if orch.geocoder:
             results = orch.geocoder.search(location, limit=1)
@@ -205,7 +290,7 @@ def _tool_area_analysis(location: str, lat: float = None, lng: float = None, **k
 
     # Locality knowledge
     try:
-        from locality_service import get_locality_state
+        from services.locality_service import get_locality_state
         state = get_locality_state(location)
         if state:
             analysis["growth_phase"] = state.get("growth_phase")
@@ -225,7 +310,15 @@ def _tool_property_search(location: str, bhk: int = None, budget_max: float = No
     if not orch or not orch.property_service:
         return {"error": "Property service not available"}
 
-    # Geocode if needed
+    # Try to parse coordinates from location string first
+    if lat is None or lng is None:
+        parsed_lat, parsed_lng, cleaned_location = _parse_coordinates_from_string(location)
+        if parsed_lat is not None and parsed_lng is not None:
+            lat = parsed_lat
+            lng = parsed_lng
+            location = cleaned_location
+
+    # Geocode if still no coordinates
     if lat is None or lng is None:
         if orch.geocoder:
             results = orch.geocoder.search(location, limit=1)
@@ -277,6 +370,15 @@ def _tool_terrain_analysis(location: str, lat: float = None, lng: float = None, 
     if not orch:
         return {"error": "Orchestrator not available"}
 
+    # Try to parse coordinates from location string first
+    if lat is None or lng is None:
+        parsed_lat, parsed_lng, cleaned_location = _parse_coordinates_from_string(location)
+        if parsed_lat is not None and parsed_lng is not None:
+            lat = parsed_lat
+            lng = parsed_lng
+            location = cleaned_location
+
+    # Geocode if still no coordinates
     if lat is None or lng is None:
         if orch.geocoder:
             results = orch.geocoder.search(location, limit=1)
@@ -343,6 +445,15 @@ def _tool_market_trends(location: str, lat: float = None, lng: float = None, **k
     if not orch or not orch.property_service:
         return {"error": "Property service not available"}
 
+    # Try to parse coordinates from location string first
+    if lat is None or lng is None:
+        parsed_lat, parsed_lng, cleaned_location = _parse_coordinates_from_string(location)
+        if parsed_lat is not None and parsed_lng is not None:
+            lat = parsed_lat
+            lng = parsed_lng
+            location = cleaned_location
+
+    # Geocode if still no coordinates
     if lat is None or lng is None:
         if orch.geocoder:
             results = orch.geocoder.search(location, limit=1)
@@ -422,9 +533,13 @@ def get_tool_registry() -> ToolRegistry:
 
         _registry.register(ToolDefinition(
             name="geocode",
-            description="Convert a location name to lat/lng coordinates. Use when you need coordinates for a place.",
-            parameters={"location": {"type": "string", "description": "Place name to geocode"}},
-            required_params=["location"],
+            description="Convert a location name to lat/lng coordinates, or reverse geocode coordinates to a location name. Provide either 'location' OR both 'lat' and 'lng'.",
+            parameters={
+                "location": {"type": "string", "description": "Place name to geocode (optional if lat/lng provided)"},
+                "lat": {"type": "number", "description": "Latitude for reverse geocoding (optional)"},
+                "lng": {"type": "number", "description": "Longitude for reverse geocoding (optional)"},
+            },
+            required_params=[],  # No required params - either location OR lat+lng
             handler=_tool_geocode,
             category="spatial",
         ))

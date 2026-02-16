@@ -270,8 +270,8 @@ def main():
     print("="*70)
     
     # Initialize database
-    db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
-    data_dir = Path(__file__).parent.parent.parent / 'src' / 'data' / 'osm_extracted'
+    db_path = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
+    data_dir = Path(__file__).parent.parent.parent / 'storage' / 'osm_extracted'
     
     db = DatabaseService(str(db_path))
     

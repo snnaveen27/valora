@@ -7,9 +7,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))
 
-DB_PATH = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
-FAISS_PATH = Path(__file__).parent.parent / 'src' / 'data' / 'faiss_store'
-POSTED_PROPS = Path(__file__).parent.parent / 'src' / 'data' / 'posted_properties'
+DB_PATH = Path(__file__).parent.parent / 'storage' / 'valora.db'
+FAISS_PATH = Path(__file__).parent.parent / 'storage' / 'faiss_store'
+POSTED_PROPS = Path(__file__).parent.parent / 'storage' / 'posted_properties'
 
 def check_database():
     print("\n" + "="*60)

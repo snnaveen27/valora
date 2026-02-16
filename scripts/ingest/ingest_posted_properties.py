@@ -31,8 +31,8 @@ from backend.database.db_service import DatabaseService
 # Paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data" / "posted_properties"
-DB_PATH = BASE_DIR / "src" / "data" / "valora.db"
-FAISS_DIR = BASE_DIR / "src" / "data" / "faiss_store"
+DB_PATH = BASE_DIR / "storage" / "valora.db"
+FAISS_DIR = BASE_DIR / "storage" / "faiss_store"
 
 
 # ============================================================================

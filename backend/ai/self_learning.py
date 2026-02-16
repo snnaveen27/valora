@@ -14,7 +14,8 @@ from collections import defaultdict
 
 logger = logging.getLogger("valora.self_learning")
 
-_DB_PATH = Path(__file__).parent.parent / "self_learning.db"
+from config import config
+_DB_PATH = config.DB_PATH.parent / "self_learning.db"
 
 _INIT_SQL = """
 CREATE TABLE IF NOT EXISTS tool_outcomes (

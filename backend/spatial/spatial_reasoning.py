@@ -12,8 +12,9 @@ Provides advanced spatial analysis including:
 import math
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
+from dataclasses import dataclass, asdict
 from config import config
 
 try:
@@ -619,6 +620,6 @@ def get_spatial_service(data_dir: Path = None) -> SpatialReasoningService:
     global _spatial_service
     if _spatial_service is None:
         if data_dir is None:
-            data_dir = Path(__file__).parent.parent / 'src' / 'data'
+            data_dir = Path(__file__).parent.parent / 'storage'
         _spatial_service = SpatialReasoningService(data_dir)
     return _spatial_service

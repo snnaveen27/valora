@@ -1,10 +1,22 @@
 /**
- * TopTaskBanner - Simple Task Progress Banner
- * Shows query progress without animations
+ * TopTaskBanner - Task Progress Banner with Todo List
+ * Shows query progress with a checklist of tasks with ticks
  */
 
 import { useState, useEffect } from 'react'
-import { Loader2, CheckCircle2, ChevronRight } from 'lucide-react'
+import { Loader2, CheckCircle2, Circle, CheckCircle, Clock } from 'lucide-react'
+
+// Task status icons with animations
+const TaskStatusIcon = ({ status, isRunning }) => {
+  if (status === 'complete') {
+    return <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+  }
+  if (status === 'running' || isRunning) {
+    return <Loader2 className="w-4 h-4 text-violet-400 animate-spin flex-shrink-0" />
+  }
+  // Pending - show empty circle
+  return <Circle className="w-4 h-4 text-slate-600 flex-shrink-0" />
+}
 
 export default function TopTaskBanner({
   query,
@@ -13,7 +25,8 @@ export default function TopTaskBanner({
   onClose,
   tasks: externalTasks,
   progress: externalProgress,
-  taskProgress // New prop for synchronized progress from MainApp
+  taskProgress, // New prop for synchronized progress from MainApp
+  taskHistory // New prop for task history with ticks
 }) {
   const [tasks, setTasks] = useState([])
   const [detectedIntent, setDetectedIntent] = useState(null)
@@ -29,6 +42,21 @@ export default function TopTaskBanner({
     if (!streamingData) return
     
     switch (streamingData.type) {
+      case 'recovering':
+        // Page refreshed during processing - show recovery state
+        setIsThinking(true)
+        setDetectedIntent(null)
+        setCurrentStep('Reconnecting to running task...')
+        setProgress(50)
+        setIsComplete(false)
+        setTasks([{
+          id: 'recovering',
+          label: 'Recovering connection',
+          status: 'running',
+          progress_percent: 50
+        }])
+        break
+        
       case 'intent_classification_start':
         setIsThinking(true)
         setDetectedIntent(null)
@@ -85,12 +113,21 @@ export default function TopTaskBanner({
         break
 
       case 'agentic_start':
-        setTasks(prev => [...prev, { 
-          id: 'agentic', 
-          label: streamingData.message || 'Deep analysis started...', 
-          status: 'running',
-          progress_percent: 30 
-        }])
+        setTasks(prev => {
+          // Avoid duplicate agentic tasks
+          if (prev.some(t => t.id === 'agentic')) {
+            return prev.map(t => t.id === 'agentic' 
+              ? { ...t, label: streamingData.message || 'Deep analysis started...', status: 'running', progress_percent: 30 }
+              : t
+            )
+          }
+          return [...prev, { 
+            id: 'agentic', 
+            label: streamingData.message || 'Deep analysis started...', 
+            status: 'running',
+            progress_percent: 30 
+          }]
+        })
         break
 
       case 'agentic_action':
@@ -109,6 +146,13 @@ export default function TopTaskBanner({
         setTimeout(() => {
           if (onClose) onClose()
         }, 2000)
+        break
+        
+      case 'task_recovered_done':
+        // Recovery complete - close the banner
+        setTimeout(() => {
+          if (onClose) onClose()
+        }, 1000)
         break
     }
   }, [streamingData, onClose])
@@ -235,64 +279,85 @@ export default function TopTaskBanner({
           </div>
         </div>
          
-        {/* Detailed Task List - Always Visible */}
+        {/* Detailed Task List - Todo List with Ticks */}
         <div className="overflow-hidden max-h-[400px]">
           <div className="px-4 pb-3 border-t border-slate-800">
-            {/* Currently Running Task - Highlighted */}
-            {runningTask && (
-              <div className="py-2 border-b border-slate-800/50">
-                <div className="text-xs text-violet-400 mb-1 font-medium">Currently Processing</div>
-                <div className="flex items-center gap-3 px-3 py-2 rounded bg-violet-500/10 border border-violet-500/20">
-                  <Loader2 className="w-4 h-4 text-violet-400" />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-slate-200 block">{runningTask.label}</span>
-                     <div className="w-full h-1.5 bg-slate-700 rounded-full mt-2 overflow-hidden relative">
-                       <div 
-                         className="h-full bg-gradient-to-r from-violet-500 via-purple-400 to-violet-500 rounded-full transition-all duration-300 relative overflow-hidden"
-                         style={{ width: `${runningTask.progress_percent || 50}%` }}
-                       >
-                         {/* Shimmer effect */}
-                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                       </div>
-                     </div>
+            {/* Unified Todo List with Checkmarks */}
+            <div className="py-2">
+              <div className="text-xs text-slate-500 mb-2 font-medium flex items-center gap-2">
+                <Clock className="w-3 h-3" />
+                Task Progress
+              </div>
+              <div className="space-y-1.5">
+                {tasks.map((task, index) => (
+                  <div 
+                    key={task.id || index} 
+                    className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-all duration-300 ${
+                      task.status === 'complete' 
+                        ? 'bg-emerald-500/10 border border-emerald-500/20' 
+                        : task.status === 'running'
+                          ? 'bg-violet-500/10 border border-violet-500/30'
+                          : 'bg-slate-800/30 border border-transparent'
+                    }`}
+                  >
+                    {/* Status Icon - Tick for complete, spinner for running, circle for pending */}
+                    <TaskStatusIcon status={task.status} isRunning={task.status === 'running'} />
+                    
+                    {/* Task Label */}
+                    <span className={`text-sm truncate flex-1 ${
+                      task.status === 'complete' 
+                        ? 'text-emerald-300 line-through' 
+                        : task.status === 'running'
+                          ? 'text-violet-200'
+                          : 'text-slate-500'
+                    }`}>
+                      {task.label}
+                    </span>
+                    
+                    {/* Progress percentage for running tasks */}
+                    {task.status === 'running' && task.progress_percent && (
+                      <span className="text-xs text-violet-400 font-mono">{task.progress_percent}%</span>
+                    )}
+                    
+                    {/* Checkmark for completed tasks */}
+                    {task.status === 'complete' && (
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                    )}
                   </div>
-                  <span className="text-xs text-violet-400 font-mono">{runningTask.progress_percent || 50}%</span>
-                </div>
-              </div>
-            )}
-             
-            {/* Completed Tasks */}
-            {completedCount > 0 && (
-              <div className="py-2 border-b border-slate-800/50">
-                <div className="text-xs text-emerald-500/70 mb-1 font-medium">Completed ({completedCount})</div>
-                <div className="space-y-1">
-                  {tasks.filter(t => t.status === 'complete').slice(-3).map((task) => (
-                    <div key={task.id} className="flex items-center gap-2 text-sm py-1 px-2 rounded bg-slate-800/30">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                      <span className="text-slate-400 truncate flex-1">{task.label}</span>
+                ))}
+                
+                {/* Show taskHistory if no tasks but we have history */}
+                {tasks.length === 0 && taskHistory && taskHistory.length > 0 && (
+                  taskHistory.map((task, index) => (
+                    <div 
+                      key={index} 
+                      className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-all duration-300 ${
+                        task.percent === 100 
+                          ? 'bg-emerald-500/10 border border-emerald-500/20' 
+                          : task.percent > 0
+                            ? 'bg-violet-500/10 border border-violet-500/30'
+                            : 'bg-slate-800/30 border border-transparent'
+                      }`}
+                    >
+                      <TaskStatusIcon 
+                        status={task.percent === 100 ? 'complete' : 'running'} 
+                        isRunning={task.percent > 0 && task.percent < 100} 
+                      />
+                      <span className={`text-sm truncate flex-1 ${
+                        task.percent === 100 
+                          ? 'text-emerald-300 line-through' 
+                          : 'text-violet-200'
+                      }`}>
+                        {task.detail || task.step}
+                      </span>
+                      {task.percent === 100 && (
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      )}
                     </div>
-                  ))}
-                </div>
+                  ))
+                )}
               </div>
-            )}
-            
-            {/* Pending Tasks */}
-            {pendingTasks.length > 0 && (
-              <div className="py-2">
-                <div className="text-xs text-slate-600 mb-1 font-medium">Pending ({pendingTasks.length})</div>
-                <div className="space-y-1">
-                  {pendingTasks.slice(0, 3).map((task) => (
-                    <div key={task.id} className="flex items-center gap-2 text-sm py-1 px-2">
-                      <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-600 flex-shrink-0" />
-                      <span className="text-slate-600 truncate">{task.label}</span>
-                    </div>
-                  ))}
-                  {pendingTasks.length > 3 && (
-                    <p className="text-xs text-slate-700 pl-5">+{pendingTasks.length - 3} more...</p>
-                  )}
-                </div>
-              </div>
-            )}
+            </div>
              
             {/* Completion message */}
             {isComplete && (

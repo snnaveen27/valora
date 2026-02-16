@@ -706,6 +706,9 @@ async def get_tiles_for_viewport(min_lng: float, min_lat: float, max_lng: float,
     use_static_tiles = static_tiles_dir.exists() and (static_tiles_dir / 'manifest.json').exists()
     
     for tile_id, tile_info in tileset_index['tiles'].items():
+        # FIX Issue 1: Skip empty tiles (count === 0) to avoid loading tiles with no buildings
+        if tile_info.get('count', 0) == 0:
+            continue
         if (tile_info['min_lng'] <= max_lng and tile_info['max_lng'] >= min_lng and
             tile_info['min_lat'] <= max_lat and tile_info['max_lat'] >= min_lat):
             
@@ -751,17 +754,41 @@ async def get_file_tile(tile_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# In-memory tile cache for fast access
+_tile_cache: Dict[str, dict] = {}
+_TILE_CACHE_MAX_SIZE = 500  # Cache up to 500 tiles (~50MB max)
+
 @app.get("/api/tiles/static/{tile_id}")
 async def get_static_tile(tile_id: str, region: str = "bangalore"):
-    """Get tile data from pre-generated static files (fastest option)"""
+    """Get tile data from pre-generated static files (fastest option) with in-memory caching"""
+    global _tile_cache
+    
+    cache_key = f"{region}/{tile_id}"
+    
+    # Check cache first
+    if cache_key in _tile_cache:
+        return _tile_cache[cache_key]
+    
     try:
         tile_path = Path(__file__).parent.parent / 'storage' / 'tiles' / region / f'{tile_id}.json'
         
         if not tile_path.exists():
             raise HTTPException(status_code=404, detail=f"Tile {tile_id} not found")
         
-        with open(tile_path, 'r') as f:
-            return json.load(f)
+        # Use async file reading for better performance
+        import aiofiles
+        async with aiofiles.open(tile_path, 'r') as f:
+            content = await f.read()
+            data = json.loads(content)
+        
+        # Cache the result (LRU-style eviction)
+        if len(_tile_cache) >= _TILE_CACHE_MAX_SIZE:
+            # Remove oldest entry
+            oldest_key = next(iter(_tile_cache))
+            del _tile_cache[oldest_key]
+        
+        _tile_cache[cache_key] = data
+        return data
     except HTTPException:
         raise
     except Exception as e:
@@ -1350,8 +1377,8 @@ async def analyze_location(request: LocationAnalyzeRequest):
                     "amenity_premium_pct": amenity_premium,
                     "demand_supply_ratio": round(market.get('active_listings', 10) / max(1, market.get('sold_last_month', 5)), 2) if market.get('sold_last_month') else 2.0,
                     "rental_yield_estimate": round(4.5 + (accessibility / 50), 1),  # Base 4.5% + location bonus
-                    "appreciation_forecast_1y": round(market.get('price_trend_pct', 5), 1),
-                    "appreciation_forecast_5y": round((market.get('price_trend_pct', 5) or 5) * 4.2, 1),
+                    "appreciation_forecast_1y": round(market.get('price_trend_pct') or 5, 1),
+                    "appreciation_forecast_5y": round((market.get('price_trend_pct') or 5) * 4.2, 1),
                     "liquidity_score": min(100, market.get('active_listings', 0) * 2 + 40),
                     "development_potential": "High" if infrastructure_score > 70 else ("Medium" if infrastructure_score > 40 else "Low")
                 }
@@ -2840,38 +2867,6 @@ async def rag_context(
         return {"success": True, "context": context}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Context error: {str(e)}")
-
-
-# ============== QUERY SWARM - Deep Analysis Engine ==============
-
-try:
-    from ai.query_swarm import get_query_swarm, QueryIntent, SwarmResult
-    from ai.swarm_agents import get_initialized_swarm
-    SWARM_AVAILABLE = True
-except ImportError as e:
-    print(f"[WARNING] Query Swarm not available: {e}")
-    SWARM_AVAILABLE = False
-    get_initialized_swarm = None
-
-
-class SwarmAnalysisRequest(BaseModel):
-    query: str
-    context: Optional[Dict[str, Any]] = None
-    deep_analysis: bool = True  # Enable parallel sub-query execution
-
-
-@app.post("/api/swarm/analyze")
-async def swarm_analyze(request: SwarmAnalysisRequest):
-    """Execute swarm analysis for complex multi-faceted queries."""
-    if not SWARM_AVAILABLE or not get_initialized_swarm:
-        raise HTTPException(status_code=503, detail="Query Swarm not available")
-    
-    try:
-        swarm = get_initialized_swarm()
-        result = await swarm.analyze(request.query, request.context, request.deep_analysis)
-        return {"success": True, "data": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Swarm analysis error: {str(e)}")
 
 
 # ============== PRODUCTION HEALTH ENDPOINTS ==============

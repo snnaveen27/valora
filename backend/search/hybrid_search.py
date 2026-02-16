@@ -213,6 +213,6 @@ def get_hybrid_search(db_service=None, rag_service=None):
             from ai.rag_service import get_rag_service
         except ImportError:
             from backend.ai.rag_service import get_rag_service
-        rag_service = get_rag_service(Path(__file__).resolve().parent.parent.parent / 'src' / 'data')
+        rag_service = get_rag_service(Path(__file__).resolve().parent.parent.parent / 'storage')
     
     return HybridSearchEngine(db_service, rag_service)

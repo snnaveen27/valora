@@ -109,7 +109,11 @@ class CreditsRateLimiter:
     CREATE INDEX IF NOT EXISTS idx_error_user ON error_log(user_id);
     """
 
-    def __init__(self, db_path: str = "valora_credits.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            from config import config
+            db_path = str(config.DB_PATH.parent / "valora_credits.db")
+        self.db_path = db_path
         self.db_path = db_path
 
     def _get_conn(self) -> sqlite3.Connection:

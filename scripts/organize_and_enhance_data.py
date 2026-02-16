@@ -13,10 +13,10 @@ from pathlib import Path
 from datetime import datetime
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "src" / "data" / "valora.db"
-DATA_EXTRA = BASE_DIR / "src" / "data" / "data_extra"
-OPENCITY_DIR = BASE_DIR / "src" / "data" / "opencity_downloads"
-GIS_PRIORITY_DIR = BASE_DIR / "src" / "data" / "gis_priority"
+DB_PATH = BASE_DIR / "storage" / "valora.db"
+DATA_EXTRA = BASE_DIR / "storage" / "data_extra"
+OPENCITY_DIR = BASE_DIR / "storage" / "opencity_downloads"
+GIS_PRIORITY_DIR = BASE_DIR / "storage" / "gis_priority"
 
 
 def ensure_gis_tables():
@@ -322,7 +322,7 @@ def generate_data_summary():
     conn.close()
     
     # Save summary
-    with open(BASE_DIR / "src" / "data" / "data_summary.json", "w") as f:
+    with open(BASE_DIR / "storage" / "data_summary.json", "w") as f:
         json.dump(summary, f, indent=2)
     
     return summary

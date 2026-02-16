@@ -222,8 +222,7 @@ class ProductionTaskPlanner:
                     description="Load 3D buildings for context",
                     params={
                         "location": slots.get('location'),
-                        "radius_km": 2,
-                        "filter_type": "apartment"
+                        "radius_km": 5
                     },
                     dependencies=["t2_flyto"],
                     priority=1
@@ -270,7 +269,7 @@ class ProductionTaskPlanner:
                     description="Load 3D buildings for visual context",
                     params={
                         "location": slots.get('location'),
-                        "radius_km": 3,
+                        "radius_km": 5,
                         "priority": "high"
                     },
                     dependencies=["t1_flyto"],
@@ -696,8 +695,10 @@ class ProductionTaskPlanner:
             elif task.type == "load_buildings":
                 # Building loading task - returns building load parameters for frontend
                 location = task.params.get('location', '')
+                print(f"[TaskPlanner] load_buildings task for location: '{location}'")
                 lat, lng = await self._geocode_location(location)
                 radius_km = task.params.get('radius_km', 3)
+                print(f"[TaskPlanner] Geocoded to: lat={lat}, lng={lng}, radius={radius_km}km")
                 
                 result = {
                     "action": "load_buildings",
@@ -707,6 +708,7 @@ class ProductionTaskPlanner:
                     "summary": f"Loading buildings in {radius_km}km radius around {location}",
                     "visual_update": True
                 }
+                print(f"[TaskPlanner] load_buildings result: {result}")
             
             else:
                 result = {"status": "completed", "summary": task.name}

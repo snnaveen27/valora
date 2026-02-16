@@ -208,12 +208,12 @@ def ingest_custom_format(cursor, csv_path):
 
 def main():
     project_root = Path(__file__).parent.parent
-    db_path = project_root / 'src' / 'data' / 'valora.db'
+    db_path = project_root / 'storage' / 'valora.db'
     
     # Look for CSV files in multiple locations
     search_dirs = [
-        project_root / 'src' / 'data' / 'downloads',
-        project_root / 'src' / 'data' / 'price_history',
+        project_root / 'storage' / 'downloads',
+        project_root / 'storage' / 'price_history',
         project_root / 'data' / 'downloads',
         project_root / 'downloads',
     ]

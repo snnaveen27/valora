@@ -2,8 +2,8 @@
 import sqlite3
 from pathlib import Path
 
-db_path = Path(__file__).parent.parent / "backend" / "database" / "valora.db"
-schema_path = Path(__file__).parent.parent / "backend" / "database" / "schema_simple.sql"
+db_path = Path(__file__).parent.parent / "storage" / "database" / "valora.db"
+schema_path = Path(__file__).parent.parent / "storage" / "schemas" / "schema_simple.sql"
 
 print(f"DB path: {db_path}")
 print(f"Schema path: {schema_path}")

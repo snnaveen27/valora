@@ -3,7 +3,7 @@ import sqlite3
 import json
 from pathlib import Path
 
-db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+db_path = Path(__file__).parent.parent / 'storage' / 'valora.db'
 conn = sqlite3.connect(str(db_path))
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()

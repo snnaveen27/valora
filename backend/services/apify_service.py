@@ -25,7 +25,7 @@ ACTOR_ID = "ecomscrape~magicbricks-property-search-scraper"
 
 # Directories
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "src" / "data"
+DATA_DIR = BASE_DIR / "storage"
 PROPERTIES_DIR = DATA_DIR / "posted_properties"
 RAW_DATA_DIR = BASE_DIR / "scripts" / "ingest" / "raw_data"
 STATUS_FILE = DATA_DIR / "ingestion_status.json"

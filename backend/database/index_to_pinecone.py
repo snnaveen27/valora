@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database.db_service import DatabaseService
-from rag_service import RAGService
+from ai.rag_service import RAGService
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -291,8 +291,8 @@ def main():
     """Main indexing function."""
     
     # Initialize services
-    db_path = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
-    data_dir = Path(__file__).parent.parent.parent / 'src' / 'data'
+    db_path = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
+    data_dir = Path(__file__).parent.parent.parent / 'storage'
     
     print("\n" + "="*70)
     print("VALORA AI - PINECONE INDEXING FROM DATABASE")

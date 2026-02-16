@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))
 
-DB_PATH = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+DB_PATH = Path(__file__).parent.parent / 'storage' / 'valora.db'
 
 def main():
     print("\n" + "="*70)

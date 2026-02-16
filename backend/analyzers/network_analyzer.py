@@ -90,7 +90,7 @@ class NetworkAnalyzer:
         try:
             from database.db_service import DatabaseService
             from pathlib import Path
-            db_path = Path(__file__).parent / 'database' / '..' / '..' / 'src' / 'data' / 'valora.db'
+            db_path = Path(__file__).parent / 'database' / '..' / '..' / 'storage' / 'valora.db'
             self.db_service = DatabaseService(str(db_path.resolve()))
         except Exception as e:
             print(f"[NetworkAnalyzer] Database init error: {e}")

@@ -16,8 +16,8 @@ except ImportError:
     PANDAS_AVAILABLE = False
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "src" / "data" / "valora.db"
-DATA_EXTRA_DIR = BASE_DIR / "src" / "data" / "data_extra"
+DB_PATH = BASE_DIR / "storage" / "valora.db"
+DATA_EXTRA_DIR = BASE_DIR / "storage" / "data_extra"
 
 
 def ensure_tables():

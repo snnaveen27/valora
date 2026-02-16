@@ -59,15 +59,34 @@ class RAGService:
     RAG (Retrieval Augmented Generation) service for spatial data.
     Uses local FAISS for vector storage and sentence-transformers for embeddings.
     Production mode: FAISS only (offline-first).
+    
+    Features:
+    - Namespace-based vector storage (properties, pois, places, transport)
+    - Auto-indexing on first search (optional)
+    - Health check for monitoring
+    - Dynamic namespace discovery
     """
     
-    def __init__(self, data_dir: Path):
+    # Default namespaces for real estate data
+    DEFAULT_NAMESPACES = ["properties", "pois", "places", "transport"]
+    
+    def __init__(self, data_dir: Path, auto_index: bool = False):
+        """
+        Initialize RAG service.
+        
+        Args:
+            data_dir: Directory for FAISS indexes
+            auto_index: If True, automatically index from DB on first search if empty
+        """
         self.data_dir = data_dir
         self.dimension = 384  # all-MiniLM-L6-v2 dimension
+        self.auto_index = auto_index
+        self._auto_indexed = False  # Track if auto-indexing has been done
         
-        # Initialize embedding model
+        # Initialize embedding model (lazy loading)
         self.embedding_model = None
-        self._init_embedding_model()
+        self._model_loading = False
+        self._model_lock = Lock()
         
         # Initialize cache
         self.cache = None
@@ -87,8 +106,18 @@ class RAGService:
             except Exception as e:
                 print(f"[ERROR] FAISS initialization failed: {e}")
     
-    def _init_embedding_model(self):
-        """Initialize the embedding model."""
+    def _init_embedding_model(self, lazy: bool = True):
+        """
+        Initialize the embedding model.
+        
+        Args:
+            lazy: If True, defer model loading until first use
+        """
+        if lazy:
+            # Defer loading until first embedding request
+            self.embedding_model = None
+            return
+            
         if EMBEDDINGS_AVAILABLE:
             try:
                 # Use a lightweight but effective model
@@ -100,6 +129,32 @@ class RAGService:
         else:
             self.embedding_model = None
     
+    def _ensure_embedding_model(self):
+        """Ensure embedding model is loaded (lazy loading support)."""
+        if self.embedding_model is not None:
+            return True
+            
+        with self._model_lock:
+            if self.embedding_model is not None:
+                return True
+            if self._model_loading:
+                return False
+                
+            self._model_loading = True
+            try:
+                if EMBEDDINGS_AVAILABLE:
+                    self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+                    print("[OK] Lazy-loaded embedding model: all-MiniLM-L6-v2")
+                    return True
+                else:
+                    print("[WARNING] sentence-transformers not available")
+                    return False
+            except Exception as e:
+                print(f"[WARNING] Failed to load embedding model: {e}")
+                return False
+            finally:
+                self._model_loading = False
+    
     def _generate_id(self, text: str, prefix: str = "") -> str:
         """Generate a unique ID for a text."""
         hash_str = hashlib.md5(text.encode()).hexdigest()[:12]
@@ -107,11 +162,13 @@ class RAGService:
     
     def embed(self, texts: List[str]) -> np.ndarray:
         """Generate embeddings for a list of texts."""
+        # Ensure model is loaded (lazy loading)
         if self.embedding_model is None:
-            raise RuntimeError(
-                "Embedding model not available. Install backend requirements (sentence-transformers) "
-                "and restart the backend to enable RAG."
-            )
+            if not self._ensure_embedding_model():
+                raise RuntimeError(
+                    "Embedding model not available. Install backend requirements (sentence-transformers) "
+                    "and restart the backend to enable RAG."
+                )
         
         embeddings = self.embedding_model.encode(texts, convert_to_numpy=True)
         return embeddings.astype(np.float32)
@@ -310,9 +367,31 @@ class RAGService:
         filter_dict: Optional[Dict] = None,
         include_metadata: bool = True,
         use_cache: bool = True,
-        use_fallback: bool = True
+        use_fallback: bool = True,
+        skip_namespace_check: bool = False
     ) -> List[SearchResult]:
-        """Search for similar vectors with caching and FAISS fallback."""
+        """
+        Search for similar vectors with caching and FAISS fallback.
+        
+        Args:
+            query: Search query text
+            top_k: Number of results to return
+            namespace: Namespace to search (empty string for default)
+            filter_dict: Metadata filters
+            include_metadata: Whether to include metadata in results
+            use_cache: Whether to use query caching
+            use_fallback: Whether to use FAISS fallback
+            skip_namespace_check: Skip namespace existence check (for internal use)
+            
+        Returns:
+            List of SearchResult objects
+        """
+        # Check if namespace exists (skip warning for default namespace)
+        if not skip_namespace_check and self.local_store and namespace:
+            if not self.local_store.namespace_exists(namespace):
+                # Silently skip non-existent namespaces to avoid log spam
+                return []
+        
         # Check cache first
         if use_cache and self.cache:
             cached = self.cache.get(query, namespace=namespace, top_k=top_k)
@@ -358,6 +437,115 @@ class RAGService:
 
         return search_results
     
+    def get_available_namespaces(self) -> List[str]:
+        """
+        Get list of namespaces that exist and have vectors.
+        
+        Returns:
+            List of available namespace names
+        """
+        if not self.local_store:
+            return []
+        return self.local_store.list_namespaces(include_empty=False)
+    
+    def get_namespace_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about all namespaces.
+        
+        Returns:
+            Dict with namespace statistics
+        """
+        if not self.local_store:
+            return {"error": "FAISS not available", "namespaces": {}}
+        return self.local_store.get_all_namespace_info()
+    
+    def health_check(self) -> Dict[str, Any]:
+        """
+        Perform health check on RAG service.
+        
+        Returns:
+            Dict with health status information
+        """
+        health = {
+            "status": "healthy",
+            "embedding_model": "not_loaded",
+            "faiss_available": FAISS_AVAILABLE and self.local_store is not None,
+            "cache_available": self.cache is not None,
+            "namespaces": {},
+            "total_vectors": 0,
+            "auto_index_enabled": self.auto_index,
+            "issues": []
+        }
+        
+        # Check embedding model
+        if self.embedding_model is not None:
+            health["embedding_model"] = "loaded"
+        elif EMBEDDINGS_AVAILABLE:
+            health["embedding_model"] = "available_lazy"
+        else:
+            health["embedding_model"] = "unavailable"
+            health["issues"].append("Embedding model not available")
+        
+        # Check FAISS
+        if not self.local_store:
+            health["status"] = "degraded"
+            health["issues"].append("FAISS local store not initialized")
+        else:
+            # Get namespace info
+            ns_info = self.local_store.get_all_namespace_info()
+            health["namespaces"] = ns_info
+            
+            for ns_name, ns_data in ns_info.items():
+                health["total_vectors"] += ns_data.get("vector_count", 0)
+            
+            # Check if any default namespaces are missing
+            available = set(self.get_available_namespaces())
+            missing = [ns for ns in self.DEFAULT_NAMESPACES if ns not in available]
+            if missing:
+                health["issues"].append(f"Missing namespaces: {', '.join(missing)}")
+                if health["status"] == "healthy":
+                    health["status"] = "degraded"
+        
+        # Set status based on issues
+        if len(health["issues"]) > 1:
+            health["status"] = "degraded"
+        elif len(health["issues"]) > 2:
+            health["status"] = "unhealthy"
+        
+        return health
+    
+    def ensure_namespaces_indexed(self, force: bool = False) -> Dict[str, int]:
+        """
+        Ensure all default namespaces are indexed.
+        Will run auto-indexing if enabled and namespaces are empty.
+        
+        Args:
+            force: Force reindex even if namespaces exist
+            
+        Returns:
+            Dict with indexing results
+        """
+        if not self.local_store:
+            return {"error": "FAISS not available"}
+        
+        # Check if already indexed
+        if not force and self._auto_indexed:
+            return {"status": "already_indexed", "namespaces": self.get_available_namespaces()}
+        
+        # Check if any default namespace is missing
+        available = set(self.get_available_namespaces())
+        missing = [ns for ns in self.DEFAULT_NAMESPACES if ns not in available]
+        
+        if not missing and not force:
+            return {"status": "already_indexed", "namespaces": list(available)}
+        
+        # Run indexing
+        print(f"[RAG] Indexing namespaces: {missing if missing else 'all (force)'}")
+        result = self.index_faiss_from_db(force_reindex=force)
+        self._auto_indexed = True
+        
+        return result
+    
     def semantic_search(
         self,
         query: str,
@@ -365,13 +553,47 @@ class RAGService:
         top_k: int = 10,
         lat: float = None,
         lng: float = None,
-        radius_km: float = None
+        radius_km: float = None,
+        auto_index: bool = None
     ) -> List[SearchResult]:
         """
         Semantic search across multiple namespaces with optional location filtering.
+        
+        Args:
+            query: Search query text
+            namespaces: List of namespaces to search (None for all available)
+            top_k: Number of results to return
+            lat: Latitude for location filtering
+            lng: Longitude for location filtering
+            radius_km: Radius in km for location filtering
+            auto_index: Override auto_index setting for this search
+            
+        Returns:
+            List of SearchResult objects sorted by score
         """
+        # Handle auto-indexing
+        if auto_index is None:
+            auto_index = self.auto_index
+        
+        if auto_index and self.local_store:
+            available = self.get_available_namespaces()
+            if not available:
+                print("[RAG] No namespaces available, running auto-index...")
+                self.ensure_namespaces_indexed()
+        
+        # Get namespaces to search
         if namespaces is None:
-            namespaces = ["properties", "pois", "places", "transport"]
+            # Use default namespaces but filter to only existing ones
+            namespaces = self.DEFAULT_NAMESPACES
+        
+        # Filter to only existing namespaces
+        if self.local_store:
+            available = set(self.get_available_namespaces())
+            namespaces = [ns for ns in namespaces if ns in available]
+            
+            if not namespaces:
+                # No namespaces available, return empty
+                return []
         
         all_results = []
         
@@ -471,13 +693,30 @@ _rag_service: Optional[RAGService] = None
 _rag_service_lock: Lock = Lock()
 
 
-def get_rag_service(data_dir: Path = None) -> RAGService:
-    """Get or create the RAG service singleton."""
+def get_rag_service(data_dir: Path = None, auto_index: bool = False) -> RAGService:
+    """
+    Get or create the RAG service singleton.
+    
+    Args:
+        data_dir: Directory for FAISS indexes (default: from config)
+        auto_index: If True, automatically index from DB on first search if empty
+        
+    Returns:
+        RAGService singleton instance
+    """
     global _rag_service
     if _rag_service is None:
         with _rag_service_lock:
             if _rag_service is None:
                 if data_dir is None:
-                    data_dir = Path(__file__).resolve().parent.parent.parent / 'src' / 'data'
-                _rag_service = RAGService(data_dir)
+                    from config import config
+                    data_dir = config.FAISS_DIR
+                _rag_service = RAGService(data_dir, auto_index=auto_index)
     return _rag_service
+
+
+def reset_rag_service():
+    """Reset the RAG service singleton (for testing)."""
+    global _rag_service
+    with _rag_service_lock:
+        _rag_service = None

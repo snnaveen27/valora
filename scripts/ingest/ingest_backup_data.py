@@ -8,8 +8,8 @@ import csv
 from pathlib import Path
 from datetime import datetime
 
-DB_PATH = Path(__file__).parent.parent / "src" / "data" / "valora.db"
-BACKUP_DIR = Path(__file__).parent.parent / "src" / "data" / "data_backup"
+DB_PATH = Path(__file__).parent.parent / "storage" / "valora.db"
+BACKUP_DIR = Path(__file__).parent.parent / "storage" / "data_backup"
 
 def get_conn():
     conn = sqlite3.connect(str(DB_PATH))

@@ -14,7 +14,8 @@ from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger("valora.agentic_memory")
 
-_DB_PATH = Path(__file__).parent.parent / "agentic_memory.db"
+from config import config
+_DB_PATH = config.DB_PATH.parent / "agentic_memory.db"
 _DEFAULT_TTL = 3600  # 1 hour — location data doesn't change rapidly
 _MAX_ENTRIES = 5000
 

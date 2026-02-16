@@ -22,7 +22,7 @@ from datetime import datetime
 class ValoraDatasetGeneratorV2:
     """Production-grade dataset generator with enhanced quality."""
     
-    def __init__(self, db_path: str = "src/data/valora.db"):
+    def __init__(self, db_path: str = "storage/database/valora.db"):
         self.db_path = Path(db_path)
         self.data = self._load_grounded_data()
         

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import json
 
 # Database path
-DB_PATH = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+DB_PATH = Path(__file__).parent.parent / "storage" / "valora.db"
 
 
 @dataclass

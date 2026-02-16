@@ -13,7 +13,7 @@ class ValoraDatasetGenerator:
     Generates 10,000+ high-quality grounded examples for DeepSeek R1 fine-tuning.
     """
     
-    def __init__(self, db_path: str = "src/data/valora.db"):
+    def __init__(self, db_path: str = "storage/database/valora.db"):
         self.db_path = Path(db_path)
         self.data = self._load_grounded_data()
         self.intents = [

@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import List, Dict
 
 # Paths
-TILES_DIR = Path(__file__).parent.parent.parent / 'src' / 'data' / '3dtiles' / 'tiles'
-DB_PATH = Path(__file__).parent.parent.parent / 'src' / 'data' / 'valora.db'
+TILES_DIR = Path(__file__).parent.parent.parent / 'storage' / '3dtiles' / 'tiles'
+DB_PATH = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
 
 def add_polygon_column():
     """Add polygon_coords column to buildings table if it doesn't exist"""

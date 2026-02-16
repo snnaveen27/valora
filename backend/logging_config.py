@@ -11,6 +11,7 @@ Usage in any module:
 
 import logging
 import sys
+import io
 from pathlib import Path
 
 
@@ -24,6 +25,11 @@ def setup_logging(level: str = "INFO", log_file: str = None):
     """
     fmt = "[%(asctime)s] %(levelname)-7s %(name)-20s | %(message)s"
     datefmt = "%Y-%m-%d %H:%M:%S"
+
+    # Use UTF-8 encoding for stdout on Windows to handle emoji characters
+    if sys.platform == 'win32':
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
     handlers = [logging.StreamHandler(sys.stdout)]
 

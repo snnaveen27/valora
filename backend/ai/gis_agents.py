@@ -12,21 +12,17 @@ from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 
 # Import StateChange for digital twin updates
-# Import advanced reasoning engine
+# Import advanced reasoning engine (obsolete - removed)
+REASONING_AVAILABLE = False
+get_reasoning_engine = None
+ReasoningTrace = None
 try:
-    from advanced_reasoning import get_reasoning_engine, ReasoningTrace
-    REASONING_AVAILABLE = True
-except ImportError:
-    REASONING_AVAILABLE = False
-    get_reasoning_engine = None
-    ReasoningTrace = None
-try:
-    from digital_twin import StateChange
+    from engines.digital_twin import StateChange
 except ImportError:
     StateChange = None
 
 try:
-    from spatial_nlp import get_spatial_nlp, ParsedSpatialQuery
+    from spatial.spatial_nlp import get_spatial_nlp, ParsedSpatialQuery
     SPATIAL_NLP_AVAILABLE = True
 except ImportError:
     SPATIAL_NLP_AVAILABLE = False
@@ -48,7 +44,7 @@ except ImportError:
     get_ai_context = None
 
 try:
-    from spatial_3d_reasoning import get_spatial_3d_reasoning, Spatial3DAnalysis
+    from spatial.spatial_3d_reasoning import get_spatial_3d_reasoning, Spatial3DAnalysis
     SPATIAL_3D_AVAILABLE = True
 except ImportError:
     SPATIAL_3D_AVAILABLE = False
@@ -87,19 +83,13 @@ except ImportError:
     get_tool_executor = None
     ToolCall = None
 
-try:
-    from occlusion_engine import get_occlusion_engine
-    OCCLUSION_AVAILABLE = True
-except ImportError:
-    OCCLUSION_AVAILABLE = False
-    get_occlusion_engine = None
+# Occlusion engine module removed - functionality integrated elsewhere
+OCCLUSION_AVAILABLE = False
+get_occlusion_engine = None
 
-try:
-    from solar_engine import get_solar_engine
-    SOLAR_AVAILABLE = True
-except ImportError:
-    SOLAR_AVAILABLE = False
-    get_solar_engine = None
+# Solar engine module removed - functionality integrated elsewhere
+SOLAR_AVAILABLE = False
+get_solar_engine = None
 
 try:
     from spatial.spatial_memory_graph import get_spatial_graph
@@ -952,6 +942,8 @@ class IntentRouter:
             r'(?:should i|can i|worth)\s+(?:invest|buy)\s+(?:in|at)\s+(.+?)(?:\s*$|\s*\?)',
             # Property search patterns
             r'(?:apartments?|flats?|properties|villas?|houses?|plots?)\s+(?:in|at|near)\s+(.+?)(?:\s+under|\s+below|\s*$)',
+            r'(?:top|best|show\s+me)\s+(?:properties?|apartments?|flats?)\s+(?:in|at|near|of)\s+(.+?)(?:\s+under|\s+below|\s*$)',
+            r'(?:in|at|near)\s+(.+?)\s+(?:under|below)\s+\d+',
             r'(?:\d+\s*bhk|studio)\s+(?:in|at|near)\s+(.+?)(?:\s+under|\s+below|\s*$)',
             r'(?:in|at|near)\s+(.+?)\s+(?:under|below)\s+\d+',
             # Comparison patterns
@@ -1124,9 +1116,46 @@ class GISAgentOrchestrator:
             facts.ai_capabilities_used.append("spatial_reasoning_mode")
         
         # Determine location to analyze
+        # Priority: 
+        # 1. If selectedLocation has valid coordinates (from map click), use those directly
+        # 2. If user explicitly mentions a place in query, geocode it
+        # 3. Fallback to context selection
+        
+        # Check if selectedLocation has valid coordinates (from map click)
+        has_valid_selected_location = (
+            selected_location and 
+            isinstance(selected_location.get('lat'), (int, float)) and 
+            isinstance(selected_location.get('lng'), (int, float)) and
+            -90 <= selected_location.get('lat') <= 90 and
+            -180 <= selected_location.get('lng') <= 180
+        )
+        
+        # Extract place name from query (but don't use if we have valid clicked coordinates)
+        extracted_place = IntentRouter.extract_place_name(query) if not has_valid_selected_location else None
+        
         lat, lng, location_name = None, None, None
         
-        if selected_place:
+        # If user clicked on map (selectedLocation has valid coordinates), use those directly
+        # This takes priority over geocoding to ensure we use the exact coordinates the user clicked
+        if has_valid_selected_location:
+            lat = selected_location.get('lat')
+            lng = selected_location.get('lng')
+            location_name = f"Area at {lat:.5f}, {lng:.5f}"
+            print(f"[GIS Agents] Using clicked coordinates from context: lat={lat}, lng={lng}")
+        # If user explicitly mentions a place in query (and no valid clicked coordinates), geocode it
+        # This ensures buildings load at the correct location the user asks about
+        elif extracted_place:
+            next_task(f"Extracting location '{extracted_place}' from query")
+            if self.geocoder:
+                results = self.geocoder.search(extracted_place, limit=1)
+                if results:
+                    top = results[0]
+                    lat = top.get('lat')
+                    lng = top.get('lng')
+                    location_name = top.get('name', extracted_place)
+                    print(f"[GIS Agents] Geocoded query place '{extracted_place}': lat={lat}, lng={lng}, name='{location_name}'")
+        # Fallback: use context selection only if no place explicitly mentioned in query
+        elif selected_place:
             lat = selected_place.get('lat')
             lng = selected_place.get('lng')
             location_name = selected_place.get('name', 'Selected Place')
@@ -1146,7 +1175,7 @@ class GISAgentOrchestrator:
             # Fallback: find nearest known locality by coordinates
             if not location_name and lat and lng:
                 try:
-                    from locality_service import get_locality_service
+                    from services.locality_service import get_locality_service
                     nearby_loc = get_locality_service().get_nearby_locality(lat, lng, radius_km=3.0)
                     if nearby_loc:
                         location_name = nearby_loc.get('locality_name')
@@ -1169,7 +1198,7 @@ class GISAgentOrchestrator:
             # Fallback: find nearest known locality by coordinates
             if not location_name and lat and lng:
                 try:
-                    from locality_service import get_locality_service
+                    from services.locality_service import get_locality_service
                     nearby_loc = get_locality_service().get_nearby_locality(lat, lng, radius_km=3.0)
                     if nearby_loc:
                         location_name = nearby_loc.get('locality_name')
@@ -1208,25 +1237,49 @@ class GISAgentOrchestrator:
                 print(f"[GIS] Spatial NLP error: {e}")
         
         # Fallback: If navigate, property_search, or analyze_area intent, try to geocode location from query
+        # Only do this if no location has been determined yet
         if intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND, Intent.VALUATION, Intent.TERRAIN, Intent.COMPARISON] and not lat:
             next_task(f"Geocoding location from query")
             place_name = IntentRouter.extract_place_name(query)
+            print(f"[GIS Agents] Extracted place name: '{place_name}' from query: '{query}'")
             if place_name and self.geocoder:
                 results = self.geocoder.search(place_name, limit=1)
+                print(f"[GIS Agents] Geocoder results for '{place_name}': {results}")
                 if results:
                     top = results[0]
                     lat = top.get('lat')
                     lng = top.get('lng')
                     location_name = top.get('name', place_name)
-                    # Add flyTo for navigation-like intents
-                    if intent == Intent.NAVIGATE:
-                        ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 15})
-                    elif intent in [Intent.ANALYZE_AREA, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND]:
-                        # For analysis, fly to location at medium zoom
-                        ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 15})
-                    else:
-                        # For property search, fly to location at wider zoom
-                        ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 14})
+                    print(f"[GIS Agents] Using coordinates: lat={lat}, lng={lng}, name='{location_name}'")
+        
+        # Check if frontend requested to skip flyTo (e.g., when user clicked on map)
+        skip_fly_to = context.get('skipFlyTo', False) if context else False
+        clicked_coordinates = context.get('clickedCoordinates') if context else None
+        
+        # If user clicked on map, use those exact coordinates
+        if clicked_coordinates:
+            lat = clicked_coordinates.get('lat')
+            lng = clicked_coordinates.get('lng')
+            location_name = f"Area at {lat:.5f}, {lng:.5f}"
+            print(f"[GIS Agents] Using clicked coordinates from context: lat={lat}, lng={lng}")
+        
+        # Add UI actions (flyTo, load_buildings) for location-based intents - now outside fallback block
+        # Skip flyTo if frontend requested it (e.g., when user clicked on map)
+        if lat and lng and intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND, Intent.VALUATION]:
+            # flyTo action - skip if user already clicked on map
+            if not skip_fly_to:
+                if intent == Intent.NAVIGATE:
+                    ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 15})
+                elif intent in [Intent.ANALYZE_AREA, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND]:
+                    ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 15})
+                else:
+                    ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 14})
+            
+            # load_buildings for property searches and area analysis to show 3D buildings
+            if intent in [Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.INVESTMENT]:
+                print(f"[GIS Agents] Adding load_buildings for {intent.value} at lat={lat}, lng={lng}")
+                print(f"[GIS Agents] Query was: '{query}' | Location: '{location_name}'")
+                ui_actions.append({"action": "load_buildings", "lat": lat, "lng": lng, "radius_km": 5})
         
         facts.lat = lat
         facts.lng = lng
@@ -1236,7 +1289,7 @@ class GISAgentOrchestrator:
         # Use precomputed locality state for instant insights
         if location_name:
             try:
-                from locality_service import get_locality_state, get_locality_service
+                from services.locality_service import get_locality_state, get_locality_service
                 locality_state = get_locality_state(location_name)
                 
                 # Fallback: coordinate-based nearest locality lookup
@@ -1703,7 +1756,7 @@ class GISAgentOrchestrator:
             # 3D Building Analysis (Phase 1.1)
             if lat and lng:
                 try:
-                    from building_analyzer import get_building_analyzer
+                    from analyzers.building_analyzer import get_building_analyzer
                     building_analyzer = get_building_analyzer()
                     analysis_result = building_analyzer.analyze_building_context(lat, lng)
                     

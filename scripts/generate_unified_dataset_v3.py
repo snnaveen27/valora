@@ -2179,7 +2179,7 @@ def main():
     parser.add_argument("--archive", action="store_true", help="Create archive.zip")
     args = parser.parse_args()
     
-    db_path = Path("src/data/valora.db")
+    db_path = Path("storage/database/valora.db")
     output_dir = Path(args.output)
     
     print("=" * 60)

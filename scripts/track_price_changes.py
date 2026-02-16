@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime, date
 
 def get_db_connection():
-    db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+    db_path = Path(__file__).parent.parent / 'storage' / 'valora.db'
     return sqlite3.connect(str(db_path))
 
 def ensure_price_history_table(cursor):

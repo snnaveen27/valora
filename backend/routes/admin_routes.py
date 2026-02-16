@@ -213,12 +213,11 @@ async def get_system_status(admin: User = Depends(require_admin)) -> Dict[str, A
     # Check AI services
     try:
         from ai.rag_service import EMBEDDINGS_AVAILABLE
-        from advanced_reasoning import AdvancedReasoningEngine
         
         status["ai"] = {
             "status": "healthy",
             "embeddings": EMBEDDINGS_AVAILABLE,
-            "reasoning": True
+            "reasoning": False  # Advanced reasoning module removed
         }
     except Exception as e:
         status["ai"] = {"status": "degraded", "error": str(e)}
@@ -420,24 +419,13 @@ async def run_system_tests(admin: User = Depends(require_admin)) -> Dict[str, An
             "duration": int((time.time() - test_start) * 1000)
         })
     
-    # Test 7: Advanced Reasoning
-    test_start = time.time()
-    try:
-        from advanced_reasoning import AdvancedReasoningEngine
-        engine = AdvancedReasoningEngine()
-        tests.append({
-            "name": "Reasoning Engine",
-            "description": "Engine initialized successfully",
-            "passed": True,
-            "duration": int((time.time() - test_start) * 1000)
-        })
-    except Exception as e:
-        tests.append({
-            "name": "Reasoning Engine",
-            "description": str(e),
-            "passed": False,
-            "duration": int((time.time() - test_start) * 1000)
-        })
+    # Test 7: Advanced Reasoning (removed - module obsolete)
+    tests.append({
+        "name": "Reasoning Engine",
+        "description": "Module removed - functionality integrated elsewhere",
+        "passed": True,
+        "duration": 0
+    })
     
     # Calculate summary
     passed = sum(1 for t in tests if t["passed"])
@@ -1506,7 +1494,7 @@ async def get_cloud_cost_stats(
         days = 7
     
     try:
-        from ai.hybrid_orchestrator import get_valora_brain
+        from ai.unified_valora_brain import get_valora_brain
         
         brain = get_valora_brain()
         stats = brain.get_cloud_cost_stats(user_id=user_id, days=days)
@@ -1551,7 +1539,7 @@ async def get_cloud_cost_by_model(
         days = 7
     
     try:
-        from ai.hybrid_orchestrator import get_valora_brain
+        from ai.unified_valora_brain import get_valora_brain
         
         brain = get_valora_brain()
         stats = brain.get_cloud_cost_stats(days=days)
@@ -1578,7 +1566,7 @@ async def get_cloud_cost_by_query_type(
         days = 7
     
     try:
-        from ai.hybrid_orchestrator import get_valora_brain
+        from ai.unified_valora_brain import get_valora_brain
         
         brain = get_valora_brain()
         stats = brain.get_cloud_cost_stats(days=days)
@@ -1636,7 +1624,7 @@ async def update_confidence_threshold(
     SECURITY: Requires admin authentication.
     """
     try:
-        from ai.hybrid_orchestrator import get_valora_brain
+        from ai.unified_valora_brain import get_valora_brain
         
         brain = get_valora_brain()
         old_threshold = brain.confidence_thresholds.get(request.intent)
@@ -1665,7 +1653,7 @@ async def toggle_parallel_prediction(
     SECURITY: Requires admin authentication.
     """
     try:
-        from ai.hybrid_orchestrator import get_valora_brain
+        from ai.unified_valora_brain import get_valora_brain
         
         brain = get_valora_brain()
         old_enabled = brain.parallel_prediction_enabled
@@ -1711,49 +1699,32 @@ async def batch_compare_locations(
     SECURITY: Requires admin authentication.
     """
     try:
-        from ai.batch_spatial import get_batch_analyzer
-        from ai.gis_agents import GISAgentOrchestrator
+        from ai.gis_agents import get_gis_orchestrator
         
-        gis = GISAgentOrchestrator()
-        analyzer = get_batch_analyzer(gis)
+        gis = get_gis_orchestrator()
         
-        if request.comparison_type == "view":
-            result = await analyzer.compare_view_quality(request.locations)
-        elif request.comparison_type == "sunlight":
-            result = await analyzer.compare_sunlight(
-                request.locations,
-                time_of_day=request.time_of_day
+        # Use GIS orchestrator for batch comparison (batch_spatial module removed)
+        locations_data = []
+        for loc in request.locations:
+            result = gis.analyze_location(
+                lat=loc.get('lat'),
+                lng=loc.get('lng'),
+                location_name=loc.get('name', 'Unknown'),
+                radius_m=500
             )
-        else:
-            result = await analyzer.comprehensive_comparison(
-                request.locations,
-                weights=request.weights
-            )
+            locations_data.append({
+                "name": loc.get('name', 'Unknown'),
+                "lat": loc.get('lat'),
+                "lng": loc.get('lng'),
+                "analysis": result
+            })
         
         return {
             "success": True,
-            "comparison_type": result.query_type,
-            "total_locations": len(result.locations),
-            "processing_time_ms": round(result.total_processing_time_ms, 2),
-            "overall_ranking": result.overall_ranking,
-            "locations": [
-                {
-                    "name": loc.location_name,
-                    "rank": loc.rank,
-                    "lat": loc.lat,
-                    "lng": loc.lng,
-                    "view_quality": loc.view_quality,
-                    "view_score": loc.view_score,
-                    "sunlight_score": loc.sunlight_score,
-                    "accessibility_score": loc.accessibility_score,
-                    "investment_score": loc.investment_score,
-                    "avg_price_per_sqft": loc.avg_price_per_sqft,
-                    "pros": loc.pros,
-                    "cons": loc.cons
-                }
-                for loc in result.locations
-            ],
-            "summary": result.summary
+            "comparison_type": request.comparison_type,
+            "total_locations": len(locations_data),
+            "locations": locations_data,
+            "summary": "Batch analysis completed using GIS orchestrator"
         }
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}"}

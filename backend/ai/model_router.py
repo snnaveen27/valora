@@ -9,7 +9,7 @@ Auto-selects the optimal model (local Ollama, Ollama Cloud, or OpenRouter) based
   5. Available models (dynamically discovered from Ollama + OpenRouter)
   6. Historical performance (SQLite-tracked latency, success rate, quality)
 
-Cloud provider priority: OpenRouter → Ollama Cloud (fallback)
+Cloud provider priority: OpenRouter -> Ollama Cloud (fallback)
 Default local: qwen3:4b-instruct
 """
 
@@ -117,7 +117,8 @@ def get_model_capability(model_name: str) -> ModelCapability:
 # ---------------------------------------------------------------------------
 # Learning-Aware Performance Tracker (SQLite — thread-local pool)
 # ---------------------------------------------------------------------------
-_PERF_DB = Path(__file__).parent.parent / "model_performance.db"
+from config import config
+_PERF_DB = config.DB_PATH.parent / "model_performance.db"
 
 _PERF_INIT_SQL = """
 CREATE TABLE IF NOT EXISTS model_perf (
@@ -187,11 +188,11 @@ def _get_model_score_bonus(model: str, intent: str) -> float:
         successes = sum(1 for _, s in rows if s)
         success_rate = successes / len(rows)
         avg_latency = sum(lat for lat, _ in rows) / len(rows)
-        # Good model: high success, low latency → positive bonus
+        # Good model: high success, low latency -> positive bonus
         bonus = (success_rate - 0.7) * 0.5  # +0.15 for 100%, -0.1 for 50%
-        if avg_latency > 30000:  # > 30s avg → penalty
+        if avg_latency > 30000:  # > 30s avg -> penalty
             bonus -= 0.1
-        elif avg_latency < 5000:  # < 5s avg → bonus
+        elif avg_latency < 5000:  # < 5s avg -> bonus
             bonus += 0.05
         return max(-0.3, min(0.3, bonus))
     except Exception:
@@ -275,10 +276,10 @@ def analyze_query(
     if intent in heavy:
         score += 0.35
         analysis.needs_deep_reasoning = True
-        reasons.append(f"{intent.value} → heavy")
+        reasons.append(f"{intent.value} -> heavy")
     elif intent in medium:
         score += 0.15
-        reasons.append(f"{intent.value} → moderate")
+        reasons.append(f"{intent.value} -> moderate")
 
     # 3. Deep reasoning signals
     deep_hits = sum(1 for p in _DEEP_REASONING_SIGNALS if re.search(p, ql))
@@ -391,7 +392,7 @@ def select_model(
     # 1. Vision
     if query_analysis.needs_vision and vision_models:
         best = vision_models[0]
-        reasons.append(f"vision → {best.id}")
+        reasons.append(f"vision -> {best.id}")
         return ModelSelection(
             model=best.id, provider=best.provider, is_cloud=best.is_cloud,
             is_vision=True, reasoning=" | ".join([query_analysis.reasoning] + reasons),
@@ -402,7 +403,7 @@ def select_model(
     # 2. High complexity
     if score >= heavy_threshold and reasoning_models:
         best = reasoning_models[0]
-        reasons.append(f"high ({score:.2f}) → {best.id}")
+        reasons.append(f"high ({score:.2f}) -> {best.id}")
         return ModelSelection(
             model=best.id, provider=best.provider, is_cloud=True,
             reasoning=" | ".join([query_analysis.reasoning] + reasons),
@@ -414,7 +415,7 @@ def select_model(
     if score >= esc_threshold and reasoning_models:
         lighter = sorted(reasoning_models, key=lambda c: c.speed_tier, reverse=True)
         best = lighter[0]
-        reasons.append(f"medium ({score:.2f}) → {best.id}")
+        reasons.append(f"medium ({score:.2f}) -> {best.id}")
         return ModelSelection(
             model=best.id, provider=best.provider, is_cloud=True,
             reasoning=" | ".join([query_analysis.reasoning] + reasons),
@@ -434,7 +435,7 @@ def select_model(
     elif intent in {Intent.ANALYZE_BUILDING, Intent.VALUATION, Intent.MARKET_TREND}:
         max_tokens = 1024
 
-    reasons.append(f"local ({score:.2f}) → {default_local}")
+    reasons.append(f"local ({score:.2f}) -> {default_local}")
     return ModelSelection(
         model=default_local, provider="ollama",
         reasoning=" | ".join([query_analysis.reasoning] + reasons),
@@ -474,7 +475,7 @@ def route_model(
     # If router picked a local model, swap in the user's preferred local model
     if user_override and not selection.is_cloud and not selection.is_vision:
         if selection.model != user_override:
-            logger.info(f"[ModelRouter] Swapping local {selection.model} → {user_override} (user preference)")
+            logger.info(f"[ModelRouter] Swapping local {selection.model} -> {user_override} (user preference)")
             selection.model = user_override
             selection.reasoning += f" | user prefers {user_override}"
 

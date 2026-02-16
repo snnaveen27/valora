@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-backup_dir = Path(__file__).parent.parent / 'src' / 'data' / 'data_backup'
+backup_dir = Path(__file__).parent.parent / 'storage' / 'data_backup'
 
 print(f"Backup directory: {backup_dir}")
 print("=" * 70)

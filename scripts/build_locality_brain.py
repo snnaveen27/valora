@@ -16,7 +16,7 @@ from collections import defaultdict
 from typing import Dict, Any, List, Optional, Tuple
 
 # Database path
-DB_PATH = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+DB_PATH = Path(__file__).parent.parent / "storage" / "valora.db"
 
 # Bangalore localities (wards/neighborhoods) - will be auto-detected from data
 KNOWN_LOCALITIES = []

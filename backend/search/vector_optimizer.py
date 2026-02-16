@@ -23,7 +23,11 @@ class VectorOptimizer:
     """
     
     def __init__(self, base_path: str = None):
-        self.base_path = Path(base_path) if base_path else Path(__file__).parent.parent / 'src' / 'data' / 'faiss_store'
+        if base_path:
+            self.base_path = Path(base_path)
+        else:
+            from config import config
+            self.base_path = config.FAISS_DIR
         self.base_path.mkdir(parents=True, exist_ok=True)
         self.faiss = None
         self._init_faiss()

@@ -33,8 +33,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "src" / "data" / "valora.db"
-DOWNLOAD_DIR = BASE_DIR / "src" / "data" / "opencity_downloads"
+DB_PATH = BASE_DIR / "storage" / "valora.db"
+DOWNLOAD_DIR = BASE_DIR / "storage" / "opencity_downloads"
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # CKAN API

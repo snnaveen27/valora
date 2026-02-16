@@ -48,7 +48,7 @@ class DigitalTwin:
     """
     
     def __init__(self, data_dir: Path = None):
-        self.data_dir = data_dir or Path(__file__).parent.parent / 'src' / 'data'
+        self.data_dir = data_dir or Path(__file__).parent.parent / 'storage'
         self.city_state = None
         self.change_history: List[StateChange] = []
         self.state_snapshots: Dict[str, CityState] = {}  # timestamp -> state

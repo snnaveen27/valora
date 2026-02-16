@@ -29,7 +29,7 @@ class DatabaseService:
             db_path = Path(db_path)
         
         self.db_path = db_path
-        self.schema_path = Path(__file__).parent / "schema_simple.sql"
+        self.schema_path = config.SCHEMA_DIR / "schema_simple.sql"
         
         # Ensure database directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

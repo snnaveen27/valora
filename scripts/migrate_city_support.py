@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 
-DB_PATH = Path(__file__).parent.parent / "src" / "data" / "valora.db"
+DB_PATH = Path(__file__).parent.parent / "storage" / "valora.db"
 
 def migrate():
     """Add city support columns to key tables."""

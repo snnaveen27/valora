@@ -156,10 +156,10 @@ class ToolExecutor:
         """Get spatial 3D reasoning service."""
         if 'spatial_3d' not in self._services:
             try:
-                from spatial_3d_reasoning import get_spatial_3d_reasoning
+                from spatial.spatial_3d_reasoning import get_spatial_3d_reasoning
                 self._services['spatial_3d'] = get_spatial_3d_reasoning()
             except ImportError:
-                from backend.spatial_3d_reasoning import get_spatial_3d_reasoning
+                from backend.spatial.spatial_3d_reasoning import get_spatial_3d_reasoning
                 self._services['spatial_3d'] = get_spatial_3d_reasoning()
         return self._services['spatial_3d']
     
@@ -167,10 +167,10 @@ class ToolExecutor:
         """Get viewshed analyzer service."""
         if 'viewshed' not in self._services:
             try:
-                from viewshed_analyzer import get_viewshed_analyzer
+                from analyzers.viewshed_analyzer import get_viewshed_analyzer
                 self._services['viewshed'] = get_viewshed_analyzer()
             except ImportError:
-                from backend.viewshed_analyzer import get_viewshed_analyzer
+                from backend.analyzers.viewshed_analyzer import get_viewshed_analyzer
                 self._services['viewshed'] = get_viewshed_analyzer()
         return self._services['viewshed']
     
@@ -178,10 +178,10 @@ class ToolExecutor:
         """Get building analyzer service."""
         if 'building' not in self._services:
             try:
-                from building_analyzer import get_building_analyzer
+                from analyzers.building_analyzer import get_building_analyzer
                 self._services['building'] = get_building_analyzer()
             except ImportError:
-                from backend.building_analyzer import get_building_analyzer
+                from backend.analyzers.building_analyzer import get_building_analyzer
                 self._services['building'] = get_building_analyzer()
         return self._services['building']
     
@@ -189,10 +189,10 @@ class ToolExecutor:
         """Get property service."""
         if 'property' not in self._services:
             try:
-                from property_service import PropertyService
+                from services.property_service import PropertyService
                 self._services['property'] = PropertyService()
             except ImportError:
-                from backend.property_service import PropertyService
+                from backend.services.property_service import PropertyService
                 self._services['property'] = PropertyService()
         return self._services['property']
     
@@ -200,10 +200,10 @@ class ToolExecutor:
         """Get locality service."""
         if 'locality' not in self._services:
             try:
-                from locality_service import get_locality_service
+                from services.locality_service import get_locality_service
                 self._services['locality'] = get_locality_service()
             except ImportError:
-                from backend.locality_service import get_locality_service
+                from backend.services.locality_service import get_locality_service
                 self._services['locality'] = get_locality_service()
         return self._services['locality']
     

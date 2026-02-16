@@ -186,6 +186,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const keyDownHandlerRef = useRef(null) // Track key handler so we can remove it on cleanup
   const lastCameraViewRef = useRef(null)
   const placeMarkerRef = useRef(null)
+  const placeMarkerClickTimeRef = useRef(null) // Track when user clicked to avoid overwriting
   const rotationIntervalRef = useRef(null)
   const rotationTargetRef = useRef(null)
   const ionPhotorealisticTilesetRef = useRef(null)
@@ -1120,9 +1121,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     })
     
     // If enabling and no buildings loaded yet, trigger load
+    // DISABLED: Viewport-based loading disabled - only query-based loading from chat
     if (newState && buildingsCount === 0) {
-      console.log('[Buildings] Enabling - loading buildings for current viewport...')
-      loadTilesForViewport()
+      console.log('[Buildings] Enabling - waiting for query-based loading from chat...')
+      // loadTilesForViewport() // Disabled - use query-based loading instead
     }
   }
 
@@ -1172,15 +1174,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     const scene = viewer.scene
     if (!scene) return null
 
-    if (scene.pickPositionSupported) {
-      const pickPosition = scene.pickPosition(screenPosition)
-      if (Cesium.defined(pickPosition)) return pickPosition
-    }
-
+    // FIX: Prioritize globe.pick (ground position) over pickPosition (entity surface)
+    // This ensures clicking on buildings still returns the ground position, not the building surface
     const ray = viewer.camera.getPickRay(screenPosition)
     if (ray) {
       const globePosition = scene.globe.pick(ray, scene)
       if (Cesium.defined(globePosition)) return globePosition
+    }
+
+    // Fallback to pickPosition for non-ground picks (e.g., when globe is not visible)
+    if (scene.pickPositionSupported) {
+      const pickPosition = scene.pickPosition(screenPosition)
+      if (Cesium.defined(pickPosition)) return pickPosition
     }
 
     return viewer.camera.pickEllipsoid(screenPosition, scene.globe.ellipsoid)
@@ -1337,7 +1342,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       },
       duration: 1.5,
       complete: () => {
-        setTimeout(() => loadBuildingsAtPoint(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng), 500)
+        // DISABLED: Initial building load at DEFAULT_LOCATION - buildings should only load
+        // via query-based loading from chat (valora-load-buildings event)
+        // setTimeout(() => loadBuildingsAtPoint(DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lng, BUILDING_LOAD_RADIUS_KM), 500)
       }
     })
   }
@@ -1357,13 +1364,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       },
       duration: 1.2,
       complete: () => {
-        // Load buildings around the destination
-        const carto = Cesium.Cartographic.fromCartesian(last.destination)
-        if (carto) {
-          const lat = Cesium.Math.toDegrees(carto.latitude)
-          const lng = Cesium.Math.toDegrees(carto.longitude)
-          setTimeout(() => loadBuildingsAtPoint(lat, lng), 500)
-        }
+        // DISABLED: Building load on flyTo completion - only query-based loading from chat
+        // const carto = Cesium.Cartographic.fromCartesian(last.destination)
+        // if (carto) {
+        //   const lat = Cesium.Math.toDegrees(carto.latitude)
+        //   const lng = Cesium.Math.toDegrees(carto.longitude)
+        //   setTimeout(() => loadBuildingsAtPoint(lat, lng, BUILDING_LOAD_RADIUS_KM), 500)
+        // }
       }
     })
   }
@@ -2062,8 +2069,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
       const data = await response.json()
 
-      // Filter to only unloaded tiles
-      let newTiles = data.tiles.filter(t => !loadedTilesRef.current.has(t.id))
+      // FIX Issue 1: Filter out empty tiles (count === 0) and already-loaded tiles
+      let newTiles = (data.tiles || []).filter(t => t.count > 0 && !loadedTilesRef.current.has(t.id))
 
       if (newTiles.length === 0) {
         console.log(`[Buildings] All ${data.tiles.length} tiles already loaded, ${currentBuildingCount} buildings showing`)
@@ -2194,17 +2201,48 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     return cleared
   }
 
-  // Load buildings in 5km radius around a clicked point
-  const loadBuildingsAtPoint = async (centerLat, centerLng) => {
+  // AbortController for cancelling in-progress building loads
+  const buildingLoadAbortControllerRef = useRef(null)
+
+  // Load buildings in specified radius around a clicked point (defaults to 5km)
+  // @param {number} centerLat - Latitude of center point
+  // @param {number} centerLng - Longitude of center point
+  // @param {number} radiusKm - Radius in kilometers (default 5.0)
+  // @param {boolean} force - If true, cancel any in-progress load and proceed (for query-based loads)
+  const loadBuildingsAtPoint = async (centerLat, centerLng, radiusKm = 5.0, force = false) => {
+    console.log(`[loadBuildingsAtPoint] START - lat: ${centerLat}, lng: ${centerLng}, radius: ${radiusKm}km, force: ${force}`)
     const viewer = viewerRef.current
-    if (!viewer || viewer.isDestroyed()) return
-    if (loadingBuildingsRef.current) return
+    if (!viewer || viewer.isDestroyed()) {
+      console.log('[loadBuildingsAtPoint] ABORT - viewer not ready')
+      return
+    }
+    
+    // If force is true, cancel any in-progress load and proceed
+    if (force && loadingBuildingsRef.current) {
+      console.log('[loadBuildingsAtPoint] FORCE - cancelling in-progress load')
+      if (buildingLoadAbortControllerRef.current) {
+        buildingLoadAbortControllerRef.current.abort()
+        buildingLoadAbortControllerRef.current = null
+      }
+      loadingBuildingsRef.current = false
+      setLoadingBuildings(false)
+    }
+    
+    if (loadingBuildingsRef.current) {
+      console.log('[loadBuildingsAtPoint] ABORT - already loading (use force=true to override)')
+      return
+    }
 
     // CRITICAL: Clear ALL existing buildings first so buildings always
     // appear around the selected location, not a previous one
+    console.log('[loadBuildingsAtPoint] Clearing existing buildings...')
     clearAllBuildings()
+    
+    // Create new AbortController for this load operation
+    buildingLoadAbortControllerRef.current = new AbortController()
+    const signal = buildingLoadAbortControllerRef.current.signal
 
-    const radiusDeg = BUILDING_LOAD_RADIUS_KM / 111.0
+    const radiusDeg = radiusKm / 111.0
     const bbox = {
       min_lng: centerLng - radiusDeg,
       min_lat: centerLat - radiusDeg,
@@ -2217,26 +2255,45 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
     try {
       const params = new URLSearchParams(bbox)
-      console.log(`🔍 Fetching tiles for bbox: ${JSON.stringify(bbox)}`)
-      const response = await fetch(`${TILES_API}?${params}`)
-      if (!response.ok) {
-        console.error(`❌ Failed to fetch tiles: ${response.status} ${response.statusText}`)
+      const tilesUrl = `${TILES_API}?${params}`
+      console.log(`[loadBuildingsAtPoint] Fetching tiles from: ${tilesUrl}`)
+      console.log(`[loadBuildingsAtPoint] BBOX: ${JSON.stringify(bbox)}`)
+      
+      const response = await fetch(tilesUrl, { signal })
+      if (response.ok === false) {
+        console.error(`[loadBuildingsAtPoint] ❌ Failed to fetch tiles: ${response.status} ${response.statusText}`)
         return
       }
 
       const data = await response.json()
-      console.log(`📦 Found ${data.tiles?.length || 0} tiles in area`)
-      let newTiles = data.tiles.filter(t => !loadedTilesRef.current.has(t.id))
+      const allTiles = data.tiles || []
+      // FIX Issue 1: Filter out empty tiles (count === 0) to avoid loading tiles with no buildings
+      const nonEmptyTiles = allTiles.filter(t => t.count > 0)
+      console.log(`[loadBuildingsAtPoint] 📦 Found ${allTiles.length} tiles in area (${nonEmptyTiles.length} non-empty, ${allTiles.length - nonEmptyTiles.length} empty skipped)`)
+      console.log(`[loadBuildingsAtPoint] Tile data:`, nonEmptyTiles.slice(0, 3))
+      
+      let newTiles = nonEmptyTiles.filter(t => !loadedTilesRef.current.has(t.id))
+      console.log(`[loadBuildingsAtPoint] New tiles to load: ${newTiles.length} (already loaded: ${loadedTilesRef.current.size})`)
+      
       if (newTiles.length === 0) {
-        console.log(`[Click] All ${data.tiles.length} tiles already loaded around (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)})`)
+        console.log(`[loadBuildingsAtPoint] All ${data.tiles.length} tiles already loaded around (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)})`)
         return
       }
 
       // Sort closest first
+      const haversineDistance = (lat1, lng1, lat2, lng2) => {
+        const R = 6371
+        const dLat = (lat2 - lat1) * Math.PI / 180
+        const dLng = (lng2 - lng1) * Math.PI / 180
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLng/2) * Math.sin(dLng/2)
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+      }
       newTiles = newTiles.map(tile => {
         const tileLng = (tile.min_lng + tile.max_lng) / 2
         const tileLat = (tile.min_lat + tile.max_lat) / 2
-        return { ...tile, distance: haversine(centerLat, centerLng, tileLat, tileLng) }
+        return { ...tile, distance: haversineDistance(centerLat, centerLng, tileLat, tileLng) }
       }).sort((a, b) => a.distance - b.distance)
 
       const remainingSlots = MAX_BUILDINGS_DISPLAY - currentBuildingCount
@@ -2273,6 +2330,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
       const totalBuildings = Object.values(tileEntitiesRef.current).reduce((s, e) => s + e.length, 0)
       
+      console.log(`[loadBuildingsAtPoint] ✅ COMPLETE - Loaded ${loadedCount} tiles, ${buildingsAdded} new buildings, ${totalBuildings} total`)
+      
       // Update state with proper batching to ensure UI updates
       const updateCount = totalBuildings
       const updateTiles = loadedTilesRef.current.size
@@ -2299,7 +2358,12 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         console.warn(`⚠️ Attempted to load ${tilesToLoad.length} tiles but none succeeded`)
       }
     } catch (err) {
-      console.warn('Failed to load buildings at point:', err.message)
+      // Handle abort gracefully - don't treat as an error
+      if (err.name === 'AbortError') {
+        console.log('[loadBuildingsAtPoint] ⚠️ Load was aborted (likely by a new query)')
+      } else {
+        console.error('[loadBuildingsAtPoint] ❌ ERROR:', err.message, err.stack)
+      }
       setLoadingBuildings(false)
       loadingBuildingsRef.current = false
     }
@@ -2322,12 +2386,17 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   useEffect(() => {
     if (agentData?.flyTo && viewerRef.current) {
       const { lat, lng, zoom } = agentData.flyTo
+      console.log(`[Map] flyTo useEffect triggered: lat=${lat}, lng=${lng}, zoom=${zoom}`)
       const viewer = viewerRef.current
       if (!viewer || viewer.isDestroyed()) return
 
       const latNum = Number(lat)
       const lngNum = Number(lng)
-      if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return
+      console.log(`[Map] flyTo coordinates: latNum=${latNum}, lngNum=${lngNum}`)
+      if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+        console.warn('[Map] flyTo ABORT - invalid coordinates')
+        return
+      }
 
       // Stop any active rotation before flying to new location
       stopRotation()
@@ -2345,13 +2414,19 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       // height calculation for closer zoom (production grade)
       const height = zoom ? Math.max(50, 15000000 / Math.pow(2, zoom)) : 400
       
-      if (placeMarkerRef.current) {
+      // FIX: Don't overwrite marker if user recently clicked (within 5 seconds)
+      const timeSinceLastClick = Date.now() - (placeMarkerClickTimeRef.current || 0)
+      const skipMarkerUpdate = timeSinceLastClick < 5000 // 5 seconds grace period
+      
+      if (placeMarkerRef.current && !skipMarkerUpdate) {
         viewer.entities.remove(placeMarkerRef.current)
         placeMarkerRef.current = null
       }
 
-      const placeName = agentData?.selectedPlace?.name || agentData?.selectedPlace?.display_name?.split(',')?.[0] || 'Selected location'
-      placeMarkerRef.current = viewer.entities.add({
+      // Only create new marker if user hasn't recently clicked
+      if (!skipMarkerUpdate) {
+        const placeName = agentData?.selectedPlace?.name || agentData?.selectedPlace?.display_name?.split(',')?.[0] || 'Selected location'
+        placeMarkerRef.current = viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(lngNum, latNum),
         point: {
           pixelSize: 14,
@@ -2377,6 +2452,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           disableDepthTestDistance: Number.POSITIVE_INFINITY
         }
       })
+      } // end if (!skipMarkerUpdate)
 
       // Terrain-aware camera height
       const terrainHeight = getTerrainHeight(lngNum, latNum)
@@ -2394,12 +2470,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       // Force-reset loading guard in case a previous load got stuck
       loadingBuildingsRef.current = false
 
+      // DISABLED: triggerBuildingLoad - buildings now only load via query-based loading
+      // Query-based loading handles all building loading - no need for flyTo completion callback
       let buildingsTriggered = false
-      const triggerBuildingLoad = () => {
-        if (buildingsTriggered) return
-        buildingsTriggered = true
-        loadBuildingsAtPointRef.current(latNum, lngNum)
-      }
+      // const triggerBuildingLoad = () => {
+      //   if (buildingsTriggered) {
+      //     console.log('[Map] triggerBuildingLoad - already triggered, skipping')
+      //     return
+      //   }
+      //   buildingsTriggered = true
+      //   console.log(`[Map] triggerBuildingLoad - loading buildings at lat=${latNum}, lng=${lngNum}`)
+      //   loadBuildingsAtPointRef.current(latNum, lngNum, BUILDING_LOAD_RADIUS_KM)
+      // }
 
       viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, adjustedHeight),
@@ -2410,12 +2492,12 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         },
         duration: 2.0,
         complete: () => {
-          // Load buildings around the flyTo destination
-          setTimeout(triggerBuildingLoad, 300)
+          // DISABLED: Load buildings on flyTo complete - only query-based loading now
+          // setTimeout(triggerBuildingLoad, 300)
         }
       })
-      // Fallback: if complete callback doesn't fire (e.g. flight interrupted), load anyway
-      setTimeout(triggerBuildingLoad, 2800)
+      // Fallback disabled: only query-based loading
+      // setTimeout(triggerBuildingLoad, 2800)
       // Clear flyTo after camera flight + building load completes
       setTimeout(() => { if (setAgentData) setAgentData(prev => ({ ...prev, flyTo: null })) }, 5000)
     }
@@ -2585,7 +2667,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         // Also trigger building load at the center of properties
         if (firstProp && loadBuildingsAtPointRef.current) {
           loadingBuildingsRef.current = false
-          loadBuildingsAtPointRef.current(Number(firstProp.lat), Number(firstProp.lng))
+          loadBuildingsAtPointRef.current(Number(firstProp.lat), Number(firstProp.lng), BUILDING_LOAD_RADIUS_KM)
         }
         return
       }
@@ -2653,7 +2735,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         const triggerCenterBuildings = () => {
           if (centerBuildingsTriggered) return
           centerBuildingsTriggered = true
-          loadBuildingsAtPointRef.current(latNum, lngNum)
+          loadBuildingsAtPointRef.current(latNum, lngNum, BUILDING_LOAD_RADIUS_KM)
         }
 
         viewer.camera.flyTo({
@@ -2713,17 +2795,55 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     window.addEventListener('valora-ui-command', handleMapCommand)
     window.addEventListener('valora-agentic-step', handleAgenticStep)
     
+    // FIX Issue 2 & 3: Listen for new query events to clear old markers and reset state
+    const handleNewQuery = () => {
+      console.log('[Map] 🔄 New query detected - clearing old property markers and place marker')
+      const viewer = viewerRef.current
+      if (!viewer || viewer.isDestroyed()) return
+      
+      // Clear all property markers from previous query
+      propertyMarkersRef.current.forEach(entity => {
+        try { viewer.entities.remove(entity) } catch {}
+      })
+      propertyMarkersRef.current = []
+      
+      // Clear place marker from previous query - BUT NOT if just placed by map click
+      // Check if marker was placed in the last 5 seconds (prevents clearing during map click flow)
+      const timeSinceClick = Date.now() - (placeMarkerClickTimeRef.current || 0)
+      if (placeMarkerRef.current && timeSinceClick > 5000) {
+        try { viewer.entities.remove(placeMarkerRef.current) } catch {}
+        placeMarkerRef.current = null
+      } else if (placeMarkerRef.current) {
+        console.log('[Map] Preserving place marker - was just placed by map click', timeSinceClick, 'ms ago')
+      }
+      
+      // Cancel any in-progress building loads
+      if (buildingLoadAbortControllerRef.current) {
+        buildingLoadAbortControllerRef.current.abort()
+        buildingLoadAbortControllerRef.current = null
+      }
+      loadingBuildingsRef.current = false
+      setLoadingBuildings(false)
+    }
+    window.addEventListener('valora-new-query', handleNewQuery)
+
     // Listen for building load commands from Task Planner
     const handleLoadBuildings = (e) => {
+      console.log('[Map] 📨 Received valora-load-buildings event:', e.detail)
       const { lat, lng, radius_km } = e.detail || {}
       if (lat != null && lng != null) {
-        console.log(`[Map] Loading buildings from Task Planner: ${lat.toFixed(4)}, ${lng.toFixed(4)}, radius: ${radius_km}km`)
-        loadBuildingsAtPointRef.current(lat, lng)
+        const radius = radius_km || 5.0
+        console.log(`[Map] Loading buildings from Task Planner (FORCE): ${lat.toFixed(4)}, ${lng.toFixed(4)}, radius: ${radius}km`)
+        // Use force=true to cancel any in-progress loads and load at the new location
+        loadBuildingsAtPointRef.current(lat, lng, radius, true)
+      } else {
+        console.warn('[Map] ❌ Invalid coordinates in load_buildings event:', e.detail)
       }
     }
     window.addEventListener('valora-load-buildings', handleLoadBuildings)
     
     return () => {
+      window.removeEventListener('valora-new-query', handleNewQuery)
       window.removeEventListener('valora-map-command', handleMapCommand)
       window.removeEventListener('valora-ui-command', handleMapCommand)
       window.removeEventListener('valora-agentic-step', handleAgenticStep)
@@ -3175,7 +3295,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           }
         }
 
-        // Click handler - select building instantly, otherwise deselect
+        // Click handler - handle entity clicks (any clickable location on map)
         viewer.screenSpaceEventHandler.setInputAction((click) => {
           // Visual ripple feedback at cursor (game-like)
           if (click?.position) {
@@ -3187,147 +3307,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             setTimeout(() => setClickRipple(null), 650)
           }
 
-          const pickedObject = viewer.scene.pick(click.position)
-
-          // Check if a property marker was clicked (interactive property cards)
-          if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
-            const entity = pickedObject.id
-            const isPropertyMarker = entity.properties?.isPropertyMarker?.getValue?.()
-            
-            if (isPropertyMarker) {
-              try {
-                const propData = JSON.parse(entity.properties.propertyData.getValue())
-                const propIndex = entity.properties.propertyIndex.getValue()
-                const propLat = Number(propData.lat)
-                const propLng = Number(propData.lng)
-                
-                if (Number.isFinite(propLat) && Number.isFinite(propLng)) {
-                  // Fly closer to the property
-                  const target = getTerrainAwareTarget(propLng, propLat, 15)
-                  rotationTargetRef.current = target
-                  const orbitDistance = 200
-                  const orbitPitch = Cesium.Math.toRadians(-35)
-                  
-                  viewer.camera.flyToBoundingSphere(
-                    new Cesium.BoundingSphere(target, orbitDistance / 2),
-                    {
-                      duration: 1.5,
-                      offset: new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance)
-                    }
-                  )
-                  
-                  // Update agentData with selected property
-                  if (setAgentData) {
-                    updateAgentData(prev => ({
-                      ...prev,
-                      selectedProperty: { ...propData, index: propIndex },
-                      selectedBuilding: null
-                    }))
-                  }
-                  
-                  // Dispatch event for chat panel
-                  const bhk = propData.bedrooms ? `${propData.bedrooms}BHK` : ''
-                  const pType = propData.property_type || propData.type || 'property'
-                  const price = propData.price ? `₹${propData.price >= 10000000 ? (propData.price / 10000000).toFixed(1) + 'Cr' : (propData.price / 100000).toFixed(0) + 'L'}` : ''
-                  window.dispatchEvent(new CustomEvent('valora-property-clicked', {
-                    detail: {
-                      property: propData,
-                      query: `Tell me about this ${bhk} ${pType} ${price ? 'priced at ' + price : ''} at coordinates ${propLat.toFixed(5)}, ${propLng.toFixed(5)}. Analyze its value, neighbourhood quality, and investment potential.`
-                    }
-                  }))
-                }
-              } catch (err) {
-                console.warn('Property marker click error:', err)
-              }
-              return
-            }
-          }
-
-          // If building picked, select it
-          if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.properties) {
-            const entity = pickedObject.id
-            const props = entity.properties
-
-            const buildingData = {
-              type: 'building_selected',
-              name: props.name?.getValue() || 'Building',
-              height: props.height?.getValue() || 10,
-              levels: props.levels?.getValue() || 1,
-              buildingType: props.type?.getValue() || 'building',
-              address: props.address?.getValue() || null,
-              coordinates: {
-                lat: props.lat?.getValue(),
-                lng: props.lng?.getValue()
-              },
-              area: props.area?.getValue() || 0
-            }
-
-            // Reset previously selected building
-            deselectBuilding()
-
-            // Highlight selected building (persistent)
-            if (entity.polygon) {
-              entity.polygon.material = Cesium.Color.fromCssColorString('#3b82f6').withAlpha(0.9)
-              entity.polygon.outline = true
-              entity.polygon.outlineColor = Cesium.Color.WHITE
-              entity.polygon.outlineWidth = 2
-              selectedBuildingEntityRef.current = entity
-            }
-
-            // Zoom to building with medium distance for better view
-            const lat = buildingData.coordinates.lat
-            const lng = buildingData.coordinates.lng
-            const height = buildingData.height || 10
-            const orbitDistance = DEFAULT_ORBIT_DISTANCE  // Medium distance for better building view
-            const orbitPitch = Cesium.Math.toRadians(DEFAULT_ORBIT_PITCH_DEG)
-            
-            // Target is center of building
-            const target = getTerrainAwareTarget(lng, lat, height / 2)
-            rotationTargetRef.current = target
-            
-            // Fly to orbit position using lookAt
-            viewer.camera.flyToBoundingSphere(
-              new Cesium.BoundingSphere(target, orbitDistance / 2),
-              {
-                duration: 1.5,
-                offset: new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance),
-                complete: () => {
-                  // Ensure exact orbit position after fly
-                  viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance))
-                  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
-                }
-              }
-            )
-
-            if (onAnalysisUpdate) {
-              onAnalysisUpdate(buildingData)
-            }
-
-            if (setAgentData) {
-              updateAgentData(prev => ({
-                ...prev,
-                selectedBuilding: buildingData
-              }))
-            }
-
-            // Load neighbourhood buildings around the clicked building (5km radius)
-            loadBuildingsAtPointRef.current(lat, lng)
-
-            // Auto-trigger comprehensive building analysis
-            analyzeBuildingAsync(buildingData)
-            
-            // Dispatch event for chat panel to auto-respond
-            window.dispatchEvent(new CustomEvent('valora-building-clicked', {
-              detail: {
-                building: buildingData,
-                query: `Analyze this ${buildingData.type || 'building'} at ${buildingData.coordinates?.lat?.toFixed(5)}, ${buildingData.coordinates?.lng?.toFixed(5)}. It's ${buildingData.height || 'unknown'}m tall with ${buildingData.levels || 'unknown'} floors. Provide deep insights on valuation, investment potential, and nearby amenities.`
-              }
-            }))
-
-            return
-          }
-
-          // Clicked empty ground: analyze location (for properties, lands, etc.)
+          // Clicked entity/location: analyze the selected point
           deselectBuilding()
           
           // Get the clicked position on the globe
@@ -3338,43 +3318,106 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             const clickLng = Cesium.Math.toDegrees(cartographic.longitude)
             
             if (Number.isFinite(clickLat) && Number.isFinite(clickLng)) {
+              console.log(`[Map Click] Entity clicked at: ${clickLat.toFixed(5)}, ${clickLng.toFixed(5)}`)
+              
               // Update selected location in agentData
               const locationData = {
                 type: 'location_selected',
                 coordinates: { lat: clickLat, lng: clickLng }
               }
               
-              if (setAgentData) {
-                updateAgentData(prev => ({
-                  ...prev,
-                  selectedLocation: locationData.coordinates,
-                  selectedBuilding: null,
-                  buildingAnalysis: null
-                }))
+              // Remove existing place marker before adding new one
+              if (placeMarkerRef.current) {
+                try {
+                  viewer.entities.remove(placeMarkerRef.current)
+                } catch (e) {
+                  console.warn('[Map Click] Failed to remove existing marker:', e)
+                }
+                placeMarkerRef.current = null
               }
               
-              // Target is ground level at clicked location (terrain-aware)
+              // Track when user clicked to prevent other effects from overwriting
+              placeMarkerClickTimeRef.current = Date.now()
+              
+              // Create marker at the EXACT clicked coordinates
+              const markerPosition = Cesium.Cartesian3.fromDegrees(clickLng, clickLat)
+              placeMarkerRef.current = viewer.entities.add({
+                position: markerPosition,
+                point: {
+                  pixelSize: 14,
+                  color: Cesium.Color.fromCssColorString('#8b5cf6'),
+                  outlineColor: Cesium.Color.WHITE,
+                  outlineWidth: 3,
+                  heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                  disableDepthTestDistance: Number.POSITIVE_INFINITY
+                },
+                label: {
+                  text: '📍 Selected location',
+                  font: 'bold 14px sans-serif',
+                  fillColor: Cesium.Color.WHITE,
+                  outlineColor: Cesium.Color.BLACK,
+                  outlineWidth: 2,
+                  style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                  showBackground: true,
+                  backgroundColor: Cesium.Color.fromCssColorString('#8b5cf6').withAlpha(0.9),
+                  backgroundPadding: new Cesium.Cartesian2(10, 6),
+                  pixelOffset: new Cesium.Cartesian2(0, -28),
+                  verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                  heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                  disableDepthTestDistance: Number.POSITIVE_INFINITY
+                }
+              })
+              
+              console.log('[Map Click] Marker placed at:', clickLng, clickLat)
+              
+              // Stop any active rotation before flying
+              stopRotation()
+              try { viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY) } catch (_) {}
+              
+              // Store last camera view for back button
+              const camera = viewer.camera
+              lastCameraViewRef.current = {
+                destination: Cesium.Cartesian3.clone(camera.position),
+                heading: camera.heading,
+                pitch: camera.pitch,
+                roll: camera.roll
+              }
+              setCanGoBack(true)
+              
+              // Target is the EXACT clicked coordinates (terrain-aware for proper height)
               const target = getTerrainAwareTarget(clickLng, clickLat)
               rotationTargetRef.current = target
-              const orbitDistance = DEFAULT_ORBIT_DISTANCE  // Medium distance for location view
+              const orbitDistance = DEFAULT_ORBIT_DISTANCE
               const orbitPitch = Cesium.Math.toRadians(DEFAULT_ORBIT_PITCH_DEG)
               
-              // Fly to orbit position using lookAt
+              // Fly to the clicked location - camera orbits around the target point
               viewer.camera.flyToBoundingSphere(
                 new Cesium.BoundingSphere(target, orbitDistance / 2),
                 {
                   duration: 1.5,
                   offset: new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance),
                   complete: () => {
-                    // Ensure exact orbit position after fly
+                    // Ensure camera stays focused on the clicked point
                     viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance))
                     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+                    console.log('[Map Click] Camera focused on target')
                   }
                 }
               )
               
+              // Update agentData AFTER marker and camera are set up
+              if (setAgentData) {
+                updateAgentData(prev => ({
+                  ...prev,
+                  selectedLocation: locationData.coordinates,
+                  selectedBuilding: null,
+                  buildingAnalysis: null,
+                  flyTo: null // Clear any pending flyTo to prevent conflicts
+                }))
+              }
+              
               // Load neighbourhood buildings around the clicked point (5km radius)
-              loadBuildingsAtPointRef.current(clickLat, clickLng)
+              loadBuildingsAtPointRef.current(clickLat, clickLng, BUILDING_LOAD_RADIUS_KM)
               
               // Trigger location analysis
               analyzeLocationAsync(clickLat, clickLng)
@@ -3383,6 +3426,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               window.dispatchEvent(new CustomEvent('valora-area-clicked', {
                 detail: {
                   coordinates: { lat: clickLat, lng: clickLng },
+                  skipFlyTo: true, // Prevent backend flyTo from overriding clicked location
                   query: `Analyze the area around coordinates ${clickLat.toFixed(5)}, ${clickLng.toFixed(5)}. Provide insights on property values, neighbourhood quality, nearby amenities, connectivity, investment potential, and growth trajectory.`
                 }
               }))
@@ -3823,9 +3867,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             }
           })
 
-          // Load buildings for this area (click-to-load)
-          const { lat: aLat, lng: aLng } = data.profile.coordinates
-          setTimeout(() => loadBuildingsAtPoint(aLat, aLng), 2500)
+          // DISABLED: Building load on flyToLocality - only query-based loading from chat
+          // const { lat: aLat, lng: aLng } = data.profile.coordinates
+          // setTimeout(() => loadBuildingsAtPoint(aLat, aLng, BUILDING_LOAD_RADIUS_KM), 2500)
         }
       } catch (err) {
         console.warn('Failed to fly to locality:', err)
@@ -4216,7 +4260,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                       orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45), roll: 0 },
                       duration: 2
                     })
-                    setTimeout(() => loadBuildingsAtPoint(lat, lon), 2500)
+                    // DISABLED: Building load on search result click - only query-based loading from chat
+                    // setTimeout(() => loadBuildingsAtPoint(lat, lon, BUILDING_LOAD_RADIUS_KM), 2500)
                   }
                   setShowSearchResults(false)
                   setSearchQuery(result.display_name.split(',')[0])

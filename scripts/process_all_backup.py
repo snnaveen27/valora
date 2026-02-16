@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 def get_db_connection():
-    db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+    db_path = Path(__file__).parent.parent / 'storage' / 'valora.db'
     return sqlite3.connect(str(db_path))
 
 def process_terrain_elevation_index(backup_dir):
@@ -154,8 +154,8 @@ def copy_dem_file(backup_dir, data_dir):
     return True
 
 def main():
-    backup_dir = Path(__file__).parent.parent / 'src' / 'data' / 'data_backup'
-    data_dir = Path(__file__).parent.parent / 'src' / 'data'
+    backup_dir = Path(__file__).parent.parent / 'storage' / 'data_backup'
+    data_dir = Path(__file__).parent.parent / 'storage'
     
     print("=" * 70)
     print("PROCESSING ALL BACKUP DATA")

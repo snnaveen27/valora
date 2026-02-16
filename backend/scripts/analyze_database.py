@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 def analyze_database():
-    db_path = Path(__file__).parent.parent / 'src' / 'data' / 'valora.db'
+    db_path = Path(__file__).parent.parent / 'storage' / 'valora.db'
     
     if not db_path.exists():
         print(f"Database not found at {db_path}")

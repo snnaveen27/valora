@@ -794,6 +794,7 @@ async def chat(request: ChatRequest):
     # 2. Gather grounded facts
     t0 = time.time()
     facts, intent, ui_actions, digital_twin_state, reasoning_trace = _gather_facts(user_query, context, intent)
+    logger.info(f"[Chat] UI actions for query '{user_query[:50]}...': {ui_actions}")
     fact_time = time.time() - t0
 
     # 3. Build dashboard
@@ -1040,17 +1041,44 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                 "progress": f"2/{total_tasks}",
             })
 
+        # Emit thinking_start to show activity during fact gathering
+        yield _sse({"type": "thinking_start", "thinking_time": time.time() - start_time})
+        yield _sse({"type": "thinking", "content": "🔍 Analyzing your query and gathering relevant data...\n", "thinking_time": time.time() - start_time})
+
         t_facts = time.time()
         try:
             facts, intent, ui_actions, digital_twin_state, reasoning_trace = _gather_facts(
                 effective_query, context, intent
             )
+            
+            # Emit thinking progress with what was found
+            if facts:
+                fact_summary = []
+                if hasattr(facts, 'nearby_properties') and facts.nearby_properties:
+                    fact_summary.append(f"Found {len(facts.nearby_properties)} properties")
+                if hasattr(facts, 'top_pois') and facts.top_pois:
+                    fact_summary.append(f"{len(facts.top_pois)} nearby amenities")
+                if hasattr(facts, 'avg_price_per_sqft') and facts.avg_price_per_sqft:
+                    fact_summary.append("market trends")
+                if fact_summary:
+                    yield _sse({"type": "thinking", "content": f"📊 " + ", ".join(fact_summary) + "\n", "thinking_time": time.time() - start_time})
         except Exception as e:
             logger.error(f"[{request_id}] Facts gathering error: {e}")
             yield _sse({"type": "error", "content": f"Facts gathering failed: {e}"})
             yield _sse({"type": "done", "thinking_time": time.time() - start_time})
             return
         metrics["facts_ms"] = int((time.time() - t_facts) * 1000)
+
+        # IMMEDIATELY emit UI actions (flyTo, load_buildings) so map moves BEFORE LLM processing
+        # This ensures user sees the location first, then the response streams in
+        if ui_actions:
+            logger.info(f"[{request_id}] Emitting {len(ui_actions)} UI actions immediately after facts")
+            yield _sse({
+                "type": "ui_actions_early",
+                "ui_actions": ui_actions,
+                "intent": intent.value,
+                "thinking_time": time.time() - start_time
+            })
 
         # Progressively complete fact tasks (indices 1..fact_end_idx-1)
         for i in range(fact_start_idx, fact_end_idx):
@@ -1248,6 +1276,10 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         content_buffer = ""
         thinking_buffer = ""
         in_thinking = False
+        _synthetic_thinking_active = True  # Track our synthetic thinking state
+
+        # Emit thinking event before LLM starts
+        yield _sse({"type": "thinking", "content": f"🧠 Generating response with {model_sel.model}...\n", "thinking_time": time.time() - start_time})
 
         # Build prompt
         llm_start = time.time()
@@ -1285,6 +1317,11 @@ async def chat_stream(request: ChatRequest, http_request: Request):
 
             async for chunk in stream:
                 current_time = time.time() - start_time
+
+                # End synthetic thinking when first content arrives
+                if _synthetic_thinking_active and chunk.strip():
+                    yield _sse({"type": "thinking_end", "thinking_time": current_time})
+                    _synthetic_thinking_active = False
 
                 # Handle <think> tags in streaming
                 if "<think>" in chunk.lower() and not in_thinking:

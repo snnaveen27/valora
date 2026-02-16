@@ -4,8 +4,8 @@
  */
 
 const getApiUrl = () => {
+  // In development (Vite), use relative path to leverage Vite proxy
   if (import.meta.env.DEV) {
-    // Use relative path in development to leverage Vite proxy
     return import.meta.env.VITE_API_URL || '';
   }
   // Check if explicit URL is provided in environment
@@ -30,7 +30,8 @@ const getApiUrl = () => {
                     window.location.hostname === '127.0.0.1';
     
     if (isLocal) {
-      return 'http://localhost:8001';
+      // Backend runs on port 8000 in development
+      return 'http://localhost:8000';
     }
   }
 

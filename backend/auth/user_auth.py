@@ -18,7 +18,8 @@ from pathlib import Path
 JWT_SECRET = os.environ.get("JWT_SECRET", "valora-jwt-secret-change-in-production-2026")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24 * 7  # 7 days
-DATABASE_PATH = Path(__file__).parent / "database" / "users.db"
+from config import config
+DATABASE_PATH = config.DB_PATH.parent / "users.db"
 
 
 class SubscriptionTier(Enum):

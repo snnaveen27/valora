@@ -57,7 +57,7 @@ if __name__ == "__main__":
         print("\n📌 SECURITY NOTE:")
         print("   - Pricing now stored in SQLite database (pricing.db)")
         print("   - All changes logged with audit trail")
-        print("   - Database location: backend/database/pricing.db")
+        print("   - Database location: storage/database/pricing.db")
         print("   - JSON file can be deleted (no longer used)")
     else:
         print("\n❌ Migration failed!")

@@ -10,8 +10,8 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.database.db_service import DatabaseService
-from backend.rag_service import RAGService
+from database.db_service import DatabaseService
+from ai.rag_service import RAGService
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -243,8 +243,8 @@ class IncrementalIndexer:
 def main():
     """Run incremental sync."""
     project_root = Path(__file__).parent.parent
-    db_path = project_root / 'src' / 'data' / 'valora.db'
-    data_dir = project_root / 'src' / 'data'
+    db_path = project_root / 'storage' / 'valora.db'
+    data_dir = project_root / 'storage'
     
     indexer = IncrementalIndexer(db_path, data_dir)
     indexer.run_incremental_sync()
