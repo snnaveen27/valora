@@ -147,6 +147,10 @@ export default function TopTaskBanner({
   const displayStep = taskProgress?.step || currentStep
   const displayDetail = taskProgress?.detail || ''
   const displayPercent = taskProgress?.percent ?? progress
+  
+  // Unified step count for consistency with floating banner
+  const totalTasks = tasks.length
+  const unifiedStepCount = totalTasks > 0 ? `${completedCount}/${totalTasks}` : displayStep
 
   return (
     <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[9999]">
@@ -210,11 +214,11 @@ export default function TopTaskBanner({
             </div>
           </div>
            
-          {/* Stats */}
+           {/* Stats */}
           <div className="flex items-center gap-2 text-xs text-slate-500">
             {!isThinking && tasks.length > 0 && (
               <span className="font-mono bg-slate-800 px-2 py-0.5 rounded">
-                {completedCount}/{tasks.length}
+                {unifiedStepCount}
               </span>
             )}
             {/* Close button instead of chevron */}
@@ -242,12 +246,15 @@ export default function TopTaskBanner({
                   <Loader2 className="w-4 h-4 text-violet-400" />
                   <div className="flex-1 min-w-0">
                     <span className="text-sm text-slate-200 block">{runningTask.label}</span>
-                    <div className="w-full h-1.5 bg-slate-700 rounded-full mt-2 overflow-hidden">
-                      <div 
-                        className="h-full bg-violet-500 rounded-full transition-all duration-300"
-                        style={{ width: `${runningTask.progress_percent || 50}%` }}
-                      />
-                    </div>
+                     <div className="w-full h-1.5 bg-slate-700 rounded-full mt-2 overflow-hidden relative">
+                       <div 
+                         className="h-full bg-gradient-to-r from-violet-500 via-purple-400 to-violet-500 rounded-full transition-all duration-300 relative overflow-hidden"
+                         style={{ width: `${runningTask.progress_percent || 50}%` }}
+                       >
+                         {/* Shimmer effect */}
+                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                       </div>
+                     </div>
                   </div>
                   <span className="text-xs text-violet-400 font-mono">{runningTask.progress_percent || 50}%</span>
                 </div>

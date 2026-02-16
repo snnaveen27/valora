@@ -724,25 +724,46 @@ export default function MainApp() {
                   )}
                 </div>
 
-                {/* Progress bar */}
-                <div className="w-full h-1.5 bg-slate-700/50 rounded-full mt-1.5 overflow-hidden">
+                {/* Progress bar with shimmer effect */}
+                <div className="w-full h-1.5 bg-slate-700/50 rounded-full mt-1.5 overflow-hidden relative">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
+                    className={`h-full rounded-full transition-all duration-500 relative overflow-hidden ${
                       isTaskCancelled ? 'bg-red-500' :
-                      lastTaskProgress.percent === 100 ? 'bg-emerald-500' : 'bg-violet-500'
+                      lastTaskProgress.percent === 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-violet-500 via-purple-400 to-violet-500'
                     }`}
                     style={{ width: `${lastTaskProgress.percent}%` }}
-                  />
+                  >
+                    {/* Shimmer effect */}
+                    {lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Right side - step count and toggle */}
               <div className="flex items-center gap-2 flex-shrink-0 z-10">
-                {taskHistory.length > 0 && (
-                  <span className="text-[10px] text-slate-500 font-mono bg-slate-900/50 px-1.5 py-0.5 rounded whitespace-nowrap">
-                    {taskHistory.filter(t => t.percent === 100).length}/{taskHistory.length}
-                  </span>
-                )}
+                {/* Unified step count - extract from progress step or calculate */}
+                {(() => {
+                  // Try to extract step count from lastTaskProgress.step (format: "X/Y")
+                  const stepMatch = lastTaskProgress.step?.match(/(\d+)\/(\d+)/);
+                  if (stepMatch) {
+                    return (
+                      <span className="text-[10px] text-slate-500 font-mono bg-slate-900/50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                        {stepMatch[1]}/{stepMatch[2]}
+                      </span>
+                    );
+                  }
+                  // Fallback to task history count
+                  if (taskHistory.length > 0) {
+                    return (
+                      <span className="text-[10px] text-slate-500 font-mono bg-slate-900/50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                        {taskHistory.filter(t => t.percent === 100).length}/{taskHistory.length}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
                 <ChevronRight
                   className={`w-4 h-4 text-violet-400 transition-transform duration-200 ${showFloatingBanner ? 'rotate-90' : ''}`}
                 />

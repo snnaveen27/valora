@@ -1,9 +1,9 @@
 // Valora Tile Cache Service Worker
 // Automatically caches Cesium Ion photorealistic tiles AND local building tiles
 
-const ION_CACHE_NAME = 'valora-ion-tiles-v1'
-const BUILDING_CACHE_NAME = 'valora-building-tiles-v1'
-const METADATA_CACHE = 'valora-cache-metadata-v1'
+const ION_CACHE_NAME = 'valora-ion-tiles-v2'
+const BUILDING_CACHE_NAME = 'valora-building-tiles-v2'
+const METADATA_CACHE = 'valora-cache-metadata-v2'
 
 // Patterns for Ion tile requests
 const ION_TILE_PATTERNS = [
