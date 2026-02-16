@@ -69,13 +69,35 @@ def generate_tile(tile_id: str, lng_start: int, lat_start: int) -> dict:
             # Default height if not specified
             height = max(b.get('height') or 10, 3)
             
+            # Check for polygon coordinates
+            polygon_coords = b.get('polygon_coords')
+            if polygon_coords:
+                try:
+                    import json
+                    coords = json.loads(polygon_coords)
+                    # Ensure closed polygon
+                    if coords and coords[0] != coords[-1]:
+                        coords.append(coords[0])
+                    geometry = {
+                        "type": "Polygon",
+                        "coordinates": [coords]
+                    }
+                except:
+                    # Fallback to point if polygon is invalid
+                    geometry = {
+                        "type": "Point", 
+                        "coordinates": [b['lng'], b['lat']]
+                    }
+            else:
+                geometry = {
+                    "type": "Point",
+                    "coordinates": [b['lng'], b['lat']]
+                }
+            
             # Create feature
             feature = {
                 "type": "Feature",
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [b['lng'], b['lat']]
-                },
+                "geometry": geometry,
                 "properties": {
                     "osm_id": b.get('osm_id'),
                     "name": b.get('name'),

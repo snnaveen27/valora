@@ -701,11 +701,22 @@ async def get_tiles_for_viewport(min_lng: float, min_lat: float, max_lng: float,
     matching_tiles = []
     is_database_source = tileset_index.get('source') == 'database'
     
+    # Check if pre-generated static tiles exist
+    static_tiles_dir = Path(__file__).parent.parent / 'storage' / 'tiles' / 'bangalore'
+    use_static_tiles = static_tiles_dir.exists() and (static_tiles_dir / 'manifest.json').exists()
+    
     for tile_id, tile_info in tileset_index['tiles'].items():
         if (tile_info['min_lng'] <= max_lng and tile_info['max_lng'] >= min_lng and
             tile_info['min_lat'] <= max_lat and tile_info['max_lat'] >= min_lat):
             
-            if is_database_source:
+            if use_static_tiles:
+                # Use pre-generated static tiles (fastest)
+                matching_tiles.append({
+                    'id': tile_id,
+                    'count': tile_info.get('count', 0),
+                    'url': f'/api/tiles/static/{tile_id}'
+                })
+            elif is_database_source:
                 # Database tiles: use API endpoint
                 matching_tiles.append({
                     'id': tile_id,
@@ -737,6 +748,22 @@ async def get_file_tile(tile_id: str):
             return Response(content=tile_data, media_type="application/json")
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Tile {tile_id} not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/tiles/static/{tile_id}")
+async def get_static_tile(tile_id: str, region: str = "bangalore"):
+    """Get tile data from pre-generated static files (fastest option)"""
+    try:
+        tile_path = Path(__file__).parent.parent / 'storage' / 'tiles' / region / f'{tile_id}.json'
+        
+        if not tile_path.exists():
+            raise HTTPException(status_code=404, detail=f"Tile {tile_id} not found")
+        
+        with open(tile_path, 'r') as f:
+            return json.load(f)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
