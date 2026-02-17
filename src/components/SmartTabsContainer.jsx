@@ -788,57 +788,6 @@ export default function SmartTabsContainer({
           </div>
         </div>
       )}
-
-      {/* Report Actions */}
-      <div className="mt-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportPDF}
-            disabled={exporting}
-            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-500/30 text-blue-400 text-xs rounded-lg transition disabled:opacity-50"
-          >
-            {exporting ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <FileText className="w-3 h-3" />
-            )}
-            {exporting ? 'Generating...' : 'Export PDF Report'}
-          </button>
-          <button
-            onClick={handleShare}
-            disabled={exporting}
-            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition disabled:opacity-50"
-          >
-            <Share2 className="w-3 h-3" />
-            Share Link
-          </button>
-        </div>
-        
-        {/* Quick Export Options */}
-        <div className="grid grid-cols-3 gap-1">
-          <button
-            onClick={() => handleQuickExport('verdict')}
-            className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 text-[10px] rounded transition"
-          >
-            <Download className="w-2.5 h-2.5" />
-            Verdict
-          </button>
-          <button
-            onClick={() => handleQuickExport('market')}
-            className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 text-[10px] rounded transition"
-          >
-            <Download className="w-2.5 h-2.5" />
-            Market
-          </button>
-          <button
-            onClick={() => handleQuickExport('risk')}
-            className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 text-[10px] rounded transition"
-          >
-            <Download className="w-2.5 h-2.5" />
-            Risk
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
