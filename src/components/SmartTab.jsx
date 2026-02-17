@@ -11,8 +11,9 @@ import {
   BarChart3, ArrowUpRight, ArrowDownRight, HelpCircle, Info,
   MapPin, Building, Droplets, Scale, Compass, Database,
   Presentation, Share2, Download, MessageCircle, Mail,
-  Star, Eye, EyeOff, Sparkles
+  Star, Eye, EyeOff, Sparkles, Loader2
 } from 'lucide-react';
+import { API_URL } from '../apiConfig';
 
 const TAB_ICONS = {
   'gavel': '⚖️',
@@ -1399,106 +1400,303 @@ function TransparencyContent({ content, isLimited }) {
 // FREE ANALYSIS TAB - ALWAYS ACCESSIBLE
 // ============================================
 
-function FreeAnalysisContent({ content }) {
-  const scoreToColor = (score) => {
-    if (score >= 8) return 'text-green-400';
-    if (score >= 6) return 'text-yellow-400';
-    return 'text-red-400';
+function FreeAnalysisContent({ content, setAgentData, userTier }) {
+  const [freeProperties, setFreeProperties] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [analyzingProperty, setAnalyzingProperty] = useState(null);
+  const [analysesRemaining, setAnalysesRemaining] = useState(3);
+  const [error, setError] = useState(null);
+
+  // Fetch free properties on mount
+  useEffect(() => {
+    fetchFreeProperties();
+  }, []);
+
+  const fetchFreeProperties = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/api/free-properties?user_id=${localStorage.getItem('valora_user_id') || 'anonymous'}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setFreeProperties(data.properties);
+        setAnalysesRemaining(data.analyses_remaining);
+      } else {
+        setError('Failed to load free properties');
+      }
+    } catch (err) {
+      console.error('Failed to fetch free properties:', err);
+      setError('Failed to load free properties');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const scoreToBg = (score) => {
-    if (score >= 8) return 'bg-green-500';
-    if (score >= 6) return 'bg-yellow-500';
-    return 'bg-red-500';
+  const handleAnalyzeFree = async (property) => {
+    if (analysesRemaining <= 0) return;
+    setAnalyzingProperty(property.id);
+
+    try {
+      // First, track the free analysis usage
+      const trackResponse = await fetch(`${API_URL}/api/analyze-free`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: property.id,
+          user_id: localStorage.getItem('valora_user_id') || 'anonymous',
+          track_only: true  // Just track, don't analyze
+        })
+      });
+
+      const trackData = await trackResponse.json();
+      if (!trackData.success) {
+        alert(trackData.detail || 'Daily limit reached');
+        setAnalyzingProperty(null);
+        return;
+      }
+
+      // Update remaining count
+      setAnalysesRemaining(trackData.analyses_remaining);
+
+      // Fly to the property first
+      if (setAgentData && property.latitude && property.longitude) {
+        setAgentData(prev => ({
+          ...prev,
+          flyTo: { lat: property.latitude, lng: property.longitude, zoom: 17 },
+          mapCenter: { lat: property.latitude, lng: property.longitude }
+        }));
+      }
+
+      // Build the query
+      const query = `Analyze this property: ${property.title} in ${property.locality || 'Bangalore'}. Price: ₹${property.price?.toLocaleString() || 'N/A'}, Area: ${property.area_sqft?.toLocaleString() || 'N/A'} sqft. Provide investment verdict, market analysis, and recommendations.`;
+
+      // Dispatch event for ChatPanel to handle the streaming analysis
+      // This follows the same pattern as building clicks
+      window.dispatchEvent(new CustomEvent('valora-free-analysis-trigger', {
+        detail: {
+          property,
+          query,
+          context: {
+            lat: property.latitude,
+            lng: property.longitude,
+            locality: property.locality,
+            is_free_analysis: true
+          }
+        }
+      }));
+
+      // Dispatch event to switch to Decision Verdict tab
+      window.dispatchEvent(new CustomEvent('valora-free-analysis-complete', {
+        detail: { property }
+      }));
+    } catch (err) {
+      console.error('Free analysis failed:', err);
+      alert('Analysis failed. Please try again.');
+    } finally {
+      setAnalyzingProperty(null);
+    }
   };
+
+  const handleViewOnMap = (property) => {
+    if (setAgentData && property.latitude && property.longitude) {
+      setAgentData(prev => ({
+        ...prev,
+        flyTo: { lat: property.latitude, lng: property.longitude, zoom: 17 }
+      }));
+    }
+  };
+
+  const formatPrice = (price) => {
+    if (!price) return 'N/A';
+    if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)}Cr`;
+    if (price >= 100000) return `₹${(price / 100000).toFixed(0)}L`;
+    return `₹${price.toLocaleString()}`;
+  };
+
+  const categoryIcons = {
+    'apartment': Building,
+    'flat': Building,
+    'villa': Building,
+    'warehouse': Building,
+    'shop': Building,
+    'plot': MapPin,
+    'office': Building
+  };
+
+  const categoryColors = {
+    'apartment': 'from-blue-500 to-cyan-500',
+    'flat': 'from-green-500 to-emerald-500',
+    'villa': 'from-purple-500 to-pink-500',
+    'warehouse': 'from-orange-500 to-amber-500',
+    'shop': 'from-rose-500 to-red-500',
+    'plot': 'from-teal-500 to-green-500',
+    'office': 'from-indigo-500 to-blue-500'
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="free-analysis-content p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Eye className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-lg font-bold text-white">Free Property Analysis</h3>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+          <span className="ml-2 text-slate-400">Loading free properties...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="free-analysis-content p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Eye className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-lg font-bold text-white">Free Property Analysis</h3>
+        </div>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-center">
+          <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+          <p className="text-red-400">{error}</p>
+          <button 
+            onClick={fetchFreeProperties}
+            className="mt-3 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="free-analysis-content p-3">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <Eye className="w-5 h-5 text-emerald-400" />
-        <h3 className="text-lg font-bold text-white">{content.area_name}</h3>
-        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium">
-          FREE
-        </span>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Eye className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-lg font-bold text-white">Free Analysis</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-1 rounded-full ${
+            analysesRemaining > 0 
+              ? 'bg-emerald-500/20 text-emerald-400' 
+              : 'bg-red-500/20 text-red-400'
+          }`}>
+            {analysesRemaining}/3 free today
+          </span>
+        </div>
       </div>
 
-      {/* Overview */}
-      <p className="text-sm text-slate-300 mb-4">{content.overview}</p>
-
-      {/* Score Cards */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {[
-          { label: 'Connectivity', score: content.connectivity_score, icon: MapPin },
-          { label: 'Safety', score: content.safety_score, icon: Shield },
-          { label: 'Livability', score: content.livability_score, icon: Star }
-        ].map((item, i) => (
-          <div key={i} className="bg-slate-800/50 rounded-lg p-2 text-center">
-            <item.icon className={`w-4 h-4 mx-auto mb-1 ${scoreToColor(item.score)}`} />
-            <div className="text-lg font-bold text-white">{item.score}/10</div>
-            <div className="text-[10px] text-slate-400">{item.label}</div>
-            <div className="mt-1 h-1 bg-slate-700 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${scoreToBg(item.score)}`} 
-                style={{ width: `${item.score * 10}%` }} 
-              />
+      {/* Properties Grid */}
+      <div className="grid grid-cols-1 gap-3">
+        {Object.entries(freeProperties).map(([category, property]) => {
+          if (!property) return null;
+          const Icon = categoryIcons[category] || Building;
+          const gradient = categoryColors[category] || 'from-slate-500 to-slate-600';
+          
+          return (
+            <div 
+              key={category}
+              className="bg-slate-800/50 rounded-lg overflow-hidden border border-slate-700/50 hover:border-slate-600 transition"
+            >
+              {/* Category Header */}
+              <div className={`bg-gradient-to-r ${gradient} px-3 py-1.5 flex items-center justify-between`}>
+                <div className="flex items-center gap-2">
+                  <Icon className="w-4 h-4 text-white" />
+                  <span className="text-white font-medium text-sm capitalize">{category}</span>
+                </div>
+                <span className="text-white/80 text-xs px-2 py-0.5 bg-white/20 rounded">
+                  {property.listing_type === 'rent' ? 'For Rent' : 'For Sale'}
+                </span>
+              </div>
+              
+              {/* Property Details */}
+              <div className="p-3">
+                <h4 className="text-white font-medium text-sm mb-1 truncate">
+                  {property.title || `${category.charAt(0).toUpperCase() + category.slice(1)} in ${property.locality || 'Bangalore'}`}
+                </h4>
+                
+                <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                  <MapPin className="w-3 h-3" />
+                  <span>{property.locality || 'Bangalore'}</span>
+                </div>
+                
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="text-lg font-bold text-white">{formatPrice(property.price)}</span>
+                    {property.listing_type === 'rent' && <span className="text-xs text-slate-400">/mo</span>}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm text-slate-300">{property.area_sqft?.toLocaleString() || 'N/A'}</span>
+                    <span className="text-xs text-slate-400 block">sqft</span>
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleViewOnMap(property)}
+                    className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-xs rounded transition"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    View Map
+                  </button>
+                  <button
+                    onClick={() => handleAnalyzeFree(property)}
+                    disabled={analysesRemaining <= 0 || analyzingProperty === property.id}
+                    className={`flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs rounded transition ${
+                      analysesRemaining <= 0 
+                        ? 'bg-slate-700/30 text-slate-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white'
+                    }`}
+                  >
+                    {analyzingProperty === property.id ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3" />
+                        Analyze Free
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
+          );
+        })}
+      </div>
+
+      {/* Empty State */}
+      {Object.keys(freeProperties).length === 0 && (
+        <div className="text-center py-8">
+          <Building className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+          <p className="text-slate-400">No free properties available today</p>
+          <p className="text-xs text-slate-500 mt-1">Check back tomorrow for new properties</p>
+        </div>
+      )}
+
+      {/* Upgrade Prompt - Only for free users */}
+      {userTier === 'free' && (
+        <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-3 mt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-medium text-white">Want unlimited analyses?</span>
           </div>
-        ))}
-      </div>
-
-      {/* Price Range */}
-      <div className="bg-slate-800/30 rounded-lg p-3 mb-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-400">Price Range</span>
-          <span className="text-sm font-bold text-white">{content.price_range}</span>
+          <p className="text-xs text-slate-400 mb-2">
+            Upgrade to Pro for unlimited property analyses, full market insights, and personalized recommendations.
+          </p>
+          <button className="w-full py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-xs font-medium rounded-lg transition">
+            Upgrade to Pro
+          </button>
         </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-xs text-slate-400">Price Trend</span>
-          <span className={`text-xs font-medium ${
-            content.price_trend === 'Rising' ? 'text-green-400' : 
-            content.price_trend === 'Falling' ? 'text-red-400' : 'text-slate-300'
-          }`}>
-            {content.price_trend}
-          </span>
-        </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-xs text-slate-400">Demand Level</span>
-          <span className={`text-xs font-medium ${
-            content.demand_level === 'High' ? 'text-green-400' : 
-            content.demand_level === 'Low' ? 'text-red-400' : 'text-yellow-400'
-          }`}>
-            {content.demand_level}
-          </span>
-        </div>
-      </div>
-
-      {/* Key Landmarks */}
-      <div className="mb-3">
-        <h4 className="text-xs font-medium text-slate-400 mb-2">Key Landmarks</h4>
-        <div className="space-y-1">
-          {content.key_landmarks?.map((landmark, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-slate-300">
-              <MapPin className="w-3 h-3 text-blue-400" />
-              <span>{landmark}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Upgrade Prompt */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-3 mt-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="w-4 h-4 text-blue-400" />
-          <span className="text-sm font-medium text-white">Want deeper insights?</span>
-        </div>
-        <p className="text-xs text-slate-400 mb-2">
-          Upgrade to Pro for full market analysis, risk assessment, ROI projections, and personalized recommendations.
-        </p>
-        <button className="w-full py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-xs font-medium rounded-lg transition">
-          Unlock Pro Analysis
-        </button>
-      </div>
+      )}
     </div>
   );
 }
@@ -1597,7 +1795,7 @@ function PitchContent({ content, isLimited, onUpgrade }) {
 // MAIN SMARTTAB COMPONENT
 // ============================================
 
-export default function SmartTab({ tab, onUpgrade, userTier }) {
+export default function SmartTab({ tab, onUpgrade, userTier, setAgentData }) {
   const { type, content, title, icon, description } = tab;
   const isLimited = type === 'limited';
   const isLocked = type === 'locked';
@@ -1665,7 +1863,7 @@ export default function SmartTab({ tab, onUpgrade, userTier }) {
   // Render appropriate content based on tab id
   switch (tab.id) {
     case 'free_analysis':
-      return <FreeAnalysisContent content={content} />;
+      return <FreeAnalysisContent content={content} setAgentData={setAgentData} userTier={userTier} />;
     case 'decision_verdict':
       return <VerdictContent content={content} isLimited={isLimited} onUpgrade={onUpgrade} />;
     case 'market_snapshot':

@@ -117,7 +117,8 @@ export default function SmartPanel({
   onClose,
   onFontSizeChange,
   activeTab: externalActiveTab,
-  onTabChange
+  onTabChange,
+  setAgentData
 }) {
   const [internalActiveTab, setInternalActiveTab] = useState('free_analysis');
   
@@ -202,6 +203,7 @@ export default function SmartPanel({
             selectedBuilding={agentData?.selectedBuilding}
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            setAgentData={setAgentData}
             onUpgrade={() => {
               window.dispatchEvent(new CustomEvent('valora-upgrade-request'));
             }}

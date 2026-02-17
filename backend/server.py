@@ -2154,6 +2154,264 @@ async def get_property_categories():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Categories error: {str(e)}")
 
+# ============== FREE PROPERTIES ENDPOINTS ==============
+
+# Cache for free properties (refresh daily)
+_cache_free_properties = TTLCache(maxsize=100, ttl_seconds=86400)  # 24 hour TTL
+
+# In-memory tracking for free analyses (in production, use database)
+_free_analysis_tracker = {}  # {user_id: {date: str, count: int, property_ids: list}}
+
+@app.get("/api/free-properties")
+async def get_free_properties(user_id: str = None):
+    """
+    Get randomized free properties for user.
+    Returns one property per category (apartment, flat, villa, warehouse, shop, plot, office).
+    Daily refresh based on date seed.
+    """
+    from datetime import date
+    import random
+    
+    if not property_service:
+        raise HTTPException(status_code=503, detail="Property service not available")
+    
+    today = date.today().isoformat()
+    cache_key = f"free_props_{today}"
+    
+    # Check cache first
+    cached = _cache_free_properties.get(cache_key)
+    if cached:
+        # Get user's remaining analyses
+        user_tracker = _free_analysis_tracker.get(user_id, {})
+        analyses_remaining = 3 - user_tracker.get('count', 0) if user_tracker.get('date') == today else 3
+        
+        return {
+            "success": True,
+            "properties": cached["properties"],
+            "analyses_remaining": analyses_remaining,
+            "daily_limit": 3,
+            "refresh_in_hours": 24
+        }
+    
+    # Define categories with their filters
+    categories = {
+        'apartment': {'property_type': 'apartment', 'listing_type': 'sale'},
+        'flat': {'property_type': 'flat', 'listing_type': 'rent'},
+        'villa': {'property_type': 'villa', 'listing_type': 'sale'},
+        'warehouse': {'property_type': 'warehouse', 'listing_type': 'sale'},
+        'shop': {'property_type': 'shop', 'listing_type': 'sale'},
+        'plot': {'property_category': 'plot', 'listing_type': 'sale'},
+        'office': {'property_type': 'office', 'listing_type': 'sale'},
+    }
+    
+    # Seed random with today's date for consistent daily results
+    random.seed(today)
+    
+    selected_properties = {}
+    
+    for category, filters in categories.items():
+        try:
+            # Search for properties in this category
+            results = property_service.search(
+                **filters,
+                limit=20  # Get more to randomize
+            )
+            
+            if results:
+                # Random selection from results
+                prop = random.choice(results)
+                selected_properties[category] = {
+                    "id": prop.get("property_id") or prop.get("id"),
+                    "title": prop.get("title", f"{category.title()} in {prop.get('locality', 'Bangalore')}"),
+                    "locality": prop.get("locality"),
+                    "price": prop.get("price"),
+                    "area_sqft": prop.get("area_sqft"),
+                    "property_type": prop.get("property_type"),
+                    "property_category": prop.get("property_category"),
+                    "listing_type": prop.get("listing_type"),
+                    "bedrooms": prop.get("bedrooms"),
+                    "image_url": prop.get("image_url") or prop.get("images", [None])[0] if prop.get("images") else None,
+                    "latitude": prop.get("latitude"),
+                    "longitude": prop.get("longitude"),
+                }
+        except Exception as e:
+            logger.warning(f"Failed to get property for category {category}: {e}")
+            continue
+    
+    # Cache the results
+    cached_data = {"properties": selected_properties, "date": today}
+    _cache_free_properties.set(cache_key, cached_data)
+    
+    # Get user's remaining analyses
+    user_tracker = _free_analysis_tracker.get(user_id, {})
+    analyses_remaining = 3 - user_tracker.get('count', 0) if user_tracker.get('date') == today else 3
+    
+    return {
+        "success": True,
+        "properties": selected_properties,
+        "analyses_remaining": analyses_remaining,
+        "daily_limit": 3,
+        "refresh_in_hours": 24
+    }
+
+
+class FreeAnalysisRequest(BaseModel):
+    property_id: str
+    user_id: str = None
+    track_only: bool = False  # Just track usage, don't run analysis
+
+
+@app.post("/api/analyze-free")
+async def analyze_free_property(request: FreeAnalysisRequest):
+    """
+    Analyze a free property without deducting credits.
+    Uses local model only (qwen3:4b-instruct).
+    Limit: 3 per day per user.
+    If track_only=True, just tracks usage without running analysis.
+    """
+    from datetime import date
+    
+    if not property_service:
+        raise HTTPException(status_code=503, detail="Property service not available")
+    
+    user_id = request.user_id or "anonymous"
+    today = date.today().isoformat()
+    
+    # Check daily limit
+    user_tracker = _free_analysis_tracker.get(user_id, {"date": today, "count": 0, "property_ids": []})
+    
+    if user_tracker.get('date') != today:
+        # Reset for new day
+        user_tracker = {"date": today, "count": 0, "property_ids": []}
+    
+    if user_tracker['count'] >= 3:
+        raise HTTPException(
+            status_code=429, 
+            detail="Daily free analysis limit reached (3/day). Try again tomorrow!"
+        )
+    
+    # Get property details
+    try:
+        # Use property_service which wraps query_service
+        prop = property_service.get_by_id(request.property_id)
+        if not prop:
+            raise HTTPException(status_code=404, detail="Property not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get property: {str(e)}")
+    
+    # If track_only, just track usage and return property info
+    if request.track_only:
+        user_tracker['count'] += 1
+        user_tracker['property_ids'].append(request.property_id)
+        _free_analysis_tracker[user_id] = user_tracker
+        
+        return {
+            "success": True,
+            "property_id": request.property_id,
+            "property": {
+                "title": prop.get('title'),
+                "locality": prop.get('locality'),
+                "price": prop.get('price'),
+                "latitude": prop.get('latitude'),
+                "longitude": prop.get('longitude'),
+            },
+            "analyses_remaining": 3 - user_tracker['count'],
+            "tracked": True
+        }
+    
+    # Generate basic analysis using local model
+    try:
+        from ai.ollama_client import get_ollama_client
+        ollama = get_ollama_client()
+        
+        # Create analysis prompt
+        prompt = f"""Analyze this property for a real estate investor. Provide a brief analysis:
+
+Property: {prop.get('title', 'Property')}
+Location: {prop.get('locality', 'Bangalore')}
+Price: ₹{prop.get('price', 0):,}
+Area: {prop.get('area_sqft', 0)} sqft
+Type: {prop.get('property_type', 'Residential')}
+Listing: {prop.get('listing_type', 'Sale')}
+
+Provide:
+1. Investment Verdict: BUY / HOLD / AVOID (one word)
+2. Confidence Score: 1-10 (just the number)
+3. Price Fairness: Underpriced / Fair / Overpriced (one word)
+4. Connectivity Score: 1-10
+5. Safety Score: 1-10
+6. Investment Potential: Low / Moderate / High
+7. One key insight (1 sentence)
+
+Format as JSON:
+{{"verdict": "...", "confidence": N, "price_fairness": "...", "connectivity_score": N, "safety_score": N, "investment_potential": "...", "key_insight": "..."}}"""
+        
+        # Use local model
+        response = ollama.chat(
+            model="qwen3:4b-instruct",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200
+        )
+        
+        # Parse response
+        import re
+        content = response.get('message', {}).get('content', '{}')
+        
+        # Extract JSON from response
+        json_match = re.search(r'\{[^}]+\}', content, re.DOTALL)
+        if json_match:
+            analysis = json.loads(json_match.group())
+        else:
+            # Fallback analysis
+            analysis = {
+                "verdict": "HOLD",
+                "confidence": 7,
+                "price_fairness": "Fair",
+                "connectivity_score": 7,
+                "safety_score": 7,
+                "investment_potential": "Moderate",
+                "key_insight": "Property located in developing area with good potential."
+            }
+        
+    except Exception as e:
+        logger.warning(f"LLM analysis failed, using fallback: {e}")
+        # Fallback analysis without LLM
+        analysis = {
+            "verdict": "HOLD",
+            "confidence": 7,
+            "price_fairness": "Fair",
+            "connectivity_score": 7,
+            "safety_score": 7,
+            "investment_potential": "Moderate",
+            "key_insight": f"Property in {prop.get('locality', 'this area')} - analyze market trends before deciding."
+        }
+    
+    # Update tracker
+    user_tracker['count'] += 1
+    user_tracker['property_ids'].append(request.property_id)
+    _free_analysis_tracker[user_id] = user_tracker
+    
+    return {
+        "success": True,
+        "property_id": request.property_id,
+        "property": {
+            "title": prop.get('title'),
+            "locality": prop.get('locality'),
+            "price": prop.get('price'),
+            "latitude": prop.get('latitude'),
+            "longitude": prop.get('longitude'),
+        },
+        "analysis": analysis,
+        "flyTo": {
+            "lat": prop.get('latitude'),
+            "lng": prop.get('longitude'),
+            "zoom": 18
+        },
+        "analyses_remaining": 3 - user_tracker['count']
+    }
+
 # ============== PHASE 1: SPATIAL REASONING ENDPOINTS ==============
 
 @app.get("/api/spatial/nearby")

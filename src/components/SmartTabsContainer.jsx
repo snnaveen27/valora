@@ -157,7 +157,8 @@ export default function SmartTabsContainer({
   buildingAnalysis,
   selectedBuilding,
   activeTab: externalActiveTab,
-  onTabChange
+  onTabChange,
+  setAgentData
 }) {
   const [internalActiveTab, setInternalActiveTab] = useState('decision_verdict');
   const [tabs, setTabs] = useState([]);
@@ -762,6 +763,7 @@ export default function SmartTabsContainer({
             tab={activeTabData}
             userTier={userTier}
             onUpgrade={onUpgrade}
+            setAgentData={setAgentData}
           />
         )}
       </div>

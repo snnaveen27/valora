@@ -573,6 +573,15 @@ export default function MainApp() {
       setSmartPanelActiveTab('decision_verdict')
     }
   }, [agentData?.buildingAnalysis, agentData?.viewportAnalysis, agentData?.explainability])
+  
+  // Listen for free analysis completion to switch to verdict tab
+  useEffect(() => {
+    const handleFreeAnalysisComplete = (e) => {
+      setSmartPanelActiveTab('decision_verdict')
+    }
+    window.addEventListener('valora-free-analysis-complete', handleFreeAnalysisComplete)
+    return () => window.removeEventListener('valora-free-analysis-complete', handleFreeAnalysisComplete)
+  }, [])
     
   useEffect(() => {
     const handleUICommand = (e) => {
@@ -581,9 +590,13 @@ export default function MainApp() {
       const targetTab = value || tab
 
       if (action === 'switchTab' && targetTab) {
-        // Map old tab names to new 'insights' tab
-        if (targetTab === 'analysis' || targetTab === 'market' || targetTab === 'city') {
-          setActiveTab('insights')
+        // Map old tab names to new smart panel tabs
+        if (targetTab === 'analysis' || targetTab === 'market' || targetTab === 'city' || targetTab === 'insights') {
+          setActiveTab('smart')
+          setSmartPanelActiveTab('decision_verdict')
+        } else if (targetTab === 'verdict' || targetTab === 'decision_verdict') {
+          setActiveTab('smart')
+          setSmartPanelActiveTab('decision_verdict')
         } else {
           setActiveTab(targetTab)
         }
@@ -592,17 +605,18 @@ export default function MainApp() {
       // Handle live analysis updates from AI
       if (action === 'updateAnalysis') {
         setLiveAnalysis(e.detail.analysis)
-        setActiveTab('insights') // Auto-switch to insights
+        setActiveTab('smart') // Auto-switch to smart panel
+        setSmartPanelActiveTab('decision_verdict')
         setIsAnalysisOpen(true) // Ensure panel is open
       }
 
       if (action === 'openPanel') {
-        if ((value || panel) === 'analysis' || (value || panel) === 'insights') setIsAnalysisOpen(true)
+        if ((value || panel) === 'analysis' || (value || panel) === 'insights' || (value || panel) === 'smart') setIsAnalysisOpen(true)
         if ((value || panel) === 'chat') setIsChatOpen(true)
       }
 
       if (action === 'closePanel') {
-        if ((value || panel) === 'analysis' || (value || panel) === 'insights') setIsAnalysisOpen(false)
+        if ((value || panel) === 'analysis' || (value || panel) === 'insights' || (value || panel) === 'smart') setIsAnalysisOpen(false)
         if ((value || panel) === 'chat') setIsChatOpen(false)
       }
 
@@ -610,7 +624,8 @@ export default function MainApp() {
       if (action === 'expandAnalysis' || action === 'fullscreenAnalysis') {
         setIsAnalysisFullscreen(true)
         setIsAnalysisOpen(true)
-        setActiveTab(targetTab || 'insights')
+        setActiveTab('smart')
+        setSmartPanelActiveTab(targetTab || 'decision_verdict')
       }
 
       if (action === 'collapseAnalysis' || action === 'exitFullscreen') {
@@ -619,7 +634,8 @@ export default function MainApp() {
 
       // Toggle comparison mode
       if (action === 'showComparison') {
-        setActiveTab('insights')
+        setActiveTab('smart')
+        setSmartPanelActiveTab('decision_verdict')
         setIsAnalysisOpen(true)
         setIsAnalysisFullscreen(true) // Expand for better comparison view
       }
@@ -1129,8 +1145,9 @@ export default function MainApp() {
               </div>
               <div className="flex-1 overflow-hidden">
                 <Suspense fallback={<ComponentLoader />}>
-                  <SmartPanel 
-                    agentData={agentData} 
+                  <SmartPanel
+                    agentData={agentData}
+                    setAgentData={setAgentData}
                     viewportAnalysis={agentData?.viewportAnalysis}
                     userTier={userTier}
                     fontSize={analysisFontSize}

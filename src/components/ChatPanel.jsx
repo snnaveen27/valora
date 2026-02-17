@@ -465,7 +465,7 @@ Just ask naturally — I understand casual conversation too!
     scrollToBottom()
   }, [messages])
 
-  // Listen for "Ask about this" events from AnalysisPanel
+  // Listen for "Ask about this" events from SmartPanel
   useEffect(() => {
     const handleAskQuestion = async (e) => {
       const query = e.detail?.query
@@ -599,6 +599,112 @@ Just ask naturally — I understand casual conversation too!
     
     window.addEventListener('valora-building-clicked', handleBuildingClick)
     return () => window.removeEventListener('valora-building-clicked', handleBuildingClick)
+  }, [isLoading, messages.length])
+
+  // Listen for free analysis triggers from SmartTab
+  useEffect(() => {
+    const handleFreeAnalysisTrigger = async (e) => {
+      if (isLoading) return
+
+      const { property, query, context } = e.detail || {}
+      if (!property || !query) return
+
+      // Add user-style message showing what property is being analyzed
+      const clickMessage = `🏠 Analyzing: ${property.title} in ${property.locality || 'Bangalore'}`
+      setMessages(prev => [...prev, { role: 'user', content: clickMessage }])
+      setIsLoading(true)
+
+      // Add AI thinking placeholder
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '',
+        isLoading: true,
+        isStreaming: true,
+        isThinking: true,
+        streamingThought: '',
+        streamingContent: '',
+        thinkingTime: 0
+      }])
+
+      const messageIndex = messages.length + 1 // After user message
+
+      // Throttle state updates to reduce flickering
+      let lastThinkingUpdate = 0
+      let lastContentUpdate = 0
+      const THROTTLE_MS = 100 // Update UI every 100ms max
+
+      // Use streaming for the free analysis
+      await callAIStreaming(
+        query,
+        (thinking, time, isThinking) => {
+          const now = Date.now()
+          if (now - lastThinkingUpdate < THROTTLE_MS && isThinking) return
+          lastThinkingUpdate = now
+
+          setMessages(prev => {
+            const newMessages = [...prev]
+            if (newMessages[messageIndex]) {
+              newMessages[messageIndex] = {
+                ...newMessages[messageIndex],
+                streamingThought: thinking,
+                thinkingTime: time,
+                isThinking: isThinking,
+                isLoading: isThinking,
+                isStreaming: true
+              }
+            }
+            return newMessages
+          })
+        },
+        (content, time) => {
+          const now = Date.now()
+          if (now - lastContentUpdate < THROTTLE_MS) return
+          lastContentUpdate = now
+
+          setMessages(prev => {
+            const newMessages = [...prev]
+            if (newMessages[messageIndex]) {
+              newMessages[messageIndex] = {
+                ...newMessages[messageIndex],
+                streamingContent: content,
+                content: content,
+                thinkingTime: time,
+                isThinking: false,
+                isLoading: false,
+                isStreaming: true
+              }
+            }
+            return newMessages
+          })
+        },
+        (result) => {
+          setMessages(prev => {
+            const newMessages = [...prev]
+            if (newMessages[messageIndex]) {
+              newMessages[messageIndex] = {
+                role: 'assistant',
+                content: result.content,
+                chainOfThought: result.thinking,
+                thinkingTime: result.thinkingTime,
+                intent: 'free_analysis',
+                isLoading: false,
+                isStreaming: false,
+                isThinking: false,
+                isFastResponse: false,
+                streamingThought: null,
+                streamingContent: null
+              }
+            }
+            return newMessages
+          })
+          setIsLoading(false)
+        },
+        context // Pass the context with is_free_analysis: true
+      )
+    }
+
+    window.addEventListener('valora-free-analysis-trigger', handleFreeAnalysisTrigger)
+    return () => window.removeEventListener('valora-free-analysis-trigger', handleFreeAnalysisTrigger)
   }, [isLoading, messages.length])
 
   // Listen for insight card explanations from AnalyticsMetrics
@@ -767,7 +873,7 @@ Just ask naturally — I understand casual conversation too!
   }
 
   // Streaming chat with SSE - real-time thinking display
-  const callAIStreaming = async (userMessage, onThinkingUpdate, onContentUpdate, onComplete) => {
+  const callAIStreaming = async (userMessage, onThinkingUpdate, onContentUpdate, onComplete, extraContext = null) => {
     // Build comprehensive context for AI agent with all analysis data
     // Stable user_id from localStorage
     const storedUserId = localStorage.getItem('valora_user_id') || 'anonymous'
@@ -810,6 +916,8 @@ Just ask naturally — I understand casual conversation too!
       } : null,
       // Buildings count in viewport
       buildingsCount: agentData?.buildingsCount || 0,
+      // Merge extra context (for free analysis, etc.)
+      ...extraContext
     }
 
     try {

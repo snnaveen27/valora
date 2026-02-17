@@ -244,10 +244,10 @@ class TransformerHousing:
         raw_id = raw.get('id', '')
         property_id = f"housing_{raw_id}" if raw_id else f"housing_{hashlib.md5(json.dumps(raw, sort_keys=True).encode()).hexdigest()[:12]}"
         
-        # Extract coordinates
+        # Extract coordinates (GeoJSON format: [longitude, latitude])
         coords = raw.get('coords', [])
-        lat = float(coords[0]) if coords and len(coords) > 0 else None
-        lng = float(coords[1]) if coords and len(coords) > 1 else None
+        lng = float(coords[0]) if coords and len(coords) > 0 else None
+        lat = float(coords[1]) if coords and len(coords) > 1 else None
         
         # Extract from polygons_hash
         polygons = raw.get('polygons_hash', {})

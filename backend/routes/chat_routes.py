@@ -786,19 +786,24 @@ async def chat(request: ChatRequest):
         _store_conversation_turn(thread_id, user_query, greeting_resp["message"], intent="greeting")
         return greeting_resp
 
+    # Check if this is a free analysis (no credit deduction)
+    is_free_analysis = context.get("is_free_analysis", False)
+
     # Credits check (use default local model for initial check - actual deduction uses selected model)
-    allowed, rate_result = _check_credits(user_id, "qwen3:4b-instruct")
-    if not allowed:
-        return {
-            "success": False,
-            "message": rate_result.reason or "Credit limit reached. Please upgrade or wait for reset.",
-            "intent": "rate_limited",
-            "credits": {
-                "remaining": rate_result.remaining_credits,
-                "total": rate_result.total_credits,
-                "tier": rate_result.tier,
-            },
-        }
+    # Skip credit check for free analysis
+    if not is_free_analysis:
+        allowed, rate_result = _check_credits(user_id, "qwen3:4b-instruct")
+        if not allowed:
+            return {
+                "success": False,
+                "message": rate_result.reason or "Credit limit reached. Please upgrade or wait for reset.",
+                "intent": "rate_limited",
+                "credits": {
+                    "remaining": rate_result.remaining_credits,
+                    "total": rate_result.total_credits,
+                    "tier": rate_result.tier,
+                },
+            }
 
     # Zone fast-path
     zone_resp = _try_zone_fast_path(user_query, context)
@@ -867,8 +872,10 @@ async def chat(request: ChatRequest):
     _store_conversation_turn(thread_id, request.messages[-1].content, ai_message, intent=intent.value)
 
     # Deduct credits based on model used (2 for local, 5 for cloud)
-    model_used = user_model or "qwen3:4b-instruct"
-    _deduct_credits(user_id, model_used, intent.value)
+    # Skip for free analysis
+    if not is_free_analysis:
+        model_used = user_model or "qwen3:4b-instruct"
+        _deduct_credits(user_id, model_used, intent.value)
 
     response = {
         "success": True,
@@ -891,6 +898,7 @@ async def chat(request: ChatRequest):
         "chain_of_thought": chain_of_thought,
         "verification": verification,
         "cached": False,
+        "is_free_analysis": is_free_analysis,
     }
 
     # Store in cache (keyed on query + intent, 10-min TTL)
@@ -934,26 +942,31 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             return True
         return False
 
+    # Check if this is a free analysis (no credit deduction)
+    is_free_analysis = context.get("is_free_analysis", False)
+
     # Credits check (before starting stream) - use default local model for initial check
-    allowed, rate_result = _check_credits(user_id, "qwen3:4b-instruct")
-    if not allowed:
-        async def rate_limited_stream():
-            data = {
-                "type": "error",
-                "content": rate_result.reason or "Credit limit reached.",
-                "credits": {
-                    "remaining": rate_result.remaining_credits,
-                    "total": rate_result.total_credits,
-                    "tier": rate_result.tier,
-                },
-            }
-            yield f"data: {json.dumps(data)}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'thinking_time': 0})}\n\n"
-        return StreamingResponse(
-            rate_limited_stream(),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-        )
+    # Skip for free analysis
+    if not is_free_analysis:
+        allowed, rate_result = _check_credits(user_id, "qwen3:4b-instruct")
+        if not allowed:
+            async def rate_limited_stream():
+                data = {
+                    "type": "error",
+                    "content": rate_result.reason or "Credit limit reached.",
+                    "credits": {
+                        "remaining": rate_result.remaining_credits,
+                        "total": rate_result.total_credits,
+                        "tier": rate_result.tier,
+                    },
+                }
+                yield f"data: {json.dumps(data)}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'thinking_time': 0})}\n\n"
+            return StreamingResponse(
+                rate_limited_stream(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+            )
 
     async def generate():
         start_time = time.time()
@@ -1368,22 +1381,25 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         _store_conversation_turn(thread_id, request.messages[-1].content if request.messages else "", content_buffer, intent=intent.value)
 
         # Deduct credits based on model used (2 for local, 5 for cloud)
-        deduction_result = _deduct_credits(
-            user_id, 
-            model_sel.model,  # Use actual model selected by router
-            intent.value,
-            inference_id=request_id
-        )
-        
-        # Emit credit deduction event for UI
-        if deduction_result.get('success'):
-            yield _sse({
-                "type": "credits_deducted",
-                "credits_used": deduction_result.get('credits_deducted', 2),
-                "llm_type": deduction_result.get('llm_type', 'local'),
-                "remaining_credits": deduction_result.get('remaining_credits', 0),
-                "thinking_time": time.time() - start_time,
-            })
+        # Skip for free analysis
+        is_free_analysis = context.get("is_free_analysis", False)
+        if not is_free_analysis:
+            deduction_result = _deduct_credits(
+                user_id, 
+                model_sel.model,  # Use actual model selected by router
+                intent.value,
+                inference_id=request_id
+            )
+            
+            # Emit credit deduction event for UI
+            if deduction_result.get('success'):
+                yield _sse({
+                    "type": "credits_deducted",
+                    "credits_used": deduction_result.get('credits_deducted', 2),
+                    "llm_type": deduction_result.get('llm_type', 'local'),
+                    "remaining_credits": deduction_result.get('remaining_credits', 0),
+                    "thinking_time": time.time() - start_time,
+                })
 
         # Post-LLM fact verification (Truth Firewall)
         verification = _verify_llm_output(content_buffer, facts) if content_buffer.strip() else None

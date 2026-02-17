@@ -1,6 +1,6 @@
 {
   "session_id": "default",
-  "session_start": "2026-02-18T02:19:02.252658",
+  "session_start": "2026-02-18T04:54:18.220650",
   "visits": [
     {
       "lat": 12.9782379,
@@ -4208,6 +4208,126 @@
       "name": "Area at 12.93751, 77.62307",
       "timestamp": "2026-02-18T02:23:25.272321",
       "intent": "investment",
+      "duration_seconds": 1387.32874,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97683007399775,
+      "lng": 77.64268722175358,
+      "name": "Area at 12.97683, 77.64269",
+      "timestamp": "2026-02-18T02:46:32.601061",
+      "intent": "investment",
+      "duration_seconds": 382.238923,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-18T02:52:54.839984",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-18T03:41:17.910907",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-18T03:49:58.811995",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-18T03:53:05.846315",
+      "intent": "investment",
+      "duration_seconds": 29.839157,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9989026,
+      "lng": 77.7375086,
+      "name": "Sadaramangala",
+      "timestamp": "2026-02-18T03:53:35.686470",
+      "intent": "investment",
+      "duration_seconds": 41.239123,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-18T03:54:16.925593",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-18T04:02:34.972829",
+      "intent": "investment",
+      "duration_seconds": 533.673208,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-18T04:11:28.646037",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979035387226292,
+      "lng": 77.64186540887725,
+      "name": "Area at 12.97904, 77.64187",
+      "timestamp": "2026-02-18T04:42:12.310556",
+      "intent": "investment",
+      "duration_seconds": 520.188357,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979948301098485,
+      "lng": 77.64110223607048,
+      "name": "Area at 12.97995, 77.64110",
+      "timestamp": "2026-02-18T04:50:52.498913",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977401783649045,
+      "lng": 77.6429473753734,
+      "name": "Area at 12.97740, 77.64295",
+      "timestamp": "2026-02-18T04:54:18.249577",
+      "intent": "investment",
       "duration_seconds": 0,
       "actions_taken": [],
       "sentiment": "neutral"
@@ -4228,5 +4348,5 @@
     "exploration_style": "focused"
   },
   "comparisons": [],
-  "last_updated": "2026-02-18T02:23:25.275323"
+  "last_updated": "2026-02-18T04:54:18.254574"
 }
