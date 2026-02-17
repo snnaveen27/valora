@@ -1389,7 +1389,7 @@ class UpdatePricingRequest(BaseModel):
     @validator('tier_monthly_limits')
     def validate_tier_limits(cls, v):
         if v:
-            allowed_tiers = ['free', 'pro', 'team', 'enterprise', 'admin']
+            allowed_tiers = ['free', 'pro', 'admin']
             for tier, limit in v.items():
                 if tier not in allowed_tiers:
                     raise ValueError(f'Invalid tier: {tier}')
@@ -1752,9 +1752,9 @@ async def get_user_credits(user_id: str, admin: User = Depends(require_admin)) -
             "user_id": user_id,
             "tier": user['tier'],
             "credits": {
-                "total": user['total_credits'],
+                "total": user['monthly_credits'] + user.get('rollover_credits', 0) + user['top_up_credits'],
                 "used": user['used_credits'],
-                "remaining": user['remaining_credits'],
+                "remaining": user['total_available'],
                 "reset_at": user['reset_at']
             },
             "usage_stats": stats
@@ -1785,7 +1785,7 @@ async def add_credits_to_user(
                 "success": True,
                 "user_id": user_id,
                 "credits_added": credits,
-                "new_balance": user['remaining_credits'],
+                "new_balance": user['total_available'],
                 "message": f"Added {credits} credits to {user_id}"
             }
         else:

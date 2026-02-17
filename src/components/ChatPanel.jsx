@@ -1066,6 +1066,7 @@ Just ask naturally — I understand casual conversation too!
             risk_warnings: data.facts?.risk_warnings || [],
             prediction: data.facts?.prediction,
             locality: {
+              name: data.facts?.location_name,
               archetype: data.facts?.locality_archetype,
               growth_stage: data.facts?.locality_growth_stage,
               tagline: data.facts?.locality_tagline,

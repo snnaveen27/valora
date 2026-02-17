@@ -1,21 +1,91 @@
 /**
- * TopTaskBanner - Task Progress Banner with Todo List
- * Shows query progress with a checklist of tasks with ticks
+ * TopTaskBanner - User-Friendly Task Progress Banner
+ * Shows clear, understandable task progress with real-time updates
  */
 
 import { useState, useEffect } from 'react'
-import { Loader2, CheckCircle2, Circle, CheckCircle, Clock } from 'lucide-react'
+import { Loader2, CheckCircle2, Circle, X, Zap, Brain, MapPin, Search, BarChart3, Route, Building, Globe, TrendingUp, Shield, Home } from 'lucide-react'
 
-// Task status icons with animations
-const TaskStatusIcon = ({ status, isRunning }) => {
-  if (status === 'complete') {
-    return <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+// User-friendly task icons
+const TaskIcon = ({ taskType, status }) => {
+  const iconClass = `w-3.5 h-3.5 ${
+    status === 'complete' ? 'text-emerald-400' : 
+    status === 'running' ? 'text-violet-400' : 'text-slate-500'
+  }`
+  
+  const iconMap = {
+    'geocode': <MapPin className={iconClass} />,
+    'flyto': <Globe className={iconClass} />,
+    'search': <Search className={iconClass} />,
+    'analyze': <BarChart3 className={iconClass} />,
+    'route': <Route className={iconClass} />,
+    'property': <Home className={iconClass} />,
+    'building': <Building className={iconClass} />,
+    'ai': <Brain className={iconClass} />,
+    'agentic': <Zap className={iconClass} />,
+    'investment': <TrendingUp className={iconClass} />,
+    'risk': <Shield className={iconClass} />,
+    'default': status === 'complete' ? <CheckCircle2 className={iconClass} /> : 
+               status === 'running' ? <Loader2 className={`${iconClass} animate-spin`} /> : 
+               <Circle className={iconClass} />
   }
-  if (status === 'running' || isRunning) {
-    return <Loader2 className="w-4 h-4 text-violet-400 animate-spin flex-shrink-0" />
+  
+  return iconMap[taskType?.toLowerCase()] || iconMap.default
+}
+
+// Convert technical task to user-friendly description
+const getUserFriendlyLabel = (task) => {
+  const label = task.label || task.description || ''
+  const action = task.action?.toLowerCase() || ''
+  const entity = task.entity?.toLowerCase() || ''
+  
+  // User-friendly action mappings
+  const actionLabels = {
+    'geocode': 'Locating',
+    'flyto': 'Navigating to',
+    'orbit': 'Exploring',
+    'spatialquery': 'Searching',
+    'areametrics': 'Analyzing',
+    'routeanalysis': 'Calculating route',
+    'terrainanalysis': 'Analyzing terrain',
+    'skyviewanalysis': 'Analyzing views',
+    'parse': 'Understanding',
+    'compare': 'Comparing',
+    'analyze': 'Analyzing',
+    'summarize': 'Summarizing',
+    'explain': 'Explaining',
+    'simulate': 'Simulating',
+    'getpropertydetails': 'Fetching property',
+    'getmarketdata': 'Getting market data',
+    'gethistoricaldata': 'Fetching history',
+    'getpoidata': 'Finding amenities',
+    'markproperties': 'Displaying results',
+    'drawroute': 'Drawing route',
+    'drawcircle': 'Drawing area'
   }
-  // Pending - show empty circle
-  return <Circle className="w-4 h-4 text-slate-600 flex-shrink-0" />
+  
+  // If we have a good label, use it
+  if (label && !label.includes('_') && label.length > 3) {
+    return label
+  }
+  
+  // Generate from action
+  const friendlyAction = actionLabels[action] || action
+  const friendlyEntity = entity.replace(/_/g, ' ')
+  
+  return `${friendlyAction} ${friendlyEntity}`.trim()
+}
+
+// Get phase description for user
+const getPhaseDescription = (phase, task) => {
+  const phases = {
+    'understanding': 'Understanding your request...',
+    'planning': 'Planning the analysis...',
+    'executing': task ? `Working: ${task}` : 'Processing...',
+    'finalizing': 'Finalizing results...',
+    'complete': 'Done!'
+  }
+  return phases[phase] || 'Processing...'
 }
 
 export default function TopTaskBanner({
@@ -25,56 +95,162 @@ export default function TopTaskBanner({
   onClose,
   tasks: externalTasks,
   progress: externalProgress,
-  taskProgress, // New prop for synchronized progress from MainApp
-  taskHistory // New prop for task history with ticks
+  taskProgress,
+  taskHistory
 }) {
   const [tasks, setTasks] = useState([])
-  const [detectedIntent, setDetectedIntent] = useState(null)
   const [progress, setProgress] = useState(0)
   const [isComplete, setIsComplete] = useState(false)
   const [currentStep, setCurrentStep] = useState('')
-  const [isThinking, setIsThinking] = useState(false)
+  const [processingPhase, setProcessingPhase] = useState('')
 
-  // Use synchronized progress from MainApp if available
   const displayProgress = taskProgress || { step: currentStep, detail: '', percent: progress }
 
   useEffect(() => {
     if (!streamingData) return
     
-    switch (streamingData.type) {
+    const type = streamingData.type
+    
+    switch (type) {
+      // Multi-Stage LLM Execution Events
+      case 'orchestration_start':
+        setCurrentStep('Starting analysis...')
+        setProcessingPhase('understanding')
+        setProgress(0)
+        setIsComplete(false)
+        setTasks([])
+        break
+        
+      case 'stage_start':
+        const stageMessages = {
+          'understand': 'Understanding your request...',
+          'plan': 'Planning the analysis...',
+          'execute': 'Executing tasks...',
+          'validate': 'Validating results...',
+          'synthesize': 'Generating response...'
+        }
+        const stagePhases = {
+          'understand': 'understanding',
+          'plan': 'planning',
+          'execute': 'executing',
+          'validate': 'validating',
+          'synthesize': 'finalizing'
+        }
+        setCurrentStep(stageMessages[streamingData.stage] || 'Processing...')
+        setProcessingPhase(stagePhases[streamingData.stage] || 'executing')
+        break
+        
+      case 'stage_complete':
+        // Update progress based on stage completion
+        const stageProgress = {
+          'understand': 20,
+          'plan': 40,
+          'execute': 70,
+          'validate': 85,
+          'synthesize': 95
+        }
+        setProgress(stageProgress[streamingData.stage] || progress)
+        break
+        
+      case 'query_understood':
+        setTasks([{
+          id: 'understand',
+          label: 'Query analyzed',
+          type: 'ai',
+          status: 'complete',
+          progress_percent: 100
+        }])
+        break
+        
+      case 'task_graph':
+        setProcessingPhase('executing')
+        if (streamingData.tasks && streamingData.tasks.length > 0) {
+          setTasks(streamingData.tasks.map((t, i) => ({
+            id: t.id || `task_${i}`,
+            label: t.label || t.description || t.action,
+            description: t.label || t.description,
+            type: t.type || t.action || 'default',
+            action: t.action,
+            entity: t.entity,
+            status: 'pending',
+            progress_percent: 0
+          })))
+        }
+        break
+        
+      case 'tasks_executed':
+        setTasks(prev => prev.map(t => {
+          const result = streamingData.task_results?.[t.id]
+          if (result) {
+            return { ...t, status: 'complete', progress_percent: 100 }
+          }
+          return t
+        }))
+        break
+        
+      case 'validation_result':
+        setProcessingPhase('finalizing')
+        if (!streamingData.is_complete && streamingData.missing_information?.length > 0) {
+          setTasks(prev => [...prev, {
+            id: 'validation',
+            label: 'Filling gaps...',
+            type: 'ai',
+            status: 'running',
+            progress_percent: 50
+          }])
+        }
+        break
+        
+      case 'response_synthesized':
+        setTasks(prev => prev.map(t => ({ ...t, status: 'complete', progress_percent: 100 })))
+        setProgress(95)
+        break
+        
+      case 'orchestration_complete':
+        setTasks(prev => prev.map(t => ({ ...t, status: 'complete', progress_percent: 100 })))
+        setProgress(100)
+        setIsComplete(true)
+        setCurrentStep('Complete')
+        setProcessingPhase('complete')
+        setTimeout(() => {
+          if (onClose) onClose()
+        }, 2000)
+        break
+      
+      // Legacy Events (kept for backward compatibility)
       case 'recovering':
-        // Page refreshed during processing - show recovery state
-        setIsThinking(true)
-        setDetectedIntent(null)
-        setCurrentStep('Reconnecting to running task...')
+        setCurrentStep('Reconnecting...')
         setProgress(50)
         setIsComplete(false)
         setTasks([{
           id: 'recovering',
-          label: 'Recovering connection',
+          label: 'Restoring your session',
+          type: 'system',
           status: 'running',
           progress_percent: 50
         }])
         break
         
       case 'intent_classification_start':
-        setIsThinking(true)
-        setDetectedIntent(null)
-        setCurrentStep('Understanding your query...')
+        setCurrentStep('Understanding your request...')
+        setProcessingPhase('understanding')
         setProgress(5)
         setIsComplete(false)
         setTasks([])
         break
         
       case 'intent_detected':
-        setIsThinking(false)
-        setDetectedIntent(streamingData.intent)
-        setCurrentStep(`Preparing ${streamingData.intent?.replace(/_/g, ' ')}...`)
+        setProcessingPhase('planning')
+        setCurrentStep(`Planning: ${streamingData.intent?.replace(/_/g, ' ')}`)
         
         if (streamingData.task_graph?.tasks) {
           setTasks(streamingData.task_graph.tasks.map((t, i) => ({
             id: t.id || `task_${i}`,
-            label: t.label || t,
+            label: t.label || t.description || t,
+            description: t.description || t.label,
+            type: t.type || t.action || 'default',
+            action: t.action,
+            entity: t.entity,
             status: t.status || 'pending',
             progress_percent: t.progress_percent || 0
           })))
@@ -82,13 +258,17 @@ export default function TopTaskBanner({
         break
         
       case 'task_started':
+        setProcessingPhase('executing')
         setTasks(prev => {
           const idx = prev.findIndex(t => t.id === streamingData.task_id)
+          const taskType = streamingData.task_type || streamingData.task_name?.toLowerCase().split(' ')[0] || 'default'
+          
           if (idx >= 0) {
             const updated = [...prev]
             updated[idx] = { 
               ...updated[idx], 
-              label: streamingData.task_name, 
+              label: streamingData.task_name || updated[idx].label,
+              type: taskType,
               status: 'running',
               progress_percent: 10
             }
@@ -96,7 +276,8 @@ export default function TopTaskBanner({
           }
           return [...prev, { 
             id: streamingData.task_id, 
-            label: streamingData.task_name, 
+            label: streamingData.task_name || 'Processing',
+            type: taskType,
             status: 'running',
             progress_percent: 10
           }]
@@ -113,17 +294,18 @@ export default function TopTaskBanner({
         break
 
       case 'agentic_start':
+        setProcessingPhase('executing')
         setTasks(prev => {
-          // Avoid duplicate agentic tasks
           if (prev.some(t => t.id === 'agentic')) {
             return prev.map(t => t.id === 'agentic' 
-              ? { ...t, label: streamingData.message || 'Deep analysis started...', status: 'running', progress_percent: 30 }
+              ? { ...t, label: 'AI Analysis', status: 'running', progress_percent: 30 }
               : t
             )
           }
           return [...prev, { 
             id: 'agentic', 
-            label: streamingData.message || 'Deep analysis started...', 
+            label: 'AI Analysis',
+            type: 'agentic',
             status: 'running',
             progress_percent: 30 
           }]
@@ -132,9 +314,8 @@ export default function TopTaskBanner({
 
       case 'agentic_action':
         const toolLabel = streamingData.tool ? streamingData.tool.replace(/_/g, ' ') : 'reasoning'
-        const thought = streamingData.thought ? streamingData.thought.slice(0, 80) : ''
         setTasks(prev => prev.map(t =>
-          t.id === 'agentic' ? { ...t, label: `${toolLabel}${thought ? ': ' + thought : ''}`, progress_percent: 50 } : t
+          t.id === 'agentic' ? { ...t, label: `AI: ${toolLabel}`, progress_percent: 50 } : t
         ))
         break
 
@@ -142,14 +323,14 @@ export default function TopTaskBanner({
         setTasks(prev => prev.map(t => ({ ...t, status: 'complete', progress_percent: 100 })))
         setProgress(100)
         setIsComplete(true)
-        setCurrentStep('All tasks completed!')
+        setCurrentStep('Complete')
+        setProcessingPhase('complete')
         setTimeout(() => {
           if (onClose) onClose()
         }, 2000)
         break
         
       case 'task_recovered_done':
-        // Recovery complete - close the banner
         setTimeout(() => {
           if (onClose) onClose()
         }, 1000)
@@ -157,14 +338,12 @@ export default function TopTaskBanner({
     }
   }, [streamingData, onClose])
 
-  // Sync with external tasks if provided
   useEffect(() => {
     if (externalTasks && externalTasks.length > 0) {
       setTasks(externalTasks)
     }
   }, [externalTasks])
 
-  // Sync with external progress if provided
   useEffect(() => {
     if (externalProgress !== undefined) {
       setProgress(externalProgress)
@@ -180,200 +359,129 @@ export default function TopTaskBanner({
 
   if (!isVisible) return null
 
-  const hasActivity = isThinking || detectedIntent || tasks.length > 0
+  const hasActivity = tasks.length > 0 || currentStep
   if (!hasActivity) return null
 
   const completedCount = tasks.filter(t => t.status === 'complete').length
   const runningTask = tasks.find(t => t.status === 'running')
-  const pendingTasks = tasks.filter(t => t.status === 'pending')
-
-  // Use synchronized progress from MainApp
-  const displayStep = taskProgress?.step || currentStep
-  const displayDetail = taskProgress?.detail || ''
-  const displayPercent = taskProgress?.percent ?? progress
-  
-  // Unified step count for consistency with floating banner
   const totalTasks = tasks.length
-  const unifiedStepCount = totalTasks > 0 ? `${completedCount}/${totalTasks}` : displayStep
 
   return (
-    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[9999]">
-      <div
-        className="bg-slate-900 border border-slate-700 shadow-xl overflow-hidden rounded-xl w-[560px]"
-      >
-        {/* Simple top border */}
-        <div
-          className="h-1 w-full bg-gradient-to-r from-violet-600 via-purple-500 to-violet-600"
-        />
-
-        {/* Query Display */}
-        {query && (
-          <div className="px-4 py-2 bg-slate-800/50 border-b border-slate-800">
-            <p className="text-xs text-slate-500">Query:</p>
-            <p className="text-sm text-slate-300 truncate">"{query}"</p>
-          </div>
-        )}
-
-        {/* Main Banner Row - Always Expanded */}
-        <div className="flex items-center gap-4 px-4 py-3">
-          {/* Progress Ring */}
-          <div className="relative w-10 h-10 flex-shrink-0">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 40 40">
-              <circle cx="20" cy="20" r="16" className="stroke-slate-700 fill-none" strokeWidth="3" />
-              <circle
-                cx="20" cy="20" r="16"
-                fill="none"
-                stroke={isComplete ? '#10b981' : '#8b5cf6'}
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 16}
-                strokeDashoffset={2 * Math.PI * 16 * (1 - displayPercent / 100)}
-                className="transition-all duration-500"
-              />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">
-              {Math.round(displayPercent)}%
-            </span>
-          </div>
-
-          {/* Content - Synchronized with Header */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${isComplete ? 'text-emerald-400' : 'text-violet-200'}`}>
-                {displayStep}
+    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[9999]">
+      <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700/50 rounded-lg shadow-2xl w-[420px] overflow-hidden">
+        {/* Header with Phase */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/50">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            {/* Progress Ring */}
+            <div className="relative w-7 h-7 flex-shrink-0">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 28 28">
+                <circle cx="14" cy="14" r="10" className="stroke-slate-700 fill-none" strokeWidth="2" />
+                <circle
+                  cx="14" cy="14" r="10"
+                  fill="none"
+                  stroke={isComplete ? '#34d399' : '#a78bfa'}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 10}
+                  strokeDashoffset={2 * Math.PI * 10 * (1 - progress / 100)}
+                  className="transition-all duration-300"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-semibold text-white">
+                {Math.round(progress)}%
               </span>
-              {displayDetail && (
-                <>
-                  <span className="text-slate-600">|</span>
-                  <span className="text-sm text-slate-300 truncate">{displayDetail}</span>
-                </>
-              )}
-              {!isComplete && displayPercent > 0 && displayPercent < 100 && (
-                <span className="flex gap-0.5 ml-1">
-                  <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </span>
-              )}
+            </div>
+            
+            {/* Phase & Current Action */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                {processingPhase && !isComplete && (
+                  <span className="text-[9px] font-medium text-violet-400 uppercase tracking-wider">
+                    {processingPhase === 'executing' ? 'Processing' : processingPhase}
+                  </span>
+                )}
+                {isComplete && (
+                  <span className="text-[9px] font-medium text-emerald-400 uppercase tracking-wider">
+                    Complete
+                  </span>
+                )}
+              </div>
+              <p className={`text-xs font-medium truncate ${isComplete ? 'text-emerald-400' : 'text-white'}`}>
+                {runningTask ? getUserFriendlyLabel(runningTask) : getPhaseDescription(processingPhase)}
+              </p>
             </div>
           </div>
-           
-           {/* Stats */}
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            {!isThinking && tasks.length > 0 && (
-              <span className="font-mono bg-slate-800 px-2 py-0.5 rounded">
-                {unifiedStepCount}
-              </span>
-            )}
-            {/* Close button instead of chevron */}
-            <button 
-              onClick={(e) => {
-                e.stopPropagation()
-                if (onClose) onClose()
-              }}
-              className="text-slate-500 hover:text-slate-300 transition-colors"
-              title="Close"
-            >
-              <span className="text-lg">&times;</span>
-            </button>
-          </div>
+          
+          {/* Task Counter */}
+          {totalTasks > 0 && (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-800 rounded text-[10px] text-slate-400">
+              <span className="font-medium text-white">{completedCount}</span>
+              <span>/</span>
+              <span>{totalTasks}</span>
+              <span className="text-slate-500 ml-1">tasks</span>
+            </div>
+          )}
+          
+          {/* Close */}
+          <button 
+            onClick={onClose}
+            className="p-1 text-slate-500 hover:text-white transition-colors rounded hover:bg-slate-700/50 ml-1"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
-         
-        {/* Detailed Task List - Todo List with Ticks */}
-        <div className="overflow-hidden max-h-[400px]">
-          <div className="px-4 pb-3 border-t border-slate-800">
-            {/* Unified Todo List with Checkmarks */}
-            <div className="py-2">
-              <div className="text-xs text-slate-500 mb-2 font-medium flex items-center gap-2">
-                <Clock className="w-3 h-3" />
-                Task Progress
-              </div>
-              <div className="space-y-1.5">
+
+        {/* Task List - User Friendly */}
+        {tasks.length > 0 && (
+          <div className="max-h-[180px] overflow-y-auto">
+            <div className="px-3 py-2">
+              <div className="space-y-1">
                 {tasks.map((task, index) => (
                   <div 
-                    key={task.id || index} 
-                    className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-all duration-300 ${
-                      task.status === 'complete' 
-                        ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                        : task.status === 'running'
-                          ? 'bg-violet-500/10 border border-violet-500/30'
-                          : 'bg-slate-800/30 border border-transparent'
+                    key={task.id || index}
+                    className={`flex items-center gap-2 py-1.5 px-2 rounded-md transition-all duration-200 ${
+                      task.status === 'running' 
+                        ? 'bg-violet-500/10 border border-violet-500/20' 
+                        : task.status === 'complete'
+                          ? 'bg-slate-800/30'
+                          : 'bg-slate-800/20'
                     }`}
                   >
-                    {/* Status Icon - Tick for complete, spinner for running, circle for pending */}
-                    <TaskStatusIcon status={task.status} isRunning={task.status === 'running'} />
-                    
-                    {/* Task Label */}
-                    <span className={`text-sm truncate flex-1 ${
+                    <TaskIcon taskType={task.type || task.action} status={task.status} />
+                    <span className={`text-xs truncate flex-1 ${
                       task.status === 'complete' 
-                        ? 'text-emerald-300 line-through' 
+                        ? 'text-slate-400' 
                         : task.status === 'running'
-                          ? 'text-violet-200'
+                          ? 'text-white font-medium'
                           : 'text-slate-500'
                     }`}>
-                      {task.label}
+                      {getUserFriendlyLabel(task)}
                     </span>
-                    
-                    {/* Progress percentage for running tasks */}
-                    {task.status === 'running' && task.progress_percent && (
-                      <span className="text-xs text-violet-400 font-mono">{task.progress_percent}%</span>
+                    {task.status === 'running' && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-8 h-0.5 bg-slate-700 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-violet-400 rounded-full transition-all duration-300"
+                            style={{ width: `${task.progress_percent || 0}%` }}
+                          />
+                        </div>
+                      </div>
                     )}
-                    
-                    {/* Checkmark for completed tasks */}
                     {task.status === 'complete' && (
-                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
                     )}
                   </div>
                 ))}
-                
-                {/* Show taskHistory if no tasks but we have history */}
-                {tasks.length === 0 && taskHistory && taskHistory.length > 0 && (
-                  taskHistory.map((task, index) => (
-                    <div 
-                      key={index} 
-                      className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-all duration-300 ${
-                        task.percent === 100 
-                          ? 'bg-emerald-500/10 border border-emerald-500/20' 
-                          : task.percent > 0
-                            ? 'bg-violet-500/10 border border-violet-500/30'
-                            : 'bg-slate-800/30 border border-transparent'
-                      }`}
-                    >
-                      <TaskStatusIcon 
-                        status={task.percent === 100 ? 'complete' : 'running'} 
-                        isRunning={task.percent > 0 && task.percent < 100} 
-                      />
-                      <span className={`text-sm truncate flex-1 ${
-                        task.percent === 100 
-                          ? 'text-emerald-300 line-through' 
-                          : 'text-violet-200'
-                      }`}>
-                        {task.detail || task.step}
-                      </span>
-                      {task.percent === 100 && (
-                        <CheckCircle className="w-4 h-4 text-emerald-500" />
-                      )}
-                    </div>
-                  ))
-                )}
               </div>
             </div>
-             
-            {/* Completion message */}
-            {isComplete && (
-              <div className="flex items-center gap-2 py-2 px-3 rounded bg-emerald-500/10 border border-emerald-500/20 mt-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-medium text-emerald-400">All tasks completed successfully!</span>
-              </div>
-            )}
           </div>
-        </div>
-         
-        {/* Simple bottom progress bar */}
-        <div className="h-1 bg-slate-800 w-full">
+        )}
+
+        {/* Progress Bar */}
+        <div className="h-0.5 bg-slate-800">
           <div
-            className="h-full transition-all duration-500 bg-violet-500"
-            style={{ width: `${displayPercent}%` }}
+            className={`h-full transition-all duration-300 ${isComplete ? 'bg-emerald-500' : 'bg-violet-500'}`}
+            style={{ width: `${progress}%` }}
           />
         </div>
       </div>

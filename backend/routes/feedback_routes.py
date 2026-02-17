@@ -1,13 +1,16 @@
 """
 Feedback API Routes - Auto-save and credit rewards for user feedback
+Uses the unified credits system for credit management.
 """
 
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
-import os
 import sqlite3
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Initialize router
 router = APIRouter(prefix="/api/feedback", tags=["feedback"])
@@ -19,7 +22,7 @@ except Exception:
     require_admin = None
     User = None
 
-# Database path - use valora_memory.db for feedback storage
+# Database path for feedback storage (feedback records only, not credits)
 from config import config
 DB_PATH = str(config.DB_PATH.parent / 'valora_memory.db')
 
@@ -31,8 +34,16 @@ def get_db_connection():
     return conn
 
 
+def get_credits_manager():
+    """Get the unified credits manager."""
+    from ai.unified_credits import get_credits_manager
+    return get_credits_manager()
+
+
 def init_feedback_table():
-    """Initialize feedback tables if they don't exist"""
+    """Initialize feedback tables if they don't exist.
+    Note: Credits are managed centrally via UnifiedCreditsManager, not here.
+    """
     conn = get_db_connection()
     try:
         # Main feedback table
@@ -46,7 +57,7 @@ def init_feedback_table():
                 feedback_text TEXT NOT NULL,
                 quality_score INTEGER DEFAULT 0,
                 credits_earned INTEGER DEFAULT 0,
-                status TEXT DEFAULT 'submitted',  -- 'draft', 'submitted', 'processed'
+                status TEXT DEFAULT 'submitted',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(user_id, message_id)
@@ -63,16 +74,6 @@ def init_feedback_table():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(user_id, message_id)
-            )
-        """)
-        
-        # User credits tracking
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS user_credits (
-                user_id TEXT PRIMARY KEY,
-                total_credits INTEGER DEFAULT 0,
-                earned_from_feedback INTEGER DEFAULT 0,
-                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
@@ -161,6 +162,7 @@ async def submit_feedback(
 ):
     """
     Submit final feedback and award credits based on quality.
+    Credits are awarded via the unified credits manager.
     """
     try:
         # Get user ID from auth context
@@ -194,16 +196,6 @@ async def submit_feedback(
                 feedback_data.credits_earned
             ))
             
-            # Award credits to user
-            conn.execute("""
-                INSERT INTO user_credits (user_id, total_credits, earned_from_feedback, last_updated)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(user_id) DO UPDATE SET
-                    total_credits = total_credits + excluded.earned_from_feedback,
-                    earned_from_feedback = earned_from_feedback + excluded.earned_from_feedback,
-                    last_updated = CURRENT_TIMESTAMP
-            """, (user_id, feedback_data.credits_earned, feedback_data.credits_earned))
-            
             # Delete draft if exists
             conn.execute(
                 "DELETE FROM feedback_drafts WHERE user_id = ? AND message_id = ?",
@@ -212,23 +204,27 @@ async def submit_feedback(
             
             conn.commit()
             
-            # Get updated credit total
-            result = conn.execute(
-                "SELECT total_credits FROM user_credits WHERE user_id = ?",
-                (user_id,)
-            ).fetchone()
-            
-            total_credits = result['total_credits'] if result else feedback_data.credits_earned
-            
-            return {
-                "success": True,
-                "message": "Thank you for your feedback!",
-                "credits_earned": feedback_data.credits_earned,
-                "total_credits": total_credits
-            }
-            
         finally:
             conn.close()
+        
+        # Award credits via unified credits manager
+        try:
+            manager = get_credits_manager()
+            result = manager.award_feedback_credits(user_id, feedback_data.quality_score)
+            credits_awarded = result.get('credits_added', feedback_data.credits_earned)
+            total_credits = result.get('new_balance', 0)
+            logger.info(f"[Feedback] Awarded {credits_awarded} credits to {user_id} for feedback")
+        except Exception as e:
+            logger.error(f"[Feedback] Failed to award credits: {e}")
+            credits_awarded = feedback_data.credits_earned
+            total_credits = 0
+            
+        return {
+            "success": True,
+            "message": "Thank you for your feedback!",
+            "credits_earned": credits_awarded,
+            "total_credits": total_credits
+        }
             
     except HTTPException:
         raise
@@ -240,28 +236,39 @@ async def submit_feedback(
 async def get_user_credits(request: Request):
     """
     Get user's current credit balance and feedback statistics.
+    Uses unified credits manager for credit balance.
     """
     try:
         user_id = getattr(request.state, 'user_id', None) or f"anon_{request.client.host}"
         
+        # Get credit balance from unified system
+        try:
+            manager = get_credits_manager()
+            balance = manager.get_balance(user_id)
+            total_credits = balance.get('total_available', 0)
+        except Exception as e:
+            logger.error(f"[Feedback] Failed to get balance: {e}")
+            total_credits = 0
+        
+        # Get feedback-specific stats from local DB
         conn = get_db_connection()
         try:
-            # Get credit info
-            credits = conn.execute(
-                "SELECT * FROM user_credits WHERE user_id = ?",
-                (user_id,)
-            ).fetchone()
-            
             # Count pending feedback (drafts that could be submitted)
             pending = conn.execute(
                 "SELECT COUNT(*) as count FROM feedback_drafts WHERE user_id = ?",
                 (user_id,)
             ).fetchone()
             
+            # Get total credits earned from feedback
+            earned = conn.execute(
+                "SELECT SUM(credits_earned) as total FROM message_feedback WHERE user_id = ?",
+                (user_id,)
+            ).fetchone()
+            
             return {
                 "user_id": user_id,
-                "total_credits": credits['total_credits'] if credits else 0,
-                "earned_from_feedback": credits['earned_from_feedback'] if credits else 0,
+                "total_credits": total_credits,
+                "earned_from_feedback": earned['total'] if earned and earned['total'] else 0,
                 "pending_feedback_credits": pending['count'] * 5  # Estimate max potential credits
             }
         finally:
@@ -297,8 +304,6 @@ async def get_feedback_history(
             return {
                 "feedbacks": [dict(f) for f in feedbacks],
                 "total": len(feedbacks),
-                "limit": limit,
-                "offset": offset
             }
         finally:
             conn.close()
@@ -307,33 +312,48 @@ async def get_feedback_history(
         raise HTTPException(status_code=500, detail=f"Failed to get history: {str(e)}")
 
 
-@router.get("/stats")
-async def get_feedback_stats(request: Request, admin: 'User' = Depends(require_admin)):
-    """
-    Get aggregate feedback statistics (admin only).
-    """
+@router.get("/drafts")
+async def get_drafts(request: Request):
+    """Get user's saved drafts."""
     try:
-        if require_admin is None:
-            raise HTTPException(status_code=503, detail="Admin auth not available")
+        user_id = getattr(request.state, 'user_id', None) or f"anon_{request.client.host}"
+        
         conn = get_db_connection()
         try:
-            stats = conn.execute("""
-                SELECT 
-                    COUNT(*) as total_feedback,
-                    AVG(quality_score) as avg_quality,
-                    SUM(credits_earned) as total_credits_awarded,
-                    COUNT(DISTINCT user_id) as unique_users
-                FROM message_feedback
-            """).fetchone()
+            drafts = conn.execute("""
+                SELECT message_id, draft_content, updated_at
+                FROM feedback_drafts
+                WHERE user_id = ?
+                ORDER BY updated_at DESC
+            """, (user_id,)).fetchall()
             
             return {
-                "total_feedback": stats['total_feedback'],
-                "average_quality_score": round(stats['avg_quality'] or 0, 2),
-                "total_credits_awarded": stats['total_credits_awarded'] or 0,
-                "unique_users": stats['unique_users']
+                "drafts": [dict(d) for d in drafts]
             }
         finally:
             conn.close()
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get drafts: {str(e)}")
+
+
+@router.delete("/drafts/{message_id}")
+async def delete_draft(request: Request, message_id: str):
+    """Delete a specific draft."""
+    try:
+        user_id = getattr(request.state, 'user_id', None) or f"anon_{request.client.host}"
+        
+        conn = get_db_connection()
+        try:
+            conn.execute(
+                "DELETE FROM feedback_drafts WHERE user_id = ? AND message_id = ?",
+                (user_id, message_id)
+            )
+            conn.commit()
+            
+            return {"success": True, "message": "Draft deleted"}
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete draft: {str(e)}")

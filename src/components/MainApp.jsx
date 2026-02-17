@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, Wallet, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud, Loader2, Activity, CheckCircle2, Circle } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, ChevronDown, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud, Loader2, Activity, CheckCircle2, Circle, AlertTriangle, Percent, Building, Compass, Database, Presentation, Eye, Download } from 'lucide-react'
 
 import { API_URL } from '../apiConfig'
+import CreditBalance from './CreditBalance'
 
 // Lazy load heavy components
 const OnlineOSMMap = lazy(() => import('../spatial/OnlineOSMMap'))
-const AnalysisPanel = lazy(() => import('./AnalysisPanel'))
+const SmartPanel = lazy(() => import('./SmartPanel'))
 const EnhancedChatPanel = lazy(() => import('./chat/EnhancedChatPanel'))
 const AdminPanel = lazy(() => import('./AdminPanel'))
 const ScrapeController = lazy(() => import('./ScrapeController'))
@@ -26,10 +27,11 @@ export default function MainApp() {
   const [agentData, setAgentData] = useState({})
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true)
   const [isChatOpen, setIsChatOpen] = useState(true)
-  const [activeTab, setActiveTab] = useState('insights')
+  const [activeTab, setActiveTab] = useState('smart')
+  const [smartPanelActiveTab, setSmartPanelActiveTab] = useState('free_analysis')
   const [analysisWidth, setAnalysisWidth] = useState('narrow') // narrow, wide, or fullscreen
   const [chatWidth, setChatWidth] = useState('narrow') // narrow or wide
-  const [usage, setUsage] = useState(null)
+  const [userTier, setUserTier] = useState('free') // User's credit tier
   const [isAdminOpen, setIsAdminOpen] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
@@ -39,6 +41,58 @@ export default function MainApp() {
   const [isAnalysisFullscreen, setIsAnalysisFullscreen] = useState(false) // Fullscreen mode for deep analysis
   const [isChatFullscreen, setIsChatFullscreen] = useState(false) // Fullscreen mode for chat
   const [isMapFullscreen, setIsMapFullscreen] = useState(false) // Fullscreen mode for map
+  
+  // Handle top-up purchase
+  const handleTopUp = async (packageId) => {
+    try {
+      const userId = user?.email || user?.id || 'anonymous'
+      const response = await fetch(`${API_URL}/api/credits/top-up`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, package: packageId })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setShowUpgradeModal(false)
+        // Refresh credit balance by triggering a re-render
+        window.dispatchEvent(new CustomEvent('valora-credits-deducted', { 
+          detail: { remaining_credits: data.new_balance } 
+        }))
+      }
+    } catch (error) {
+      console.error('Top-up failed:', error)
+    }
+  }
+  
+  // Handle subscription
+  const handleSubscribe = async () => {
+    try {
+      const userId = user?.email || user?.id || 'anonymous'
+      const response = await fetch(`${API_URL}/api/payments/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, tier: 'pro' })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.url) {
+          // Redirect to Stripe checkout or show demo success
+          if (data.demo_mode) {
+            setShowUpgradeModal(false)
+            window.dispatchEvent(new CustomEvent('valora-credits-deducted', { 
+              detail: { remaining_credits: 500 } 
+            }))
+          } else {
+            window.open(data.url, '_blank')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Subscription failed:', error)
+    }
+  }
   
   // Cinema mode for simulations and storytelling
   const [isCinemaMode, setIsCinemaMode] = useState(false)
@@ -59,6 +113,132 @@ export default function MainApp() {
     if (taskBannerData) {
       const type = taskBannerData.type
       
+      // Multi-Stage LLM Execution Events
+      if (type === 'orchestration_start') {
+        setIsTaskCancelled(false)
+        setTaskHistory([]) // Clear history for new query
+        setShowTaskBanner(true)
+        setShowFloatingBanner(true) // Auto-show floating banner
+        setLastTaskProgress({ 
+          step: 'Starting', 
+          detail: 'Initializing analysis...', 
+          percent: 0, 
+          timestamp: Date.now() 
+        })
+        return
+      }
+      
+      if (type === 'stage_start') {
+        const stageDetails = {
+          'understand': { step: 'Understanding', detail: 'Analyzing your request...', percent: 5 },
+          'plan': { step: 'Planning', detail: 'Creating execution plan...', percent: 20 },
+          'execute': { step: 'Executing', detail: 'Running tasks...', percent: 40 },
+          'validate': { step: 'Validating', detail: 'Verifying results...', percent: 75 },
+          'synthesize': { step: 'Synthesizing', detail: 'Generating response...', percent: 90 }
+        }
+        const stageInfo = stageDetails[taskBannerData.stage] || { step: 'Processing', detail: taskBannerData.message || 'Working...', percent: 50 }
+        const progress = { ...stageInfo, timestamp: Date.now() }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      if (type === 'stage_complete') {
+        const stageProgress = {
+          'understand': 20,
+          'plan': 40,
+          'execute': 70,
+          'validate': 85,
+          'synthesize': 95
+        }
+        const percent = stageProgress[taskBannerData.stage] || 50
+        const progress = { 
+          step: taskBannerData.stage?.charAt(0).toUpperCase() + taskBannerData.stage?.slice(1), 
+          detail: taskBannerData.reasoning || 'Stage complete', 
+          percent, 
+          timestamp: Date.now() 
+        }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      if (type === 'query_understood') {
+        const intent = taskBannerData.intent?.primary || taskBannerData.intent || 'query'
+        const progress = { 
+          step: 'Understood', 
+          detail: `Intent: ${intent.toString().replace(/_/g, ' ')}`, 
+          percent: 20, 
+          timestamp: Date.now() 
+        }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      if (type === 'task_graph') {
+        const taskCount = taskBannerData.tasks?.length || 0
+        const progress = { 
+          step: 'Planned', 
+          detail: `${taskCount} tasks planned`, 
+          percent: 35, 
+          timestamp: Date.now() 
+        }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      if (type === 'tasks_executed') {
+        const executed = taskBannerData.tasks_executed || 0
+        const progress = { 
+          step: 'Executed', 
+          detail: `${executed} tasks completed`, 
+          percent: 70, 
+          timestamp: Date.now() 
+        }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      if (type === 'validation_result') {
+        const isComplete = taskBannerData.is_complete
+        const coverage = Math.round((taskBannerData.coverage_score || 1) * 100)
+        const progress = { 
+          step: 'Validated', 
+          detail: isComplete ? 'Results verified' : 'Filling gaps...', 
+          percent: 85, 
+          timestamp: Date.now() 
+        }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      if (type === 'response_synthesized') {
+        const insights = taskBannerData.key_insights?.length || 0
+        const progress = { 
+          step: 'Complete', 
+          detail: `Generated response with ${insights} insights`, 
+          percent: 95, 
+          timestamp: Date.now() 
+        }
+        setLastTaskProgress(progress)
+        setTaskHistory(prev => [...prev.slice(-4), progress])
+        return
+      }
+      
+      if (type === 'orchestration_complete') {
+        setLastTaskProgress({ step: 'Done', detail: 'Complete!', percent: 100, timestamp: Date.now() })
+        setIsTaskCancelled(false)
+        setTaskHistory(prev => [...prev.slice(-4), { step: 'Done', detail: 'Complete!', percent: 100, timestamp: Date.now() }])
+        // Auto-clear after 3 seconds
+        setTimeout(() => setLastTaskProgress(null), 3000)
+        return
+      }
+      
+      // Legacy Events (kept for backward compatibility)
       if (type === 'task_cancelled') {
         setLastTaskProgress({ step: 'Stopped', detail: 'Query cancelled by user', percent: 0, timestamp: Date.now() })
         setIsTaskCancelled(true)
@@ -86,6 +266,8 @@ export default function MainApp() {
         setLastTaskProgress({ step: 'Done', detail: 'Complete!', percent: 100, timestamp: Date.now() })
         setIsTaskCancelled(false)
         setTaskHistory(prev => [...prev.slice(-4), { step: 'Done', detail: 'Complete!', percent: 100, timestamp: Date.now() }])
+        // Auto-switch to Smart tab when query completes
+        setActiveTab('smart')
         // Auto-clear after 3 seconds
         setTimeout(() => setLastTaskProgress(null), 3000)
         return
@@ -362,27 +544,35 @@ export default function MainApp() {
     setChatFontSize(prev => Math.min(150, Math.max(75, prev + delta)))
   }
 
+  // Fetch user tier from credits API
   useEffect(() => {
-    const fetchUsage = async () => {
-      if (!user?.id) return
+    const fetchUserTier = async () => {
+      const userId = user?.email || user?.id
+      if (!userId) return
+      
       try {
-        const resp = await fetch(`${API_URL}/api/usage/${user.id}`)
+        const resp = await fetch(`${API_URL}/api/credits/balance?user_id=${userId}`)
         if (resp.ok) {
           const data = await resp.json()
-          setUsage(data)
+          setUserTier(data.tier || 'free')
         }
       } catch (err) {
-        console.warn('Failed to fetch usage:', err)
+        console.warn('Failed to fetch user tier:', err)
       }
     }
     
-    if (user?.id) {
-      fetchUsage()
-      // Refresh usage every 2 minutes
-      const interval = setInterval(fetchUsage, 120000)
-      return () => clearInterval(interval)
+    fetchUserTier()
+    // Refresh tier every minute
+    const interval = setInterval(fetchUserTier, 60000)
+    return () => clearInterval(interval)
+  }, [user?.email, user?.id])
+  
+  // Switch to verdict tab when analysis is performed
+  useEffect(() => {
+    if (agentData?.buildingAnalysis || agentData?.viewportAnalysis || agentData?.explainability) {
+      setSmartPanelActiveTab('decision_verdict')
     }
-  }, [user?.id])
+  }, [agentData?.buildingAnalysis, agentData?.viewportAnalysis, agentData?.explainability])
     
   useEffect(() => {
     const handleUICommand = (e) => {
@@ -485,10 +675,24 @@ export default function MainApp() {
     window.addEventListener('valora-ui-command', handleUICommand)
     return () => window.removeEventListener('valora-ui-command', handleUICommand)
   }, [])
+  
+  // Handle upgrade request from SmartTabs
+  useEffect(() => {
+    const handleUpgradeRequest = () => {
+      setShowUpgradeModal(true)
+    }
+    
+    window.addEventListener('valora-upgrade-request', handleUpgradeRequest)
+    return () => window.removeEventListener('valora-upgrade-request', handleUpgradeRequest)
+  }, [])
 
   const handleAnalysisUpdate = (analysis) => {
     if (analysis?.coordinates) {
       setAgentData(prev => ({ ...prev, clickedLocation: analysis.coordinates }))
+    }
+    // Switch to verdict tab when analysis is performed
+    if (analysis?.viewportAnalysis || analysis?.buildingAnalysis) {
+      setSmartPanelActiveTab('decision_verdict')
     }
   }
 
@@ -553,7 +757,7 @@ export default function MainApp() {
   const getAnalysisWidth = () => {
     if (isAnalysisFullscreen) return 'calc(100% - 64px)' // Nearly full width, leave room for collapse button
     if (isChatFullscreen || isMapFullscreen) return '32px' // Minimize when others are fullscreen
-    if (!isAnalysisOpen) return '32px'
+    if (!isAnalysisOpen) return '48px' // Collapsed tab sidebar width
     return analysisWidth === 'wide' ? 'calc(50% - 160px)' : 'calc(35% - 112px)'
   }
 
@@ -572,8 +776,8 @@ export default function MainApp() {
 
   return (
     <div className="h-screen w-screen bg-slate-900 overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="h-12 bg-slate-800/95 border-b border-slate-700 px-4 flex items-center shrink-0 backdrop-blur-sm">
+      {/* Header - High z-index for dropdowns (above map's z-50) */}
+      <div className="h-12 bg-slate-800/95 border-b border-slate-700 px-4 flex items-center shrink-0 backdrop-blur-sm relative z-[60]">
         {/* Left Section - Logo & Location */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -614,218 +818,88 @@ export default function MainApp() {
           )}
         </div>
 
-        {/* Center Section - Task Progress with Mini Todo List */}
+        {/* Center Section - Dynamic Task Progress */}
         <div className="flex-1 flex justify-center px-4 min-w-0">
           {lastTaskProgress && (
             <button
               onClick={() => setShowFloatingBanner(!showFloatingBanner)}
-              className={`flex items-center gap-3 px-4 py-1.5 rounded-lg transition-all duration-300 group w-full max-w-2xl relative overflow-hidden ${
+              className={`flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-200 w-full max-w-lg ${
                 lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled
-                  ? 'bg-slate-900 border border-violet-500/60'
-                  : 'bg-slate-800 border border-slate-700 hover:border-violet-500/40'
+                  ? 'bg-violet-500/15 border border-violet-500/30'
+                  : lastTaskProgress.percent === 100 
+                    ? 'bg-emerald-500/15 border border-emerald-500/30'
+                    : 'bg-slate-800/50 border border-slate-700/50 hover:border-slate-600'
               }`}
-              title={showFloatingBanner ? "Hide detailed view" : "Click for detailed view"}
+              title={showFloatingBanner ? "Hide details" : "Show details"}
             >
-              {/* Animated Inner Glow - Processing Effect */}
-              {lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled && (
-                <>
-                  {/* Rolling gradient background */}
-                  <div 
-                    className="absolute inset-0 rounded-lg opacity-30"
-                    style={{
-                      background: 'linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), rgba(168, 85, 247, 0.4), rgba(139, 92, 246, 0.4), transparent)',
-                      backgroundSize: '200% 100%',
-                      animation: 'gradient-roll 2s linear infinite'
-                    }}
-                  />
-                  {/* Pulsing background glow */}
-                  <div 
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15) 0%, transparent 70%)',
-                      animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-                    }}
-                  />
-                  {/* Animated border glow */}
-                  <div 
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      boxShadow: 'inset 0 0 20px rgba(139, 92, 246, 0.2), inset 0 0 40px rgba(139, 92, 246, 0.1)',
-                      animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-                    }}
-                  />
-                  {/* Corner accents */}
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-violet-500/60 rounded-tl-lg" 
-                       style={{ animation: 'pulse 2s infinite' }} />
-                  <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-violet-500/60 rounded-tr-lg"
-                       style={{ animation: 'pulse 2s infinite 0.5s' }} />
-                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-violet-500/60 rounded-bl-lg"
-                       style={{ animation: 'pulse 2s infinite 1s' }} />
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-violet-500/60 rounded-br-lg"
-                       style={{ animation: 'pulse 2s infinite 1.5s' }} />
-                </>
-              )}
-
-              {/* Mini Todo List with Ticks - Show last 3 tasks */}
-              <div className="flex items-center gap-1.5 flex-shrink-0 z-10">
-                {taskHistory.slice(-3).map((task, index) => (
-                  <div key={index} className="flex items-center justify-center">
-                    {task.percent === 100 ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    ) : task.percent > 0 ? (
-                      <Loader2 className="w-4 h-4 text-violet-400 animate-spin" />
-                    ) : (
-                      <Circle className="w-4 h-4 text-slate-600" />
-                    )}
-                  </div>
-                ))}
-                {/* Show placeholder circles if no history yet */}
-                {taskHistory.length === 0 && (
+              {/* Animated Status Dot */}
+              <div className="relative flex-shrink-0">
+                {isTaskCancelled ? (
+                  <Circle className="w-3 h-3 text-red-400" />
+                ) : lastTaskProgress.percent === 100 ? (
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                ) : (
                   <>
-                    <Circle className="w-4 h-4 text-slate-600" />
-                    <Circle className="w-4 h-4 text-slate-600" />
-                    <Circle className="w-4 h-4 text-slate-600" />
+                    <Loader2 className="w-3 h-3 text-violet-400 animate-spin" />
+                    <span className="absolute inset-0 rounded-full bg-violet-400/30 animate-ping" />
                   </>
                 )}
               </div>
 
-              {/* Task Info - Single Line */}
-              <div className="flex-1 min-w-0 flex flex-col justify-center z-10">
-                <div className="flex items-center gap-2">
-                  {/* Step counter */}
-                  <span className={`text-sm font-semibold whitespace-nowrap ${
+              {/* Dynamic Status Text */}
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className={`text-xs font-medium text-left whitespace-nowrap ${
+                  String(lastTaskProgress.detail || lastTaskProgress.step || '').length > 40 
+                    ? 'animate-marquee' 
+                    : ''
+                }`}>
+                  <span className={`${
                     isTaskCancelled ? 'text-red-400' :
-                    lastTaskProgress.percent === 100 ? 'text-emerald-400' : 'text-violet-200'
+                    lastTaskProgress.percent === 100 ? 'text-emerald-400' : 'text-slate-200'
                   }`}>
-                    {lastTaskProgress.step}
+                    {typeof lastTaskProgress.detail === 'string' 
+                      ? lastTaskProgress.detail 
+                      : typeof lastTaskProgress.step === 'string'
+                        ? lastTaskProgress.step
+                        : 'Processing...'}
                   </span>
-
-                  {/* Separator */}
-                  <span className="text-slate-600">|</span>
-
-                  {/* Task detail */}
-                  <span className="text-sm text-slate-300 truncate flex-1">
-                    {lastTaskProgress.detail}
-                  </span>
-
-                  {/* Running indicator */}
-                  {lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled && (
-                    <span className="flex gap-0.5 flex-shrink-0">
-                      <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </span>
-                  )}
                 </div>
+              </div>
 
-                {/* Progress bar with shimmer effect */}
-                <div className="w-full h-1.5 bg-slate-700/50 rounded-full mt-1.5 overflow-hidden relative">
+              {/* Compact Progress Indicator */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className="w-12 h-0.5 bg-slate-700 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 relative overflow-hidden ${
-                      isTaskCancelled ? 'bg-red-500' :
-                      lastTaskProgress.percent === 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-violet-500 via-purple-400 to-violet-500'
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      isTaskCancelled ? 'bg-red-400' :
+                      lastTaskProgress.percent === 100 ? 'bg-emerald-400' : 'bg-violet-400'
                     }`}
                     style={{ width: `${lastTaskProgress.percent}%` }}
-                  >
-                    {/* Shimmer effect */}
-                    {lastTaskProgress.percent > 0 && lastTaskProgress.percent < 100 && !isTaskCancelled && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                    )}
-                  </div>
+                  />
                 </div>
+                <span className={`text-[9px] font-mono ${
+                  isTaskCancelled ? 'text-red-400' :
+                  lastTaskProgress.percent === 100 ? 'text-emerald-400' : 'text-slate-500'
+                }`}>
+                  {lastTaskProgress.percent}%
+                </span>
               </div>
 
-              {/* Right side - step count and toggle */}
-              <div className="flex items-center gap-2 flex-shrink-0 z-10">
-                {/* Unified step count - extract from progress step or calculate */}
-                {(() => {
-                  // Try to extract step count from lastTaskProgress.step (format: "X/Y")
-                  const stepMatch = lastTaskProgress.step?.match(/(\d+)\/(\d+)/);
-                  if (stepMatch) {
-                    return (
-                      <span className="text-[10px] text-slate-500 font-mono bg-slate-900/50 px-1.5 py-0.5 rounded whitespace-nowrap">
-                        {stepMatch[1]}/{stepMatch[2]}
-                      </span>
-                    );
-                  }
-                  // Fallback to task history count
-                  if (taskHistory.length > 0) {
-                    return (
-                      <span className="text-[10px] text-slate-500 font-mono bg-slate-900/50 px-1.5 py-0.5 rounded whitespace-nowrap">
-                        {taskHistory.filter(t => t.percent === 100).length}/{taskHistory.length}
-                      </span>
-                    );
-                  }
-                  return null;
-                })()}
-                <ChevronRight
-                  className={`w-4 h-4 text-violet-400 transition-transform duration-200 ${showFloatingBanner ? 'rotate-90' : ''}`}
-                />
-              </div>
+              {/* Expand Arrow */}
+              <ChevronRight
+                className={`w-3 h-3 text-slate-500 transition-transform duration-200 flex-shrink-0 ${showFloatingBanner ? 'rotate-90' : ''}`}
+              />
             </button>
           )}
         </div>
 
         {/* Right Section - User Menu */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Tier Badge */}
-          {user && (
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-              user.tier === 'admin' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
-              user.tier === 'enterprise' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-              user.tier === 'team' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
-              user.tier === 'pro' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
-              'bg-slate-600/50 text-slate-300 border border-slate-500/30'
-            }`}>
-              {user.tier === 'admin' && <Crown className="w-3 h-3" />}
-              {user.tier === 'enterprise' && <Crown className="w-3 h-3" />}
-              {user.tier === 'pro' && <Zap className="w-3 h-3" />}
-              {user.tier === 'team' && <Zap className="w-3 h-3" />}
-              {user.tier?.toUpperCase() || 'FREE'}
-            </div>
-          )}
-
-          {/* Usage Display - Monthly Units */}
-          {usage && !usage.is_unlimited && (
-            <button
-              onClick={() => setShowUpgradeModal(true)}
-              className={`flex items-center gap-2 px-3 py-1 rounded-full border transition ${
-                usage.units_remaining < 20 
-                  ? 'bg-red-500/20 border-red-500/50 hover:bg-red-500/30' 
-                  : usage.units_remaining < 100 
-                    ? 'bg-amber-500/20 border-amber-500/50 hover:bg-amber-500/30'
-                    : 'bg-slate-700/50 border-slate-600 hover:bg-slate-600/50'
-              }`}
-            >
-              <Wallet className={`w-3.5 h-3.5 ${
-                usage.units_remaining < 20 ? 'text-red-400' : 
-                usage.units_remaining < 100 ? 'text-amber-400' : 'text-blue-400'
-              }`} />
-              <span className="text-white text-xs font-bold">
-                {usage.units_remaining}
-              </span>
-              <span className="text-slate-400 text-[10px]">units left</span>
-            </button>
-          )}
-          
-          {/* Unlimited badge for enterprise/admin */}
-          {usage?.is_unlimited && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30 text-xs font-medium">
-              <Zap className="w-3 h-3" />
-              Unlimited
-            </div>
-          )}
-
-          {/* Admin Button - Only for admins */}
-          {isAdmin && (
-            <button
-              onClick={() => setIsAdminOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 hover:text-white rounded-lg border border-purple-500/30 transition text-xs font-medium"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              Admin
-            </button>
-          )}
+          {/* Credit Balance Widget */}
+          <CreditBalance 
+            userId={user?.email || user?.id || 'anonymous'}
+            onUpgrade={() => setShowUpgradeModal(true)}
+          />
 
           {/* User Menu */}
           <div className="relative">
@@ -835,30 +909,92 @@ export default function MainApp() {
             >
               <User className="w-3.5 h-3.5" />
               <span className="max-w-[100px] truncate">{user?.name || user?.email}</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
             
             {showUserMenu && (
-              <div className="absolute right-0 top-full mt-1 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
-                <div className="p-3 border-b border-slate-700">
-                  <p className="text-white font-medium text-sm truncate">{user?.name}</p>
-                  <p className="text-slate-400 text-xs truncate">{user?.email}</p>
-                  {user?.company && (
-                    <p className="text-slate-500 text-xs truncate mt-1">{user.company}</p>
-                  )}
+              <>
+                {/* Backdrop to close menu */}
+                <div className="fixed inset-0 z-[90]" onClick={() => setShowUserMenu(false)} />
+                
+                {/* Dropdown Menu */}
+                <div className="absolute right-0 top-full mt-1 w-60 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[100] overflow-hidden">
+                  {/* User Info Header */}
+                  <div className="p-3 border-b border-slate-700 bg-slate-800/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                        {(user?.name || user?.email || 'U')[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium text-sm truncate">{user?.name || 'User'}</p>
+                        <p className="text-slate-400 text-xs truncate">{user?.email}</p>
+                      </div>
+                    </div>
+                    {user?.company && (
+                      <p className="text-slate-500 text-xs truncate mt-2">{user.company}</p>
+                    )}
+                  </div>
+                  
+                  {/* Menu Items */}
+                  <div className="p-2">
+                    {/* Documents */}
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        setIsAnalysisOpen(true);
+                        setActiveTab('docs');
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg transition text-sm"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Documents
+                    </button>
+                    
+                    {/* Notes */}
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        setIsAnalysisOpen(true);
+                        setActiveTab('notes');
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg transition text-sm"
+                    >
+                      <StickyNote className="w-4 h-4" />
+                      Notes
+                    </button>
+                    
+                    {/* Divider */}
+                    <div className="my-1 border-t border-slate-700/50" />
+                    
+                    {/* Account Settings - Opens Admin Panel */}
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        setIsAdminOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg transition text-sm"
+                    >
+                      <Settings className="w-4 h-4" />
+                      Account Settings
+                    </button>
+                    
+                    {/* Divider */}
+                    <div className="my-1 border-t border-slate-700/50" />
+                    
+                    {/* Sign Out */}
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        logout();
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition text-sm"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
-                <div className="p-2">
-                  <button
-                    onClick={() => {
-                      setShowUserMenu(false)
-                      logout()
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition text-sm"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Sign Out
-                  </button>
-                </div>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -883,30 +1019,73 @@ export default function MainApp() {
           className={`h-full bg-slate-800 border-r border-slate-700 flex flex-col transition-all duration-300 ${isAnalysisFullscreen ? 'z-10' : ''}`}
           style={{
             width: getAnalysisWidth(),
-            minWidth: isAnalysisOpen && !isChatFullscreen && !isMapFullscreen ? (isAnalysisFullscreen ? '600px' : '280px') : '0px',
+            minWidth: isAnalysisOpen ? (isAnalysisFullscreen ? '600px' : '280px') : '48px',
             flexShrink: 0
           }}
         >
           {isAnalysisOpen ? (
             <>
+              {/* Panel Header with controls */}
               <div className="p-2 border-b border-slate-700 flex items-center justify-between shrink-0">
-                <div className="flex gap-1">
-                  {['insights', 'docs', 'notes'].map(tab => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`px-2 py-1 rounded text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
-                        activeTab === tab ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                      }`}
-                    >
-                      {tab === 'insights' && <TrendingUp className="w-3 h-3" />}
-                      {tab === 'docs' && <FileText className="w-3 h-3" />}
-                      {tab === 'notes' && <StickyNote className="w-3 h-3" />}
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-bold text-white">Smart Report</span>
                 </div>
                 <div className="flex gap-1 ml-2">
+                  {/* Gold Download Button - Only show when entity analysis exists */}
+                  {(agentData?.buildingAnalysis || agentData?.viewportAnalysis || agentData?.explainability) && (
+                    <button 
+                      onClick={() => {
+                        // Trigger download event
+                        window.dispatchEvent(new CustomEvent('valora-download-report'));
+                      }}
+                      className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-900 text-xs font-bold rounded transition shadow-lg shadow-amber-500/20"
+                      title="Download Report"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">
+                        {(() => {
+                          // Check building name
+                          if (agentData?.buildingAnalysis?.building?.name) {
+                            return `Download ${agentData.buildingAnalysis.building.name} Report`
+                          }
+                          // Check viewport area name
+                          if (agentData?.viewportAnalysis?.area_name) {
+                            return `Download ${agentData.viewportAnalysis.area_name} Report`
+                          }
+                          // Check explainability locality name
+                          if (agentData?.explainability?.locality?.name) {
+                            return `Download ${agentData.explainability.locality.name} Report`
+                          }
+                          // Check if explainability has area directly
+                          if (agentData?.explainability?.area) {
+                            return `Download ${agentData.explainability.area} Report`
+                          }
+                          // Check dashboard location
+                          if (agentData?.dashboard?.location) {
+                            return `Download ${agentData.dashboard.location} Report`
+                          }
+                          // Fallback: Extract location from AI response content
+                          const aiContent = agentData?.lastAIResponse || window.__lastAIContent || '';
+                          // Try to extract location from common patterns like "in Hebbal", "Hebbal area", "Hebbal, Bangalore"
+                          const locationPatterns = [
+                            /in\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/,
+                            /([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)\s+area/i,
+                            /([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?),\s*Bangalore/i,
+                            /about\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/i,
+                            /analyzing\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/i,
+                          ];
+                          for (const pattern of locationPatterns) {
+                            const match = aiContent.match(pattern);
+                            if (match && match[1]) {
+                              return `Download ${match[1]} Report`
+                            }
+                          }
+                          return 'Download Report'
+                        })()}
+                      </span>
+                    </button>
+                  )}
                   <div className="flex items-center gap-0.5 bg-slate-700/50 rounded px-1 mr-1">
                     <button 
                       onClick={() => adjustAnalysisFontSize(-5)}
@@ -950,25 +1129,52 @@ export default function MainApp() {
               </div>
               <div className="flex-1 overflow-hidden">
                 <Suspense fallback={<ComponentLoader />}>
-                  <AnalysisPanel 
+                  <SmartPanel 
                     agentData={agentData} 
-                    setAgentData={setAgentData}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
+                    viewportAnalysis={agentData?.viewportAnalysis}
+                    userTier={userTier}
                     fontSize={analysisFontSize}
-                    liveAnalysis={liveAnalysis}
                     isFullscreen={isAnalysisFullscreen}
+                    onToggleFullscreen={() => setIsAnalysisFullscreen(!isAnalysisFullscreen)}
+                    onClose={() => setIsAnalysisOpen(false)}
+                    onFontSizeChange={(delta) => setAnalysisFontSize(prev => Math.max(50, Math.min(150, prev + delta)))}
+                    activeTab={smartPanelActiveTab}
+                    onTabChange={setSmartPanelActiveTab}
                   />
                 </Suspense>
               </div>
             </>
           ) : (
-            <button
-              onClick={() => setIsAnalysisOpen(true)}
-              className="h-full w-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            /* Collapsed Tab Sidebar */
+            <div className="h-full w-12 bg-slate-800/30 border-r border-slate-700 flex flex-col py-1 overflow-y-auto">
+              {[
+                { id: 'free_analysis', icon: Eye, label: 'Free' },
+                { id: 'decision_verdict', icon: TrendingUp, label: 'Verdict' },
+                { id: 'market_snapshot', icon: TrendingUp, label: 'Market' },
+                { id: 'spatial_intelligence', icon: MapPin, label: 'Spatial' },
+                { id: 'risk_analysis', icon: AlertTriangle, label: 'Risk' },
+                { id: 'roi_projection', icon: Percent, label: 'ROI' },
+                { id: 'comparables', icon: Building, label: 'Comps' },
+                { id: 'strategy', icon: Compass, label: 'Strategy' },
+                { id: 'data_transparency', icon: Database, label: 'Data' },
+                { id: 'client_pitch', icon: Presentation, label: 'Pitch' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => { setSmartPanelActiveTab(tab.id); setIsAnalysisOpen(true); }}
+                  className="relative flex flex-col items-center justify-center py-2 px-1 text-slate-500 hover:text-slate-300 hover:bg-slate-700/30 transition-all duration-200 group"
+                  title={tab.label}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  <span className="text-[8px] mt-0.5 font-medium">{tab.label}</span>
+                  
+                  {/* Tooltip */}
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-[10px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                    {tab.label}
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -1064,6 +1270,7 @@ export default function MainApp() {
                     onTaskStreaming={handleTaskStreaming}
                     onSidebarOpen={() => setChatWidth('wide')}
                     onSidebarClose={() => setChatWidth('narrow')}
+                    authUser={user}
                   />
                 </Suspense>
               </div>
@@ -1088,119 +1295,83 @@ export default function MainApp() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-white">Upgrade Your Plan</h2>
+              <h2 className="text-xl font-bold text-white">Get More Credits</h2>
               <button onClick={() => setShowUpgradeModal(false)} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
-            {/* Current Usage */}
-            {usage && (
-              <div className="bg-slate-700/50 rounded-xl p-4 mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-400 text-sm">Monthly Usage</span>
-                  <span className="text-white font-bold">{usage.units_used} / {usage.monthly_limit} units</span>
-                </div>
-                <div className="w-full bg-slate-600 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full ${
-                      usage.units_remaining < 20 ? 'bg-red-500' : 
-                      usage.units_remaining < 100 ? 'bg-amber-500' : 'bg-blue-500'
-                    }`}
-                    style={{ width: `${Math.min(100, (usage.units_used / usage.monthly_limit) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* 80% Launch Promo Banner */}
-            <div className="mb-6 p-4 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-amber-400 font-bold text-lg">🎉 Launch Special: 80% OFF!</p>
-                  <p className="text-amber-200/80 text-xs">Limited time offer for early adopters</p>
-                </div>
-                <div className="bg-amber-500 text-black px-3 py-1 rounded-full font-bold text-sm">
-                  LAUNCH80
-                </div>
-              </div>
+            {/* Pricing Info */}
+            <div className="bg-slate-700/50 rounded-xl p-4 mb-6">
+              <p className="text-slate-300 text-sm mb-2">
+                <span className="text-amber-400 font-medium">Simple Pricing:</span> 2 credits per local query (Qwen/Phi), 5 credits per cloud query (DeepSeek)
+              </p>
             </div>
 
-            {/* Top-up Packs with Promo */}
+            {/* Top-up Packs */}
             <div className="mb-6">
               <h3 className="text-white font-semibold mb-3">Top-up Packs</h3>
               <div className="grid grid-cols-3 gap-3">
-                <button className="p-4 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 hover:border-blue-500/50 rounded-xl transition text-center relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-bl">80% OFF</div>
+                <button 
+                  onClick={() => handleTopUp('starter')}
+                  className="p-4 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 hover:border-blue-500/50 rounded-xl transition text-center"
+                >
+                  <p className="text-lg font-bold text-blue-400">Starter</p>
                   <p className="text-2xl font-bold text-white">100</p>
-                  <p className="text-slate-400 text-xs">units</p>
-                  <p className="text-slate-500 line-through text-xs mt-1">₹299</p>
-                  <p className="text-amber-400 font-semibold">₹59</p>
+                  <p className="text-slate-400 text-xs">credits</p>
+                  <p className="text-green-400 font-semibold mt-2">$5</p>
                 </button>
-                <button className="p-4 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 hover:border-blue-500/50 rounded-xl transition text-center relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-bl">80% OFF</div>
-                  <p className="text-2xl font-bold text-white">300</p>
-                  <p className="text-slate-400 text-xs">units</p>
-                  <p className="text-slate-500 line-through text-xs mt-1">₹699</p>
-                  <p className="text-amber-400 font-semibold">₹139</p>
+                <button 
+                  onClick={() => handleTopUp('standard')}
+                  className="p-4 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 rounded-xl transition text-center relative"
+                >
+                  <div className="absolute -top-2 right-2 bg-blue-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">POPULAR</div>
+                  <p className="text-lg font-bold text-blue-400">Standard</p>
+                  <p className="text-2xl font-bold text-white">275</p>
+                  <p className="text-slate-400 text-xs">credits (250 + 25 bonus)</p>
+                  <p className="text-green-400 font-semibold mt-2">$10</p>
                 </button>
-                <button className="p-4 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 hover:border-blue-500/50 rounded-xl transition text-center relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-bl">80% OFF</div>
-                  <p className="text-2xl font-bold text-white">1,000</p>
-                  <p className="text-slate-400 text-xs">units</p>
-                  <p className="text-slate-500 line-through text-xs mt-1">₹1,999</p>
-                  <p className="text-amber-400 font-semibold">₹399</p>
+                <button 
+                  onClick={() => handleTopUp('power')}
+                  className="p-4 bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600 hover:border-blue-500/50 rounded-xl transition text-center"
+                >
+                  <p className="text-lg font-bold text-blue-400">Power</p>
+                  <p className="text-2xl font-bold text-white">800</p>
+                  <p className="text-slate-400 text-xs">credits (700 + 100 bonus)</p>
+                  <p className="text-green-400 font-semibold mt-2">$25</p>
                 </button>
               </div>
-              <p className="text-slate-500 text-xs mt-2 text-center">Pay via Razorpay or Cashfree</p>
             </div>
 
-            {/* Upgrade Plan with Promo */}
+            {/* Pro Subscription */}
             <div className="border-t border-slate-700 pt-6">
-              <h3 className="text-white font-semibold mb-3">Upgrade Your Plan</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30 rounded-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-bl">80% OFF</div>
-                  <p className="text-green-400 font-bold">Pro</p>
-                  <p className="text-2xl font-bold text-white">1,000</p>
-                  <p className="text-slate-400 text-xs">units/month</p>
-                  <p className="text-slate-500 line-through text-xs mt-2">₹2,999/mo</p>
-                  <p className="text-amber-400 font-bold text-lg">₹599/mo</p>
+              <h3 className="text-white font-semibold mb-3">Monthly Subscription</h3>
+              <div className="p-4 bg-gradient-to-br from-purple-500/20 to-blue-500/10 border border-purple-500/30 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-400 font-bold flex items-center gap-2">
+                      <Crown className="w-4 h-4" />
+                      Pro Plan
+                    </p>
+                    <p className="text-2xl font-bold text-white">500</p>
+                    <p className="text-slate-400 text-xs">credits/month + rollover</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-green-400 font-bold text-2xl">$19</p>
+                    <p className="text-slate-400 text-xs">/month</p>
+                  </div>
                 </div>
-                <div className="p-4 bg-gradient-to-br from-blue-500/20 to-purple-500/10 border border-blue-500/30 rounded-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-bl">80% OFF</div>
-                  <p className="text-blue-400 font-bold">Team</p>
-                  <p className="text-2xl font-bold text-white">3,000</p>
-                  <p className="text-slate-400 text-xs">units/month</p>
-                  <p className="text-slate-500 line-through text-xs mt-2">₹4,999/seat</p>
-                  <p className="text-amber-400 font-bold text-lg">₹999/seat</p>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-4">
                 <button
-                  onClick={() => {
-                    setShowUpgradeModal(false)
-                    setPaymentType('subscription')
-                    setShowPaymentCheckout(true)
-                  }}
-                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
+                  onClick={() => handleSubscribe()}
+                  className="w-full mt-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
                 >
                   <Zap className="w-4 h-4" />
                   Subscribe Now
                 </button>
-                <button
-                  onClick={() => {
-                    setShowUpgradeModal(false)
-                    setPaymentType('topup')
-                    setShowPaymentCheckout(true)
-                  }}
-                  className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
-                >
-                  <Wallet className="w-4 h-4" />
-                  Buy Top-up
-                </button>
               </div>
-              <p className="text-emerald-400 text-xs mt-3 text-center font-medium">✓ Promo applied automatically at checkout</p>
+              <p className="text-slate-400 text-xs mt-3 text-center">
+                All users get 50 free credits monthly • Admin users get premium status
+              </p>
             </div>
           </div>
         </div>

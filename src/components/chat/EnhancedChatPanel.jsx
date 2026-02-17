@@ -20,7 +20,6 @@ import ChatSidebar from './ChatSidebar'
 import ChatMessage from './ChatMessage'
 import ChatInputBar from './ChatInputBar'
 import MessageFeedback from './MessageFeedback'
-import CreditsWidget from './CreditsWidget'
 import {
   loadSessions,
   saveSession,
@@ -164,7 +163,8 @@ export default function EnhancedChatPanel({
   locationSource = 'ip',
   onTaskStreaming = null,
   onSidebarOpen = null,
-  onSidebarClose = null
+  onSidebarClose = null,
+  authUser = null
 }) {
   // AI Thinking state - query-driven intelligent tasks
   const [currentQuery, setCurrentQuery] = useState('')
@@ -186,11 +186,11 @@ export default function EnhancedChatPanel({
   const [activeTabId, setActiveTabId] = useState(null)
   const MAX_TABS = 3
   
-  // LLM config — cloud toggle controls whether model router can escalate
+  // LLM config — model selection is now automated based on query complexity
   const [llmConfig, setLlmConfig] = useState({
     provider: 'ollama',
     local_model: 'valora-2025v1', // Use available model
-    cloud_enabled: false,
+    cloud_enabled: true, // Always enabled - router decides based on complexity
   })
   
   const messagesEndRef = useRef(null)
@@ -487,11 +487,22 @@ export default function EnhancedChatPanel({
     
     const handleBuildingClick = async (e) => {
       if (isLoading) return
-      const { building, query } = e.detail || {}
+      const { building, query, coordinates } = e.detail || {}
       if (!building || !query) return
       
-      addMessage({ role: 'user', content: `🏢 Clicked: ${building.type || 'Building'} (${building.height || '?'}m)` })
-      await handleSendMessage(query, true)
+      // The right-click handler already sets selectedLocation and starts rotation
+      // Skip flyTo to prevent backend from overriding the camera position
+      // Also set clickedLocation to prevent flyTo from changing selectedLocation
+      if (setAgentData) {
+        setAgentData(prev => ({
+          ...prev,
+          clickedLocation: coordinates,
+          flyTo: null // Clear any pending flyTo
+        }))
+      }
+      
+      addMessage({ role: 'user', content: `🏢 Analyzing: ${building.type || 'Building'} (${building.height || '?'}m, ${building.levels || '?'} floors)` })
+      await handleSendMessage(query, true, { skipFlyTo: true, buildingCoordinates: coordinates })
     }
     
     const handleAreaClick = async (e) => {
@@ -574,14 +585,20 @@ export default function EnhancedChatPanel({
     setActiveFeedbackId(prev => prev === messageId ? null : messageId)
   }, [])
 
-  // Stable user_id — persist across sessions
-  const [userId] = useState(() => {
+  // Use authenticated user's email if available, otherwise fall back to stored/generated ID
+  // This is computed reactively so it updates when authUser changes
+  const userId = useMemo(() => {
+    // If authUser is provided, use their email as user_id
+    if (authUser?.email) {
+      return authUser.email
+    }
+    // Fall back to stored or generated ID
     const stored = localStorage.getItem('valora_user_id')
     if (stored) return stored
     const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`
     localStorage.setItem('valora_user_id', id)
     return id
-  })
+  }, [authUser?.email])
 
   // Credits state
   const [credits, setCredits] = useState(null)
@@ -628,7 +645,6 @@ export default function EnhancedChatPanel({
       simulation: agentData?.simulation || null,
       userLocation: userLocation ? { lat: userLocation.lat, lng: userLocation.lng, label: locationLabel } : null,
       image: attachedImages?.length > 0 ? attachedImages : null,
-      agentic_mode: llmConfig.agentic_mode ?? null,  // null=auto, true=always, false=never
       llm_config: {
         provider: llmConfig.provider || 'ollama',
         local_model: llmConfig.local_model || 'qwen3:4b-instruct',
@@ -904,14 +920,17 @@ export default function EnhancedChatPanel({
                     }
                   }
                   if (action.action === 'load_buildings' && action.lat != null && action.lng != null) {
-                    // Use clicked coordinates for load_buildings too
+                    // Only load buildings for query-based flow (not when user clicked on map)
+                    // Map click handler already loads buildings at clicked coordinates
                     const skipInfo = window._valoraSkipFlyTo
-                    const lat = (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) ? skipInfo.coordinates.lat : action.lat
-                    const lng = (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) ? skipInfo.coordinates.lng : action.lng
-                    console.log('[ChatPanel] 📤 EARLY load_buildings:', { lat, lng, radius_km: action.radius_km || 5 })
-                    window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
-                      detail: { lat, lng, radius_km: action.radius_km || 5 }
-                    }))
+                    if (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) {
+                      console.log('[ChatPanel] 🚫 Skipping load_buildings - user clicked on map, buildings already loaded by click handler')
+                    } else {
+                      console.log('[ChatPanel] 📤 EARLY load_buildings (query-based):', { lat: action.lat, lng: action.lng, radius_km: action.radius_km || 2 })
+                      window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
+                        detail: { lat: action.lat, lng: action.lng, radius_km: action.radius_km || 2 }
+                      }))
+                    }
                   }
                   if (['switchTab', 'openPanel', 'closePanel', 'highlightProperties'].includes(action.action)) {
                     window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: action }))
@@ -937,7 +956,14 @@ export default function EnhancedChatPanel({
                 if (data.facts) {
                   updates.explainability = {
                     confidence: 75,
-                    keyDrivers: extractKeyDrivers(data.facts)
+                    keyDrivers: extractKeyDrivers(data.facts),
+                    locality: {
+                      name: data.facts.location_name,
+                      archetype: data.facts.locality_archetype,
+                      growth_stage: data.facts.locality_growth_stage,
+                      tagline: data.facts.locality_tagline,
+                      personality: data.facts.locality_personality,
+                    }
                   }
                 }
                 if (Object.keys(updates).length > 0) {
@@ -963,7 +989,8 @@ export default function EnhancedChatPanel({
               if (onTaskStreaming) onTaskStreaming(doneData)
               
               // Process UI actions ONLY if not already processed in ui_actions_early
-              // This handles the fallback case where ui_actions_early was not sent
+              // Note: load_buildings is only handled in early handler for query-based loading
+              // Map click handler handles click-based building loading
               if (!uiActionsProcessed && setAgentData && capturedUIActions.length > 0) {
                 console.log('[ChatPanel] 📋 Processing UI actions (fallback in done handler):', capturedUIActions)
                 for (const action of capturedUIActions) {
@@ -971,12 +998,7 @@ export default function EnhancedChatPanel({
                     console.log('[ChatPanel] 📤 Dispatching flyTo:', { lat: action.lat, lng: action.lng, zoom: action.zoom })
                     setAgentData(prev => ({ ...prev, flyTo: { lat: action.lat, lng: action.lng, zoom: action.zoom || 18 } }))
                   }
-                  if (action.action === 'load_buildings' && action.lat != null && action.lng != null) {
-                    console.log('[ChatPanel] 📤 Dispatching load_buildings:', { lat: action.lat, lng: action.lng, radius_km: action.radius_km || 5 })
-                    window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
-                      detail: { lat: action.lat, lng: action.lng, radius_km: action.radius_km || 5 }
-                    }))
-                  }
+                  // load_buildings removed from fallback - only early handler processes it for query-based loading
                   if (['switchTab', 'openPanel', 'closePanel', 'highlightProperties'].includes(action.action)) {
                     window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: action }))
                   }
@@ -984,6 +1006,8 @@ export default function EnhancedChatPanel({
               }
               
               localStorage.removeItem('valora_active_request') // Clear on completion
+              // Store AI content for location extraction
+              window.__lastAIContent = finalContent
               onComplete({ 
                 content: finalContent, 
                 thinking: finalThinking, 
@@ -1058,6 +1082,13 @@ export default function EnhancedChatPanel({
           explainability: {
             confidence: data.reasoning_trace?.confidence || 75,
             keyDrivers: extractKeyDrivers(data.facts),
+            locality: {
+              name: data.facts?.location_name,
+              archetype: data.facts?.locality_archetype,
+              growth_stage: data.facts?.locality_growth_stage,
+              tagline: data.facts?.locality_tagline,
+              personality: data.facts?.locality_personality,
+            }
           }
         }))
         
@@ -1070,11 +1101,17 @@ export default function EnhancedChatPanel({
               setAgentData(prev => ({ ...prev, flyTo: { lat: a.lat, lng: a.lng, zoom: a.zoom || 18 } }))
             }
             if (a.action === 'load_buildings' && a.lat != null && a.lng != null) {
-              // Trigger building loading via custom event
-              console.log('[ChatPanel] 📤 Dispatching load_buildings (non-streaming):', { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 5 })
-              window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
-                detail: { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 5 }
-              }))
+              // Only load buildings for query-based flow (not when user clicked on map)
+              // Map click handler already loads buildings at clicked coordinates
+              const skipInfo = window._valoraSkipFlyTo
+              if (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) {
+                console.log('[ChatPanel] 🚫 Skipping load_buildings (non-streaming) - user clicked on map, buildings already loaded by click handler')
+              } else {
+                console.log('[ChatPanel] 📤 NON-STREAMING load_buildings (query-based):', { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 2 })
+                window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
+                  detail: { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 2 }
+                }))
+              }
             }
             if (['switchTab', 'openPanel', 'closePanel', 'highlightProperties'].includes(a.action)) {
               window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: a }))
@@ -1088,8 +1125,12 @@ export default function EnhancedChatPanel({
         }
       }
       
+      // Store AI content for location extraction
+      const aiContent = data.message || data.assistant_message || ''
+      window.__lastAIContent = aiContent
+      
       return {
-        content: data.message || data.assistant_message || '',
+        content: aiContent,
         chainOfThought: data.chain_of_thought,
         thinkingTime: data.thinking_time || 0,
         intent: data.intent,
@@ -1140,8 +1181,14 @@ export default function EnhancedChatPanel({
     }
     
     // FIX Issue 2 & 3: Dispatch new query event to clear old markers and reset panels
+    // Include source info if this was triggered by a map click
     window.dispatchEvent(new CustomEvent('valora-new-query', {
-      detail: { query: userMessage }
+      detail: { 
+        query: userMessage,
+        source: clickedCoordinates ? 'map-click' : 'chat',
+        coordinates: clickedCoordinates,
+        skipFlyTo: skipFlyTo
+      }
     }))
     
     setInput('')

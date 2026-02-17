@@ -31,7 +31,7 @@ PLANS = {
     "free": {
         "name": "Free",
         "price_inr": 0,
-        "monthly_credits": 500,
+        "monthly_credits": 50,
         "local_daily": 50,
         "cloud_daily": 10,
         "features": ["basic_search", "area_overview", "5_queries_day"],
@@ -40,29 +40,10 @@ PLANS = {
         "name": "Pro Monthly",
         "price_inr": 599,
         "original_price_inr": 2999,
-        "monthly_credits": 5000,
+        "monthly_credits": 1000,
         "local_daily": 500,
         "cloud_daily": 100,
         "features": ["full_search", "area_analysis", "valuation", "report_export", "explainability"],
-    },
-    "pro_annual": {
-        "name": "Pro Annual",
-        "price_inr": 5998,
-        "original_price_inr": 29990,
-        "monthly_credits": 5000,
-        "local_daily": 500,
-        "cloud_daily": 100,
-        "billing_period": "yearly",
-        "features": ["full_search", "area_analysis", "valuation", "report_export", "explainability"],
-    },
-    "team_monthly": {
-        "name": "Team Monthly",
-        "price_inr": 999,
-        "original_price_inr": 4999,
-        "monthly_credits": 20000,
-        "local_daily": 2000,
-        "cloud_daily": 500,
-        "features": ["all_pro", "shared_shortlists", "team_admin", "audit_trails"],
     },
 }
 
@@ -117,6 +98,27 @@ async def get_topup_packs():
     }
 
 
+@router.get("/balance")
+async def get_credits_balance(user_id: str):
+    """Get user's current credit balance (query param version for frontend)."""
+    rl = get_rate_limiter()
+    
+    # Debug log
+    logger.info(f"[CREDITS] Balance request for user_id: {user_id}, is_admin: {rl._is_admin(user_id)}")
+    
+    user = rl.get_or_create_user(user_id)
+    
+    return {
+        "user_id": user_id,
+        "tier": user["tier"],
+        "monthly_credits": user["monthly_credits"],
+        "rollover_credits": user.get("rollover_credits", 0),
+        "top_up_credits": user["top_up_credits"],
+        "total_available": user["total_available"],
+        "next_reset": user["reset_at"]
+    }
+
+
 @router.get("/{user_id}")
 async def get_credits(user_id: str):
     """Get user's current credit balance and usage stats."""
@@ -129,9 +131,9 @@ async def get_credits(user_id: str):
         "user_id": user_id,
         "tier": user["tier"],
         "credits": {
-            "total": user["total_credits"],
+            "total": user["monthly_credits"] + user.get("rollover_credits", 0) + user["top_up_credits"],
             "used": user["used_credits"],
-            "remaining": user["remaining_credits"],
+            "remaining": user["total_available"],
             "reset_at": user["reset_at"],
         },
         "usage": {
@@ -181,8 +183,8 @@ async def purchase_credits(request: PurchaseRequest):
         "amount_charged_inr": pack["price_inr"],
         "payment_method": request.payment_method,
         "new_balance": {
-            "total": user["total_credits"],
-            "remaining": user["remaining_credits"],
+            "total": user["monthly_credits"] + user.get("rollover_credits", 0) + user["top_up_credits"],
+            "remaining": user["total_available"],
         },
         "message": f"Added {pack['units']} credits to your account!",
     }
@@ -203,12 +205,9 @@ async def upgrade_tier(request: UpgradeRequest):
 
     rl = get_rate_limiter()
 
-    # Map plan to tier
+    # Map plan to tier - only free and pro
     tier_map = {
         "pro_monthly": "pro",
-        "pro_annual": "pro",
-        "team_monthly": "team",
-        "team_annual": "team",
     }
     new_tier = tier_map.get(request.plan_id, "pro")
 
@@ -224,7 +223,7 @@ async def upgrade_tier(request: UpgradeRequest):
     tier_config = rl.TIER_CREDITS.get(new_tier, rl.TIER_CREDITS["free"])
     cursor.execute("""
         UPDATE user_credits
-        SET tier = ?, total_credits = ?, used_credits = 0, monthly_reset_at = ?, updated_at = ?
+        SET tier = ?, monthly_credits = ?, used_credits = 0, monthly_reset_at = ?, updated_at = ?
         WHERE user_id = ?
     """, (new_tier, tier_config["monthly_credits"], time.time(), time.time(), request.user_id))
     conn.commit()
@@ -268,7 +267,7 @@ async def downgrade_to_free(user_id: str):
     free_config = rl.TIER_CREDITS["free"]
     cursor.execute("""
         UPDATE user_credits
-        SET tier = 'free', total_credits = ?, used_credits = 0, monthly_reset_at = ?, updated_at = ?
+        SET tier = 'free', monthly_credits = ?, used_credits = 0, monthly_reset_at = ?, updated_at = ?
         WHERE user_id = ?
     """, (free_config["monthly_credits"], time.time(), time.time(), user_id))
     conn.commit()

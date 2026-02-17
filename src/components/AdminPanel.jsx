@@ -579,8 +579,6 @@ export default function AdminPanel({ isOpen, onClose }) {
                     >
                       <option value="free">Free</option>
                       <option value="pro">Pro</option>
-                      <option value="team">Team</option>
-                      <option value="enterprise">Enterprise</option>
                     </select>
                   </div>
                   <div className="flex justify-end gap-2 mt-3">
@@ -648,15 +646,11 @@ export default function AdminPanel({ isOpen, onClose }) {
                               >
                                 <option value="free">Free</option>
                                 <option value="pro">Pro</option>
-                                <option value="team">Team</option>
-                                <option value="enterprise">Enterprise</option>
                                 <option value="admin">Admin</option>
                               </select>
                             ) : (
                               <span className={`px-2 py-1 rounded text-xs font-medium ${
                                 u.tier === 'admin' ? 'bg-purple-500/20 text-purple-300' :
-                                u.tier === 'enterprise' ? 'bg-amber-500/20 text-amber-300' :
-                                u.tier === 'team' ? 'bg-blue-500/20 text-blue-300' :
                                 u.tier === 'pro' ? 'bg-green-500/20 text-green-300' :
                                 'bg-slate-600/50 text-slate-300'
                               }`}>

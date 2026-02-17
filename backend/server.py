@@ -191,14 +191,31 @@ from routes.credits_routes import router as credits_router
 app.include_router(credits_router)
 print("[OK] Credits & demo payment routes initialized")
 
+# Include smart report routes
+from routes.smart_report_routes import router as smart_report_router
+app.include_router(smart_report_router)
+print("[OK] Smart Report routes initialized")
+
+# Include task routes
+from routes.task_routes import router as task_router
+app.include_router(task_router)
+print("[OK] Task routes initialized")
+
+# Include database routes
+from database.api_routes import router as database_router
+app.include_router(database_router)
+print("[OK] Database routes initialized")
+
 # CORS for frontend
 _default_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:3002",
+    "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
+    "http://127.0.0.1:5173",
 ]
 def _parse_origins(value: str) -> list[str]:
     if not value:
@@ -1038,6 +1055,239 @@ async def analyze_building(request: BuildingAnalyzeRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Building analysis error: {str(e)}")
+
+
+@app.post("/api/building/detailed")
+async def analyze_building_detailed(request: BuildingAnalyzeRequest):
+    """
+    Detailed 3D reasoning analysis for a specific building.
+    Triggered by right-click on building.
+    Provides shadow analysis, view quality, 3D neighbors, and investment metrics.
+    """
+    try:
+        lat, lng = request.lat, request.lng
+        height = request.height or 10
+        levels = request.levels or max(1, int(height / 3))
+        building_type = request.buildingType or "building"
+        area = request.area or round(height * levels * 8, 1)
+        
+        # Initialize result with all expected fields for AnalysisPanel compatibility
+        result = {
+            "success": True,
+            "isDetailedRequest": True,
+            # Standard building info (AnalysisPanel expects this format)
+            "building": {
+                "lat": lat,
+                "lng": lng,
+                "height": height,
+                "levels": levels,
+                "type": building_type,
+                "name": request.name or f"{building_type.title()} Building",
+                "area": area,
+                "area_sqm": area,
+            },
+            # Area importance (AnalysisPanel expects this)
+            "area_importance": None,
+            # Valuation (AnalysisPanel expects this)
+            "valuation": None,
+            # Market stats (AnalysisPanel expects this)
+            "market": None,
+            # AI analysis (AnalysisPanel expects this)
+            "ai_analysis": None,
+            # Recommendations (AnalysisPanel expects this)
+            "recommendations": [],
+            # Extended 3D analysis (new tabs)
+            "structural": {
+                "estimated_age": "Unknown",
+                "construction_type": "RCC" if levels > 3 else "Load Bearing",
+                "floor_area_ratio": round(levels * 0.6, 2),
+                "height_category": "High-rise" if levels > 10 else ("Mid-rise" if levels > 4 else "Low-rise"),
+            },
+            "spatial": None,
+            "analysis_3d": None,
+            "nearby_properties": [],
+        }
+        
+        # Calculate area importance score
+        accessibility_score = 50
+        walkability_score = 50
+        amenity_density = 30
+        poi_count = 0
+        transport_count = 0
+        
+        # Spatial context
+        if SPATIAL_AVAILABLE and spatial_service:
+            try:
+                summary = spatial_service.get_summary(lat, lng, radius_m=500)
+                poi_count = summary.by_category.get('poi', 0)
+                transport_count = summary.by_category.get('transport', 0)
+                accessibility_score = int(summary.accessibility_score)
+                walkability_score = int(summary.walkability_score)
+                amenity_density = min(100, poi_count * 2 + transport_count * 5)
+                
+                result["spatial"] = {
+                    "poi_count": poi_count,
+                    "transport_count": transport_count,
+                    "accessibility_score": accessibility_score,
+                    "walkability_score": walkability_score,
+                }
+            except Exception:
+                pass
+        
+        # Calculate area importance
+        area_score = int((accessibility_score + walkability_score + amenity_density) / 3)
+        if area_score >= 80:
+            area_grade = "A+"
+        elif area_score >= 70:
+            area_grade = "A"
+        elif area_score >= 60:
+            area_grade = "B+"
+        elif area_score >= 50:
+            area_grade = "B"
+        else:
+            area_grade = "C"
+        
+        result["area_importance"] = {
+            "score": area_score,
+            "grade": area_grade,
+            "factors": {
+                "accessibility": accessibility_score,
+                "walkability": walkability_score,
+                "amenity_density": amenity_density,
+                "poi_count": poi_count,
+                "transport_count": transport_count,
+            }
+        }
+        
+        # Nearby properties for market context
+        avg_price_per_sqft = 8000
+        total_properties = 0
+        growth_1y = 8
+        
+        try:
+            nearby = property_service.get_nearby(lat, lng, radius_m=500, limit=10)
+            if nearby:
+                props = nearby.get('properties', [])
+                result["nearby_properties"] = props[:10]
+                prices = [p.get('price', 0) for p in props if p.get('price')]
+                total_properties = len(props)
+                if prices:
+                    avg_price = int(sum(prices) / len(prices))
+                    avg_price_per_sqft = int(avg_price / max(area, 1000))
+                    
+                    result["market"] = {
+                        "avg_price_nearby": avg_price,
+                        "min_price": min(prices),
+                        "max_price": max(prices),
+                        "property_count": total_properties,
+                        "estimated_value_per_sqft": avg_price_per_sqft,
+                        # AnalysisPanel expected format
+                        "avg_price_per_sqft": avg_price_per_sqft,
+                        "avg_price": avg_price,
+                        "growth_1y": growth_1y,
+                        "total_properties": total_properties,
+                        "demand_index": "High" if area_score >= 70 else ("Medium" if area_score >= 50 else "Low"),
+                    }
+        except Exception:
+            pass
+        
+        # Calculate valuation
+        estimated_price = int(area * avg_price_per_sqft)
+        confidence = min(0.95, 0.6 + (total_properties / 50))
+        
+        result["valuation"] = {
+            "estimated_price": estimated_price,
+            "price_per_sqft": avg_price_per_sqft,
+            "confidence": confidence,
+            "price_range": {
+                "low": int(estimated_price * 0.85),
+                "high": int(estimated_price * 1.15),
+            }
+        }
+        
+        # 3D Analysis (shadow, view, neighbors)
+        try:
+            from spatial.spatial_3d_reasoning import get_spatial_3d_reasoning
+            spatial_3d = get_spatial_3d_reasoning()
+            analysis_3d = spatial_3d.analyze_building_context(lat, lng, height, levels)
+            result["analysis_3d"] = analysis_3d
+        except Exception as e:
+            # Fallback 3D analysis
+            result["analysis_3d"] = {
+                "shadow_analysis": {
+                    "shadow_length_m": round(height * 1.5, 1),
+                    "shadow_direction": "NE",
+                    "affected_area_sqm": round(height * height * 0.5, 1),
+                    "shadow_hours_per_day": 4.5,
+                    "impact_level": "moderate" if height > 20 else "low"
+                },
+                "view_quality": {
+                    "sky_view_factor": round(0.5 + (levels * 0.03), 2),
+                    "best_floor": levels,
+                    "worst_floor": 1,
+                    "open_directions": ["N", "E"] if levels > 5 else ["N"],
+                    "view_score": min(95, 50 + levels * 3)
+                },
+                "neighbors_3d": {
+                    "buildings_above": 0,
+                    "buildings_below": 5,
+                    "buildings_at_level": 2,
+                    "privacy_score": min(90, 40 + levels * 2),
+                    "light_access_score": min(95, 50 + levels * 3)
+                },
+                "solar_potential": {
+                    "roof_area_sqm": round(area, 1),
+                    "solar_hours": 5.5,
+                    "potential_kw": round(area * 0.15, 1),
+                    "suitability": "good" if levels < 15 else "moderate"
+                },
+                "investment_score": {
+                    "overall_score": min(95, 60 + levels * 2),
+                    "appreciation_potential": "high" if levels > 5 else "moderate",
+                    "rental_yield_estimate": f"{4 + levels * 0.2:.1f}%",
+                    "key_factors": ["Location", "Height", "View quality"]
+                }
+            }
+        
+        # Generate AI analysis text
+        investment_score = result["analysis_3d"]["investment_score"]["overall_score"]
+        view_score = result["analysis_3d"]["view_quality"]["view_score"]
+        solar_suitability = result["analysis_3d"]["solar_potential"]["suitability"]
+        
+        result["ai_analysis"] = f"""## Building Investment Analysis
+
+**Overall Score: {investment_score}/100**
+
+This {levels}-floor {building_type} offers {'excellent' if investment_score >= 80 else 'good' if investment_score >= 60 else 'moderate'} investment potential.
+
+### Key Highlights:
+- **View Quality**: Score of {view_score}/100 - {'Upper floors offer panoramic views' if view_score >= 70 else 'Decent views from middle floors'}
+- **Solar Potential**: {solar_suitability.title()} suitability for rooftop solar installation
+- **Area Grade**: {area_grade} locality with {accessibility_score}% accessibility
+
+### Investment Recommendation:
+{'Strong buy for long-term appreciation. Upper floors command premium rents.' if investment_score >= 75 else 'Good value proposition. Consider negotiation on price.' if investment_score >= 60 else 'Moderate potential. Research local development plans.'}
+"""
+        
+        # Generate recommendations
+        result["recommendations"] = []
+        if investment_score >= 70:
+            result["recommendations"].append("Strong investment potential with good appreciation outlook")
+        if view_score >= 70:
+            result["recommendations"].append(f"Upper floors (F{levels}) offer premium views - {view_score}/100 view score")
+        if area_score >= 70:
+            result["recommendations"].append(f"Prime location with {area_grade} grade accessibility")
+        if solar_suitability == "good":
+            result["recommendations"].append("Good solar potential - consider rooftop installation")
+        if levels >= 5:
+            result["recommendations"].append(f"Mid-rise building with {levels} floors - good rental yield potential")
+        
+        if not result["recommendations"]:
+            result["recommendations"].append("Standard building with moderate investment potential")
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Detailed building analysis error: {str(e)}")
 
 
 @app.get("/api/area/analyze")
@@ -3231,12 +3481,10 @@ UNIT_COSTS = {
     'report_export': 20, # PDF/report generation
 }
 
-# Monthly unit allowances by tier
+# Monthly unit allowances by tier - Only FREE and PRO
 TIER_MONTHLY_UNITS = {
     'free': 50,
     'pro': 1000,
-    'team': 3000,
-    'enterprise': -1,  # Unlimited (fair use)
     'admin': -1,       # Unlimited
 }
 

@@ -185,8 +185,6 @@ class PricingDatabase:
             "tier_monthly_limits": {
                 "free": 50,
                 "pro": 1000,
-                "team": 3000,
-                "enterprise": -1,
                 "admin": -1,
             },
             "pricing": {
@@ -204,8 +202,6 @@ class PricingDatabase:
             "subscription_tiers": {
                 "free": {"units": 50, "price_inr": 0, "regular_price": 0},
                 "pro": {"units": 1000, "price_inr": 599, "regular_price": 2999},
-                "team": {"units": 3000, "price_inr": 999, "regular_price": 4999},
-                "enterprise": {"units": -1, "price_inr": -1, "regular_price": -1},
             },
             "last_updated": datetime.now().isoformat(),
             "updated_by": "system"

@@ -113,9 +113,10 @@ const POLYGON_ANALYZE_API = `${API_BASE}/api/spatial/polygon-analyze`
 const BUFFER_ANALYZE_API = `${API_BASE}/api/spatial/buffer-analyze`
 
 // Building display limits for performance optimization
-const MAX_BUILDINGS_DISPLAY = 3000 // Enough for full camera view radius
-const BUILDING_LOAD_RADIUS_KM = 5.0 // 5km radius for click-based loading
-const MAX_TILES_IN_MEMORY = 150 // Allow more tiles in memory
+const MAX_BUILDINGS_DISPLAY = 30000 // Hard limit for building count
+const BUILDING_LOAD_RADIUS_KM = 0.5 // 500m radius for click-based loading
+const BUILDING_HIGH_QUALITY_RADIUS_KM = 0.5 // 500m for high quality buildings
+const MAX_TILES_IN_MEMORY = 100 // Reduced for better memory usage
 const EVICTION_GRACE_PERIOD_MS = 30000 // Don't evict tiles loaded less than 30s ago
 const EVICTION_RADIUS_KM = 3.0 // Only evict tiles beyond 3km (always > load radius)
 
@@ -191,6 +192,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const rotationTargetRef = useRef(null)
   const ionPhotorealisticTilesetRef = useRef(null)
   const ionOsmBuildingsTilesetRef = useRef(null)
+
+  // Primitive API refs for performant building rendering
+  const buildingPrimitiveRef = useRef(null)  // Main building primitive
+  const selectionPrimitiveRef = useRef(null)  // Highlighted building primitive
+  const buildingDataStoreRef = useRef({
+    metadata: new Map(),  // buildingId -> { height, levels, type, name, address, lat, lng, area, coordinates }
+    idCounter: 0  // Counter for generating unique IDs
+  })
 
   const selectedLocationRef = useRef(null)
   const selectedBuildingCoordsRef = useRef(null)
@@ -1285,21 +1294,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     placeMarkerRef.current = viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(area.lng, area.lat),
       point: {
-        pixelSize: 10,
+        pixelSize: 12,
         color: Cesium.Color.fromCssColorString('#3b82f6'),
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 2,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-      },
-      label: {
-        text: area.name,
-        font: '14px sans-serif',
-        fillColor: Cesium.Color.WHITE,
-        outlineColor: Cesium.Color.fromCssColorString('#111827'),
-        outlineWidth: 3,
-        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-        pixelOffset: new Cesium.Cartesian2(0, -24),
-        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
         heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance: Number.POSITIVE_INFINITY
       }
@@ -1770,8 +1768,20 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     }
   }
 
-  // Load a single tile and add buildings to scene
-  const loadTile = async (tileId, tileUrl) => {
+  // Calculate distance between two points in kilometers using Haversine formula
+  const getDistanceKm = (lat1, lng1, lat2, lng2) => {
+    const R = 6371
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLng = (lng2 - lng1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2)
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  }
+
+  // Load a single tile and add buildings to scene using Entity API (with terrain clamping)
+  // Supports two-level LOD: high quality within BUILDING_HIGH_QUALITY_RADIUS_KM, lower quality beyond
+  const loadTile = async (tileId, tileUrl, centerLat = null, centerLng = null) => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed() || !viewer.entities) return false
     if (loadedTilesRef.current.has(tileId)) return false // Already loaded
@@ -1834,30 +1844,58 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           continue // Skip invalid geometry
         }
 
+        // Calculate distance from center for LOD determination
+        let isHighQuality = true
+        if (centerLat !== null && centerLng !== null) {
+          const distanceKm = getDistanceKm(centerLat, centerLng, centroidLat, centroidLng)
+          isHighQuality = distanceKm <= BUILDING_HIGH_QUALITY_RADIUS_KM
+        }
+
         // Light purple theme color scheme for buildings - production grade
         const buildingType = props.building || props.type || 'building'
         const levels = props.levels || Math.round(height / 3)
         
         // Light pastel purple gradient based on building height
+        // LOD: Lower quality buildings get reduced alpha and simpler appearance
         let color = '#c4b5fd'  // Default light purple
         let alpha = 0.75
-        let outlineAlpha = 0.2
         
-        if (height > 50) {
-          color = '#a78bfa'  // Medium purple (skyscrapers)
-          alpha = 0.85
-        } else if (height > 30) {
-          color = '#b8a5f8'  // Light-medium purple
-          alpha = 0.80
-        } else if (height > 15) {
-          color = '#c4b5fd'  // Light purple
-          alpha = 0.75
-        } else if (height > 8) {
-          color = '#d8cdf7'  // Very light purple
-          alpha = 0.70
+        if (isHighQuality) {
+          // High quality buildings (within 500m) - full detail
+          if (height > 50) {
+            color = '#a78bfa'  // Medium purple (skyscrapers)
+            alpha = 0.85
+          } else if (height > 30) {
+            color = '#b8a5f8'  // Light-medium purple
+            alpha = 0.80
+          } else if (height > 15) {
+            color = '#c4b5fd'  // Light purple
+            alpha = 0.75
+          } else if (height > 8) {
+            color = '#d8cdf7'  // Very light purple
+            alpha = 0.70
+          } else {
+            color = '#e9e3f8'  // Pale lavender
+            alpha = 0.65
+          }
         } else {
-          color = '#e9e3f8'  // Pale lavender
-          alpha = 0.65
+          // Lower quality buildings (500m-1km) - reduced detail for performance
+          if (height > 50) {
+            color = '#a78bfa'
+            alpha = 0.55  // Reduced alpha
+          } else if (height > 30) {
+            color = '#b8a5f8'
+            alpha = 0.50
+          } else if (height > 15) {
+            color = '#c4b5fd'
+            alpha = 0.45
+          } else if (height > 8) {
+            color = '#d8cdf7'
+            alpha = 0.40
+          } else {
+            color = '#e9e3f8'
+            alpha = 0.35
+          }
         }
 
         entityDataList.push({
@@ -1865,15 +1903,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           polygon: {
             hierarchy: polygonHierarchy,
             material: Cesium.Color.fromCssColorString(color).withAlpha(alpha),
-            outline: false,
+            outline: isHighQuality,  // Only show outline for high quality buildings
+            outlineColor: Cesium.Color.fromCssColorString('#8b5cf6').withAlpha(0.5),
+            outlineWidth: 1,
             height: 0,
             extrudedHeight: height,
             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
             extrudedHeightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
             perPositionHeight: false,
-            closeTop: true,
+            closeTop: isHighQuality,  // Only close top for high quality
             closeBottom: false,
-            shadows: Cesium.ShadowMode.DISABLED
+            // High quality buildings cast shadows, lower quality buildings don't for performance
+            shadows: isHighQuality ? Cesium.ShadowMode.CAST_ONLY : Cesium.ShadowMode.DISABLED
           },
           properties: {
             height: height,
@@ -1883,7 +1924,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             address: props.address || props['addr:street'] || null,
             lng: centroidLng,
             lat: centroidLat,
-            area: props.area || 225 // Default ~15m x 15m
+            area: props.area || 225, // Default ~15m x 15m
+            isHighQuality: isHighQuality
           }
         })
         
@@ -1985,7 +2027,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       // Load sequentially to avoid blocking main thread
       for (const tile of tilesToPreload) {
         if (!viewer.isDestroyed()) {
-          await loadTile(tile.id, tile.url)
+          await loadTile(tile.id, tile.url, cameraLat, cameraLng)
         }
       }
       
@@ -2130,7 +2172,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
         const batch = tilesToLoad.slice(i, i + batchSize)
         const results = await Promise.all(
-          batch.map(tile => loadTile(tile.id, tile.url))
+          batch.map(tile => loadTile(tile.id, tile.url, cameraLat, cameraLng))
         )
         loadedCount += results.filter(r => r).length
 
@@ -2203,42 +2245,174 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
   // AbortController for cancelling in-progress building loads
   const buildingLoadAbortControllerRef = useRef(null)
+  
+  // Track current building center for incremental loading
+  const currentBuildingCenterRef = useRef(null)
 
-  // Load buildings in specified radius around a clicked point (defaults to 5km)
+  // Update LOD quality for existing buildings based on new center
+  const updateBuildingsLOD = (newCenterLat, newCenterLng) => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed() || !viewer.entities) return 0
+    
+    let updatedCount = 0
+    viewer.entities.suspendEvents()
+    try {
+      viewer.entities.values.forEach(entity => {
+        if (entity.properties && entity.properties.lng && entity.properties.lat) {
+          const entityLng = entity.properties.lng.getValue()
+          const entityLat = entity.properties.lat.getValue()
+          const distanceKm = getDistanceKm(newCenterLat, newCenterLng, entityLat, entityLng)
+          const shouldBeHighQuality = distanceKm <= BUILDING_HIGH_QUALITY_RADIUS_KM
+          
+          // Only update if LOD status changed
+          if (entity.properties.isHighQuality && entity.properties.isHighQuality.getValue() !== shouldBeHighQuality) {
+            entity.properties.isHighQuality.setValue(shouldBeHighQuality)
+            
+            // Update polygon appearance
+            if (entity.polygon) {
+              const height = entity.properties.height ? entity.properties.height.getValue() : 10
+              let color = '#c4b5fd'
+              let alpha = 0.75
+              
+              if (shouldBeHighQuality) {
+                // High quality colors
+                if (height > 50) { color = '#a78bfa'; alpha = 0.85 }
+                else if (height > 30) { color = '#b8a5f8'; alpha = 0.80 }
+                else if (height > 15) { color = '#c4b5fd'; alpha = 0.75 }
+                else if (height > 8) { color = '#d8cdf7'; alpha = 0.70 }
+                else { color = '#e9e3f8'; alpha = 0.65 }
+                
+                entity.polygon.outline = true
+                entity.polygon.closeTop = true
+                entity.polygon.shadows = Cesium.ShadowMode.CAST_ONLY
+              } else {
+                // Lower quality colors
+                if (height > 50) { color = '#a78bfa'; alpha = 0.55 }
+                else if (height > 30) { color = '#b8a5f8'; alpha = 0.50 }
+                else if (height > 15) { color = '#c4b5fd'; alpha = 0.45 }
+                else if (height > 8) { color = '#d8cdf7'; alpha = 0.40 }
+                else { color = '#e9e3f8'; alpha = 0.35 }
+                
+                entity.polygon.outline = false
+                entity.polygon.closeTop = false
+                entity.polygon.shadows = Cesium.ShadowMode.DISABLED
+              }
+              
+              entity.polygon.material = Cesium.Color.fromCssColorString(color).withAlpha(alpha)
+            }
+            updatedCount++
+          }
+        }
+      })
+    } finally {
+      viewer.entities.resumeEvents()
+    }
+    return updatedCount
+  }
+
+  // Clear buildings that are too far from the new center
+  const clearDistantBuildings = (newCenterLat, newCenterLng, maxDistanceKm) => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return 0
+    
+    let cleared = 0
+    const tilesToRemove = []
+    
+    viewer.entities.suspendEvents()
+    try {
+      // Check each tile's center distance
+      for (const tileId of loadedTilesRef.current) {
+        const tileCenter = tileCentersRef.current[tileId]
+        if (tileCenter) {
+          const distance = getDistanceKm(newCenterLat, newCenterLng, tileCenter.lat, tileCenter.lng)
+          if (distance > maxDistanceKm * 1.5) { // Add 50% buffer to avoid thrashing
+            tilesToRemove.push(tileId)
+          }
+        }
+      }
+      
+      // Remove distant tiles
+      for (const tileId of tilesToRemove) {
+        const entities = tileEntitiesRef.current[tileId] || []
+        entities.forEach(entity => { 
+          try { viewer.entities.remove(entity) } catch (_) {} 
+        })
+        cleared += entities.length
+        
+        delete tileEntitiesRef.current[tileId]
+        delete tileCentersRef.current[tileId]
+        delete tileLoadTimesRef.current[tileId]
+        delete tileBuildingCountsRef.current[tileId]
+        loadedTilesRef.current.delete(tileId)
+      }
+    } finally {
+      viewer.entities.resumeEvents()
+    }
+    
+    if (cleared > 0) {
+      console.log(`🗑️ Cleared ${cleared} buildings from ${tilesToRemove.length} distant tiles`)
+    }
+    return cleared
+  }
+
+  // Load buildings in specified radius around a point (incremental implementation)
   // @param {number} centerLat - Latitude of center point
   // @param {number} centerLng - Longitude of center point
-  // @param {number} radiusKm - Radius in kilometers (default 5.0)
-  // @param {boolean} force - If true, cancel any in-progress load and proceed (for query-based loads)
-  const loadBuildingsAtPoint = async (centerLat, centerLng, radiusKm = 5.0, force = false) => {
-    console.log(`[loadBuildingsAtPoint] START - lat: ${centerLat}, lng: ${centerLng}, radius: ${radiusKm}km, force: ${force}`)
+  // @param {number} radiusKm - Radius in kilometers (default 1.0)
+  const loadBuildingsAtPoint = async (centerLat, centerLng, radiusKm = 1.0) => {
+    console.log(`[loadBuildingsAtPoint] 🚀 START - lat: ${centerLat}, lng: ${centerLng}, radius: ${radiusKm}km`)
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed()) {
-      console.log('[loadBuildingsAtPoint] ABORT - viewer not ready')
-      return
-    }
-    
-    // If force is true, cancel any in-progress load and proceed
-    if (force && loadingBuildingsRef.current) {
-      console.log('[loadBuildingsAtPoint] FORCE - cancelling in-progress load')
-      if (buildingLoadAbortControllerRef.current) {
-        buildingLoadAbortControllerRef.current.abort()
-        buildingLoadAbortControllerRef.current = null
-      }
-      loadingBuildingsRef.current = false
-      setLoadingBuildings(false)
-    }
-    
-    if (loadingBuildingsRef.current) {
-      console.log('[loadBuildingsAtPoint] ABORT - already loading (use force=true to override)')
+      console.log('[loadBuildingsAtPoint] ❌ ABORT - viewer not ready')
       return
     }
 
-    // CRITICAL: Clear ALL existing buildings first so buildings always
-    // appear around the selected location, not a previous one
-    console.log('[loadBuildingsAtPoint] Clearing existing buildings...')
-    clearAllBuildings()
+    // Validate coordinates
+    if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) {
+      console.error('[loadBuildingsAtPoint] ❌ Invalid coordinates:', centerLat, centerLng)
+      return
+    }
+
+    // Check if this is an incremental update (nearby location)
+    const prevCenter = currentBuildingCenterRef.current
+    let isIncrementalUpdate = false
+    let distanceFromPrevCenter = 0
     
-    // Create new AbortController for this load operation
+    if (prevCenter) {
+      distanceFromPrevCenter = getDistanceKm(prevCenter.lat, prevCenter.lng, centerLat, centerLng)
+      // If new center is within the load radius, this is an incremental update
+      isIncrementalUpdate = distanceFromPrevCenter < radiusKm * 0.5
+      console.log(`[loadBuildingsAtPoint] 📍 Distance from previous center: ${distanceFromPrevCenter.toFixed(2)}km (incremental: ${isIncrementalUpdate})`)
+    }
+
+    // Cancel any in-progress load
+    if (buildingLoadAbortControllerRef.current) {
+      buildingLoadAbortControllerRef.current.abort()
+      buildingLoadAbortControllerRef.current = null
+    }
+    loadingBuildingsRef.current = false
+    setLoadingBuildings(false)
+
+    // For incremental updates: keep nearby buildings, only clear distant ones
+    if (isIncrementalUpdate) {
+      console.log('[loadBuildingsAtPoint] 🔄 Incremental update - keeping nearby buildings')
+      clearDistantBuildings(centerLat, centerLng, radiusKm)
+      
+      // Update LOD for existing buildings based on new center
+      const updatedLOD = updateBuildingsLOD(centerLat, centerLng)
+      if (updatedLOD > 0) {
+        console.log(`[loadBuildingsAtPoint] 🎨 Updated LOD for ${updatedLOD} buildings`)
+      }
+    } else {
+      // Full clear for distant locations
+      console.log('[loadBuildingsAtPoint] 🧹 Full clear - location too far from previous')
+      clearAllBuildings()
+    }
+    
+    // Update current center
+    currentBuildingCenterRef.current = { lat: centerLat, lng: centerLng }
+    
+    // Create new AbortController
     buildingLoadAbortControllerRef.current = new AbortController()
     const signal = buildingLoadAbortControllerRef.current.signal
 
@@ -2250,14 +2424,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       max_lat: centerLat + radiusDeg
     }
 
-    let currentBuildingCount = Object.values(tileEntitiesRef.current)
-      .reduce((sum, ents) => sum + ents.length, 0)
-
     try {
       const params = new URLSearchParams(bbox)
       const tilesUrl = `${TILES_API}?${params}`
-      console.log(`[loadBuildingsAtPoint] Fetching tiles from: ${tilesUrl}`)
-      console.log(`[loadBuildingsAtPoint] BBOX: ${JSON.stringify(bbox)}`)
+      console.log(`[loadBuildingsAtPoint] 📡 Fetching tiles from: ${tilesUrl}`)
       
       const response = await fetch(tilesUrl, { signal })
       if (response.ok === false) {
@@ -2267,95 +2437,65 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
       const data = await response.json()
       const allTiles = data.tiles || []
-      // FIX Issue 1: Filter out empty tiles (count === 0) to avoid loading tiles with no buildings
-      const nonEmptyTiles = allTiles.filter(t => t.count > 0)
-      console.log(`[loadBuildingsAtPoint] 📦 Found ${allTiles.length} tiles in area (${nonEmptyTiles.length} non-empty, ${allTiles.length - nonEmptyTiles.length} empty skipped)`)
-      console.log(`[loadBuildingsAtPoint] Tile data:`, nonEmptyTiles.slice(0, 3))
+      // Filter out empty tiles (count === 0) and already loaded tiles
+      const nonEmptyTiles = allTiles.filter(t => t.count > 0 && !loadedTilesRef.current.has(t.id))
+      console.log(`[loadBuildingsAtPoint] 📦 Found ${allTiles.length} tiles (${nonEmptyTiles.length} new to load, ${loadedTilesRef.current.size} already loaded)`)
       
-      let newTiles = nonEmptyTiles.filter(t => !loadedTilesRef.current.has(t.id))
-      console.log(`[loadBuildingsAtPoint] New tiles to load: ${newTiles.length} (already loaded: ${loadedTilesRef.current.size})`)
-      
-      if (newTiles.length === 0) {
-        console.log(`[loadBuildingsAtPoint] All ${data.tiles.length} tiles already loaded around (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)})`)
+      if (nonEmptyTiles.length === 0) {
+        console.log(`[loadBuildingsAtPoint] ✅ All tiles already loaded for this area`)
         return
       }
 
-      // Sort closest first
-      const haversineDistance = (lat1, lng1, lat2, lng2) => {
-        const R = 6371
-        const dLat = (lat2 - lat1) * Math.PI / 180
-        const dLng = (lng2 - lng1) * Math.PI / 180
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                  Math.sin(dLng/2) * Math.sin(dLng/2)
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-      }
-      newTiles = newTiles.map(tile => {
+      // Sort by distance from center (closest first)
+      const sortedTiles = nonEmptyTiles.map(tile => {
         const tileLng = (tile.min_lng + tile.max_lng) / 2
         const tileLat = (tile.min_lat + tile.max_lat) / 2
-        return { ...tile, distance: haversineDistance(centerLat, centerLng, tileLat, tileLng) }
+        return { ...tile, distance: getDistanceKm(centerLat, centerLng, tileLat, tileLng) }
       }).sort((a, b) => a.distance - b.distance)
 
-      const remainingSlots = MAX_BUILDINGS_DISPLAY - currentBuildingCount
-      if (remainingSlots <= 0) return
-
-      const maxTiles = Math.min(Math.ceil(remainingSlots / 50), 25)
-      const tilesToLoad = newTiles.slice(0, maxTiles)
-      if (tilesToLoad.length === 0) return
+      // Load up to 25 tiles
+      const tilesToLoad = sortedTiles.slice(0, 25)
+      console.log(`[loadBuildingsAtPoint] 🔄 Loading ${tilesToLoad.length} new tiles...`)
 
       setLoadingBuildings(true)
       loadingBuildingsRef.current = true
       if (setAgentData) setAgentData(prev => ({ ...prev, loadingBuildings: true }))
 
-      const batchSize = 6
       let loadedCount = 0
       let buildingsAdded = 0
 
+      // Load tiles in batches - pass center coordinates for LOD calculation
+      const batchSize = 6
       for (let i = 0; i < tilesToLoad.length; i += batchSize) {
-        const curCount = Object.values(tileEntitiesRef.current).reduce((s, e) => s + e.length, 0)
-        if (curCount >= MAX_BUILDINGS_DISPLAY) break
-
         const batch = tilesToLoad.slice(i, i + batchSize)
-        const results = await Promise.all(batch.map(tile => loadTile(tile.id, tile.url)))
+        const results = await Promise.all(batch.map(tile => loadTile(tile.id, tile.url, centerLat, centerLng)))
         loadedCount += results.filter(r => r).length
 
         batch.forEach(tile => {
           const entities = tileEntitiesRef.current[tile.id]
           if (entities) {
             buildingsAdded += entities.length
-            tileBuildingCountsRef.current[tile.id] = entities.length
           }
         })
       }
 
       const totalBuildings = Object.values(tileEntitiesRef.current).reduce((s, e) => s + e.length, 0)
       
-      console.log(`[loadBuildingsAtPoint] ✅ COMPLETE - Loaded ${loadedCount} tiles, ${buildingsAdded} new buildings, ${totalBuildings} total`)
+      console.log(`[loadBuildingsAtPoint] ✅ COMPLETE - ${loadedCount} tiles, ${buildingsAdded} buildings loaded, ${totalBuildings} total`)
       
-      // Update state with proper batching to ensure UI updates
-      const updateCount = totalBuildings
-      const updateTiles = loadedTilesRef.current.size
-      
-      setBuildingsCount(updateCount)
-      setTilesLoaded(updateTiles)
+      setBuildingsCount(totalBuildings)
+      setTilesLoaded(loadedTilesRef.current.size)
       setBuildingsLoaded(true)
       setLoadingBuildings(false)
       loadingBuildingsRef.current = false
       
-      // Sync with agentData for cross-component visibility
       if (setAgentData) {
         setAgentData(prev => ({ 
           ...prev, 
-          buildingsCount: updateCount, 
+          buildingsCount: totalBuildings, 
           loadingBuildings: false,
-          tilesLoaded: updateTiles 
+          tilesLoaded: loadedTilesRef.current.size 
         }))
-      }
-
-      if (loadedCount > 0) {
-        console.log(`🏢 Click-loaded ${loadedCount} tiles (${buildingsAdded} buildings) around (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}), ${updateCount} total`)
-      } else if (tilesToLoad.length > 0) {
-        console.warn(`⚠️ Attempted to load ${tilesToLoad.length} tiles but none succeeded`)
       }
     } catch (err) {
       // Handle abort gracefully - don't treat as an error
@@ -2385,6 +2525,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   // Handle flyTo commands from chat
   useEffect(() => {
     if (agentData?.flyTo && viewerRef.current) {
+      // Skip flyTo only if user recently left-clicked on map (within 3 seconds)
+      // But allow flyTo for building right-clicks (which set selectedLocation)
+      const timeSinceBuildingClick = Date.now() - (placeMarkerClickTimeRef.current || 0)
+      const isBuildingSelection = agentData?.selectedLocation && !agentData?.clickedLocation
+      
+      if (agentData?.clickedLocation && timeSinceBuildingClick < 3000 && !isBuildingSelection) {
+        console.log('[Map] ⏭️ Skipping flyTo - user recently clicked on map')
+        // Clear the flyTo so it doesn't trigger again
+        setTimeout(() => { if (setAgentData) setAgentData(prev => ({ ...prev, flyTo: null })) }, 100)
+        return
+      }
+      
       const { lat, lng, zoom } = agentData.flyTo
       console.log(`[Map] flyTo useEffect triggered: lat=${lat}, lng=${lng}, zoom=${zoom}`)
       const viewer = viewerRef.current
@@ -2425,29 +2577,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
       // Only create new marker if user hasn't recently clicked
       if (!skipMarkerUpdate) {
-        const placeName = agentData?.selectedPlace?.name || agentData?.selectedPlace?.display_name?.split(',')?.[0] || 'Selected location'
         placeMarkerRef.current = viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(lngNum, latNum),
         point: {
-          pixelSize: 14,
+          pixelSize: 12,
           color: Cesium.Color.fromCssColorString('#8b5cf6'),
           outlineColor: Cesium.Color.WHITE,
-          outlineWidth: 3,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY
-        },
-        label: {
-          text: `📍 ${placeName}`,
-          font: 'bold 13px Inter, system-ui, sans-serif',
-          fillColor: Cesium.Color.WHITE,
-          outlineColor: Cesium.Color.fromCssColorString('#0f172a'),
-          outlineWidth: 3,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          showBackground: true,
-          backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85),
-          backgroundPadding: new Cesium.Cartesian2(10, 6),
-          pixelOffset: new Cesium.Cartesian2(0, -28),
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          outlineWidth: 2,
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY
         }
@@ -2470,18 +2606,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       // Force-reset loading guard in case a previous load got stuck
       loadingBuildingsRef.current = false
 
-      // DISABLED: triggerBuildingLoad - buildings now only load via query-based loading
-      // Query-based loading handles all building loading - no need for flyTo completion callback
-      let buildingsTriggered = false
-      // const triggerBuildingLoad = () => {
-      //   if (buildingsTriggered) {
-      //     console.log('[Map] triggerBuildingLoad - already triggered, skipping')
-      //     return
-      //   }
-      //   buildingsTriggered = true
-      //   console.log(`[Map] triggerBuildingLoad - loading buildings at lat=${latNum}, lng=${lngNum}`)
-      //   loadBuildingsAtPointRef.current(latNum, lngNum, BUILDING_LOAD_RADIUS_KM)
-      // }
+      // Load buildings at the flyTo location
+      const triggerBuildingLoad = () => {
+        console.log(`[Map] 🏢 Loading buildings at flyTo location: lat=${latNum}, lng=${lngNum}`)
+        loadBuildingsAtPointRef.current(latNum, lngNum, BUILDING_LOAD_RADIUS_KM)
+      }
 
       viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, adjustedHeight),
@@ -2492,8 +2621,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         },
         duration: 2.0,
         complete: () => {
-          // DISABLED: Load buildings on flyTo complete - only query-based loading now
-          // setTimeout(triggerBuildingLoad, 300)
+          // Load buildings after camera arrives
+          setTimeout(triggerBuildingLoad, 300)
         }
       })
       // Fallback disabled: only query-based loading
@@ -2695,25 +2824,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         placeMarkerRef.current = viewer.entities.add({
           position: Cesium.Cartesian3.fromDegrees(lngNum, latNum),
           point: {
-            pixelSize: 14,
+            pixelSize: 12,
             color: Cesium.Color.fromCssColorString('#8b5cf6'),
             outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 3,
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY
-          },
-          label: {
-            text: '📍 Selected location',
-            font: 'bold 13px Inter, system-ui, sans-serif',
-            fillColor: Cesium.Color.WHITE,
-            outlineColor: Cesium.Color.fromCssColorString('#0f172a'),
-            outlineWidth: 3,
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            showBackground: true,
-            backgroundColor: Cesium.Color.fromCssColorString('#0f172a').withAlpha(0.85),
-            backgroundPadding: new Cesium.Cartesian2(10, 6),
-            pixelOffset: new Cesium.Cartesian2(0, -28),
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            outlineWidth: 2,
             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
             disableDepthTestDistance: Number.POSITIVE_INFINITY
           }
@@ -2796,10 +2910,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     window.addEventListener('valora-agentic-step', handleAgenticStep)
     
     // FIX Issue 2 & 3: Listen for new query events to clear old markers and reset state
-    const handleNewQuery = () => {
+    const handleNewQuery = (e) => {
       console.log('[Map] 🔄 New query detected - clearing old property markers and place marker')
       const viewer = viewerRef.current
       if (!viewer || viewer.isDestroyed()) return
+      
+      // Check if this query was triggered by a map click
+      const isMapClickQuery = e?.detail?.source === 'map-click' || 
+                              (e?.detail?.coordinates && e?.detail?.skipFlyTo)
       
       // Clear all property markers from previous query
       propertyMarkersRef.current.forEach(entity => {
@@ -2817,7 +2935,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         console.log('[Map] Preserving place marker - was just placed by map click', timeSinceClick, 'ms ago')
       }
       
-      // Cancel any in-progress building loads
+      // DON'T abort building loads if this is a map-click triggered query
+      // The map click handler already started loading buildings at the clicked location
+      if (isMapClickQuery) {
+        console.log('[Map] 🏢 Skipping building load abort - query triggered by map click')
+        return
+      }
+      
+      // Cancel any in-progress building loads (only for non-map-click queries)
       if (buildingLoadAbortControllerRef.current) {
         buildingLoadAbortControllerRef.current.abort()
         buildingLoadAbortControllerRef.current = null
@@ -2832,10 +2957,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       console.log('[Map] 📨 Received valora-load-buildings event:', e.detail)
       const { lat, lng, radius_km } = e.detail || {}
       if (lat != null && lng != null) {
-        const radius = radius_km || 5.0
+        const radius = radius_km || 2.0
         console.log(`[Map] Loading buildings from Task Planner (FORCE): ${lat.toFixed(4)}, ${lng.toFixed(4)}, radius: ${radius}km`)
         // Use force=true to cancel any in-progress loads and load at the new location
-        loadBuildingsAtPointRef.current(lat, lng, radius, true)
+        loadBuildingsAtPointRef.current(lat, lng, radius)
       } else {
         console.warn('[Map] ❌ Invalid coordinates in load_buildings event:', e.detail)
       }
@@ -3197,17 +3322,31 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           if (selectedBuildingEntityRef.current && selectedBuildingEntityRef.current.polygon) {
             const entity = selectedBuildingEntityRef.current
             const height = entity.properties?.height?.getValue() || 10
+            const isHighQuality = entity.properties?.isHighQuality?.getValue() ?? true
             
-            // Light pastel purple gradient based on building height
+            // Restore original color based on height and LOD quality
             let color = '#c4b5fd'  // Default light purple
-            if (height > 50) color = '#a78bfa'  // Medium purple (skyscrapers)
-            else if (height > 30) color = '#b8a5f8'  // Light-medium purple
-            else if (height > 15) color = '#c4b5fd'  // Light purple
-            else if (height > 8) color = '#d8cdf7'  // Very light purple
-            else color = '#e9e3f8'  // Pale lavender
+            let alpha = 0.75
             
-            entity.polygon.material = Cesium.Color.fromCssColorString(color).withAlpha(0.75)
-            entity.polygon.outline = false
+            if (isHighQuality) {
+              // High quality colors
+              if (height > 50) { color = '#a78bfa'; alpha = 0.85 }
+              else if (height > 30) { color = '#b8a5f8'; alpha = 0.80 }
+              else if (height > 15) { color = '#c4b5fd'; alpha = 0.75 }
+              else if (height > 8) { color = '#d8cdf7'; alpha = 0.70 }
+              else { color = '#e9e3f8'; alpha = 0.65 }
+            } else {
+              // Lower quality colors (for buildings beyond 500m)
+              if (height > 50) { color = '#a78bfa'; alpha = 0.55 }
+              else if (height > 30) { color = '#b8a5f8'; alpha = 0.50 }
+              else if (height > 15) { color = '#c4b5fd'; alpha = 0.45 }
+              else if (height > 8) { color = '#d8cdf7'; alpha = 0.40 }
+              else { color = '#e9e3f8'; alpha = 0.35 }
+            }
+            
+            entity.polygon.material = Cesium.Color.fromCssColorString(color).withAlpha(alpha)
+            entity.polygon.outline = isHighQuality
+            entity.polygon.outlineColor = Cesium.Color.fromCssColorString('#8b5cf6').withAlpha(0.5)
             selectedBuildingEntityRef.current = null
           }
           
@@ -3223,6 +3362,45 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           if (onAnalysisUpdate) {
             onAnalysisUpdate(null)
           }
+        }
+
+        // Function to select and highlight a building (for right-click)
+        const selectBuilding = (entity) => {
+          // Deselect previous building first
+          deselectBuilding()
+          
+          if (!entity || !entity.polygon) return null
+          
+          // Store reference to selected entity
+          selectedBuildingEntityRef.current = entity
+          
+          // Highlight with amber color for visibility
+          entity.polygon.material = Cesium.Color.fromCssColorString('#fbbf24').withAlpha(0.9) // Amber highlight
+          entity.polygon.outline = true
+          entity.polygon.outlineColor = Cesium.Color.fromCssColorString('#f59e0b')
+          
+          // Get building data from entity properties
+          const buildingData = {
+            coordinates: {
+              lat: entity.properties?.lat?.getValue(),
+              lng: entity.properties?.lng?.getValue()
+            },
+            height: entity.properties?.height?.getValue() || 10,
+            levels: entity.properties?.levels?.getValue() || 3,
+            buildingType: entity.properties?.type?.getValue() || 'building',
+            area: entity.properties?.area?.getValue() || 225,
+            name: entity.properties?.name?.getValue() || 'Building'
+          }
+          
+          // Update agentData with selected building
+          if (setAgentData) {
+            updateAgentData(prev => ({
+              ...prev,
+              selectedBuilding: buildingData
+            }))
+          }
+          
+          return buildingData
         }
 
         // Auto-trigger building analysis when clicked
@@ -3295,6 +3473,105 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           }
         }
 
+        // Detailed building analysis for right-click (3D reasoning)
+        const analyzeBuildingDetailed = async (buildingData) => {
+          if (!buildingData?.coordinates?.lat || !buildingData?.coordinates?.lng) return
+          
+          console.log('[Building Detailed] 🏢 Starting detailed analysis for:', buildingData)
+          
+          // Set loading state - use setAgentData directly for immediate update
+          if (setAgentData) {
+            setAgentData(prev => ({
+              ...prev,
+              buildingAnalysisLoading: true,
+              buildingAnalysis: null
+            }))
+          }
+          
+          // Open smart tab (where building analysis is displayed)
+          window.dispatchEvent(new CustomEvent('valora-ui-command', {
+            detail: { action: 'openPanel', value: 'smart' }
+          }))
+          window.dispatchEvent(new CustomEvent('valora-ui-command', {
+            detail: { action: 'switchTab', value: 'smart' }
+          }))
+          
+          try {
+            // Call the detailed analysis endpoint
+            const response = await fetch(`${API_BASE}/api/building/detailed`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                lat: buildingData.coordinates.lat,
+                lng: buildingData.coordinates.lng,
+                height: buildingData.height,
+                levels: buildingData.levels,
+                buildingType: buildingData.buildingType,
+                area: buildingData.area,
+                name: buildingData.name
+              })
+            })
+            
+            if (response.ok) {
+              const analysis = await response.json()
+              console.log('[Building Detailed] 📊 API response:', analysis)
+              
+              // Use setAgentData directly for immediate update
+              if (setAgentData) {
+                setAgentData(prev => {
+                  const newState = {
+                    ...prev,
+                    buildingAnalysisLoading: false,
+                    buildingAnalysis: analysis
+                  }
+                  console.log('[Building Detailed] 🔄 Updated agentData.buildingAnalysis:', newState.buildingAnalysis)
+                  return newState
+                })
+              }
+              console.log('[Building Detailed] ✅ Analysis complete')
+            } else {
+              // Fallback to basic analysis if detailed endpoint not available
+              console.warn('[Building Detailed] ⚠️ Detailed endpoint not available, falling back to basic analysis')
+              const basicResponse = await fetch(`${API_BASE}/api/building/analyze`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  lat: buildingData.coordinates.lat,
+                  lng: buildingData.coordinates.lng,
+                  height: buildingData.height,
+                  levels: buildingData.levels,
+                  buildingType: buildingData.buildingType,
+                  area: buildingData.area,
+                  name: buildingData.name
+                })
+              })
+              
+              if (basicResponse.ok) {
+                const basicAnalysis = await basicResponse.json()
+                // Add flag to indicate this is from right-click (detailed request)
+                basicAnalysis.isDetailedRequest = true
+                if (setAgentData) {
+                  setAgentData(prev => ({
+                    ...prev,
+                    buildingAnalysisLoading: false,
+                    buildingAnalysis: basicAnalysis
+                  }))
+                }
+              } else {
+                throw new Error('Both detailed and basic analysis failed')
+              }
+            }
+          } catch (err) {
+            console.error('[Building Detailed] ❌ Error:', err)
+            if (setAgentData) {
+              setAgentData(prev => ({
+                ...prev,
+                buildingAnalysisLoading: false
+              }))
+            }
+          }
+        }
+
         // Click handler - handle entity clicks (any clickable location on map)
         viewer.screenSpaceEventHandler.setInputAction((click) => {
           // Visual ripple feedback at cursor (game-like)
@@ -3344,25 +3621,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               placeMarkerRef.current = viewer.entities.add({
                 position: markerPosition,
                 point: {
-                  pixelSize: 14,
+                  pixelSize: 12,
                   color: Cesium.Color.fromCssColorString('#8b5cf6'),
                   outlineColor: Cesium.Color.WHITE,
-                  outlineWidth: 3,
-                  heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                  disableDepthTestDistance: Number.POSITIVE_INFINITY
-                },
-                label: {
-                  text: '📍 Selected location',
-                  font: 'bold 14px sans-serif',
-                  fillColor: Cesium.Color.WHITE,
-                  outlineColor: Cesium.Color.BLACK,
                   outlineWidth: 2,
-                  style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                  showBackground: true,
-                  backgroundColor: Cesium.Color.fromCssColorString('#8b5cf6').withAlpha(0.9),
-                  backgroundPadding: new Cesium.Cartesian2(10, 6),
-                  pixelOffset: new Cesium.Cartesian2(0, -28),
-                  verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
                   heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
                   disableDepthTestDistance: Number.POSITIVE_INFINITY
                 }
@@ -3416,7 +3678,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 }))
               }
               
-              // Load neighbourhood buildings around the clicked point (5km radius)
+              // Load neighbourhood buildings around the clicked point (2km radius)
+              console.log('[Map Click] 🏢 Loading buildings at clicked point:', { clickLat, clickLng, radius: BUILDING_LOAD_RADIUS_KM })
               loadBuildingsAtPointRef.current(clickLat, clickLng, BUILDING_LOAD_RADIUS_KM)
               
               // Trigger location analysis
@@ -3425,6 +3688,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               // Dispatch event for chat panel to auto-analyze the area
               window.dispatchEvent(new CustomEvent('valora-area-clicked', {
                 detail: {
+                  source: 'map-click', // Identify this as a map-click triggered query
                   coordinates: { lat: clickLat, lng: clickLng },
                   skipFlyTo: true, // Prevent backend flyTo from overriding clicked location
                   query: `Analyze the area around coordinates ${clickLat.toFixed(5)}, ${clickLng.toFixed(5)}. Provide insights on property values, neighbourhood quality, nearby amenities, connectivity, investment potential, and growth trajectory.`
@@ -3433,6 +3697,115 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             }
           }
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+        
+        // Right-click handler for building selection and detailed analysis
+        viewer.screenSpaceEventHandler.setInputAction((click) => {
+          // Check if clicked on a building entity
+          const pickedObject = viewer.scene.pick(click.position)
+          
+          if (pickedObject && pickedObject.id && pickedObject.id.polygon) {
+            // Right-clicked on a building - select and highlight it
+            const buildingData = selectBuilding(pickedObject.id)
+            
+            if (buildingData && buildingData.coordinates.lat && buildingData.coordinates.lng) {
+              console.log('[Right Click] 🏢 Building selected:', buildingData)
+              
+              // Set click time to prevent backend flyTo from overriding
+              placeMarkerClickTimeRef.current = Date.now()
+              
+              // Update selectedLocation in agentData
+              if (setAgentData) {
+                setAgentData(prev => ({
+                  ...prev,
+                  selectedLocation: {
+                    lat: buildingData.coordinates.lat,
+                    lng: buildingData.coordinates.lng,
+                    name: buildingData.name || 'Selected Building'
+                  }
+                }))
+              }
+              
+              // Fly to the building
+              const buildingLat = buildingData.coordinates.lat
+              const buildingLng = buildingData.coordinates.lng
+              const buildingHeight = buildingData.height || 15
+              
+              // Stop any active rotation before flying
+              if (rotationIntervalRef.current) {
+                clearInterval(rotationIntervalRef.current)
+                rotationIntervalRef.current = null
+              }
+              try { viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY) } catch (_) {}
+              
+              // Get terrain-aware target at building center (terrain height + half building height)
+              const terrainHeight = getTerrainHeight(buildingLng, buildingLat)
+              const targetHeight = terrainHeight + (buildingHeight / 2)
+              const target = Cesium.Cartesian3.fromDegrees(buildingLng, buildingLat, targetHeight)
+              
+              // Calculate camera distance based on building height
+              const cameraDistance = Math.max(150, buildingHeight * 4)
+              
+              // Fly to building with close-up view
+              viewer.camera.flyToBoundingSphere(
+                new Cesium.BoundingSphere(target, cameraDistance / 2),
+                {
+                  duration: 1.5,
+                  offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-30), cameraDistance),
+                  complete: () => {
+                    console.log('[Right Click] 🎥 Camera focused on building')
+                  }
+                }
+              )
+              
+              // Remove existing place marker - building highlight is enough
+              if (placeMarkerRef.current) {
+                try {
+                  viewer.entities.remove(placeMarkerRef.current)
+                } catch (e) {
+                  console.warn('[Right Click] Could not remove old marker:', e)
+                }
+                placeMarkerRef.current = null
+              }
+              // No marker needed - building is already highlighted with amber color
+              
+              // Visual feedback
+              if (click?.position) {
+                setClickRipple({
+                  x: click.position.x,
+                  y: click.position.y,
+                  id: Date.now()
+                })
+                setTimeout(() => setClickRipple(null), 650)
+              }
+              
+              // Trigger detailed building analysis via API
+              analyzeBuildingDetailed(buildingData)
+              
+              // Also dispatch event for chat panel to analyze the building through task planner
+              const buildingQuery = `Analyze this building at coordinates ${buildingData.coordinates.lat.toFixed(5)}, ${buildingData.coordinates.lng.toFixed(5)}. Building details: ${buildingData.height || '?'}m tall, ${buildingData.levels || '?'} floors, ${buildingData.buildingType || 'building'} type${buildingData.area ? `, ~${buildingData.area}m² area` : ''}. Provide detailed insights on: 1) Property valuation and price estimate 2) Investment potential and ROI 3) Neighbourhood quality and amenities 4) Structural analysis and view quality 5) Solar potential and energy efficiency 6) Risk assessment and recommendations.`
+              
+              window.dispatchEvent(new CustomEvent('valora-building-clicked', {
+                detail: {
+                  source: 'building-right-click',
+                  coordinates: buildingData.coordinates,
+                  building: {
+                    type: buildingData.buildingType || 'building',
+                    height: buildingData.height,
+                    levels: buildingData.levels,
+                    area: buildingData.area,
+                    lat: buildingData.coordinates.lat,
+                    lng: buildingData.coordinates.lng,
+                    name: buildingData.name
+                  },
+                  query: buildingQuery
+                }
+              }))
+            }
+          } else {
+            // Right-clicked on empty area - deselect building
+            deselectBuilding()
+          }
+        }, Cesium.ScreenSpaceEventType.RIGHT_CLICK)
         
         // Hover handler: change cursor to pointer on interactive entities
         viewer.screenSpaceEventHandler.setInputAction((movement) => {

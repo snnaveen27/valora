@@ -217,24 +217,57 @@ def _get_rate_limiter():
     return get_rate_limiter()
 
 
-def _check_credits(user_id: str, action: str = "local_query"):
-    """Check if user has credits. Returns (allowed, result)."""
+def _check_credits(user_id: str, model: str = "qwen3:4b-instruct"):
+    """
+    Check if user has credits for a model inference.
+    
+    Args:
+        user_id: User identifier
+        model: Model to use (determines credit cost: 2 for local, 5 for cloud)
+    
+    Returns:
+        (allowed, result) tuple
+    """
     try:
         rl = _get_rate_limiter()
-        result = rl.check_rate_limit(user_id, action)
+        result = rl.check_credits(user_id, model)
         return result.allowed, result
     except Exception as e:
         logger.warning(f"Credits check failed (allowing): {e}")
         return True, None  # fail-open for MVP
 
 
-def _deduct_credits(user_id: str, action: str = "local_query", intent: str = None):
-    """Deduct credits after successful query."""
+def _deduct_credits(
+    user_id: str,
+    model: str = "qwen3:4b-instruct",
+    intent: str = None,
+    inference_id: str = None
+) -> dict:
+    """
+    Deduct credits after successful LLM inference.
+    
+    Args:
+        user_id: User identifier
+        model: Model used (determines credit cost: 2 for local, 5 for cloud)
+        intent: Query intent type
+        inference_id: Unique ID for this inference
+    
+    Returns:
+        Dict with deduction details
+    """
     try:
         rl = _get_rate_limiter()
-        rl.record_usage(user_id, action, success=True, query_type=intent)
+        result = rl.deduct_credits(
+            user_id=user_id,
+            model=model,
+            inference_id=inference_id,
+            query_type=intent,
+            metadata={'intent': intent}
+        )
+        return result
     except Exception as e:
         logger.warning(f"Credits deduction failed: {e}")
+        return {'success': False, 'error': str(e)}
 
 
 # ---------------------------------------------------------------------------
@@ -753,8 +786,8 @@ async def chat(request: ChatRequest):
         _store_conversation_turn(thread_id, user_query, greeting_resp["message"], intent="greeting")
         return greeting_resp
 
-    # Credits check
-    allowed, rate_result = _check_credits(user_id)
+    # Credits check (use default local model for initial check - actual deduction uses selected model)
+    allowed, rate_result = _check_credits(user_id, "qwen3:4b-instruct")
     if not allowed:
         return {
             "success": False,
@@ -833,8 +866,9 @@ async def chat(request: ChatRequest):
     # Store conversation turn
     _store_conversation_turn(thread_id, request.messages[-1].content, ai_message, intent=intent.value)
 
-    # Deduct credits
-    _deduct_credits(user_id, "local_query", intent.value)
+    # Deduct credits based on model used (2 for local, 5 for cloud)
+    model_used = user_model or "qwen3:4b-instruct"
+    _deduct_credits(user_id, model_used, intent.value)
 
     response = {
         "success": True,
@@ -900,8 +934,8 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             return True
         return False
 
-    # Credits check (before starting stream)
-    allowed, rate_result = _check_credits(user_id)
+    # Credits check (before starting stream) - use default local model for initial check
+    allowed, rate_result = _check_credits(user_id, "qwen3:4b-instruct")
     if not allowed:
         async def rate_limited_stream():
             data = {
@@ -1108,95 +1142,17 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         history = _get_conversation_history(thread_id)
         messages = _build_llm_messages(effective_query, request, facts, intent, context, history)
 
-        # --- Phase 2b: Autonomous Agentic Loop for complex queries ---
-        from ai.gis_agents import Intent as _Intent
-
-        # User-controlled autonomy: check context for explicit toggle
-        _user_agentic_pref = context.get("agentic_mode")  # True/False/None
-        _agentic_intents = {_Intent.COMPARISON, _Intent.SIMULATE, _Intent.INVESTMENT}
-        _is_multi_part = any(kw in effective_query.lower() for kw in [
-            " and also ", " plus ", " additionally ", "compare", " vs ", " versus ",
-            "what if", "simulate", "scenario", "as well as",
-        ])
-        _auto_agentic = (intent in _agentic_intents) or (_is_multi_part and len(effective_query.split()) > 12)
-
-        # Self-learning: check if learned data suggests agentic is beneficial
-        _learned_agentic = None
-        try:
-            from ai.self_learning import get_self_learning_engine
-            _learner = get_self_learning_engine()
-            _learned_agentic, _learn_reason = _learner.should_use_agentic(
-                intent.value if intent else "general", len(effective_query.split())
-            )
-        except Exception:
-            pass
-
-        # Final decision: user toggle > learned > auto-detection
-        if _user_agentic_pref is True:
-            _use_agentic = True
-        elif _user_agentic_pref is False:
-            _use_agentic = False
-        elif _learned_agentic is not None:
-            _use_agentic = _learned_agentic
-        else:
-            _use_agentic = _auto_agentic
-
-        agentic_answer = None
-        agentic_plan = None
-        if _use_agentic:
-            try:
-                from ai.agentic_loop import get_agentic_loop
-                from ai.ollama_client import get_ollama_client as _get_agentic_llm
-                agentic_loop = get_agentic_loop(max_steps=5)
-                agentic_llm = _get_agentic_llm()
-
-                yield _sse({
-                    "type": "agentic_start",
-                    "message": f"Deep analysis: {effective_query[:80]}",
-                    "thinking_time": time.time() - start_time,
-                })
-
-                # Pass intent to agentic loop context for self-learning
-                _agentic_ctx = {**context, "intent": intent.value if intent else None}
-                async for event in agentic_loop.run(
-                    query=effective_query,
-                    llm_client=agentic_llm,
-                    context=_agentic_ctx,
-                ):
-                    etype = event.get("type", "")
-                    if etype == "agent_action":
-                        yield _sse({
-                            "type": "agentic_action",
-                            "step": event.get("step_number"),
-                            "tool": event.get("action"),
-                            "params": event.get("action_params"),
-                            "thought": event.get("thought", "")[:200],
-                            "thinking_time": time.time() - start_time,
-                        })
-                    elif etype == "agent_observation":
-                        yield _sse({
-                            "type": "agentic_observation",
-                            "step": event.get("step_number"),
-                            "observation": (event.get("observation") or "")[:300],
-                            "thinking_time": time.time() - start_time,
-                        })
-                    elif etype == "agent_final":
-                        agentic_answer = event.get("final_answer")
-                        agentic_plan = event.get("plan")
-                        yield _sse({
-                            "type": "agentic_complete",
-                            "confidence": event.get("confidence", 0),
-                            "steps_taken": event.get("step_number", 0),
-                            "thinking_time": time.time() - start_time,
-                        })
-                    elif etype == "agent_max_steps":
-                        agentic_plan = event.get("plan")
-
-                metrics["agentic"] = True
-                metrics["agentic_steps"] = len(agentic_plan.get("steps", [])) if agentic_plan else 0
-            except Exception as e:
-                logger.warning(f"[{request_id}] Agentic loop error (falling back): {e}")
-                metrics["agentic_error"] = str(e)
+        # --- Phase 2b: Multi-Stage LLM Execution (replaces agentic loop) ---
+        # The multi-stage executor handles all queries with:
+        # - UNDERSTAND: Parse query, extract intent, entities, constraints
+        # - PLAN: Generate task graph with dependencies
+        # - EXECUTE: Run tasks with LLM reasoning
+        # - VALIDATE: Verify results, detect gaps
+        # - SYNTHESIZE: Generate final response
+        # Memory and self-learning are integrated into the executor.
+        
+        # Note: The agentic toggle has been removed from the frontend.
+        # All queries now use multi-stage execution with memory and learning.
 
         # --- Phase 3: Intelligent Model Selection + LLM Streaming ---
         from ai.model_router import route_model
@@ -1262,16 +1218,6 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             "reasoning": model_sel.reasoning,
             "thinking_time": time.time() - start_time,
         })
-
-        # If agentic loop produced an answer, inject it as extra context for the LLM
-        if agentic_answer:
-            agentic_ctx = (
-                "\n\n**AUTONOMOUS RESEARCH (grounded tool results):**\n"
-                + agentic_answer[:2000]
-            )
-            # Augment the system message with agentic findings
-            if messages and messages[0]["role"] == "system":
-                messages[0]["content"] += agentic_ctx
 
         content_buffer = ""
         thinking_buffer = ""
@@ -1421,9 +1367,23 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         # Store conversation turn
         _store_conversation_turn(thread_id, request.messages[-1].content if request.messages else "", content_buffer, intent=intent.value)
 
-        # Deduct credits (cloud queries cost more)
-        credit_action = "cloud_query" if model_sel.escalated else "local_query"
-        _deduct_credits(user_id, credit_action, intent.value)
+        # Deduct credits based on model used (2 for local, 5 for cloud)
+        deduction_result = _deduct_credits(
+            user_id, 
+            model_sel.model,  # Use actual model selected by router
+            intent.value,
+            inference_id=request_id
+        )
+        
+        # Emit credit deduction event for UI
+        if deduction_result.get('success'):
+            yield _sse({
+                "type": "credits_deducted",
+                "credits_used": deduction_result.get('credits_deducted', 2),
+                "llm_type": deduction_result.get('llm_type', 'local'),
+                "remaining_credits": deduction_result.get('remaining_credits', 0),
+                "thinking_time": time.time() - start_time,
+            })
 
         # Post-LLM fact verification (Truth Firewall)
         verification = _verify_llm_output(content_buffer, facts) if content_buffer.strip() else None

@@ -1,6 +1,12 @@
 """
-Agentic Loop - Opus-inspired iterative reasoning system
-Implements: Think → Act → Observe → Reflect → loop
+Agentic Loop - Enhanced Multi-Stage Agentic Reasoning System
+Implements: Think → Act → Observe → Reflect → loop using Multi-Stage LLM Execution
+
+Architecture:
+- Uses MultiStageLLMExecutor internally for robust LLM reasoning
+- Agentic-specific parameters: more iterations, deeper analysis, memory integration
+- Think → Act → Observe → Reflect cycle with validation loops
+- Self-learning integration for continuous improvement
 """
 
 from typing import Dict, List, Any, Optional, AsyncGenerator, Tuple
@@ -14,6 +20,12 @@ import logging
 from .tools_registry import ToolRegistry, get_tool_registry
 from .agentic_memory import AgenticMemory, get_agentic_memory
 from .self_learning import SelfLearningEngine, get_self_learning_engine
+from .multi_stage_executor import (
+    MultiStageLLMExecutor, 
+    MultiStageConfig, 
+    ExecutionStage,
+    get_multi_stage_executor
+)
 
 logger = logging.getLogger("valora.agentic_loop")
 
@@ -64,11 +76,21 @@ class AgentPlan:
 
 class AgenticLoop:
     """
-    Opus-inspired agentic reasoning loop with:
+    Enhanced agentic reasoning loop using Multi-Stage LLM Execution.
+    
+    Features:
+    - Uses MultiStageLLMExecutor internally for robust LLM reasoning
+    - Agentic-specific parameters: more iterations, deeper analysis
     - Persistent memory (recall previous results per location)
     - Parallel tool execution (concurrent independent tools)
     - Self-learning (track effectiveness, learn optimal sequences)
-    Implements: Think → Act → Observe → Reflect → (repeat or finalize)
+    - Think → Act → Observe → Reflect → (repeat or finalize)
+    
+    Agentic Mode vs Standard Mode:
+    - More validation loops (max_validation_loops=5 vs 3)
+    - Lower confidence threshold for deeper analysis (0.6 vs 0.7)
+    - Memory integration for context enrichment
+    - Self-learning for tool recommendations
     """
     
     def __init__(self, tool_registry: Optional[ToolRegistry] = None, max_steps: int = 5):
@@ -79,6 +101,17 @@ class AgenticLoop:
         self.learner: SelfLearningEngine = get_self_learning_engine()
         self._current_intent: Optional[str] = None
         self._current_location: Optional[str] = None
+        
+        # Agentic-specific multi-stage configuration
+        self._ms_config = MultiStageConfig(
+            max_retries_per_stage=3,  # More retries for agentic
+            min_confidence_threshold=0.6,  # Lower threshold for deeper analysis
+            enable_parallel_execution=True,
+            max_concurrent_tasks=4,
+            timeout_per_stage_ms=45000,  # Longer timeout for complex queries
+            enable_validation_loops=True,
+            max_validation_loops=5  # More validation loops for agentic
+        )
     
     async def run(
         self,
@@ -88,8 +121,173 @@ class AgenticLoop:
         streaming: bool = True
     ) -> AsyncGenerator[Dict, None]:
         """
-        Run the agentic loop with streaming updates.
+        Run the agentic loop using multi-stage LLM execution.
+        
+        This method now uses MultiStageLLMExecutor internally with agentic-specific
+        parameters for deeper analysis and more robust reasoning.
+        
         Yields: step updates, tool calls, observations, final answer
+        """
+        t_start = time.time()
+        self.current_plan = AgentPlan(query=query)
+        self._current_intent = context.get("intent") if context else None
+        self._current_location = self._extract_location_from_query(query)
+        
+        # --- Memory recall: inject cached results for this location ---
+        memory_hits = []
+        if self._current_location:
+            memory_hits = self.memory.recall_location(self._current_location)
+        
+        # --- Self-learning: get recommended tools for this intent ---
+        recommended_tools = []
+        if self._current_intent:
+            recommended_tools = self.learner.recommend_tools(self._current_intent, query)
+        
+        # Build initial context for multi-stage executor
+        initial_context = {
+            **(context or {}),
+            "memory_hits": memory_hits,
+            "recommended_tools": recommended_tools,
+            "agentic_mode": True,
+            "max_steps": self.max_steps
+        }
+        
+        # Yield start event
+        yield {
+            "type": "agent_start",
+            "query": query,
+            "max_steps": self.max_steps,
+            "memory_hits": len(memory_hits),
+            "recommended_tools": recommended_tools,
+        }
+        
+        # Create multi-stage executor with agentic config
+        executor = get_multi_stage_executor(
+            llm_client=llm_client,
+            config=self._ms_config,
+            tools_registry=self._get_tool_executors(),
+            on_progress=self._on_stage_progress
+        )
+        
+        # Run multi-stage execution
+        stage_results = {}
+        final_response = None
+        
+        async for event in executor.execute(query, initial_context):
+            event_type = event.get("type")
+            
+            # Map multi-stage events to agentic events for backward compatibility
+            if event_type == "stage_start":
+                stage = event.get("stage")
+                yield {
+                    "type": "agent_thinking",
+                    "stage": stage,
+                    "message": event.get("message"),
+                    "step_number": len(stage_results) + 1
+                }
+                
+            elif event_type == "stage_complete":
+                stage = event.get("stage")
+                stage_results[stage] = event
+                
+                # Map stages to agentic step types
+                if stage == "understand":
+                    yield {
+                        "type": "agent_thought",
+                        "step_number": 1,
+                        "thought": event.get("reasoning", "Understanding query..."),
+                        "entities": event.get("data", {}).get("entities", {}),
+                        "confidence": event.get("confidence", 0.8)
+                    }
+                    
+                elif stage == "plan":
+                    tasks = event.get("data", {}).get("tasks", [])
+                    yield {
+                        "type": "agent_plan",
+                        "step_number": 2,
+                        "plan": [t.get("label", t.get("action", "task")) for t in tasks],
+                        "thought": event.get("reasoning", "Planning execution...")
+                    }
+                    
+                elif stage == "execute":
+                    task_results = event.get("data", {}).get("task_results", {})
+                    for task_id, result in task_results.items():
+                        yield {
+                            "type": "agent_action",
+                            "step_number": len(stage_results),
+                            "action": result.get("action", task_id),
+                            "action_params": result.get("result", {}).get("params", {}),
+                            "thought": f"Executed {task_id}",
+                            "observation": str(result.get("result", ""))[:500]
+                        }
+                        
+                elif stage == "validate":
+                    yield {
+                        "type": "agent_reflection",
+                        "step_number": len(stage_results),
+                        "reflection": event.get("reasoning", "Validating results..."),
+                        "is_complete": event.get("data", {}).get("is_complete", True),
+                        "missing": event.get("data", {}).get("missing_information", [])
+                    }
+                    
+                elif stage == "synthesize":
+                    final_response = event.get("data", {})
+                    yield {
+                        "type": "agent_final",
+                        "step_number": len(stage_results),
+                        "final_answer": final_response.get("response", ""),
+                        "confidence": event.get("confidence", 0.9),
+                        "key_insights": final_response.get("key_insights", [])
+                    }
+                    
+            elif event_type == "execution_complete":
+                # Record in memory for future queries
+                if self._current_location and final_response:
+                    self.memory.record(
+                        tool="agentic_analysis",
+                        params={"query": query, "location": self._current_location},
+                        result=final_response
+                    )
+                
+                # Learn from this execution
+                if self._current_intent:
+                    self.learner.record_tool_sequence(
+                        intent=self._current_intent,
+                        tools=list(stage_results.get("execute", {}).get("data", {}).get("task_results", {}).keys()),
+                        success=True
+                    )
+                
+                yield {
+                    "type": "agent_complete",
+                    "final_answer": final_response.get("response", "") if final_response else "",
+                    "confidence": sum(s.get("confidence", 0.8) for s in stage_results.values()) / max(len(stage_results), 1),
+                    "steps_taken": len(stage_results),
+                    "thinking_time_ms": int((time.time() - t_start) * 1000)
+                }
+    
+    def _get_tool_executors(self) -> Dict[str, Any]:
+        """Get tool executors from registry for multi-stage executor"""
+        executors = {}
+        for tool_name in self.tool_registry.list_tools():
+            tool = self.tool_registry.get_tool(tool_name)
+            if tool and callable(tool):
+                executors[tool_name] = tool
+        return executors
+    
+    def _on_stage_progress(self, stage: str, message: str, progress: float):
+        """Progress callback for multi-stage executor"""
+        logger.debug(f"[Agentic] Stage {stage}: {message} ({progress*100:.0f}%)")
+    
+    async def run_legacy(
+        self,
+        query: str,
+        llm_client: Any,  # LLM client for reasoning
+        context: Optional[Dict] = None,
+        streaming: bool = True
+    ) -> AsyncGenerator[Dict, None]:
+        """
+        Legacy agentic loop implementation (Think → Act → Observe → Reflect).
+        Kept for backward compatibility and fallback.
         """
         t_start = time.time()
         self.current_plan = AgentPlan(query=query)

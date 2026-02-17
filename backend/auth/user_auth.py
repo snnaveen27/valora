@@ -23,11 +23,9 @@ DATABASE_PATH = config.DB_PATH.parent / "users.db"
 
 
 class SubscriptionTier(Enum):
-    """Subscription tiers from business model."""
+    """Subscription tiers - Only FREE and PRO (admin gets PRO with 20k credits)."""
     FREE = "free"
     PRO = "pro"
-    TEAM = "team"
-    ENTERPRISE = "enterprise"
     ADMIN = "admin"
 
 
@@ -38,7 +36,7 @@ class UserRole(Enum):
     ADMIN = "admin"
 
 
-# Tier limits and features
+# Tier limits and features - Only FREE and PRO
 TIER_LIMITS = {
     SubscriptionTier.FREE: {
         "queries_per_day": 10,
@@ -50,19 +48,7 @@ TIER_LIMITS = {
         "queries_per_day": 500,
         "reports_per_month": 50,
         "features": ["full_search", "area_analysis", "valuation", "report_export", "explainability", "unlimited_chat"],
-        "price_inr": 2999,
-    },
-    SubscriptionTier.TEAM: {
-        "queries_per_day": 2000,
-        "reports_per_month": 200,
-        "features": ["all_pro_features", "shared_shortlists", "team_admin", "audit_trails", "team_reporting"],
-        "price_inr": 4999,
-    },
-    SubscriptionTier.ENTERPRISE: {
-        "queries_per_day": -1,  # Unlimited
-        "reports_per_month": -1,
-        "features": ["all_team_features", "api_access", "on_prem", "sla", "custom_integrations", "priority_support"],
-        "price_inr": -1,  # Custom
+        "price_inr": 599,
     },
     SubscriptionTier.ADMIN: {
         "queries_per_day": -1,
@@ -236,7 +222,7 @@ class UserDatabase:
         conn.close()
     
     def _seed_admin(self, cursor):
-        """Seed admin user."""
+        """Seed admin user with PRO plan and 20k credits."""
         password_hash, salt = hash_password("admin@valora.ai")
         cursor.execute("""
             INSERT INTO users (email, name, password_hash, password_salt, tier, role, created_at, is_active)
@@ -246,12 +232,15 @@ class UserDatabase:
             "Valora Admin",
             password_hash,
             salt,
-            SubscriptionTier.ADMIN.value,
+            SubscriptionTier.PRO.value,  # Admin gets PRO plan
             UserRole.ADMIN.value,
             datetime.now().isoformat(),
             1
         ))
-        print("[OK] Admin user seeded: admin@valora.ai")
+        print("[OK] Admin user seeded: admin@valora.ai (PRO plan, 20k credits)")
+        
+        # Grant 20k credits to admin via usage tracker (after it's initialized)
+        # This is done in _grant_admin_credits after usage_tracker is ready
         
         # Seed demo user
         demo_hash, demo_salt = hash_password("demouser")

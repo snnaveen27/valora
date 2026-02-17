@@ -5,7 +5,7 @@
  */
 
 import { useRef, useEffect, useState } from 'react'
-import { Send, Image, HardDrive, StopCircle, X, Zap, Brain, ChevronDown } from 'lucide-react'
+import { Send, Image, HardDrive, StopCircle, X, Zap, ChevronDown } from 'lucide-react'
 import { API_URL } from '../../apiConfig'
 
 export default function ChatInputBar({
@@ -29,7 +29,6 @@ export default function ChatInputBar({
   const [loadingModels, setLoadingModels] = useState(false)
 
   const cloudEnabled = llmConfig.cloud_enabled ?? false
-  const agenticMode = llmConfig.agentic_mode ?? null  // null=auto, true=always, false=never
 
   // Focus input on mount
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -115,12 +114,6 @@ export default function ChatInputBar({
     onConfigChange?.({ ...llmConfig, cloud_enabled: !cloudEnabled })
   }
 
-  const cycleAgenticMode = () => {
-    // Cycle: null(auto) → true(always) → false(never) → null(auto)
-    const next = agenticMode === null ? true : agenticMode === true ? false : null
-    onConfigChange?.({ ...llmConfig, agentic_mode: next })
-  }
-
   const handleModelSelect = (modelId) => {
     onConfigChange?.({ ...llmConfig, local_model: modelId })
     setShowModelDropdown(false)
@@ -156,59 +149,16 @@ export default function ChatInputBar({
         </div>
       )}
 
-      {/* Compact status row: cloud toggle + credits + hints */}
+      {/* Compact status row: model selector + hints */}
       <div className="relative mb-1.5">
         <div className="flex items-center gap-2">
-          {/* Cloud toggle */}
-          <button
-            onClick={toggleCloud}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border transition-all ${
-              cloudEnabled
-                ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 hover:bg-amber-500/25 shadow-sm shadow-amber-900/20'
-                : 'bg-slate-800/50 text-slate-400 border-slate-600/40 hover:bg-slate-700/50'
-            }`}
-            title={cloudEnabled
-              ? 'Cloud ON — AI auto-selects the best model (local or cloud) per query'
-              : 'Cloud OFF — Using local Qwen3 4B'}
-          >
-            {cloudEnabled ? <Zap className="w-3 h-3" /> : <HardDrive className="w-3 h-3" />}
-            <span>{cloudEnabled ? 'Cloud' : 'Local'}</span>
-            <div className={`w-6 h-3.5 rounded-full relative transition-colors ${cloudEnabled ? 'bg-amber-500/40' : 'bg-slate-600/60'}`}>
-              <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all ${
-                cloudEnabled ? 'right-0.5 bg-amber-400' : 'left-0.5 bg-slate-400'
-              }`} />
-            </div>
-          </button>
-
-          {/* Agentic mode toggle */}
-          <button
-            onClick={cycleAgenticMode}
-            className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium border transition-all ${
-              agenticMode === true
-                ? 'bg-purple-500/15 text-purple-400 border-purple-500/40 hover:bg-purple-500/25'
-                : agenticMode === false
-                ? 'bg-slate-800/50 text-slate-500 border-slate-600/40 hover:bg-slate-700/50 line-through'
-                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-            }`}
-            title={agenticMode === true ? 'Agentic: ALWAYS — Forces autonomous reasoning for all queries'
-              : agenticMode === false ? 'Agentic: OFF — Disables autonomous reasoning'
-              : 'Agentic: AUTO — AI decides when to use autonomous reasoning'}
-          >
-            <Brain className="w-3 h-3" />
-            <span>{agenticMode === true ? 'Agent' : agenticMode === false ? 'Off' : 'Auto'}</span>
-          </button>
-
-          {/* Model selector dropdown */}
+          {/* Model selector dropdown - always visible, model selection is automated */}
           <div className="relative model-dropdown-container">
             <button
               onClick={() => setShowModelDropdown(!showModelDropdown)}
               disabled={loadingModels}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border transition-all ${
-                cloudEnabled
-                  ? 'bg-slate-800/50 text-slate-400 border-slate-600/40'
-                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-              }`}
-              title={cloudEnabled ? 'Model selection disabled in cloud mode' : 'Select local model'}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border transition-all bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+              title="Model selection is automated based on query complexity"
             >
               <HardDrive className="w-3 h-3" />
               <span className="max-w-[80px] truncate">
@@ -218,7 +168,7 @@ export default function ChatInputBar({
             </button>
             
             {/* Dropdown */}
-            {showModelDropdown && !cloudEnabled && (
+            {showModelDropdown && (
               <div className="absolute bottom-full left-0 mb-2 w-48 bg-dark-800 border border-primary-700/50 rounded-lg shadow-lg shadow-dark-900/50 z-50 max-h-48 overflow-y-auto">
                 <div className="p-2">
                   <div className="text-[10px] text-primary-400/60 font-medium mb-2 px-2">Local Models</div>

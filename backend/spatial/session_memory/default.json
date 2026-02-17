@@ -1,6 +1,6 @@
 {
   "session_id": "default",
-  "session_start": "2026-02-16T22:32:07.668536",
+  "session_start": "2026-02-18T02:19:02.252658",
   "visits": [
     {
       "lat": 12.9782379,
@@ -2471,6 +2471,1746 @@
       "duration_seconds": 0,
       "actions_taken": [],
       "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-16T23:22:54.579988",
+      "intent": "analyze_area",
+      "duration_seconds": 32.429231,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-16T23:23:27.009219",
+      "intent": "property_search",
+      "duration_seconds": 22.888547,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-16T23:23:49.897766",
+      "intent": "comparison",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-16T23:31:25.998260",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-16T23:33:57.674912",
+      "intent": "comparison",
+      "duration_seconds": 361.978778,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.229759080724548,
+      "lng": 77.74772766227495,
+      "name": "Area at 13.22976, 77.74773",
+      "timestamp": "2026-02-16T23:39:59.653690",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97776755076978,
+      "lng": 77.64167924538447,
+      "name": "Area at 12.97777, 77.64168",
+      "timestamp": "2026-02-16T23:46:01.583765",
+      "intent": "investment",
+      "duration_seconds": 181.678941,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.972308455392763,
+      "lng": 77.59023077796768,
+      "name": "Area at 12.97231, 77.59023",
+      "timestamp": "2026-02-16T23:49:03.262706",
+      "intent": "investment",
+      "duration_seconds": 109.163804,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-16T23:50:52.426510",
+      "intent": "analyze_area",
+      "duration_seconds": 43.518157,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-16T23:51:35.944667",
+      "intent": "property_search",
+      "duration_seconds": 46.313624,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-16T23:52:22.258291",
+      "intent": "comparison",
+      "duration_seconds": 147.898806,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.970648894801066,
+      "lng": 77.71517013606987,
+      "name": "Area at 12.97065, 77.71517",
+      "timestamp": "2026-02-16T23:54:50.157097",
+      "intent": "investment",
+      "duration_seconds": 230.839717,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-16T23:58:40.996814",
+      "intent": "comparison",
+      "duration_seconds": 68.093292,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-16T23:59:49.090106",
+      "intent": "investment",
+      "duration_seconds": 178.446373,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-17T00:02:47.536479",
+      "intent": "property_search",
+      "duration_seconds": 456.44782,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-17T00:10:23.984299",
+      "intent": "comparison",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.1986,
+      "lng": 77.7066,
+      "name": "Kempegowda International Airport",
+      "timestamp": "2026-02-17T00:14:46.146294",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-17T00:32:55.580326",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.970791292056726,
+      "lng": 77.70320095498542,
+      "name": "Area at 12.97079, 77.70320",
+      "timestamp": "2026-02-17T00:48:48.763189",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976918617323077,
+      "lng": 77.64297775231344,
+      "name": "Area at 12.97692, 77.64298",
+      "timestamp": "2026-02-17T02:30:34.628096",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.980641000443322,
+      "lng": 77.63874578005584,
+      "name": "Area at 12.98064, 77.63875",
+      "timestamp": "2026-02-17T03:16:44.768897",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978817499384185,
+      "lng": 77.64328448668529,
+      "name": "Area at 12.97882, 77.64328",
+      "timestamp": "2026-02-17T03:45:28.580407",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978411848006266,
+      "lng": 77.63763322512057,
+      "name": "Area at 12.97841, 77.63763",
+      "timestamp": "2026-02-17T04:32:19.694658",
+      "intent": "investment",
+      "duration_seconds": 23.564222,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97890952492225,
+      "lng": 77.63776346736192,
+      "name": "Area at 12.97891, 77.63776",
+      "timestamp": "2026-02-17T04:32:43.258880",
+      "intent": "investment",
+      "duration_seconds": 1.503337,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978003777150553,
+      "lng": 77.63783266443751,
+      "name": "Area at 12.97800, 77.63783",
+      "timestamp": "2026-02-17T04:32:44.762217",
+      "intent": "investment",
+      "duration_seconds": 0.497018,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978000482659267,
+      "lng": 77.63783434277411,
+      "name": "Area at 12.97800, 77.63783",
+      "timestamp": "2026-02-17T04:32:45.259235",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979457255929903,
+      "lng": 77.64203217148676,
+      "name": "Area at 12.97946, 77.64203",
+      "timestamp": "2026-02-17T04:38:12.995494",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979928533507055,
+      "lng": 77.63908990509142,
+      "name": "Area at 12.97993, 77.63909",
+      "timestamp": "2026-02-17T05:06:52.649365",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977692053969497,
+      "lng": 77.6425542975615,
+      "name": "Area at 12.97769, 77.64255",
+      "timestamp": "2026-02-17T05:08:45.071611",
+      "intent": "investment",
+      "duration_seconds": 175.097156,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977557878982433,
+      "lng": 77.6427660495587,
+      "name": "Area at 12.97756, 77.64277",
+      "timestamp": "2026-02-17T05:11:40.168767",
+      "intent": "investment",
+      "duration_seconds": 147.13984,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.981351656067366,
+      "lng": 77.64076216977892,
+      "name": "Area at 12.98135, 77.64076",
+      "timestamp": "2026-02-17T05:14:07.308607",
+      "intent": "investment",
+      "duration_seconds": 64.595005,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.981293806435025,
+      "lng": 77.63944072021637,
+      "name": "Area at 12.98129, 77.63944",
+      "timestamp": "2026-02-17T05:15:11.903612",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97888837080199,
+      "lng": 77.6396570045746,
+      "name": "Area at 12.97889, 77.63966",
+      "timestamp": "2026-02-17T05:32:33.260565",
+      "intent": "investment",
+      "duration_seconds": 850.831322,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.981361890981159,
+      "lng": 77.63962562458472,
+      "name": "Area at 12.98136, 77.63963",
+      "timestamp": "2026-02-17T05:46:44.091887",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976527580565794,
+      "lng": 77.64245844013752,
+      "name": "Area at 12.97653, 77.64246",
+      "timestamp": "2026-02-17T06:51:23.283560",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.01506694496582,
+      "lng": 77.64125764092259,
+      "name": "Area at 13.01507, 77.64126",
+      "timestamp": "2026-02-17T07:23:04.805887",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-17T14:42:33.100930",
+      "intent": "property_search",
+      "duration_seconds": 76.42183,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9698,
+      "lng": 77.7499,
+      "name": "Whitefield",
+      "timestamp": "2026-02-17T14:43:49.522760",
+      "intent": "comparison",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-17T15:05:39.546830",
+      "intent": "investment",
+      "duration_seconds": 297.928985,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.039390828947958,
+      "lng": 77.59256349203854,
+      "name": "Area at 13.03939, 77.59256",
+      "timestamp": "2026-02-17T15:10:37.475815",
+      "intent": "investment",
+      "duration_seconds": 96.700634,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-17T15:12:14.176449",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.016969523991984,
+      "lng": 77.58889530860004,
+      "name": "Area at 13.01697, 77.58890",
+      "timestamp": "2026-02-17T15:19:54.946721",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.985455981162945,
+      "lng": 77.63012963443214,
+      "name": "Area at 12.98546, 77.63013",
+      "timestamp": "2026-02-17T16:47:46.065906",
+      "intent": "investment",
+      "duration_seconds": 175.287675,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.986117473496376,
+      "lng": 77.63143078622203,
+      "name": "Area at 12.98612, 77.63143",
+      "timestamp": "2026-02-17T16:50:41.353581",
+      "intent": "investment",
+      "duration_seconds": 42.15506,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-17T16:51:23.508641",
+      "intent": "analyze_area",
+      "duration_seconds": 80.357203,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.937488824115418,
+      "lng": 77.62471778287674,
+      "name": "Area at 12.93749, 77.62472",
+      "timestamp": "2026-02-17T16:52:43.865844",
+      "intent": "investment",
+      "duration_seconds": 220.090526,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-17T16:56:23.956370",
+      "intent": "property_search",
+      "duration_seconds": 76.836625,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.982295479883934,
+      "lng": 77.64259755289021,
+      "name": "Area at 12.98230, 77.64260",
+      "timestamp": "2026-02-17T16:57:40.792995",
+      "intent": "investment",
+      "duration_seconds": 53.69316,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.98245852872384,
+      "lng": 77.64309588014007,
+      "name": "Area at 12.98246, 77.64310",
+      "timestamp": "2026-02-17T16:58:34.486155",
+      "intent": "investment",
+      "duration_seconds": 543.213546,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-17T17:07:37.699701",
+      "intent": "market_trend",
+      "duration_seconds": 1024.671783,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976780755602325,
+      "lng": 77.64227311414389,
+      "name": "Area at 12.97678, 77.64227",
+      "timestamp": "2026-02-17T17:24:42.371484",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977059455041212,
+      "lng": 77.64232499088001,
+      "name": "Area at 12.97706, 77.64232",
+      "timestamp": "2026-02-17T17:41:18.508425",
+      "intent": "investment",
+      "duration_seconds": 141.819155,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-17T17:43:40.327580",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.987612292766377,
+      "lng": 77.63351623543862,
+      "name": "Area at 12.98761, 77.63352",
+      "timestamp": "2026-02-17T18:01:27.949545",
+      "intent": "investment",
+      "duration_seconds": 56.892465,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.987095335863629,
+      "lng": 77.61148325410936,
+      "name": "Area at 12.98710, 77.61148",
+      "timestamp": "2026-02-17T18:02:24.842010",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97656435948326,
+      "lng": 77.64201495173215,
+      "name": "Area at 12.97656, 77.64201",
+      "timestamp": "2026-02-17T18:24:13.818472",
+      "intent": "investment",
+      "duration_seconds": 318.901956,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-17T18:29:32.720936",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976722611147542,
+      "lng": 77.64344736860794,
+      "name": "Area at 12.97672, 77.64345",
+      "timestamp": "2026-02-17T18:34:11.521874",
+      "intent": "investment",
+      "duration_seconds": 53.158576,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.975822066928771,
+      "lng": 77.6431005489488,
+      "name": "Area at 12.97582, 77.64310",
+      "timestamp": "2026-02-17T18:35:04.680450",
+      "intent": "investment",
+      "duration_seconds": 361.25235,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9757410555873,
+      "lng": 77.64303871382111,
+      "name": "Area at 12.97574, 77.64304",
+      "timestamp": "2026-02-17T18:41:05.932800",
+      "intent": "investment",
+      "duration_seconds": 74.354352,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.974468745016841,
+      "lng": 77.64453362139506,
+      "name": "Area at 12.97447, 77.64453",
+      "timestamp": "2026-02-17T18:42:20.287152",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.975146086938805,
+      "lng": 77.64023767912147,
+      "name": "Area at 12.97515, 77.64024",
+      "timestamp": "2026-02-17T18:44:10.654883",
+      "intent": "investment",
+      "duration_seconds": 228.160614,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.973895650092917,
+      "lng": 77.61458876914804,
+      "name": "Area at 12.97390, 77.61459",
+      "timestamp": "2026-02-17T18:47:58.815497",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978561830896686,
+      "lng": 77.64213443178201,
+      "name": "Area at 12.97856, 77.64213",
+      "timestamp": "2026-02-17T18:49:57.274303",
+      "intent": "investment",
+      "duration_seconds": 14.555718,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977603210216037,
+      "lng": 77.6424930222307,
+      "name": "Area at 12.97760, 77.64249",
+      "timestamp": "2026-02-17T18:50:11.830021",
+      "intent": "investment",
+      "duration_seconds": 41.824797,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.980165132011848,
+      "lng": 77.63137211408663,
+      "name": "Area at 12.98017, 77.63137",
+      "timestamp": "2026-02-17T18:50:53.654818",
+      "intent": "investment",
+      "duration_seconds": 228.576554,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978644494473011,
+      "lng": 77.64155062059565,
+      "name": "Area at 12.97864, 77.64155",
+      "timestamp": "2026-02-17T18:54:42.231372",
+      "intent": "investment",
+      "duration_seconds": 33.012932,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978695673972108,
+      "lng": 77.64205957491096,
+      "name": "Area at 12.97870, 77.64206",
+      "timestamp": "2026-02-17T18:55:15.244304",
+      "intent": "investment",
+      "duration_seconds": 43.632934,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979354934019414,
+      "lng": 77.64120330049676,
+      "name": "Area at 12.97935, 77.64120",
+      "timestamp": "2026-02-17T18:55:58.877238",
+      "intent": "investment",
+      "duration_seconds": 258.02782,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.980151058608664,
+      "lng": 77.64184569652119,
+      "name": "Area at 12.98015, 77.64185",
+      "timestamp": "2026-02-17T19:00:16.905058",
+      "intent": "investment",
+      "duration_seconds": 191.373923,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977820760312621,
+      "lng": 77.64244267336262,
+      "name": "Area at 12.97782, 77.64244",
+      "timestamp": "2026-02-17T19:03:28.278981",
+      "intent": "investment",
+      "duration_seconds": 153.259217,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978899749726999,
+      "lng": 77.64168758457647,
+      "name": "Area at 12.97890, 77.64169",
+      "timestamp": "2026-02-17T19:06:01.538198",
+      "intent": "investment",
+      "duration_seconds": 52.205828,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-17T19:06:53.744026",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97720964821182,
+      "lng": 77.64226753600003,
+      "name": "Area at 12.97721, 77.64227",
+      "timestamp": "2026-02-17T19:31:41.740091",
+      "intent": "investment",
+      "duration_seconds": 34.267033,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976279841733986,
+      "lng": 77.64258015860534,
+      "name": "Area at 12.97628, 77.64258",
+      "timestamp": "2026-02-17T19:32:16.007124",
+      "intent": "investment",
+      "duration_seconds": 519.769981,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9774799545283,
+      "lng": 77.63790204802488,
+      "name": "Area at 12.97748, 77.63790",
+      "timestamp": "2026-02-17T19:40:55.777105",
+      "intent": "investment",
+      "duration_seconds": 641.96074,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97657173530532,
+      "lng": 77.63874396739403,
+      "name": "Area at 12.97657, 77.63874",
+      "timestamp": "2026-02-17T19:51:37.737845",
+      "intent": "investment",
+      "duration_seconds": 94.717487,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.975579944603714,
+      "lng": 77.6438468758644,
+      "name": "Area at 12.97558, 77.64385",
+      "timestamp": "2026-02-17T19:53:12.455332",
+      "intent": "investment",
+      "duration_seconds": 178.665645,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-17T19:56:11.120977",
+      "intent": "navigate",
+      "duration_seconds": 120.200743,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978317447657453,
+      "lng": 77.64370287676493,
+      "name": "Area at 12.97832, 77.64370",
+      "timestamp": "2026-02-17T19:58:11.321720",
+      "intent": "investment",
+      "duration_seconds": 194.733797,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978253306061273,
+      "lng": 77.64315516919166,
+      "name": "Area at 12.97825, 77.64316",
+      "timestamp": "2026-02-17T20:01:26.055517",
+      "intent": "investment",
+      "duration_seconds": 425.310454,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978689763607857,
+      "lng": 77.6402336777989,
+      "name": "Area at 12.97869, 77.64023",
+      "timestamp": "2026-02-17T20:08:31.365971",
+      "intent": "investment",
+      "duration_seconds": 12.269188,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978719969510081,
+      "lng": 77.63953466583652,
+      "name": "Area at 12.97872, 77.63953",
+      "timestamp": "2026-02-17T20:08:43.635159",
+      "intent": "investment",
+      "duration_seconds": 9.625405,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.981119068273363,
+      "lng": 77.63576451234319,
+      "name": "Area at 12.98112, 77.63576",
+      "timestamp": "2026-02-17T20:08:53.260564",
+      "intent": "investment",
+      "duration_seconds": 16.064198,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97685418505868,
+      "lng": 77.63221278215195,
+      "name": "Area at 12.97685, 77.63221",
+      "timestamp": "2026-02-17T20:09:09.324762",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97725114442425,
+      "lng": 77.64211089062272,
+      "name": "Area at 12.97725, 77.64211",
+      "timestamp": "2026-02-17T20:42:06.380695",
+      "intent": "investment",
+      "duration_seconds": 65.660977,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977651605856723,
+      "lng": 77.64240205497553,
+      "name": "Area at 12.97765, 77.64240",
+      "timestamp": "2026-02-17T20:43:12.041672",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97718077223301,
+      "lng": 77.64047268467888,
+      "name": "Area at 12.97718, 77.64047",
+      "timestamp": "2026-02-17T21:00:49.016528",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977454605562235,
+      "lng": 77.63995787282086,
+      "name": "Area at 12.97745, 77.63996",
+      "timestamp": "2026-02-17T21:06:16.054390",
+      "intent": "investment",
+      "duration_seconds": 532.188647,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977116253976265,
+      "lng": 77.64033483191726,
+      "name": "Area at 12.97712, 77.64033",
+      "timestamp": "2026-02-17T21:15:08.243037",
+      "intent": "investment",
+      "duration_seconds": 404.387167,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977956098765466,
+      "lng": 77.64179130097519,
+      "name": "Area at 12.97796, 77.64179",
+      "timestamp": "2026-02-17T21:21:52.630204",
+      "intent": "investment",
+      "duration_seconds": 12.103083,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977002855823269,
+      "lng": 77.64257689806551,
+      "name": "Area at 12.97700, 77.64258",
+      "timestamp": "2026-02-17T21:22:04.733287",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977064685591507,
+      "lng": 77.64180512523598,
+      "name": "Area at 12.97706, 77.64181",
+      "timestamp": "2026-02-17T21:22:28.344478",
+      "intent": "investment",
+      "duration_seconds": 18.923151,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977064685591507,
+      "lng": 77.64180512523598,
+      "name": "Area at 12.97706, 77.64181",
+      "timestamp": "2026-02-17T21:22:47.267629",
+      "intent": "investment",
+      "duration_seconds": 19.144233,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-17T21:23:06.411862",
+      "intent": "investment",
+      "duration_seconds": 30.675843,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-17T21:23:37.087705",
+      "intent": "investment",
+      "duration_seconds": 473.722367,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977600097690829,
+      "lng": 77.63955285975028,
+      "name": "Area at 12.97760, 77.63955",
+      "timestamp": "2026-02-17T21:31:30.810072",
+      "intent": "investment",
+      "duration_seconds": 44.646049,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9767154,
+      "lng": 77.63927408,
+      "name": "Area at 12.97672, 77.63927",
+      "timestamp": "2026-02-17T21:32:15.456121",
+      "intent": "investment",
+      "duration_seconds": 137.419493,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977344920000002,
+      "lng": 77.63847824,
+      "name": "Area at 12.97734, 77.63848",
+      "timestamp": "2026-02-17T21:34:32.875614",
+      "intent": "investment",
+      "duration_seconds": 298.853934,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977423432690271,
+      "lng": 77.64011633126303,
+      "name": "Area at 12.97742, 77.64012",
+      "timestamp": "2026-02-17T21:39:31.729548",
+      "intent": "investment",
+      "duration_seconds": 12.729169,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977423432690271,
+      "lng": 77.64011633126303,
+      "name": "Area at 12.97742, 77.64012",
+      "timestamp": "2026-02-17T21:39:44.458717",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97763050589867,
+      "lng": 77.64556695350161,
+      "name": "Area at 12.97763, 77.64557",
+      "timestamp": "2026-02-17T21:44:49.823649",
+      "intent": "investment",
+      "duration_seconds": 21.071297,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97763050589867,
+      "lng": 77.64556695350161,
+      "name": "Area at 12.97763, 77.64557",
+      "timestamp": "2026-02-17T21:45:10.894946",
+      "intent": "investment",
+      "duration_seconds": 27.410712,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977217239999998,
+      "lng": 77.64578416,
+      "name": "Area at 12.97722, 77.64578",
+      "timestamp": "2026-02-17T21:45:38.305658",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977763327953017,
+      "lng": 77.64302382100728,
+      "name": "Area at 12.97776, 77.64302",
+      "timestamp": "2026-02-17T21:49:19.237927",
+      "intent": "investment",
+      "duration_seconds": 18.003319,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977763327953017,
+      "lng": 77.64302382100728,
+      "name": "Area at 12.97776, 77.64302",
+      "timestamp": "2026-02-17T21:49:37.241246",
+      "intent": "investment",
+      "duration_seconds": 10.401261,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977763327953017,
+      "lng": 77.64302382100728,
+      "name": "Area at 12.97776, 77.64302",
+      "timestamp": "2026-02-17T21:49:47.642507",
+      "intent": "investment",
+      "duration_seconds": 57.274222,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9782379,
+      "lng": 77.64322254,
+      "name": "Area at 12.97824, 77.64322",
+      "timestamp": "2026-02-17T21:50:44.916729",
+      "intent": "investment",
+      "duration_seconds": 169.877823,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978289733333334,
+      "lng": 77.64437816666667,
+      "name": "Area at 12.97829, 77.64438",
+      "timestamp": "2026-02-17T21:53:34.794552",
+      "intent": "investment",
+      "duration_seconds": 91.351289,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977472872540384,
+      "lng": 77.64185532611762,
+      "name": "Area at 12.97747, 77.64186",
+      "timestamp": "2026-02-17T21:55:06.145841",
+      "intent": "investment",
+      "duration_seconds": 20.218905,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.981318852846272,
+      "lng": 77.63940476459757,
+      "name": "Area at 12.98132, 77.63940",
+      "timestamp": "2026-02-17T21:55:26.364746",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977106331117687,
+      "lng": 77.64182678869169,
+      "name": "Area at 12.97711, 77.64183",
+      "timestamp": "2026-02-17T21:56:01.414201",
+      "intent": "investment",
+      "duration_seconds": 24.5939,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977106331117687,
+      "lng": 77.64182678869169,
+      "name": "Area at 12.97711, 77.64183",
+      "timestamp": "2026-02-17T21:56:26.008101",
+      "intent": "investment",
+      "duration_seconds": 32.640042,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9758227,
+      "lng": 77.64179709999999,
+      "name": "Area at 12.97582, 77.64180",
+      "timestamp": "2026-02-17T21:56:58.648683",
+      "intent": "investment",
+      "duration_seconds": 77.919128,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.975879459999998,
+      "lng": 77.64300172,
+      "name": "Area at 12.97588, 77.64300",
+      "timestamp": "2026-02-17T21:58:16.567811",
+      "intent": "investment",
+      "duration_seconds": 61.629184,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97563164,
+      "lng": 77.64622866,
+      "name": "Area at 12.97563, 77.64623",
+      "timestamp": "2026-02-17T21:59:18.196995",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977605462517989,
+      "lng": 77.64216837656262,
+      "name": "Area at 12.97761, 77.64217",
+      "timestamp": "2026-02-17T22:05:48.558313",
+      "intent": "investment",
+      "duration_seconds": 20.563434,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977605462517989,
+      "lng": 77.64216837656262,
+      "name": "Area at 12.97761, 77.64217",
+      "timestamp": "2026-02-17T22:06:09.121747",
+      "intent": "investment",
+      "duration_seconds": 24.584945,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9782379,
+      "lng": 77.64322254,
+      "name": "Area at 12.97824, 77.64322",
+      "timestamp": "2026-02-17T22:06:33.706692",
+      "intent": "investment",
+      "duration_seconds": 22.053977,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978235919999998,
+      "lng": 77.64333244000001,
+      "name": "Area at 12.97824, 77.64333",
+      "timestamp": "2026-02-17T22:06:55.760669",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978014557588976,
+      "lng": 77.64202139002236,
+      "name": "Area at 12.97801, 77.64202",
+      "timestamp": "2026-02-17T22:15:36.417370",
+      "intent": "investment",
+      "duration_seconds": 11.461036,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978014557588976,
+      "lng": 77.64202139002236,
+      "name": "Area at 12.97801, 77.64202",
+      "timestamp": "2026-02-17T22:15:47.878406",
+      "intent": "investment",
+      "duration_seconds": 4.425166,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978014557588976,
+      "lng": 77.64202139002236,
+      "name": "Area at 12.97801, 77.64202",
+      "timestamp": "2026-02-17T22:15:52.303572",
+      "intent": "investment",
+      "duration_seconds": 91.686586,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9782379,
+      "lng": 77.64322254,
+      "name": "Area at 12.97824, 77.64322",
+      "timestamp": "2026-02-17T22:17:23.990158",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977725334308628,
+      "lng": 77.64236237571704,
+      "name": "Area at 12.97773, 77.64236",
+      "timestamp": "2026-02-17T22:22:51.523910",
+      "intent": "investment",
+      "duration_seconds": 13.943011,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977725334308628,
+      "lng": 77.64236237571704,
+      "name": "Area at 12.97773, 77.64236",
+      "timestamp": "2026-02-17T22:23:05.466921",
+      "intent": "investment",
+      "duration_seconds": 464.537279,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977941158946255,
+      "lng": 77.64222339445213,
+      "name": "Area at 12.97794, 77.64222",
+      "timestamp": "2026-02-17T22:30:50.004200",
+      "intent": "investment",
+      "duration_seconds": 8.793823,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977941158946255,
+      "lng": 77.64222339445213,
+      "name": "Area at 12.97794, 77.64222",
+      "timestamp": "2026-02-17T22:30:58.798023",
+      "intent": "investment",
+      "duration_seconds": 12.005282,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977941158946255,
+      "lng": 77.64222339445213,
+      "name": "Area at 12.97794, 77.64222",
+      "timestamp": "2026-02-17T22:31:10.803305",
+      "intent": "investment",
+      "duration_seconds": 6.630432,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977793488616648,
+      "lng": 77.64252379903998,
+      "name": "Area at 12.97779, 77.64252",
+      "timestamp": "2026-02-17T22:31:17.433737",
+      "intent": "investment",
+      "duration_seconds": 16.346377,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976999211878656,
+      "lng": 77.64333454374703,
+      "name": "Area at 12.97700, 77.64333",
+      "timestamp": "2026-02-17T22:31:33.780114",
+      "intent": "investment",
+      "duration_seconds": 15.529099,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976999211878656,
+      "lng": 77.64333454374703,
+      "name": "Area at 12.97700, 77.64333",
+      "timestamp": "2026-02-17T22:31:49.309213",
+      "intent": "investment",
+      "duration_seconds": 6.699231,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976999211878656,
+      "lng": 77.64333454374703,
+      "name": "Area at 12.97700, 77.64333",
+      "timestamp": "2026-02-17T22:31:56.008444",
+      "intent": "investment",
+      "duration_seconds": 406.730112,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97698173361882,
+      "lng": 77.64025416837038,
+      "name": "Area at 12.97698, 77.64025",
+      "timestamp": "2026-02-17T22:38:42.738556",
+      "intent": "investment",
+      "duration_seconds": 32.961251,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.97641056,
+      "lng": 77.64363624,
+      "name": "Area at 12.97641, 77.64364",
+      "timestamp": "2026-02-17T22:39:15.699807",
+      "intent": "investment",
+      "duration_seconds": 70.562861,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.976707300000001,
+      "lng": 77.64045712000001,
+      "name": "Area at 12.97671, 77.64046",
+      "timestamp": "2026-02-17T22:40:26.262668",
+      "intent": "investment",
+      "duration_seconds": 100.226952,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.975784300151362,
+      "lng": 77.64256783532474,
+      "name": "Area at 12.97578, 77.64257",
+      "timestamp": "2026-02-17T22:42:06.489620",
+      "intent": "investment",
+      "duration_seconds": 19.816139,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977218964686731,
+      "lng": 77.64239488509756,
+      "name": "Area at 12.97722, 77.64239",
+      "timestamp": "2026-02-17T22:42:26.305759",
+      "intent": "investment",
+      "duration_seconds": 11.155945,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977218964686731,
+      "lng": 77.64239488509756,
+      "name": "Area at 12.97722, 77.64239",
+      "timestamp": "2026-02-17T22:42:37.461704",
+      "intent": "investment",
+      "duration_seconds": 102.635715,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979211107763756,
+      "lng": 77.6394345901366,
+      "name": "Area at 12.97921, 77.63943",
+      "timestamp": "2026-02-17T22:44:20.097419",
+      "intent": "investment",
+      "duration_seconds": 8.431277,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979211107763756,
+      "lng": 77.6394345901366,
+      "name": "Area at 12.97921, 77.63943",
+      "timestamp": "2026-02-17T22:44:28.528696",
+      "intent": "investment",
+      "duration_seconds": 44.499444,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978710959999997,
+      "lng": 77.63962104,
+      "name": "Area at 12.97871, 77.63962",
+      "timestamp": "2026-02-17T22:45:13.028140",
+      "intent": "investment",
+      "duration_seconds": 32.925837,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977535023504384,
+      "lng": 77.64194211558589,
+      "name": "Area at 12.97754, 77.64194",
+      "timestamp": "2026-02-17T22:45:45.953977",
+      "intent": "investment",
+      "duration_seconds": 21.894179,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.977049984025347,
+      "lng": 77.64181299169172,
+      "name": "Area at 12.97705, 77.64181",
+      "timestamp": "2026-02-17T22:46:07.848156",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-17T22:46:33.541784",
+      "intent": "navigate",
+      "duration_seconds": 72.451249,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.03507664,
+      "lng": 77.59511566,
+      "name": "Area at 13.03508, 77.59512",
+      "timestamp": "2026-02-17T22:47:45.993033",
+      "intent": "investment",
+      "duration_seconds": 139.628083,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.03600142,
+      "lng": 77.59450808,
+      "name": "Area at 13.03600, 77.59451",
+      "timestamp": "2026-02-17T22:50:05.621116",
+      "intent": "investment",
+      "duration_seconds": 885.018464,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.036354890000002,
+      "lng": 77.59324106666668,
+      "name": "Area at 13.03635, 77.59324",
+      "timestamp": "2026-02-17T23:04:50.639580",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978858733761482,
+      "lng": 77.6394128495589,
+      "name": "Area at 12.97886, 77.63941",
+      "timestamp": "2026-02-18T00:17:25.007692",
+      "intent": "investment",
+      "duration_seconds": 18.795239,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978858733761482,
+      "lng": 77.6394128495589,
+      "name": "Area at 12.97886, 77.63941",
+      "timestamp": "2026-02-18T00:17:43.802931",
+      "intent": "investment",
+      "duration_seconds": 27.063933,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.978710959999997,
+      "lng": 77.63962104,
+      "name": "Area at 12.97871, 77.63962",
+      "timestamp": "2026-02-18T00:18:10.866864",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9784441266071,
+      "lng": 77.64098264764735,
+      "name": "Area at 12.97844, 77.64098",
+      "timestamp": "2026-02-18T01:41:00.027951",
+      "intent": "investment",
+      "duration_seconds": 377.099642,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979747486784186,
+      "lng": 77.64530977168727,
+      "name": "Area at 12.97975, 77.64531",
+      "timestamp": "2026-02-18T01:47:17.127593",
+      "intent": "investment",
+      "duration_seconds": 12.06308,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979747486784186,
+      "lng": 77.64530977168727,
+      "name": "Area at 12.97975, 77.64531",
+      "timestamp": "2026-02-18T01:47:29.190673",
+      "intent": "investment",
+      "duration_seconds": 35.014035,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.979596179999998,
+      "lng": 77.64549923999999,
+      "name": "Area at 12.97960, 77.64550",
+      "timestamp": "2026-02-18T01:48:04.204708",
+      "intent": "investment",
+      "duration_seconds": 38.449147,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.98163178768317,
+      "lng": 77.6459106965087,
+      "name": "Area at 12.98163, 77.64591",
+      "timestamp": "2026-02-18T01:48:42.653855",
+      "intent": "investment",
+      "duration_seconds": 34.506781,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.96626610546387,
+      "lng": 77.63879050008764,
+      "name": "Area at 12.96627, 77.63879",
+      "timestamp": "2026-02-18T01:49:17.160636",
+      "intent": "investment",
+      "duration_seconds": 20.783068,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.96626610546387,
+      "lng": 77.63879050008764,
+      "name": "Area at 12.96627, 77.63879",
+      "timestamp": "2026-02-18T01:49:37.943704",
+      "intent": "navigate",
+      "duration_seconds": 13.106694,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-18T01:49:51.050398",
+      "intent": "navigate",
+      "duration_seconds": 49.624696,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-18T01:50:40.675094",
+      "intent": "investment",
+      "duration_seconds": 298.068471,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.99404489893507,
+      "lng": 77.64156248326518,
+      "name": "Area at 12.99404, 77.64156",
+      "timestamp": "2026-02-18T01:55:38.743565",
+      "intent": "investment",
+      "duration_seconds": 34.589896,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-18T01:56:13.333461",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.88838076996836,
+      "lng": 77.6341822743206,
+      "name": "Area at 12.88838, 77.63418",
+      "timestamp": "2026-02-18T02:03:16.708509",
+      "intent": "investment",
+      "duration_seconds": 16.497198,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.88838076996836,
+      "lng": 77.6341822743206,
+      "name": "Area at 12.88838, 77.63418",
+      "timestamp": "2026-02-18T02:03:33.205707",
+      "intent": "investment",
+      "duration_seconds": 6.573818,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.88838076996836,
+      "lng": 77.6341822743206,
+      "name": "Area at 12.88838, 77.63418",
+      "timestamp": "2026-02-18T02:03:39.779525",
+      "intent": "navigate",
+      "duration_seconds": 27.84139,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.889986959999998,
+      "lng": 77.63701397999999,
+      "name": "Area at 12.88999, 77.63701",
+      "timestamp": "2026-02-18T02:04:07.620915",
+      "intent": "investment",
+      "duration_seconds": 20.556547,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.909963065396887,
+      "lng": 77.64325286865727,
+      "name": "Area at 12.90996, 77.64325",
+      "timestamp": "2026-02-18T02:04:28.178462",
+      "intent": "investment",
+      "duration_seconds": 16.763384,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.909963065396887,
+      "lng": 77.64325286865727,
+      "name": "Area at 12.90996, 77.64325",
+      "timestamp": "2026-02-18T02:04:44.941846",
+      "intent": "comparison",
+      "duration_seconds": 5.687826,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.909963065396887,
+      "lng": 77.64325286865727,
+      "name": "Area at 12.90996, 77.64325",
+      "timestamp": "2026-02-18T02:04:50.629672",
+      "intent": "property_search",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.975910673345172,
+      "lng": 77.64176831560286,
+      "name": "Area at 12.97591, 77.64177",
+      "timestamp": "2026-02-18T02:19:02.258658",
+      "intent": "investment",
+      "duration_seconds": 89.816283,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-18T02:20:32.074941",
+      "intent": "navigate",
+      "duration_seconds": 51.768948,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.937420897564493,
+      "lng": 77.62336170525543,
+      "name": "Area at 12.93742, 77.62336",
+      "timestamp": "2026-02-18T02:21:23.843889",
+      "intent": "investment",
+      "duration_seconds": 90.957367,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-18T02:22:54.801256",
+      "intent": "investment",
+      "duration_seconds": 30.471065,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.937513,
+      "lng": 77.62306745999999,
+      "name": "Area at 12.93751, 77.62307",
+      "timestamp": "2026-02-18T02:23:25.272321",
+      "intent": "investment",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
     }
   ],
   "preferences": {
@@ -2488,5 +4228,5 @@
     "exploration_style": "focused"
   },
   "comparisons": [],
-  "last_updated": "2026-02-16T22:47:51.038497"
+  "last_updated": "2026-02-18T02:23:25.275323"
 }
