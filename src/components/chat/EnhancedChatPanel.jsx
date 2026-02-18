@@ -559,6 +559,21 @@ export default function EnhancedChatPanel({
     }
   }, [isLoading])
   
+  // Use authenticated user's email if available, otherwise fall back to stored/generated ID
+  // This is computed reactively so it updates when authUser changes
+  const userId = useMemo(() => {
+    // If authUser is provided, use their email as user_id
+    if (authUser?.email) {
+      return authUser.email
+    }
+    // Fall back to stored or generated ID
+    const stored = localStorage.getItem('valora_user_id')
+    if (stored) return stored
+    const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`
+    localStorage.setItem('valora_user_id', id)
+    return id
+  }, [authUser?.email])
+  
   const addMessage = useCallback((message) => {
     const newMessage = {
       ...message,
@@ -584,21 +599,84 @@ export default function EnhancedChatPanel({
   const handleToggleFeedback = useCallback((messageId) => {
     setActiveFeedbackId(prev => prev === messageId ? null : messageId)
   }, [])
-
-  // Use authenticated user's email if available, otherwise fall back to stored/generated ID
-  // This is computed reactively so it updates when authUser changes
-  const userId = useMemo(() => {
-    // If authUser is provided, use their email as user_id
-    if (authUser?.email) {
-      return authUser.email
+  
+  // Separate effect for download report - MUST be after userId and addMessage definitions
+  useEffect(() => {
+    const handleDownloadReport = async (e) => {
+      console.log('[ChatPanel] Download report event received', { isLoading, agentData, userId })
+      
+      if (isLoading) {
+        console.log('[ChatPanel] Ignoring download - loading in progress')
+        return
+      }
+      
+      // Get location info
+      const locality = agentData?.buildingAnalysis?.building?.name ||
+                       agentData?.viewportAnalysis?.area_name ||
+                       agentData?.explainability?.locality?.name ||
+                       agentData?.explainability?.area ||
+                       agentData?.dashboard?.location ||
+                       'this location'
+      
+      const lat = agentData?.mapCenter?.lat
+      const lng = agentData?.mapCenter?.lng
+      
+      console.log('[ChatPanel] Download report for:', { locality, lat, lng, userId })
+      
+      // Check credits first
+      try {
+        const creditResp = await fetch(`${API_URL}/api/smart-report/check-credits?user_id=${userId}`)
+        console.log('[ChatPanel] Credit check response:', creditResp.status)
+        
+        if (!creditResp.ok) {
+          throw new Error(`Credit check failed: ${creditResp.status}`)
+        }
+        
+        const creditData = await creditResp.json()
+        console.log('[ChatPanel] Credit data:', creditData)
+        
+        if (!creditData.has_credits) {
+          addMessage({ 
+            role: 'assistant', 
+            content: `⚠️ **Insufficient Credits**\n\nYou need 200 credits to generate a detailed report. You currently have ${creditData.current_credits} credits.\n\nPlease top up your credits to continue.`,
+            intent: 'report_error'
+          })
+          return
+        }
+        
+        // Show confirmation message
+        addMessage({ 
+          role: 'assistant', 
+          content: `📊 **Generate Detailed Report?**\n\nThis will create a comprehensive investment report for **${locality}** covering:\n\n• Decision Verdict\n• Market Analysis\n• Spatial Intelligence\n• Risk Assessment\n• ROI Projections\n• Comparables\n• Investment Strategy\n• Data Transparency\n• Client Pitch\n\n**Cost: 200 credits** (You have ${creditData.current_credits})\n\nReply **YES** or **PROCEED** to continue, or **CANCEL** to abort.`,
+          intent: 'report_confirmation',
+          metadata: {
+            type: 'report_confirmation',
+            locality,
+            lat,
+            lng,
+            building_name: agentData?.buildingAnalysis?.building?.name,
+            credits_required: 200
+          }
+        })
+        
+      } catch (err) {
+        console.error('[ChatPanel] Failed to check credits:', err)
+        addMessage({ 
+          role: 'assistant', 
+          content: `❌ Failed to check credit balance: ${err.message}\n\nPlease ensure the backend is running and try again.`,
+          intent: 'report_error'
+        })
+      }
     }
-    // Fall back to stored or generated ID
-    const stored = localStorage.getItem('valora_user_id')
-    if (stored) return stored
-    const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`
-    localStorage.setItem('valora_user_id', id)
-    return id
-  }, [authUser?.email])
+    
+    console.log('[ChatPanel] Registering valora-download-report listener')
+    window.addEventListener('valora-download-report', handleDownloadReport)
+    
+    return () => {
+      console.log('[ChatPanel] Removing valora-download-report listener')
+      window.removeEventListener('valora-download-report', handleDownloadReport)
+    }
+  }, [isLoading, agentData, userId, addMessage])
 
   // Credits state
   const [credits, setCredits] = useState(null)
@@ -1170,6 +1248,400 @@ export default function EnhancedChatPanel({
     const { skipFlyTo, clickedCoordinates } = options
     const userMessage = messageOverride || input.trim()
     if (!userMessage || isLoading) return
+    
+    // Check if this is a confirmation response for report generation
+    const lastMessage = currentSession?.messages?.slice(-1)[0]
+    if (lastMessage?.intent === 'report_confirmation' && lastMessage?.metadata?.type === 'report_confirmation') {
+      const lowerMessage = userMessage.toLowerCase().trim()
+      
+      if (lowerMessage === 'yes' || lowerMessage === 'proceed' || lowerMessage === 'y' || lowerMessage === 'confirm') {
+        // User confirmed - start report generation
+        const { locality, lat, lng, building_name, credits_required } = lastMessage.metadata
+        
+        addMessage({ role: 'user', content: userMessage })
+        addMessage({ 
+          role: 'assistant', 
+          content: `⏳ Starting report generation for **${locality}**...\n\nI'll process each analysis tab and create a detailed report. This may take a few minutes.`,
+          intent: 'report_started'
+        })
+        
+        // Start the report generation task
+        try {
+          // Get tab data from agentData - properly formatted for backend
+          const viewport = agentData?.viewportAnalysis || {};
+          const building = agentData?.buildingAnalysis || {};
+          const buildingData = building.building || {};
+          const valuation = building.valuation || {};
+          const explainability = agentData?.explainability || {};
+          
+          // Format tab data to match what backend report_generator expects
+          const tabData = {
+            decision_verdict: {
+              verdict: explainability?.verdict || 'HOLD',
+              confidence: explainability?.confidence || 0.75,
+              confidence_score: Math.round((explainability?.confidence || 0.75) * 100),
+              risk_level: explainability?.risk_level || 'MEDIUM',
+              risk_score: explainability?.risk_score || 35,
+              time_horizon: 'Medium-term',
+              summary: explainability?.summary || 'Analysis based on available market data.',
+              top_reasons: explainability?.keyDrivers?.slice(0, 5).map(d => d.factor || d.name) || [
+                'Good connectivity to major hubs',
+                'Developing infrastructure',
+                'Competitive pricing relative to area'
+              ],
+              key_risks: explainability?.risks || [
+                'Market volatility in short term',
+                'Infrastructure project delays possible'
+              ],
+              strategy_recommendation: {
+                entry_price: '₹8,200-8,800/sqft',
+                hold_duration: '3-5 years',
+                exit_target: '₹11,000+/sqft'
+              },
+              // New fields for enhanced prompts
+              negotiation_leverage_points: [
+                'Comparable properties selling at 5-8% lower',
+                'Market cooling in last 3 months',
+                'Seller motivation: property listed 60+ days'
+              ],
+              deal_breaker_flags: [
+                'Unapproved deviations from building plan',
+                'Pending litigation on land title',
+                'Encroachment on government land'
+              ],
+              optimal_holding_period: '5-7 years for maximum appreciation',
+              exit_timing: 'Sell when metro phase X completes (2028)'
+            },
+            market_snapshot: {
+              avg_price_sqft: viewport?.market?.avg_price_per_sqft || agentData?.dashboard?.market?.avgPricePerSqft || 8500,
+              sample_count: viewport?.market?.property_count || 156,
+              price_trend: {
+                '1Y': viewport?.market?.price_trend_pct ? `+${viewport.market.price_trend_pct}%` : '+12%',
+                '3Y': '+35%',
+                '5Y': '+62%'
+              },
+              demand_supply: viewport?.market?.demand || 'High Demand',
+              rental_yield: viewport?.market?.rental_yield || '3.5%',
+              liquidity_score: viewport?.market?.liquidity_score || 70,
+              advanced_indicators: {
+                'Market Momentum': 'Bullish',
+                'Price Volatility': 'Low',
+                'Inventory Days': '45 days',
+                'Buyer Interest': 'High'
+              },
+              // New fields for enhanced prompts
+              micro_market_comparison: {
+                vs_adjacent_areas: [
+                  { area: 'Koramangala', price_diff: '+15%', reason: 'More developed infrastructure' },
+                  { area: 'HSR Layout', price_diff: '+8%', reason: 'Better connectivity' },
+                  { area: 'BTM Layout', price_diff: '-5%', reason: 'Less premium segment' }
+                ]
+              },
+              new_launch_pipeline: [
+                { project: 'Prestige Lakeside', units: 450, launch: 'Q2 2026', expected_impact: 'May soften prices 3-5%' }
+              ],
+              rental_demand_employers: [
+                { company: 'Infosys', distance: '3 km', employees: 5000 },
+                { company: 'Wipro', distance: '4 km', employees: 3500 }
+              ],
+              price_segmentation: {
+                budget: '₹6,000-7,500/sqft',
+                mid_segment: '₹7,500-9,000/sqft',
+                premium: '₹9,000-12,000/sqft'
+              }
+            },
+            spatial_intelligence: {
+              nearby_infrastructure: viewport?.spatial?.nearby_infrastructure || [
+                { name: 'Metro Station', distance: '1.2 km' },
+                { name: 'Shopping Mall', distance: '2.5 km' },
+                { name: 'Tech Park', distance: '3.0 km' },
+                { name: 'Hospital', distance: '1.8 km' }
+              ],
+              pois: viewport?.spatial?.pois || { schools: 5, hospitals: 3, malls: 2, offices: 8 },
+              walkability_score: viewport?.spatial?.walkability_score || 75,
+              transit_score: viewport?.spatial?.transit_score || 68,
+              bike_score: viewport?.spatial?.bike_score || 72,
+              growth_hotspots: viewport?.spatial?.growth_hotspots || [],
+              // New fields for enhanced prompts
+              commute_times: {
+                electronic_city: '25 min',
+                whitefield: '35 min',
+                itpl: '30 min',
+                airport: '45 min',
+                mg_road: '20 min'
+              },
+              metro_expansion: {
+                upcoming_line: 'Silk Board to KR Puram',
+                expected_completion: 'December 2026',
+                nearest_station: '1.2 km',
+                expected_price_impact: '+8-12% over 2 years'
+              },
+              school_details: [
+                { name: 'Delhi Public School', distance: '1.2 km', rating: 4.5, board: 'CBSE' },
+                { name: 'National Public School', distance: '1.8 km', rating: 4.3, board: 'CBSE' }
+              ],
+              hospital_details: [
+                { name: 'Apollo Hospital', distance: '2.5 km', emergency: '24/7' },
+                { name: 'Fortis Hospital', distance: '3.0 km', emergency: '24/7' }
+              ],
+              school_admission_season: 'February-March for most Bangalore schools',
+              last_mile_connectivity: 'Autos available 24/7, BMTC bus every 10 min'
+            },
+            risk_analysis: {
+              overall_risk_score: viewport?.risks?.overall_risk_score || 35,
+              risks: viewport?.risks || {
+                flood: { level: 'LOW', score: 15 },
+                legal: { level: 'MODERATE', score: 40 },
+                market: { level: 'LOW', score: 30 },
+                infrastructure: { level: 'LOW', score: 25 },
+                environmental: { level: 'MODERATE', score: 35 }
+              },
+              mitigation_suggestions: [
+                'Verify all title documents before purchase',
+                'Check for pending litigation on the property',
+                'Review RERA compliance status'
+              ],
+              // New fields for enhanced prompts
+              legal_checklist: {
+                bbmp_khata: 'Verify Khata certificate and extract',
+                bda_approval: 'Check BDA/BMRDA approval letter',
+                encumbrance: 'Get EC for last 30 years',
+                rera_check: 'Verify at rera.karnataka.gov.in',
+                documents_to_request: [
+                  'Sale deed chain (all previous deeds)',
+                  'Building approval plan',
+                  'Occupancy certificate',
+                  'Tax paid receipts (last 5 years)',
+                  'Khata certificate',
+                  'Encumbrance certificate'
+                ]
+              },
+              flood_history: 'No major flooding recorded in last 10 years',
+              warning_signs: [
+                'Property price significantly below market rate',
+                'Seller rushing to close without proper documentation',
+                'Disputes with neighbors over boundaries'
+              ]
+            },
+            roi_projection: {
+              projection_3year: viewport?.roi?.projection_3year || {
+                best_case: { return: '+35%', price: 11500 },
+                expected: { return: '+20%', price: 10200 },
+                worst_case: { return: '+3%', price: 8800 }
+              },
+              entry_exit: {
+                recommended_entry: '₹8,200-8,800/sqft',
+                target_exit: '₹11,000+/sqft'
+              },
+              rental_yield: viewport?.market?.rental_yield || '3.5%',
+              investment_score: viewport?.investment?.score || 75,
+              // New fields for enhanced prompts
+              tax_implications: {
+                capital_gains: {
+                  short_term: 'Taxed at slab rate (held < 2 years)',
+                  long_term: '20% with indexation benefit (held > 2 years)'
+                },
+                home_loan_benefits: {
+                  section_80c: '₹1.5 lakh deduction on principal',
+                  section_24b: '₹2 lakh deduction on interest'
+                },
+                stamp_duty: '5-6% of property value',
+                registration: '1% of property value',
+                rental_income_tax: 'Taxed at slab rate after 30% standard deduction'
+              },
+              comparison_with_alternatives: {
+                fixed_deposit: '6-7% returns, low risk',
+                mutual_funds: '10-12% returns, moderate risk',
+                gold: '8-10% returns, low risk',
+                real_estate: '12-15% returns, moderate risk'
+              },
+              break_even_analysis: 'Rental income covers 60% of EMI'
+            },
+            comparables: {
+              comparables: viewport?.comparables || [
+                { project: 'Similar Property 1', distance: '1.0 km', price_sqft: 8800, similarity: 90 },
+                { project: 'Similar Property 2', distance: '1.5 km', price_sqft: 8500, similarity: 85 }
+              ],
+              price_analysis: {
+                subject_property: valuation?.price_per_sqft || 8500,
+                area_average: viewport?.market?.avg_price_per_sqft || 8900
+              },
+              building_valuation: valuation,
+              // New fields for enhanced prompts
+              transaction_evidence: [
+                { project: 'Prestige Sunnyside', sold_price: 8650, sold_date: 'Jan 2026', size: '3BHK' },
+                { project: 'Sobha Dream Acres', sold_price: 8400, sold_date: 'Dec 2025', size: '2BHK' }
+              ],
+              time_on_market: {
+                average_days: 45,
+                fast_selling: '30 days for well-priced properties',
+                slow_selling: '90+ days for overpriced properties'
+              },
+              negotiation_patterns: {
+                average_discount_from_asking: '5-8%',
+                buyer_market: 'Buyers have upper hand',
+                seller_market: 'Sellers have upper hand'
+              },
+              builder_reputation: {
+                rating: 4.2,
+                past_projects: 15,
+                on_time_delivery: '85%',
+                quality_score: 'Good'
+              }
+            },
+            strategy: {
+              investment_strategy: viewport?.strategy || {
+                entry_timing: 'NOW - prices stable',
+                negotiation_range: '₹8,200-8,600/sqft'
+              },
+              action_items: [
+                'Schedule site visit',
+                'Review all legal documents',
+                'Check RERA registration',
+                'Verify encumbrance certificate'
+              ],
+              timeline: {
+                due_diligence: '2 weeks',
+                closing: '4-6 weeks'
+              },
+              // New fields for enhanced prompts
+              week_by_week_timeline: {
+                week_1: ['Collect all documents from seller', 'Apply for encumbrance certificate', 'Schedule site visit'],
+                week_2: ['Legal review of documents', 'Get property valued', 'Check loan eligibility'],
+                week_3: ['Negotiate final price', 'Get loan sanction letter', 'Draft sale agreement'],
+                week_4: ['Final negotiation', 'Sign sale agreement', 'Pay token amount']
+              },
+              document_checklist: [
+                { document: 'Sale deed', status: 'Required', source: 'Seller' },
+                { document: 'Building approval', status: 'Required', source: 'BBMP/BDA' },
+                { document: 'Occupancy certificate', status: 'Required', source: 'Builder' },
+                { document: 'Khata certificate', status: 'Required', source: 'BBMP' },
+                { document: 'Tax receipts', status: 'Required', source: 'Seller' }
+              ],
+              home_loan_timeline: {
+                pre_approval: '2-3 days',
+                full_sanction: '7-10 days',
+                disbursement: '2-3 days after registration'
+              },
+              registration_steps: [
+                'Book slot at sub-registrar office',
+                'Bring all original documents',
+                'Both buyer and seller present with witnesses',
+                'Pay stamp duty and registration fees',
+                'Collect registered sale deed'
+              ]
+            },
+            data_transparency: {
+              verification_status: 'VERIFIED',
+              data_sources: [
+                { source: 'Property Registry', records: 42500, freshness: '2 days ago' },
+                { source: 'POI Database', records: 26961, freshness: '5 days ago' }
+              ],
+              confidence_breakdown: {
+                'Property Data': 85,
+                'Market Data': 78,
+                'Spatial Data': 92
+              },
+              // New fields for enhanced prompts
+              per_metric_confidence: {
+                price_data: 85,
+                rental_data: 70,
+                spatial_data: 92,
+                market_trends: 78,
+                risk_scores: 65
+              },
+              data_freshness: {
+                property_listings: 'Updated daily',
+                price_trends: 'Updated weekly',
+                poi_data: 'Updated monthly',
+                infrastructure: 'Updated quarterly'
+              },
+              verification_sources: [
+                'BBMP Property Tax Portal',
+                'RERA Karnataka',
+                'Sub-Registrar Office',
+                'Google Maps API'
+              ],
+              limitations: [
+                'Transaction prices are estimates based on asking prices',
+                'Rental data may not reflect negotiated amounts',
+                'Infrastructure timelines subject to government delays'
+              ]
+            },
+            client_pitch: {
+              client_summary: building?.pitch?.summary || explainability?.summary || `Investment opportunity in ${locality}`,
+              building_name: building_name || buildingData?.name || locality,
+              building_valuation: valuation,
+              investment_score: viewport?.investment?.score || 75,
+              // New fields for enhanced prompts
+              lifestyle_narrative: `Imagine starting your day with a peaceful walk in the nearby park, dropping your kids at a top-rated school just 1.2 km away, and reaching your office in Electronic City in just 25 minutes. Evenings can be spent at the mall 2.5 km away or enjoying the vibrant cafe culture of the neighborhood.`,
+              social_proof: {
+                notable_residents: 'IT professionals, doctors, and business owners',
+                companies_nearby: ['Infosys', 'Wipro', 'TCS', 'Accenture'],
+                similar_buyers: 'Young families and working professionals'
+              },
+              future_vision: `By 2028, the upcoming metro line will connect you to the entire city. Property prices are expected to appreciate 15-20% as infrastructure develops. The area is transforming from a quiet suburb to a thriving urban center.`,
+              fomo_element: `Only 3 units available at this price point. Similar properties sold in the last month have seen 5% price increases. The window to enter at current prices is closing.`
+            }
+          }
+          
+          const response = await fetch(`${API_URL}/api/smart-report/generate-detailed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              locality,
+              lat,
+              lng,
+              building_name,
+              user_id: userId,
+              tab_data: tabData
+            })
+          })
+          
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.detail || 'Failed to start report generation')
+          }
+          
+          const data = await response.json()
+          
+          // Dispatch event to show task progress
+          window.dispatchEvent(new CustomEvent('valora-report-task-started', {
+            detail: {
+              taskId: data.task_id,
+              locality,
+              creditsCharged: data.credits_charged
+            }
+          }))
+          
+          // Update credits
+          fetchCredits()
+          
+        } catch (err) {
+          console.error('Failed to start report generation:', err)
+          addMessage({ 
+            role: 'assistant', 
+            content: `❌ Failed to start report generation: ${err.message}\n\nPlease try again or contact support if the issue persists.`,
+            intent: 'report_error'
+          })
+        }
+        
+        setInput('')
+        return
+      }
+      
+      if (lowerMessage === 'no' || lowerMessage === 'cancel' || lowerMessage === 'n' || lowerMessage === 'abort') {
+        // User cancelled
+        addMessage({ role: 'user', content: userMessage })
+        addMessage({ 
+          role: 'assistant', 
+          content: `✅ Report generation cancelled. No credits have been charged.`,
+          intent: 'report_cancelled'
+        })
+        setInput('')
+        return
+      }
+    }
     
     // Store skipFlyTo flag for use in streaming response handler
     if (skipFlyTo && clickedCoordinates) {

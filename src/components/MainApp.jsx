@@ -4,6 +4,7 @@ import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, ChevronDo
 
 import { API_URL } from '../apiConfig'
 import CreditBalance from './CreditBalance'
+import TaskProgressBar from './TaskProgressBar'
 
 // Lazy load heavy components
 const OnlineOSMMap = lazy(() => import('../spatial/OnlineOSMMap'))
@@ -41,6 +42,9 @@ export default function MainApp() {
   const [isAnalysisFullscreen, setIsAnalysisFullscreen] = useState(false) // Fullscreen mode for deep analysis
   const [isChatFullscreen, setIsChatFullscreen] = useState(false) // Fullscreen mode for chat
   const [isMapFullscreen, setIsMapFullscreen] = useState(false) // Fullscreen mode for map
+  
+  // Report generation task state
+  const [reportTask, setReportTask] = useState(null) // { taskId, locality, creditsCharged }
   
   // Handle top-up purchase
   const handleTopUp = async (packageId) => {
@@ -701,6 +705,19 @@ export default function MainApp() {
     window.addEventListener('valora-upgrade-request', handleUpgradeRequest)
     return () => window.removeEventListener('valora-upgrade-request', handleUpgradeRequest)
   }, [])
+  
+  // Listen for report task started
+  useEffect(() => {
+    const handleReportTaskStarted = (e) => {
+      const { taskId, locality, creditsCharged } = e.detail || {}
+      if (taskId) {
+        setReportTask({ taskId, locality, creditsCharged })
+      }
+    }
+    
+    window.addEventListener('valora-report-task-started', handleReportTaskStarted)
+    return () => window.removeEventListener('valora-report-task-started', handleReportTaskStarted)
+  }, [])
 
   const handleAnalysisUpdate = (analysis) => {
     if (analysis?.coordinates) {
@@ -1048,11 +1065,28 @@ export default function MainApp() {
                   <span className="text-sm font-bold text-white">Smart Report</span>
                 </div>
                 <div className="flex gap-1 ml-2">
+                  {/* Report Task Progress Bar - Show when task is active */}
+                  {reportTask?.taskId && (
+                    <div className="mr-2 min-w-[200px]">
+                      <TaskProgressBar
+                        taskId={reportTask.taskId}
+                        onComplete={(taskResult) => {
+                          // Task completed - could show notification
+                          console.log('Report generation completed:', taskResult)
+                        }}
+                        onCancel={() => {
+                          setReportTask(null)
+                        }}
+                        showDetails={false}
+                      />
+                    </div>
+                  )}
                   {/* Gold Download Button - Only show when entity analysis exists */}
                   {(agentData?.buildingAnalysis || agentData?.viewportAnalysis || agentData?.explainability) && (
                     <button 
                       onClick={() => {
                         // Trigger download event
+                        console.log('[MainApp] Download button clicked, dispatching valora-download-report event')
                         window.dispatchEvent(new CustomEvent('valora-download-report'));
                       }}
                       className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-900 text-xs font-bold rounded transition shadow-lg shadow-amber-500/20"

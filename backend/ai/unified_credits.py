@@ -89,6 +89,7 @@ class UnifiedCreditsManager:
         'poi_search': 1,
         'report_export': 10,
         'pdf_generation': 10,
+        'detailed_report': 200,  # Comprehensive AI-powered report with all tabs
         'feedback_reward': -5,  # Negative = credits earned
     }
     

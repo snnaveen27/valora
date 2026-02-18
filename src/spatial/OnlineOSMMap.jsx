@@ -120,6 +120,10 @@ const MAX_TILES_IN_MEMORY = 100 // Reduced for better memory usage
 const EVICTION_GRACE_PERIOD_MS = 30000 // Don't evict tiles loaded less than 30s ago
 const EVICTION_RADIUS_KM = 3.0 // Only evict tiles beyond 3km (always > load radius)
 
+// Memory pressure thresholds
+const MEMORY_PRESSURE_WARNING = 0.7 // 70% of heap limit
+const MEMORY_PRESSURE_CRITICAL = 0.85 // 85% of heap limit - aggressive cleanup
+
 // Bangalore areas for navigation
 const BANGALORE_AREAS = {
   indiranagar: { lng: 77.6412, lat: 12.9716, name: 'Indiranagar', icon: '🏘️' },
@@ -161,6 +165,31 @@ const saveMapPreferences = (prefs) => {
     window.localStorage.setItem(MAP_PREFS_KEY, JSON.stringify(prefs))
   } catch (err) {
     console.warn('Failed to save map preferences:', err)
+  }
+}
+
+// Memory pressure detection helper
+const getMemoryPressure = () => {
+  // performance.memory is only available in Chromium browsers
+  const memory = performance.memory
+  if (!memory) {
+    return { level: 'unknown', usedJSHeapSize: 0, totalJSHeapSize: 0, jsHeapSizeLimit: 0 }
+  }
+  
+  const usedRatio = memory.usedJSHeapSize / memory.jsHeapSizeLimit
+  let level = 'normal'
+  if (usedRatio >= MEMORY_PRESSURE_CRITICAL) {
+    level = 'critical'
+  } else if (usedRatio >= MEMORY_PRESSURE_WARNING) {
+    level = 'warning'
+  }
+  
+  return {
+    level,
+    usedJSHeapSize: memory.usedJSHeapSize,
+    totalJSHeapSize: memory.totalJSHeapSize,
+    jsHeapSizeLimit: memory.jsHeapSizeLimit,
+    usedRatio: usedRatio.toFixed(2)
   }
 }
 
@@ -2243,6 +2272,94 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     return cleared
   }
 
+  // Enforce building limit and memory pressure - returns number of buildings cleared
+  const enforceBuildingLimits = (currentCenterLat, currentCenterLng) => {
+    const viewer = viewerRef.current
+    if (!viewer || viewer.isDestroyed()) return 0
+    
+    const totalBuildings = Object.values(tileEntitiesRef.current)
+      .reduce((sum, entities) => sum + entities.length, 0)
+    
+    // Check memory pressure
+    const memPressure = getMemoryPressure()
+    let needsAggressiveCleanup = memPressure.level === 'critical'
+    let needsModerateCleanup = memPressure.level === 'warning'
+    
+    if (memPressure.level !== 'unknown' && memPressure.level !== 'normal') {
+      console.log(`[Memory] ⚠️ Memory pressure: ${memPressure.level} (${memPressure.usedRatio} used)`)
+    }
+    
+    // Check if we're over the building limit
+    const overLimit = totalBuildings > MAX_BUILDINGS_DISPLAY
+    
+    if (!overLimit && !needsAggressiveCleanup && !needsModerateCleanup) {
+      return 0 // No cleanup needed
+    }
+    
+    // Calculate how many buildings to remove
+    let targetRemoval = 0
+    if (overLimit) {
+      targetRemoval = totalBuildings - MAX_BUILDINGS_DISPLAY + 5000 // Remove extra buffer
+    }
+    if (needsAggressiveCleanup) {
+      targetRemoval = Math.max(targetRemoval, Math.floor(totalBuildings * 0.4)) // Remove 40%
+    } else if (needsModerateCleanup) {
+      targetRemoval = Math.max(targetRemoval, Math.floor(totalBuildings * 0.2)) // Remove 20%
+    }
+    
+    if (targetRemoval === 0) return 0
+    
+    console.log(`[Memory] 🧹 Enforcing limits: ${totalBuildings} buildings, removing ~${targetRemoval}`)
+    
+    // Sort tiles by distance from current center (furthest first)
+    const tileDistances = []
+    for (const [tileId, center] of Object.entries(tileCentersRef.current)) {
+      if (currentCenterLat && currentCenterLng) {
+        const dist = getDistanceKm(currentCenterLat, currentCenterLng, center.lat, center.lng)
+        tileDistances.push({ tileId, distance: dist, count: tileBuildingCountsRef.current[tileId] || 0 })
+      }
+    }
+    
+    // Sort by distance (furthest first)
+    tileDistances.sort((a, b) => b.distance - a.distance)
+    
+    let removed = 0
+    const tilesToRemove = []
+    
+    for (const tile of tileDistances) {
+      if (removed >= targetRemoval) break
+      tilesToRemove.push(tile.tileId)
+      removed += tile.count
+    }
+    
+    // Remove the tiles
+    viewer.entities.suspendEvents()
+    try {
+      for (const tileId of tilesToRemove) {
+        const entities = tileEntitiesRef.current[tileId] || []
+        entities.forEach(entity => { try { viewer.entities.remove(entity) } catch (_) {} })
+        
+        delete tileEntitiesRef.current[tileId]
+        delete tileCentersRef.current[tileId]
+        delete tileLoadTimesRef.current[tileId]
+        delete tileBuildingCountsRef.current[tileId]
+        loadedTilesRef.current.delete(tileId)
+      }
+    } finally {
+      viewer.entities.resumeEvents()
+    }
+    
+    const newTotal = Object.values(tileEntitiesRef.current)
+      .reduce((sum, entities) => sum + entities.length, 0)
+    
+    setBuildingsCount(newTotal)
+    setTilesLoaded(loadedTilesRef.current.size)
+    
+    console.log(`[Memory] ✅ Cleaned ${removed} buildings from ${tilesToRemove.length} tiles (${newTotal} remaining)`)
+    
+    return removed
+  }
+
   // AbortController for cancelling in-progress building loads
   const buildingLoadAbortControllerRef = useRef(null)
   
@@ -2412,6 +2529,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     // Update current center
     currentBuildingCenterRef.current = { lat: centerLat, lng: centerLng }
     
+    // Check memory pressure before loading - enforce limits if needed
+    const memPressure = getMemoryPressure()
+    if (memPressure.level === 'critical') {
+      console.log(`[loadBuildingsAtPoint] ⚠️ Critical memory pressure (${memPressure.usedRatio}) - aggressive cleanup before loading`)
+      enforceBuildingLimits(centerLat, centerLng)
+    }
+    
     // Create new AbortController
     buildingLoadAbortControllerRef.current = new AbortController()
     const signal = buildingLoadAbortControllerRef.current.signal
@@ -2481,9 +2605,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
       const totalBuildings = Object.values(tileEntitiesRef.current).reduce((s, e) => s + e.length, 0)
       
-      console.log(`[loadBuildingsAtPoint] ✅ COMPLETE - ${loadedCount} tiles, ${buildingsAdded} buildings loaded, ${totalBuildings} total`)
+      // Enforce building limits and memory pressure after loading
+      enforceBuildingLimits(centerLat, centerLng)
       
-      setBuildingsCount(totalBuildings)
+      const finalTotal = Object.values(tileEntitiesRef.current).reduce((s, e) => s + e.length, 0)
+      
+      console.log(`[loadBuildingsAtPoint] ✅ COMPLETE - ${loadedCount} tiles, ${buildingsAdded} buildings loaded, ${finalTotal} total`)
+      
+      setBuildingsCount(finalTotal)
       setTilesLoaded(loadedTilesRef.current.size)
       setBuildingsLoaded(true)
       setLoadingBuildings(false)
@@ -2492,7 +2621,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       if (setAgentData) {
         setAgentData(prev => ({ 
           ...prev, 
-          buildingsCount: totalBuildings, 
+          buildingsCount: finalTotal, 
           loadingBuildings: false,
           tilesLoaded: loadedTilesRef.current.size 
         }))
