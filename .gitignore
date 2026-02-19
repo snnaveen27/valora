@@ -119,6 +119,11 @@ desktop.ini
 # Test screenshots
 test_*.png
 
+# Data folders - exclude large files
+data/property_images/
+data/tuned_model/
+data/model/
+
 # Large files in storage (exclude from git)
 storage/
 storage.zip
@@ -126,10 +131,6 @@ storage.zip
 # Large files to exclude
 ubuntu@3.109.34.1.ssl
 nul
-
-# Tuned models
-data/tuned_model/
-data/model/
 valora.db
 valora_credits.db
 *.gguf
