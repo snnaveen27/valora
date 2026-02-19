@@ -367,7 +367,7 @@ export default function TopTaskBanner({
   const totalTasks = tasks.length
 
   return (
-    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[9999]">
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[9999]">
       <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700/50 rounded-lg shadow-2xl w-[420px] overflow-hidden">
         {/* Header with Phase */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700/50">

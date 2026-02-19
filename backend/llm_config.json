@@ -1,8 +1,8 @@
 {
   "provider": "ollama",
-  "local_enabled": true,
-  "cloud_enabled": false,
-  "openrouter_model": "deepseek/deepseek-chat",
+  "local_enabled": false,
+  "cloud_enabled": true,
+  "cloud_model": "glm-5:cloud",
   "local_url": "http://127.0.0.1:11434/v1/chat/completions",
   "local_model": "valora-2025v1",
   "max_context": 8192,

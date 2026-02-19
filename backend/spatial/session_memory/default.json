@@ -1,6 +1,6 @@
 {
   "session_id": "default",
-  "session_start": "2026-02-19T16:48:03.145740",
+  "session_start": "2026-02-20T00:47:22.493567",
   "visits": [
     {
       "lat": 12.9782379,
@@ -4731,6 +4731,156 @@
       "duration_seconds": 0,
       "actions_taken": [],
       "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9858712,
+      "lng": 77.6444753,
+      "name": "A",
+      "timestamp": "2026-02-20T00:11:55.145462",
+      "intent": "investment",
+      "duration_seconds": 184.520042,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.981153312426727,
+      "lng": 77.64033321651803,
+      "name": "Area at 12.98115, 77.64033",
+      "timestamp": "2026-02-20T00:14:59.665504",
+      "intent": "investment",
+      "duration_seconds": 19.093084,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.98085344255308,
+      "lng": 77.64076411264367,
+      "name": "Area at 12.98085, 77.64076",
+      "timestamp": "2026-02-20T00:15:18.758588",
+      "intent": "investment",
+      "duration_seconds": 4.458395,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.98085344255308,
+      "lng": 77.64076411264367,
+      "name": "Area at 12.98085, 77.64076",
+      "timestamp": "2026-02-20T00:15:23.216983",
+      "intent": "investment",
+      "duration_seconds": 12.7961,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.980286893592107,
+      "lng": 77.64059800709961,
+      "name": "Area at 12.98029, 77.64060",
+      "timestamp": "2026-02-20T00:15:36.013083",
+      "intent": "investment",
+      "duration_seconds": 5.787405,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.980286893592107,
+      "lng": 77.64059800709961,
+      "name": "Area at 12.98029, 77.64060",
+      "timestamp": "2026-02-20T00:15:41.800488",
+      "intent": "map_control",
+      "duration_seconds": 8.860943,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.980286893592107,
+      "lng": 77.64059800709961,
+      "name": "Area at 12.98029, 77.64060",
+      "timestamp": "2026-02-20T00:15:50.661431",
+      "intent": "map_control",
+      "duration_seconds": 6.687128,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.980286893592107,
+      "lng": 77.64059800709961,
+      "name": "Area at 12.98029, 77.64060",
+      "timestamp": "2026-02-20T00:15:57.348559",
+      "intent": "analyze_area",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-20T00:17:21.573320",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-20T00:19:09.924802",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-20T00:47:23.980448",
+      "intent": "navigate",
+      "duration_seconds": 35.402807,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-20T00:47:59.383255",
+      "intent": "navigate",
+      "duration_seconds": 27.031382,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.037077,
+      "lng": 77.6413572,
+      "name": "Hennur",
+      "timestamp": "2026-02-20T00:48:26.414637",
+      "intent": "navigate",
+      "duration_seconds": 53.148019,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-20T00:49:19.562656",
+      "intent": "navigate",
+      "duration_seconds": 78.981471,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.9352,
+      "lng": 77.6245,
+      "name": "Koramangala",
+      "timestamp": "2026-02-20T00:50:38.544127",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
     }
   ],
   "preferences": {
@@ -4748,5 +4898,5 @@
     "exploration_style": "focused"
   },
   "comparisons": [],
-  "last_updated": "2026-02-19T16:48:03.191184"
+  "last_updated": "2026-02-20T00:50:38.548637"
 }

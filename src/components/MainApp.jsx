@@ -136,7 +136,16 @@ export default function MainApp() {
   // Top task banner state
   const [taskBannerData, setTaskBannerData] = useState(null)
   const [showTaskBanner, setShowTaskBanner] = useState(false)
-  const [showFloatingBanner, setShowFloatingBanner] = useState(false) // Hidden by default
+  // Load user preference from localStorage or default to hidden
+  const [showFloatingBanner, setShowFloatingBanner] = useState(() => {
+    const saved = localStorage.getItem('valora_showFloatingBanner')
+    return saved !== null ? saved === 'true' : false
+  })
+  
+  // Persist showFloatingBanner preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('valora_showFloatingBanner', String(showFloatingBanner))
+  }, [showFloatingBanner])
   const [currentQuery, setCurrentQuery] = useState('')
   const [lastTaskProgress, setLastTaskProgress] = useState(null)
   const [isTaskCancelled, setIsTaskCancelled] = useState(false)
