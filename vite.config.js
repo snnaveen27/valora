@@ -18,7 +18,7 @@ export default defineConfig({
       targets: [
         {
           src: normalizePath(path.resolve(__dirname, 'node_modules/cesium/Build/Cesium')),
-          dest: 'cesium'
+          dest: '.'
         }
       ]
     }),
@@ -54,7 +54,7 @@ export default defineConfig({
     })
   ].filter(Boolean),
   define: {
-    CESIUM_BASE_URL: JSON.stringify(isProduction ? '/valora/cesium/' : '/cesium/')
+    CESIUM_BASE_URL: JSON.stringify(isProduction ? '/valora/Cesium/' : '/cesium/')
   },
   server: {
     port: 3000,  // Standard port for development
