@@ -3250,9 +3250,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           // Native resolution scale for sharp rendering
           viewer.resolutionScale = window.devicePixelRatio || 1.0
           
-          // AMD APU specific optimizations
-          viewer.scene.globe.tileCacheSize = 1024 // Larger cache for AMD APUs
-          viewer.scene.fog.enabled = false // Disable fog for better performance
+          // AMD APU specific optimizations - with null checks
+          if (viewer?.scene?.globe) {
+            viewer.scene.globe.tileCacheSize = 1024 // Larger cache for AMD APUs
+          }
+          if (viewer?.scene?.fog) {
+            viewer.scene.fog.enabled = false // Disable fog for better performance
+          }
           
           console.log('✅ AMD APU optimized: 2K shadows, high quality, shared memory optimized')
         } else if (isDedicatedGPU) {
@@ -3316,22 +3320,26 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           switchBasemap(basemapType)
         }
 
-        // Configure globe with maximum cache for smooth performance
-        viewer.scene.globe.show = true
-        viewer.scene.globe.enableLighting = false  // Disabled to keep terrain bright
-        viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#f0f0f0')
-        viewer.scene.globe.terrainExaggeration = terrainExaggeration
-        viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
+        // Configure globe with maximum cache for smooth performance - with null checks
+        if (viewer?.scene?.globe) {
+          viewer.scene.globe.show = true
+          viewer.scene.globe.enableLighting = false  // Disabled to keep terrain bright
+          viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#f0f0f0')
+          viewer.scene.globe.terrainExaggeration = terrainExaggeration
+          viewer.scene.globe.terrainExaggerationRelativeHeight = 0.0
+          
+          // MAXIMUM CACHE SETTINGS for smooth panning
+          viewer.scene.globe.tileCacheSize = 512 // Maximum tile cache (was default ~20MB)
+          viewer.scene.globe.lodUpdateInterval = 0 // Update LOD immediately for smoother transitions
+          // Disable depth test against terrain so buildings at height 0 are visible
+          // (buildings are extruded from ellipsoid surface, not terrain surface)
+          viewer.scene.globe.depthTestAgainstTerrain = false
+        }
         
-        // MAXIMUM CACHE SETTINGS for smooth panning
-        viewer.scene.globe.tileCacheSize = 512 // Maximum tile cache (was default ~20MB)
-        viewer.scene.globe.lodUpdateInterval = 0 // Update LOD immediately for smoother transitions
-        // Disable depth test against terrain so buildings at height 0 are visible
-        // (buildings are extruded from ellipsoid surface, not terrain surface)
-        viewer.scene.globe.depthTestAgainstTerrain = false
-        
-        // Ensure terrain is rendered below buildings
-        viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
+        // Ensure terrain is rendered below buildings - with null check
+        if (viewer?.scene?.screenSpaceCameraController) {
+          viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
+        }
 
         // Set Cesium clock to current real time for accurate sun position & shadows
         viewer.clock.currentTime = Cesium.JulianDate.now()
@@ -4049,21 +4057,32 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         if (showTerrain) {
           setTimeout(async () => {
             try {
-              if (viewer && !viewer.isDestroyed()) {
-                // Switch to 3D globe mode for terrain
-                viewer.scene.mode = Cesium.SceneMode.SCENE3D
-                
-                // Load Cesium Ion terrain with validation
-                if (!HAS_ION_TOKEN) {
-                  console.warn('[Terrain] No Cesium Ion token — terrain disabled. Set VITE_CESIUM_TOKEN in .env')
-                } else {
+              // Check if viewer and scene are ready
+              if (!viewer || viewer.isDestroyed() || !viewer.scene) {
+                console.warn('[Terrain] Viewer not ready, skipping terrain initialization')
+                return
+              }
+              
+              // Switch to 3D globe mode for terrain
+              viewer.scene.mode = Cesium.SceneMode.SCENE3D
+              
+              // Load Cesium Ion terrain with validation
+              if (!HAS_ION_TOKEN) {
+                console.warn('[Terrain] No Cesium Ion token — terrain disabled. Set VITE_CESIUM_TOKEN in .env')
+              } else {
+                try {
                   viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(ION_TERRAIN_ASSET_ID, {
                     requestWaterMask: true,
                     requestVertexNormals: true
                   })
                   console.log('✅ Cesium Ion terrain loaded (asset', ION_TERRAIN_ASSET_ID, ')')
+                } catch (terrainError) {
+                  console.error('[Terrain] Failed to load Cesium Ion terrain:', terrainError.message)
                 }
-                
+              }
+              
+              // Terrain configuration - with null checks
+              if (viewer?.scene?.globe) {
                 // Terrain shadows always on
                 viewer.scene.globe.shadows = Cesium.ShadowMode.RECEIVE_ONLY
                 viewer.scene.globe.enableLighting = false  // No day/night effects

@@ -120,9 +120,16 @@ desktop.ini
 test_*.png
 
 # Large files in storage (exclude from git)
-storage/faiss/
-storage/database/
-storage/tileset.json
+storage/
+storage.zip
+
+# Large files to exclude
+ubuntu@3.109.34.1.ssl
+nul
+
+# Tuned models
+data/tuned_model/
+data/model/
 valora.db
 valora_credits.db
 *.gguf
