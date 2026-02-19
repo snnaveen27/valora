@@ -17,7 +17,13 @@ const throttle = (fn, wait) => {
   }
 }
 
-window.CESIUM_BASE_URL = '/cesium/'
+// Cesium base URL - use Vite's define in production, fallback to /cesium/ for dev
+// Vite sets CESIUM_BASE_URL to '/valora/cesium/' in production
+if (typeof CESIUM_BASE_URL !== 'undefined') {
+  window.CESIUM_BASE_URL = CESIUM_BASE_URL
+} else {
+  window.CESIUM_BASE_URL = '/cesium/'
+}
 
 const ION_TOKEN =
   import.meta.env.VITE_CESIUM_ION_API_KEY ||
@@ -3225,6 +3231,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         })
 
         viewerRef.current = viewer
+        
+        // Force globe to be visible - critical for base map
+        viewer.scene.globe.show = true
+        viewer.scene.globe.enableLighting = false
         
         // Store GPU info for UI display
         setGpuInfo({
