@@ -18,7 +18,7 @@ const UsageDashboard = ({ user }) => {
       setLoading(true);
       const response = await fetch(`/api/admin/usage/user/${user.id}?days=${period}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('valora_token')}`
         }
       });
       

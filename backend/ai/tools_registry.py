@@ -619,6 +619,55 @@ def get_tool_registry() -> ToolRegistry:
             category="proactive",
         ))
 
+        # New tools for report generation and map control
+        _registry.register(ToolDefinition(
+            name="generate_report",
+            description="Generate a detailed investment report for a location. Costs 200 credits. Returns a 9-section comprehensive analysis.",
+            parameters={
+                "locality": {"type": "string", "description": "Location name"},
+                "lat": {"type": "number", "description": "Latitude"},
+                "lng": {"type": "number", "description": "Longitude"},
+            },
+            required_params=["locality", "lat", "lng"],
+            handler=None,  # Handled by frontend via ui_actions
+            category="reporting",
+        ))
+
+        _registry.register(ToolDefinition(
+            name="map_control",
+            description="Control the map view (zoom, pan, toggle layers). Use for navigation and map manipulation.",
+            parameters={
+                "action": {"type": "string", "enum": ["zoom_in", "zoom_out", "fly_to", "toggle_layer"], "description": "Map action to perform"},
+                "target": {"type": "string", "description": "Location or layer name (optional)"},
+                "lat": {"type": "number", "description": "Latitude for fly_to (optional)"},
+                "lng": {"type": "number", "description": "Longitude for fly_to (optional)"},
+            },
+            required_params=["action"],
+            handler=None,  # Handled by frontend via ui_actions
+            category="ui",
+        ))
+
+        _registry.register(ToolDefinition(
+            name="download_report",
+            description="Download or export analysis as PDF or Markdown. PDF costs 10 credits, Markdown is free.",
+            parameters={
+                "format": {"type": "string", "enum": ["pdf", "markdown"], "description": "Export format"},
+                "locality": {"type": "string", "description": "Location name (optional)"},
+            },
+            required_params=["format"],
+            handler=None,  # Handled by frontend via ui_actions
+            category="reporting",
+        ))
+
+        _registry.register(ToolDefinition(
+            name="check_credits",
+            description="Check user's credit balance and show pricing information. Free to use.",
+            parameters={},
+            required_params=[],
+            handler=None,  # Handled directly in chat_routes
+            category="credits",
+        ))
+
         logger.info(f"[ToolRegistry] Registered {len(_registry.list_tools())} production tools")
 
     return _registry

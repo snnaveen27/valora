@@ -95,24 +95,42 @@ class AdminUpdateUserRequest(BaseModel):
 
 
 # Helper to get current user from token
+import logging
+_auth_logger = logging.getLogger(__name__)
+
 async def get_current_user(
     authorization: Optional[str] = Header(None)
 ) -> Optional[User]:
     """Extract and verify user from Authorization header."""
+    _auth_logger.info(f"[AUTH] get_current_user called, authorization header present: {authorization is not None}")
+    
     if not authorization:
+        _auth_logger.warning("[AUTH] No authorization header provided")
         return None
     
     if not authorization.startswith("Bearer "):
+        _auth_logger.warning(f"[AUTH] Invalid authorization format: {authorization[:20]}...")
         return None
     
     token = authorization[7:]  # Remove "Bearer " prefix
+    _auth_logger.info(f"[AUTH] Token received, length: {len(token)}")
+    
     payload = decode_token(token)
     
     if not payload:
+        _auth_logger.warning("[AUTH] Token decode failed - token may be expired or invalid")
         return None
+    
+    _auth_logger.info(f"[AUTH] Token decoded successfully, user_id: {payload.get('user_id')}, role: {payload.get('role')}")
     
     db = get_user_database()
     user = db.get_user_by_id(payload.get("user_id"))
+    
+    if not user:
+        _auth_logger.warning(f"[AUTH] User not found in database for user_id: {payload.get('user_id')}")
+    else:
+        _auth_logger.info(f"[AUTH] User found: {user.email}, role: {user.role}")
+    
     return user
 
 
@@ -132,7 +150,9 @@ async def require_admin(
     """Require admin role."""
     user = await require_auth(authorization)
     if user.role != UserRole.ADMIN:
+        _auth_logger.warning(f"[AUTH] User {user.email} is not admin, role: {user.role}")
         raise HTTPException(status_code=403, detail="Admin access required")
+    _auth_logger.info(f"[AUTH] Admin access granted for {user.email}")
     return user
 
 

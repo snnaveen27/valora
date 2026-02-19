@@ -2163,11 +2163,12 @@ _cache_free_properties = TTLCache(maxsize=100, ttl_seconds=86400)  # 24 hour TTL
 _free_analysis_tracker = {}  # {user_id: {date: str, count: int, property_ids: list}}
 
 @app.get("/api/free-properties")
-async def get_free_properties(user_id: str = None):
+async def get_free_properties(user_id: str = None, refresh: bool = False):
     """
     Get randomized free properties for user.
     Returns one property per category (apartment, flat, villa, warehouse, shop, plot, office).
     Daily refresh based on date seed.
+    Use refresh=true to bypass cache and get fresh results.
     """
     from datetime import date
     import random
@@ -2178,8 +2179,8 @@ async def get_free_properties(user_id: str = None):
     today = date.today().isoformat()
     cache_key = f"free_props_{today}"
     
-    # Check cache first
-    cached = _cache_free_properties.get(cache_key)
+    # Check cache first (unless refresh is requested)
+    cached = _cache_free_properties.get(cache_key) if not refresh else None
     if cached:
         # Get user's remaining analyses
         user_tracker = _free_analysis_tracker.get(user_id, {})
@@ -2214,26 +2215,61 @@ async def get_free_properties(user_id: str = None):
             # Search for properties in this category
             results = property_service.search(
                 **filters,
-                limit=20  # Get more to randomize
+                limit=50  # Get more to find ones with images AND coordinates
             )
             
             if results:
-                # Random selection from results
-                prop = random.choice(results)
-                selected_properties[category] = {
-                    "id": prop.get("property_id") or prop.get("id"),
-                    "title": prop.get("title", f"{category.title()} in {prop.get('locality', 'Bangalore')}"),
-                    "locality": prop.get("locality"),
-                    "price": prop.get("price"),
-                    "area_sqft": prop.get("area_sqft"),
-                    "property_type": prop.get("property_type"),
-                    "property_category": prop.get("property_category"),
-                    "listing_type": prop.get("listing_type"),
-                    "bedrooms": prop.get("bedrooms"),
-                    "image_url": prop.get("image_url") or prop.get("images", [None])[0] if prop.get("images") else None,
-                    "latitude": prop.get("latitude"),
-                    "longitude": prop.get("longitude"),
-                }
+                # Filter to only include properties with BOTH coordinates AND images
+                valid_results = []
+                for prop in results:
+                    if not (prop.get("latitude") and prop.get("longitude")):
+                        continue
+                    
+                    # Check for images - handle both JSON string and list formats
+                    images = prop.get("images")
+                    if isinstance(images, str):
+                        try:
+                            images = json.loads(images)
+                        except:
+                            images = None
+                    
+                    has_image = prop.get("image_url") or (images and len(images) > 0)
+                    if has_image:
+                        # Store parsed images for later use
+                        prop["_parsed_images"] = images
+                        valid_results.append(prop)
+                
+                if valid_results:
+                    # Random selection from valid results
+                    prop = random.choice(valid_results)
+                    
+                    # Get the first image URL
+                    images = prop.get("_parsed_images") or prop.get("images")
+                    if isinstance(images, str):
+                        try:
+                            images = json.loads(images)
+                        except:
+                            images = None
+                    
+                    first_image = prop.get("image_url") or (images[0] if images and len(images) > 0 else None)
+                    
+                    selected_properties[category] = {
+                        "id": prop.get("property_id") or prop.get("id"),
+                        "title": prop.get("title", f"{category.title()} in {prop.get('locality', 'Bangalore')}"),
+                        "locality": prop.get("locality"),
+                        "price": prop.get("price"),
+                        "area_sqft": prop.get("area_sqft"),
+                        "property_type": prop.get("property_type"),
+                        "property_category": prop.get("property_category"),
+                        "listing_type": prop.get("listing_type"),
+                        "bedrooms": prop.get("bedrooms"),
+                        "image_url": first_image,
+                        "latitude": prop.get("latitude"),
+                        "longitude": prop.get("longitude"),
+                    }
+                    logger.info(f"[FreeProperties] {category}: Selected property with image={first_image[:50] if first_image else 'None'}...")
+                else:
+                    logger.warning(f"No properties with images AND coordinates found for category {category}")
         except Exception as e:
             logger.warning(f"Failed to get property for category {category}: {e}")
             continue

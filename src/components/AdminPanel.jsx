@@ -181,8 +181,11 @@ export default function AdminPanel({ isOpen, onClose }) {
   }, [token, fetchUserAccounts])
 
   const fetchBrainStatus = useCallback(async () => {
+    if (!token) return
     try {
-      const resp = await fetch(`${API_URL}/api/admin/locality-brain-status`)
+      const resp = await fetch(`${API_URL}/api/admin/locality-brain-status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (resp.ok) {
         const data = await resp.json()
         setBrainStatus(data.status)
@@ -190,14 +193,16 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to fetch brain status:', err)
     }
-  }, [])
+  }, [token])
 
   const rebuildBrain = useCallback(async () => {
+    if (!token) return
     setRebuildingBrain(true)
     setBrainResult(null)
     try {
       const resp = await fetch(`${API_URL}/api/admin/rebuild-locality-brain`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await resp.json()
       setBrainResult(data)
@@ -208,12 +213,15 @@ export default function AdminPanel({ isOpen, onClose }) {
       setBrainResult({ success: false, message: `Error: ${err.message}` })
     }
     setRebuildingBrain(false)
-  }, [fetchBrainStatus])
+  }, [fetchBrainStatus, token])
 
   const fetchSystemStatus = useCallback(async () => {
+    if (!token) return
     setLoading(true)
     try {
-      const resp = await fetch(`${API_URL}/api/admin/status`)
+      const resp = await fetch(`${API_URL}/api/admin/status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (resp.ok) {
         const data = await resp.json()
         setSystemStatus(data)
@@ -224,7 +232,7 @@ export default function AdminPanel({ isOpen, onClose }) {
       setSystemStatus({ error: 'Failed to connect to backend' })
     }
     setLoading(false)
-  }, [])
+  }, [token])
 
   const fetchUserPreferences = useCallback(async (userId = prefsUserId) => {
     setLoadingPrefs(true)
@@ -256,8 +264,11 @@ export default function AdminPanel({ isOpen, onClose }) {
   }, [prefsUserId, fetchUserPreferences])
 
   const fetchVectorBackend = useCallback(async () => {
+    if (!token) return
     try {
-      const resp = await fetch(`${API_URL}/api/admin/vector-backend`)
+      const resp = await fetch(`${API_URL}/api/admin/vector-backend`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (resp.ok) {
         const data = await resp.json()
         setVectorBackend(data.backend || 'pinecone')
@@ -265,14 +276,15 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to fetch vector backend:', err)
     }
-  }, [])
+  }, [token])
 
   const toggleVectorBackend = useCallback(async () => {
+    if (!token) return
     const newBackend = vectorBackend === 'pinecone' ? 'faiss' : 'pinecone'
     try {
       const resp = await fetch(`${API_URL}/api/admin/vector-backend`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ backend: newBackend })
       })
       if (resp.ok) {
@@ -284,13 +296,17 @@ export default function AdminPanel({ isOpen, onClose }) {
       console.error('Failed to toggle vector backend:', err)
       alert('Network error while toggling backend')
     }
-  }, [vectorBackend])
+  }, [vectorBackend, token])
 
   const runTests = useCallback(async () => {
+    if (!token) return
     setRunningTest(true)
     setTestResults(null)
     try {
-      const resp = await fetch(`${API_URL}/api/admin/run-tests`, { method: 'POST' })
+      const resp = await fetch(`${API_URL}/api/admin/run-tests`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (resp.ok) {
         const data = await resp.json()
         setTestResults(data)
@@ -302,15 +318,16 @@ export default function AdminPanel({ isOpen, onClose }) {
       setTestResults({ error: 'Failed to run tests' })
     }
     setRunningTest(false)
-  }, [])
+  }, [token])
 
   const runSanityCheck = useCallback(async () => {
+    if (!token) return
     setRunningSanity(true)
     setSanityResults(null)
     try {
       const resp = await fetch(`${API_URL}/api/admin/sanity-check`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ base_url: API_URL, include_chat: sanityIncludeChat })
       })
       if (resp.ok) {
@@ -325,11 +342,14 @@ export default function AdminPanel({ isOpen, onClose }) {
       setSanityResults({ error: 'Failed to run sanity check' })
     }
     setRunningSanity(false)
-  }, [sanityIncludeChat])
+  }, [sanityIncludeChat, token])
 
   const fetchProcessingStatus = useCallback(async () => {
+    if (!token) return
     try {
-      const resp = await fetch(`${API_URL}/api/admin/processing-status`)
+      const resp = await fetch(`${API_URL}/api/admin/processing-status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (resp.ok) {
         const data = await resp.json()
         setProcessingStatus(data)
@@ -337,13 +357,14 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to fetch processing status:', err)
     }
-  }, [])
+  }, [token])
 
   const triggerIndexing = useCallback(async (target) => {
+    if (!token) return
     try {
       const resp = await fetch(`${API_URL}/api/admin/trigger-indexing`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ target })
       })
       if (!resp.ok) {
@@ -354,11 +375,14 @@ export default function AdminPanel({ isOpen, onClose }) {
       console.error('Failed to trigger indexing:', err)
       alert('Network error while triggering indexing')
     }
-  }, [fetchProcessingStatus])
+  }, [fetchProcessingStatus, token])
 
   const fetchLlmConfig = useCallback(async () => {
+    if (!token) return
     try {
-      const resp = await fetch(`${API_URL}/api/admin/llm-config`)
+      const resp = await fetch(`${API_URL}/api/admin/llm-config`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       if (resp.ok) {
         const data = await resp.json()
         setLlmConfig(prev => ({ ...prev, ...data }))
@@ -366,15 +390,16 @@ export default function AdminPanel({ isOpen, onClose }) {
     } catch (err) {
       console.error('Failed to fetch LLM config:', err)
     }
-  }, [])
+  }, [token])
 
   const saveLlmConfig = useCallback(async () => {
+    if (!token) return
     setLlmSaving(true)
     setLlmTestResult(null)
     try {
       const resp = await fetch(`${API_URL}/api/admin/llm-config`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(llmConfig)
       })
       if (resp.ok) {
@@ -387,15 +412,16 @@ export default function AdminPanel({ isOpen, onClose }) {
       setLlmTestResult({ success: false, message: 'Failed to connect to backend' })
     }
     setLlmSaving(false)
-  }, [llmConfig])
+  }, [llmConfig, token])
 
   const testLlmConnection = useCallback(async () => {
+    if (!token) return
     setLlmSaving(true)
     setLlmTestResult(null)
     try {
       const resp = await fetch(`${API_URL}/api/admin/llm-test`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(llmConfig)
       })
       const data = await resp.json()
@@ -404,7 +430,7 @@ export default function AdminPanel({ isOpen, onClose }) {
       setLlmTestResult({ success: false, message: 'Failed to test connection' })
     }
     setLlmSaving(false)
-  }, [llmConfig])
+  }, [llmConfig, token])
 
   if (!isOpen) return null
 

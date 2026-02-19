@@ -2,11 +2,19 @@
  * ChatInputBar - Valora AI
  * Default: qwen3:4b-instruct local. Cloud toggle enables intelligent model routing.
  * The model router auto-selects the best model based on query complexity.
+ * Includes language selector for multilingual support.
  */
 
 import { useRef, useEffect, useState } from 'react'
-import { Send, Image, HardDrive, StopCircle, X, Zap, ChevronDown } from 'lucide-react'
+import { Send, Image, HardDrive, StopCircle, X, Zap, ChevronDown, Languages } from 'lucide-react'
 import { API_URL } from '../../apiConfig'
+
+const LANGUAGE_OPTIONS = [
+  { id: 'en', label: 'English', native: 'English', flag: '🇬🇧' },
+  { id: 'hi', label: 'Hindi', native: 'हिंदी', flag: '🇮🇳' },
+  { id: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ', flag: '🇮🇳' },
+  { id: 'ta', label: 'Tamil', native: 'தமிழ்', flag: '🇮🇳' }
+]
 
 export default function ChatInputBar({
   value,
@@ -20,12 +28,15 @@ export default function ChatInputBar({
   llmConfig,
   onConfigChange,
   credits,
-  placeholder = "Ask me anything about Bangalore real estate..."
+  placeholder = "Ask me anything about Bangalore real estate...",
+  selectedLanguage = 'en',
+  onLanguageChange
 }) {
   const inputRef = useRef(null)
   const fileInputRef = useRef(null)
   const [availableModels, setAvailableModels] = useState([])
   const [showModelDropdown, setShowModelDropdown] = useState(false)
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
   const [loadingModels, setLoadingModels] = useState(false)
 
   const cloudEnabled = llmConfig.cloud_enabled ?? false
@@ -73,13 +84,16 @@ export default function ChatInputBar({
       if (showModelDropdown && !event.target.closest('.model-dropdown-container')) {
         setShowModelDropdown(false)
       }
+      if (showLanguageDropdown && !event.target.closest('.language-dropdown-container')) {
+        setShowLanguageDropdown(false)
+      }
     }
 
-    if (showModelDropdown) {
+    if (showModelDropdown || showLanguageDropdown) {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showModelDropdown])
+  }, [showModelDropdown, showLanguageDropdown])
 
   // Reset textarea height when value is cleared
   useEffect(() => {
@@ -123,9 +137,17 @@ export default function ChatInputBar({
 
   const currentModel = llmConfig.local_model || 'valora-2025v1'
   const currentModelDisplay = availableModels.find(m => m.id === currentModel)?.name || currentModel
+  const currentLanguage = LANGUAGE_OPTIONS.find(l => l.id === selectedLanguage) || LANGUAGE_OPTIONS[0]
 
   const hasImages = attachedImages && attachedImages.length > 0
   const imageCount = attachedImages?.length || 0
+  
+  const handleLanguageSelect = (langId) => {
+    onLanguageChange?.(langId)
+    setShowLanguageDropdown(false)
+    // Save to localStorage for persistence
+    localStorage.setItem('valora_selected_language', langId)
+  }
 
   return (
     <div className="p-3 border-t border-primary-700/30 bg-surface-primary/50 backdrop-blur-sm">
@@ -192,6 +214,45 @@ export default function ChatInputBar({
                       </button>
                     ))
                   )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Language selector dropdown */}
+          <div className="relative language-dropdown-container">
+            <button
+              onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border transition-all bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20"
+              title="Select language for responses"
+            >
+              <Languages className="w-3 h-3" />
+              <span>{currentLanguage.flag}</span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${showLanguageDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {/* Language Dropdown */}
+            {showLanguageDropdown && (
+              <div className="absolute bottom-full left-0 mb-2 w-40 bg-dark-800 border border-primary-700/50 rounded-lg shadow-lg shadow-dark-900/50 z-50">
+                <div className="p-2">
+                  <div className="text-[10px] text-primary-400/60 font-medium mb-2 px-2">Response Language</div>
+                  {LANGUAGE_OPTIONS.map((lang) => (
+                    <button
+                      key={lang.id}
+                      onClick={() => handleLanguageSelect(lang.id)}
+                      className={`w-full text-left px-2 py-1.5 rounded text-[10px] transition-colors flex items-center gap-2 ${
+                        lang.id === selectedLanguage
+                          ? 'bg-blue-500/20 text-blue-300'
+                          : 'text-primary-300 hover:bg-primary-700/30 hover:text-white'
+                      }`}
+                    >
+                      <span>{lang.flag}</span>
+                      <div>
+                        <div className="font-medium">{lang.label}</div>
+                        <div className="text-primary-400/60">{lang.native}</div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

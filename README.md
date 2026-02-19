@@ -273,6 +273,69 @@ Natural language queries support advanced filtering:
 
 ---
 
+## Enhanced Conversation System
+
+Valora features an intelligent conversation system with multi-language support, context awareness, and tiered analysis options.
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Multi-Language Support** | Hindi, Kannada, Tamil, Telugu, Malayalam + English |
+| **Conversation Memory** | Remembers previous queries, locations, and preferences |
+| **Tiered Analysis** | Free, 3-credit, and 200-credit analysis options |
+| **Smart Recommendations** | Proactive suggestions based on user behavior |
+| **Location Disambiguation** | Clarifies ambiguous location names |
+| **New User Onboarding** | 4-step preference collection wizard |
+
+### Supported Query Types
+
+| Query Pattern | Example | Detected Intent |
+|--------------|---------|-----------------|
+| Investment evaluation | "Is Hebbal good for investment?" | `INVESTMENT_EVALUATION` |
+| Price trends | "What's the price trend in Whitefield?" | `PRICE_TREND_INQUIRY` |
+| Area comparison | "Compare HSR Layout and Indiranagar" | `AREA_COMPARISON` |
+| Multi-language | "हेब्बल में निवेश अच्छा है?" (Hindi) | `INVESTMENT_EVALUATION` |
+
+### Tiered Analysis Options
+
+| Tier | Credits | Description |
+|------|---------|-------------|
+| **Quick Overview** | Free | Basic area summary with key highlights |
+| **Area Analysis** | 3 | Detailed neighborhood insights with POIs and connectivity |
+| **Investment Report** | 200 | Comprehensive 9-section analysis with ROI projections |
+
+### Example Flow
+
+```
+User: "Is Hebbal good for investment?"
+
+Valora: I can help you evaluate Hebbal! What level of analysis would you like?
+
+        🔍 Quick Overview (FREE)
+        📊 Area Analysis (3 credits)
+        📈 Investment Report (200 credits)
+        
+        Your balance: 50 credits
+
+User: [Selects "Area Analysis"]
+
+Valora: [Generates detailed area analysis for Hebbal]
+```
+
+### Key Implementation Files
+
+| File | Purpose |
+|------|---------|
+| [`backend/ai/conversation_memory.py`](backend/ai/conversation_memory.py) | Session context & pronoun resolution |
+| [`backend/ai/analysis_opportunity_detector.py`](backend/ai/analysis_opportunity_detector.py) | Sub-intent detection & tiered options |
+| [`backend/ai/multilingual_intent.py`](backend/ai/multilingual_intent.py) | Multi-language intent detection |
+| [`backend/ai/prompt_ab_testing.py`](backend/ai/prompt_ab_testing.py) | A/B testing for prompts |
+| [`src/components/chat/TieredOptionsDisplay.jsx`](src/components/chat/TieredOptionsDisplay.jsx) | Tiered options UI |
+| [`src/components/OnboardingModal.jsx`](src/components/OnboardingModal.jsx) | New user onboarding |
+
+---
+
 ## Project Structure
 
 ```

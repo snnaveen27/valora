@@ -1507,8 +1507,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           provider = new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' })
           setBasemapType('osm')
         } else {
+          // Custom styles have username/styleId format, default Mapbox styles are just styleId
+          const stylePath = styleId.includes('/') ? styleId : `mapbox/${styleId}`
+          // Mapbox Tiles API requires tilesize parameter (256 or 512)
+          const tileUrl = `https://api.mapbox.com/styles/v1/${stylePath}/tiles/256/{z}/{x}/{y}?access_token=${mapboxKey}`
+          console.log('[Mapbox] Loading tiles from:', tileUrl.replace(mapboxKey, 'TOKEN'))
           provider = new Cesium.UrlTemplateImageryProvider({
-            url: `https://api.mapbox.com/styles/v1/mapbox/${styleId}/tiles/{z}/{x}/{y}?access_token=${mapboxKey}`,
+            url: tileUrl,
             credit: '© Mapbox'
           })
         }
@@ -1523,8 +1528,16 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         throw new Error('No imagery provider created')
       }
 
+      console.log(`[Basemap] Provider created for ${type}, waiting for ready...`)
+      
       if (provider.readyPromise) {
-        await provider.readyPromise
+        try {
+          await provider.readyPromise
+          console.log(`[Basemap] Provider ready for ${type}`)
+        } catch (readyErr) {
+          console.error(`[Basemap] Provider failed to ready for ${type}:`, readyErr)
+          throw readyErr
+        }
       }
 
       const applyOsmFallback = () => {
@@ -2666,8 +2679,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         return
       }
       
-      const { lat, lng, zoom } = agentData.flyTo
-      console.log(`[Map] flyTo useEffect triggered: lat=${lat}, lng=${lng}, zoom=${zoom}`)
+      const { lat, lng, zoom, pitch } = agentData.flyTo
+      console.log(`[Map] flyTo useEffect triggered: lat=${lat}, lng=${lng}, zoom=${zoom}, pitch=${pitch}`)
       const viewer = viewerRef.current
       if (!viewer || viewer.isDestroyed()) return
 
@@ -2735,23 +2748,23 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       // Force-reset loading guard in case a previous load got stuck
       loadingBuildingsRef.current = false
 
-      // Load buildings at the flyTo location
-      const triggerBuildingLoad = () => {
-        console.log(`[Map] 🏢 Loading buildings at flyTo location: lat=${latNum}, lng=${lngNum}`)
-        loadBuildingsAtPointRef.current(latNum, lngNum, BUILDING_LOAD_RADIUS_KM)
-      }
-
+      // Use the pitch from flyTo or default -45
+      const pitchDegrees = pitch ?? -45;
+      const pitchRadians = Cesium.Math.toRadians(pitchDegrees);
+      
+      // Simple flyTo - for pitch -90 (straight down), marker is always centered
       viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(lngNum, latNum, adjustedHeight),
         orientation: {
           heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-45),
+          pitch: pitchRadians,
           roll: 0
         },
         duration: 2.0,
         complete: () => {
-          // Load buildings after camera arrives
-          setTimeout(triggerBuildingLoad, 300)
+          // Load buildings at the target location
+          console.log(`[Map] 🏢 Loading buildings at target location: lat=${latNum}, lng=${lngNum}`)
+          loadBuildingsAtPointRef.current(latNum, lngNum, BUILDING_LOAD_RADIUS_KM)
         }
       })
       // Fallback disabled: only query-based loading
@@ -4952,6 +4965,69 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                   month: 'short',
                   year: 'numeric'
                 })}
+              </div>
+            </div>
+
+            {/* Time Slider */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-slate-300">Time of Day</span>
+                <span className="text-xs text-blue-400 font-mono">
+                  {(() => {
+                    const time = simulatedTime || currentTime
+                    const hours = time.getHours()
+                    const minutes = time.getMinutes()
+                    const ampm = hours >= 12 ? 'PM' : 'AM'
+                    const displayHours = hours % 12 || 12
+                    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`
+                  })()}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1440"
+                step="15"
+                value={(() => {
+                  const time = simulatedTime || currentTime
+                  return time.getHours() * 60 + time.getMinutes()
+                })()}
+                onChange={(e) => {
+                  const viewer = viewerRef.current
+                  if (!viewer || viewer.isDestroyed()) return
+                  
+                  const totalMinutes = parseInt(e.target.value, 10)
+                  const hours = Math.floor(totalMinutes / 60)
+                  const minutes = totalMinutes % 60
+                  
+                  const newTime = new Date()
+                  newTime.setHours(hours, minutes, 0, 0)
+                  setSimulatedTime(newTime)
+                  viewer.clock.currentTime = Cesium.JulianDate.fromDate(newTime)
+                }}
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer
+                  [&::-webkit-slider-thumb]:appearance-none
+                  [&::-webkit-slider-thumb]:w-4
+                  [&::-webkit-slider-thumb]:h-4
+                  [&::-webkit-slider-thumb]:rounded-full
+                  [&::-webkit-slider-thumb]:bg-blue-500
+                  [&::-webkit-slider-thumb]:cursor-pointer
+                  [&::-webkit-slider-thumb]:hover:bg-blue-400
+                  [&::-webkit-slider-thumb]:transition-colors
+                  [&::-moz-range-thumb]:w-4
+                  [&::-moz-range-thumb]:h-4
+                  [&::-moz-range-thumb]:rounded-full
+                  [&::-moz-range-thumb]:bg-blue-500
+                  [&::-moz-range-thumb]:cursor-pointer
+                  [&::-moz-range-thumb]:border-0
+                  [&::-moz-range-thumb]:hover:bg-blue-400"
+              />
+              <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                <span>12 AM</span>
+                <span>6 AM</span>
+                <span>12 PM</span>
+                <span>6 PM</span>
+                <span>12 AM</span>
               </div>
             </div>
 

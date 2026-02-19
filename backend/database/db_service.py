@@ -377,7 +377,7 @@ class DatabaseService:
             SELECT 
                 COUNT(*) as property_count,
                 AVG(price) as avg_price,
-                AVG(price / NULLIF(CAST(built_up_area AS REAL), 0)) as avg_price_per_sqft,
+                AVG(price / NULLIF(CAST(total_area_sqft AS REAL), 0)) as avg_price_per_sqft,
                 MIN(price) as min_price,
                 MAX(price) as max_price,
                 AVG(CAST(bedrooms AS REAL)) as avg_bedrooms

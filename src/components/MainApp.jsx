@@ -5,6 +5,7 @@ import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, ChevronDo
 import { API_URL } from '../apiConfig'
 import CreditBalance from './CreditBalance'
 import TaskProgressBar from './TaskProgressBar'
+import OnboardingModal from './OnboardingModal'
 
 // Lazy load heavy components
 const OnlineOSMMap = lazy(() => import('../spatial/OnlineOSMMap'))
@@ -24,7 +25,7 @@ const ComponentLoader = () => (
 )
 
 export default function MainApp() {
-  const { user, logout, isAdmin } = useAuth()
+  const { user, logout, isAdmin, loading: authLoading } = useAuth()
   const [agentData, setAgentData] = useState({})
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true)
   const [isChatOpen, setIsChatOpen] = useState(true)
@@ -33,6 +34,7 @@ export default function MainApp() {
   const [analysisWidth, setAnalysisWidth] = useState('narrow') // narrow, wide, or fullscreen
   const [chatWidth, setChatWidth] = useState('narrow') // narrow or wide
   const [userTier, setUserTier] = useState('free') // User's credit tier
+  const [tierLoaded, setTierLoaded] = useState(false) // Track if tier has been fetched
   const [isAdminOpen, setIsAdminOpen] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
@@ -43,8 +45,36 @@ export default function MainApp() {
   const [isChatFullscreen, setIsChatFullscreen] = useState(false) // Fullscreen mode for chat
   const [isMapFullscreen, setIsMapFullscreen] = useState(false) // Fullscreen mode for map
   
+  // Onboarding modal state - show for new users
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [userPreferences, setUserPreferences] = useState(null)
+  
   // Report generation task state
   const [reportTask, setReportTask] = useState(null) // { taskId, locality, creditsCharged }
+  
+  // Check if user is new (no previous sessions) on mount
+  useEffect(() => {
+    const onboardingComplete = localStorage.getItem('valora_onboarding_complete')
+    const savedPreferences = localStorage.getItem('valora_preferences')
+    
+    if (!onboardingComplete && !savedPreferences) {
+      // New user - show onboarding
+      setShowOnboarding(true)
+    } else if (savedPreferences) {
+      // Existing user - load preferences
+      try {
+        setUserPreferences(JSON.parse(savedPreferences))
+      } catch (e) {
+        console.warn('[MainApp] Failed to parse saved preferences:', e)
+      }
+    }
+  }, [])
+  
+  // Handle onboarding completion
+  const handleOnboardingComplete = (preferences) => {
+    setUserPreferences(preferences)
+    setShowOnboarding(false)
+  }
   
   // Handle top-up purchase
   const handleTopUp = async (packageId) => {
@@ -552,16 +582,23 @@ export default function MainApp() {
   useEffect(() => {
     const fetchUserTier = async () => {
       const userId = user?.email || user?.id
-      if (!userId) return
+      if (!userId) {
+        // If no user, mark tier as loaded (will use default 'free')
+        setTierLoaded(true)
+        return
+      }
       
       try {
         const resp = await fetch(`${API_URL}/api/credits/balance?user_id=${userId}`)
         if (resp.ok) {
           const data = await resp.json()
+          console.log('[MainApp] Fetched user tier:', data.tier, 'for user:', userId)
           setUserTier(data.tier || 'free')
         }
       } catch (err) {
         console.warn('Failed to fetch user tier:', err)
+      } finally {
+        setTierLoaded(true)
       }
     }
     
@@ -570,6 +607,9 @@ export default function MainApp() {
     const interval = setInterval(fetchUserTier, 60000)
     return () => clearInterval(interval)
   }, [user?.email, user?.id])
+  
+  // App is ready when auth is loaded and tier is fetched
+  const appReady = !authLoading && tierLoaded
   
   // Switch to verdict tab when analysis is performed
   useEffect(() => {
@@ -809,6 +849,28 @@ export default function MainApp() {
 
   return (
     <div className="h-screen w-screen bg-slate-900 overflow-hidden flex flex-col">
+      {/* Loading Overlay - Show while app is initializing */}
+      {!appReady && (
+        <div className="absolute inset-0 z-[100] bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center animate-pulse">
+              <Sparkles className="w-10 h-10 text-white" />
+            </div>
+            <div className="text-white font-bold text-xl">Valora AI</div>
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Initializing...</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Onboarding Modal for new users */}
+      <OnboardingModal 
+        isOpen={showOnboarding} 
+        onComplete={handleOnboardingComplete} 
+      />
+      
       {/* Header - High z-index for dropdowns (above map's z-50) */}
       <div className="h-12 bg-slate-800/95 border-b border-slate-700 px-4 flex items-center shrink-0 backdrop-blur-sm relative z-[60]">
         {/* Left Section - Logo & Location */}
@@ -999,7 +1061,7 @@ export default function MainApp() {
                     {/* Divider */}
                     <div className="my-1 border-t border-slate-700/50" />
                     
-                    {/* Account Settings - Opens Admin Panel */}
+                    {/* Admin Panel */}
                     <button
                       onClick={() => {
                         setShowUserMenu(false);
@@ -1008,7 +1070,7 @@ export default function MainApp() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg transition text-sm"
                     >
                       <Settings className="w-4 h-4" />
-                      Account Settings
+                      Admin Panel
                     </button>
                     
                     {/* Divider */}

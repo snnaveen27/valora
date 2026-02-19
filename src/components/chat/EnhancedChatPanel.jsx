@@ -11,15 +11,20 @@
  * - Message copy, edit, regenerate
  * - Code syntax highlighting
  * - Conversation export
+ * - Glow effect for new responses
+ * - Conversation context integration
+ * - Language selector for multilingual support
  */
 
 import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react'
-import { PanelLeftClose, PanelLeft, Download, Trash2, Plus, X, MessageSquare, RefreshCw, ArrowDown } from 'lucide-react'
+import { PanelLeftClose, PanelLeft, Download, Trash2, Plus, X, MessageSquare, RefreshCw, ArrowDown, Languages } from 'lucide-react'
+import '../../styles/chat-glow.css'
 
 import ChatSidebar from './ChatSidebar'
 import ChatMessage from './ChatMessage'
 import ChatInputBar from './ChatInputBar'
 import MessageFeedback from './MessageFeedback'
+import TieredOptionsDisplay from './TieredOptionsDisplay'
 import {
   loadSessions,
   saveSession,
@@ -58,7 +63,7 @@ function WelcomeMessage({ onExampleClick }) {
 }
 
 // Virtualized message list for performance with long conversations
-const MessageList = memo(function MessageList({ messages, sessionId, onCopy, onRegenerate, onEdit, activeFeedbackId, onToggleFeedback }) {
+const MessageList = memo(function MessageList({ messages, sessionId, onCopy, onRegenerate, onEdit, activeFeedbackId, onToggleFeedback, onDisambiguationSelect }) {
   // Only render last 50 messages for performance (virtualization)
   const VISIBLE_MESSAGE_COUNT = 50
   const totalMessages = messages.length
@@ -97,6 +102,7 @@ const MessageList = memo(function MessageList({ messages, sessionId, onCopy, onR
               showFeedback={activeFeedbackId === messageId}
               onToggleFeedback={onToggleFeedback}
               messageId={messageId}
+              onDisambiguationSelect={onDisambiguationSelect}
             />
             <MessageFeedback
               isOpen={activeFeedbackId === messageId}
@@ -209,6 +215,20 @@ export default function EnhancedChatPanel({
   // Feedback state management
   const [activeFeedbackId, setActiveFeedbackId] = useState(null)
   
+  // Glow effect state - for new message animation
+  const [isGlowing, setIsGlowing] = useState(false)
+  const glowTimeoutRef = useRef(null)
+  
+  // Ref for handleSendMessage to avoid circular dependency in callbacks
+  const sendMessageRef = useRef(null)
+  
+  // Language selector state
+  const [selectedLanguage, setSelectedLanguage] = useState('en')
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
+  
+  // User preferences from localStorage
+  const [userPreferences, setUserPreferences] = useState(null)
+  
   // Initialize intersection observer for scroll button
   useEffect(() => {
     if (!messagesEndRef.current || !messagesContainerRef.current) return
@@ -232,6 +252,47 @@ export default function EnhancedChatPanel({
       intersectionObserverRef.current?.disconnect()
     }
   }, [currentSession?.id])
+  
+  // Load user preferences from localStorage
+  useEffect(() => {
+    const savedPrefs = localStorage.getItem('valora_preferences')
+    if (savedPrefs) {
+      try {
+        const prefs = JSON.parse(savedPrefs)
+        setUserPreferences(prefs)
+        if (prefs.language) {
+          setSelectedLanguage(prefs.language)
+        }
+      } catch (e) {
+        console.warn('[EnhancedChatPanel] Failed to parse preferences:', e)
+      }
+    }
+  }, [])
+  
+  // Glow effect trigger - when new assistant message completes
+  const triggerGlowEffect = useCallback(() => {
+    // Clear any existing timeout
+    if (glowTimeoutRef.current) {
+      clearTimeout(glowTimeoutRef.current)
+    }
+    
+    // Start glowing
+    setIsGlowing(true)
+    
+    // Stop glowing after 15 seconds
+    glowTimeoutRef.current = setTimeout(() => {
+      setIsGlowing(false)
+    }, 15000)
+  }, [])
+  
+  // Cleanup glow timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (glowTimeoutRef.current) {
+        clearTimeout(glowTimeoutRef.current)
+      }
+    }
+  }, [])
   
   // Initialize sessions on mount - PERSIST across panel close/open
   useEffect(() => {
@@ -544,11 +605,37 @@ export default function EnhancedChatPanel({
       addMessage({ role: 'assistant', content: explanation, intent: 'insight_explanation' })
     }
     
+    const handleFreeAnalysisTrigger = async (e) => {
+      if (isLoading) return
+      const { property, query, context } = e.detail || {}
+      if (!property || !query) return
+      
+      // Store the clicked coordinates
+      if (setAgentData && property.latitude && property.longitude) {
+        setAgentData(prev => ({
+          ...prev,
+          clickedLocation: { lat: property.latitude, lng: property.longitude },
+          flyTo: null
+        }))
+      }
+      
+      const bhk = property.bedrooms ? `${property.bedrooms}BHK` : ''
+      const pType = property.property_type || 'Property'
+      const price = property.price ? `₹${property.price >= 10000000 ? (property.price / 10000000).toFixed(1) + 'Cr' : (property.price / 100000).toFixed(0) + 'L'}` : ''
+      addMessage({ role: 'user', content: `🏠 Analyzing: ${[bhk, pType, price, property.locality].filter(Boolean).join(' · ')}` })
+      await handleSendMessage(query, true, { 
+        skipFlyTo: true, 
+        clickedCoordinates: { lat: property.latitude, lng: property.longitude },
+        isFreeAnalysis: true
+      })
+    }
+    
     window.addEventListener('valora-ask-question', handleAskQuestion)
     window.addEventListener('valora-building-clicked', handleBuildingClick)
     window.addEventListener('valora-area-clicked', handleAreaClick)
     window.addEventListener('valora-property-clicked', handlePropertyClick)
     window.addEventListener('valora-insight-explanation', handleInsightExplanation)
+    window.addEventListener('valora-free-analysis-trigger', handleFreeAnalysisTrigger)
     
     return () => {
       window.removeEventListener('valora-ask-question', handleAskQuestion)
@@ -556,6 +643,7 @@ export default function EnhancedChatPanel({
       window.removeEventListener('valora-area-clicked', handleAreaClick)
       window.removeEventListener('valora-property-clicked', handlePropertyClick)
       window.removeEventListener('valora-insight-explanation', handleInsightExplanation)
+      window.removeEventListener('valora-free-analysis-trigger', handleFreeAnalysisTrigger)
     }
   }, [isLoading])
   
@@ -599,6 +687,122 @@ export default function EnhancedChatPanel({
   const handleToggleFeedback = useCallback((messageId) => {
     setActiveFeedbackId(prev => prev === messageId ? null : messageId)
   }, [])
+  
+  // Handle disambiguation option selection - defined early but will be updated after handleSendMessage
+  const handleDisambiguationSelect = useCallback(async (option) => {
+    console.log('[ChatPanel] Disambiguation option selected:', option)
+    
+    // Add user's selection as a message
+    addMessage({ 
+      role: 'user', 
+      content: `I meant ${option.name}${option.area ? `, ${option.area}` : ''}` 
+    })
+    
+    // Send the selected location back to backend for processing
+    const query = `Analyze ${option.name} at coordinates ${option.lat}, ${option.lng}`
+    // Use sendMessageRef.current instead of handleSendMessage to avoid circular dependency
+    if (sendMessageRef.current) {
+      await sendMessageRef.current(query, true, { 
+        skipFlyTo: false,
+        clickedCoordinates: { lat: option.lat, lng: option.lng }
+      })
+    }
+  }, [addMessage])
+  
+  // Handle tiered option selection - defined early but will be updated after handleSendMessage
+  const handleTieredOptionSelect = useCallback(async (selectedOption) => {
+    const { id, action, locality, lat, lng, credits } = selectedOption
+    
+    console.log('[ChatPanel] Tiered option selected:', selectedOption)
+    
+    // Add user's selection as a message
+    addMessage({ 
+      role: 'user', 
+      content: `I'd like the ${selectedOption.label}` 
+    })
+    
+    // Clear the tiered options display
+    setStreamingData(prev => {
+      const { tieredOptions, ...rest } = prev
+      return { ...rest }
+    })
+    
+    // Handle each option type
+    switch (id) {
+      case 'quick_overview':
+        // Free - trigger area overview immediately
+        addMessage({ 
+          role: 'assistant', 
+          content: `🔍 Getting a quick overview of **${locality}**...`,
+          isLoading: true
+        })
+        // Trigger the analysis via chat
+        if (sendMessageRef.current) {
+          await sendMessageRef.current(`Give me a quick overview of ${locality}`, true)
+        }
+        break
+        
+      case 'area_analysis':
+        // 3 credits - trigger area analysis
+        addMessage({ 
+          role: 'assistant', 
+          content: `📊 Running detailed area analysis for **${locality}**... (3 credits)`,
+          isLoading: true
+        })
+        if (sendMessageRef.current) {
+          await sendMessageRef.current(`Run a detailed area analysis for ${locality} at coordinates ${lat}, ${lng}`, true)
+        }
+        break
+        
+      case 'investment_report':
+        // 200 credits - trigger report generation flow
+        // Check credits first
+        try {
+          const creditResp = await fetch(`${API_URL}/api/smart-report/check-credits?user_id=${userId}`)
+          if (!creditResp.ok) {
+            throw new Error(`Credit check failed: ${creditResp.status}`)
+          }
+          const creditData = await creditResp.json()
+          
+          if (!creditData.has_credits) {
+            addMessage({ 
+              role: 'assistant', 
+              content: `⚠️ **Insufficient Credits**\n\nYou need 200 credits to generate a detailed report. You currently have ${creditData.current_credits} credits.\n\nPlease top up your credits to continue.`,
+              intent: 'report_error'
+            })
+            return
+          }
+          
+          // Show confirmation message
+          addMessage({ 
+            role: 'assistant', 
+            content: `📊 **Generate Detailed Report?**\n\nThis will create a comprehensive investment report for **${locality}** covering:\n\n• Decision Verdict\n• Market Analysis\n• Spatial Intelligence\n• Risk Assessment\n• ROI Projections\n• Comparables\n• Investment Strategy\n• Data Transparency\n• Client Pitch\n\n**Cost: 200 credits** (You have ${creditData.current_credits})\n\nReply **YES** or **PROCEED** to continue, or **CANCEL** to abort.`,
+            intent: 'report_confirmation',
+            metadata: {
+              type: 'report_confirmation',
+              locality,
+              lat,
+              lng,
+              credits_required: 200
+            }
+          })
+        } catch (err) {
+          console.error('[ChatPanel] Failed to check credits:', err)
+          addMessage({ 
+            role: 'assistant', 
+            content: `❌ Failed to check credit balance: ${err.message}\n\nPlease ensure the backend is running and try again.`,
+            intent: 'report_error'
+          })
+        }
+        break
+        
+      default:
+        // Generic action - send as chat message
+        if (sendMessageRef.current) {
+          await sendMessageRef.current(`${action} for ${locality}`, true)
+        }
+    }
+  }, [addMessage, userId])
   
   // Separate effect for download report - MUST be after userId and addMessage definitions
   useEffect(() => {
@@ -730,9 +934,13 @@ export default function EnhancedChatPanel({
       },
       // Pass skipFlyTo and clickedCoordinates for backend to use exact clicked location
       skipFlyTo: skipFlyTo,
-      clickedCoordinates: clickedCoordinates
+      clickedCoordinates: clickedCoordinates,
+      // Add language preference for multilingual support
+      language: selectedLanguage,
+      // Add user preferences for personalized responses
+      user_preferences: userPreferences
     }
-  }, [userId, currentSession?.id, agentData, userLocation, locationLabel, attachedImages, llmConfig])
+  }, [userId, currentSession?.id, agentData, userLocation, locationLabel, attachedImages, llmConfig, selectedLanguage, userPreferences])
   
   // Streaming chat with abort support
   const callAIStreaming = useCallback(async (userMessage, onThinking, onContent, onComplete, signal) => {
@@ -967,6 +1175,20 @@ export default function EnhancedChatPanel({
               // Proactive follow-up suggestions from the AI
               setStreamingData(prev => ({ ...prev, suggestions: data.suggestions }))
               break
+            case 'disambiguation':
+              // Location disambiguation required - multiple locations match
+              console.log('[ChatPanel] Disambiguation required:', data.options)
+              updateLastMessage({
+                intent: 'disambiguation',
+                disambiguationOptions: data.options,
+                content: data.message || `I found multiple locations matching "${data.query}". Which one did you mean?`,
+                isLoading: false,
+                isStreaming: false
+              })
+              setIsProcessing(false)
+              setIsLoading(false)
+              if (onTaskStreaming) onTaskStreaming({ type: 'disambiguation', query: userMessage })
+              return
             case 'thinking':
               if (data.content) thinkingBuffer += data.content
               onThinking(thinkingBuffer, thinkingTime, true)
@@ -1012,6 +1234,16 @@ export default function EnhancedChatPanel({
                   }
                   if (['switchTab', 'openPanel', 'closePanel', 'highlightProperties'].includes(action.action)) {
                     window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: action }))
+                  }
+                  // Handle tiered_options UI action - display analysis options
+                  if (action.type === 'tiered_options') {
+                    console.log('[ChatPanel] 📊 Received tiered_options:', action)
+                    // Store tiered options data for display
+                    setStreamingData(prev => ({ 
+                      ...prev, 
+                      tieredOptions: action,
+                      stage: 'tiered_options'
+                    }))
                   }
                 }
               }
@@ -1753,6 +1985,9 @@ export default function EnhancedChatPanel({
           isComplete: true
         }, true)
         
+        // Trigger glow effect for new response
+        triggerGlowEffect()
+        
         // Keep panel visible but mark processing as done
         setIsProcessing(false)
         setIsLoading(false)  // ADD: Hide stop button
@@ -1765,6 +2000,11 @@ export default function EnhancedChatPanel({
     setAbortController(null)
     setAttachedImages([])
   }, [input, isLoading, addMessage, updateLastMessage, callAIStreaming])
+  
+  // Effect to update sendMessageRef after handleSendMessage is defined
+  useEffect(() => {
+    sendMessageRef.current = handleSendMessage
+  }, [handleSendMessage])
   
   // Session handlers - with multi-tab support
   const handleNewChat = useCallback(() => {
@@ -1974,7 +2214,7 @@ export default function EnhancedChatPanel({
       />
       
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden relative ${isGlowing ? 'chat-panel-glowing' : ''}`}>
         {/* Tab bar - Professional compact design */}
         <div className="flex items-center gap-1 px-2 py-1.5 border-b border-primary-700/30 bg-surface-primary/80 backdrop-blur-sm shrink-0">
           {/* History toggle button - enhanced with visual feedback */}
@@ -2088,6 +2328,7 @@ export default function EnhancedChatPanel({
               onEdit={handleEditMessage}
               activeFeedbackId={activeFeedbackId}
               onToggleFeedback={handleToggleFeedback}
+              onDisambiguationSelect={handleDisambiguationSelect}
             />
           )}
           
@@ -2105,6 +2346,23 @@ export default function EnhancedChatPanel({
                   {s.query}
                 </button>
               ))}
+            </div>
+          )}
+          
+          {/* Tiered Options Display - Analysis options for locality */}
+          {streamingData?.tieredOptions && !isLoading && (
+            <div className="flex justify-start animate-fade-in">
+              <div className="max-w-[85%] rounded-xl px-3 py-2 bg-surface-secondary text-primary-100 border border-primary-700/30">
+                <TieredOptionsDisplay
+                  options={streamingData.tieredOptions.options}
+                  locality={streamingData.tieredOptions.locality}
+                  lat={streamingData.tieredOptions.lat}
+                  lng={streamingData.tieredOptions.lng}
+                  userCredits={streamingData.tieredOptions.user_credits || credits?.credits || 0}
+                  onSelectOption={handleTieredOptionSelect}
+                  isProcessing={isLoading}
+                />
+              </div>
             </div>
           )}
           
@@ -2136,6 +2394,8 @@ export default function EnhancedChatPanel({
           llmConfig={llmConfig}
           onConfigChange={handleConfigChange}
           credits={credits}
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={setSelectedLanguage}
         />
       </div>
     </div>

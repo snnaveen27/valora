@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-02-18T20:25:00",
+  "signature": "initial_config",
+  "costs": {
+    "detailed_report": 200,
+    "report_export": 10,
+    "pdf_generation": 10,
+    "property_search": 1,
+    "area_analysis": 3,
+    "building_analysis": 9,
+    "viewport_analysis": 1,
+    "location_analysis": 3,
+    "comparison": 3,
+    "valuation": 5,
+    "simulation_basic": 10,
+    "simulation_advanced": 25,
+    "poi_search": 1,
+    "feedback_reward": 5
+  },
+  "packages": {
+    "starter": {
+      "price": 59,
+      "credits": 100,
+      "bonus": 0
+    },
+    "standard": {
+      "price": 139,
+      "credits": 300,
+      "bonus": 30
+    },
+    "power": {
+      "price": 399,
+      "credits": 1000,
+      "bonus": 200
+    }
+  }
+}

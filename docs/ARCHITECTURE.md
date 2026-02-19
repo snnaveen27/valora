@@ -7,13 +7,14 @@
 2. [Architecture Overview](#2-architecture-overview)
 3. [Intelligent Model Router](#3-intelligent-model-router)
 4. [Core Components](#4-core-components)
-5. [UI Tab System & Monetization](#5-ui-tab-system--monetization)
-6. [Task Graph Engine](#6-task-graph-engine)
-7. [Resilience & Observability](#7-resilience--observability)
-8. [API Reference](#8-api-reference)
-9. [Data Layer](#9-data-layer)
-10. [Testing](#10-testing)
-11. [Configuration](#11-configuration)
+5. [Enhanced Conversation System](#5-enhanced-conversation-system)
+6. [UI Tab System & Monetization](#6-ui-tab-system--monetization)
+7. [Task Graph Engine](#7-task-graph-engine)
+8. [Resilience & Observability](#8-resilience--observability)
+9. [API Reference](#9-api-reference)
+10. [Data Layer](#10-data-layer)
+11. [Testing](#11-testing)
+12. [Configuration](#12-configuration)
 
 ---
 
@@ -50,17 +51,36 @@ Try: "Find 2BHK in Whitefield under 80L" or "Compare Koramangala vs HSR Layout"
 User Query  [request_id generated]
     ↓
 ┌──────────────────────────────────────────────────────────────┐
-│  1. INTENT CLASSIFICATION (IntentRouter)                     │
-│     Pattern matching → LLM fallback for ambiguous queries    │
+│  0. PRODUCTION PIPELINE SETUP                                │
+│     CancellationToken for graceful shutdown                  │
+│     TraceContext for request lifecycle tracking              │
+│     ConnectionPool for HTTP session reuse                    │
 ├──────────────────────────────────────────────────────────────┤
-│  1b. CACHE CHECK (QueryCache)                                │
+│  1. INTENT CLASSIFICATION (IntentRouter + Confidence)        │
+│     Pattern matching → LLM fallback for ambiguous queries    │
+│     Returns confidence score (0.0-1.0) + secondary intent    │
+│     Low confidence (< 0.6) → needs_clarification flag        │
+├──────────────────────────────────────────────────────────────┤
+│  1b. SEMANTIC CACHE CHECK (NEW)                              │
+│     Embedding-based similarity matching (threshold: 0.92)    │
+│     Finds cached responses for paraphrased queries           │
 │     Cache hit → return stored response immediately           │
 ├──────────────────────────────────────────────────────────────┤
-│  2. GIS AGENTS (Deterministic Fact Gathering)                │
-│     Geocoder · Spatial · Terrain · Property · RAG            │
-│     → Grounded facts from database (never LLM-generated)     │
+│  1c. EXACT CACHE CHECK (QueryCache)                          │
+│     Exact query + intent match → instant response            │
 ├──────────────────────────────────────────────────────────────┤
-│  3. INTELLIGENT MODEL ROUTER (cost-aware)                    │
+│  1d. COLLECTIVE LEARNING CHECK (NEW)                         │
+│     Get learned tool sequences for this intent               │
+│     Check failure patterns to avoid                          │
+│     Emit learning_insight SSE event                          │
+├──────────────────────────────────────────────────────────────┤
+│  2. GIS AGENTS (Parallel Fact Gathering - NEW)               │
+│     Concurrent execution: Spatial · Terrain · Property       │
+│     Dependency-aware task scheduling                         │
+│     → Grounded facts from database (never LLM-generated)     │
+│     → 3-4x faster for complex queries                        │
+├──────────────────────────────────────────────────────────────┤
+│  3. INTELLIGENT MODEL ROUTER (cost-aware + learning)         │
 │     Query complexity scoring (0.0–1.0)                        │
 │     + Cloud toggle check (cloud_enabled)                    │
 │     + User tier adjustment (free → higher threshold)        │
@@ -70,18 +90,26 @@ User Query  [request_id generated]
 │  4. CIRCUIT BREAKER CHECK                                    │
 │     Ollama / OpenRouter breaker → fallback if OPEN          │
 ├──────────────────────────────────────────────────────────────┤
-│  5. LLM STREAMING                                            │
+│  5. LLM STREAMING (with Connection Pooling - NEW)            │
 │     SSE events: intent → task_progress → model_selection   │
 │     → thinking → content → verification → metadata → done   │
+│     Shared aiohttp session for HTTP requests                 │
 ├──────────────────────────────────────────────────────────────┤
 │  6. POST-LLM FACT VERIFICATION (Truth Firewall)             │
 │     Extract claims → verify against GIS facts                │
 │     → Emit verification SSE event                           │
 ├──────────────────────────────────────────────────────────────┤
-│  7. PERFORMANCE RECORDING + CACHE STORE                      │
+│  7. LEARNING EVENT RECORDING (NEW)                           │
+│     Record success/failure event with:                       │
+│     - Query, intent, tools used, latency, confidence         │
+│     - Store in collective_learnings table                    │
+│     - Update semantic cache with response                    │
+├──────────────────────────────────────────────────────────────┤
+│  8. PERFORMANCE RECORDING + CACHE STORE                      │
 │     model + intent + latency + success → SQLite             │
 │     response → QueryCache (10-min TTL)                      │
-│     pipeline_metrics SSE event emitted                       │
+│     response → SemanticCache (similarity-based)             │
+│     pipeline_metrics + trace SSE event emitted               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -221,6 +249,8 @@ backend/
 │   ├── credits_rate_limiter.py    # Credit system
 │   ├── pattern_learner.py          # Pattern learning
 │   ├── self_learning.py            # Self-learning system
+│   ├── enhanced_learning.py        # Enhanced learning engine (NEW)
+│   ├── query_pipeline.py           # Production pipeline infrastructure (NEW)
 │   ├── template_generator.py      # Template generation
 │   ├── smart_tab_renderer.py      # Smart tab rendering
 │   ├── streaming_intent_classifier.py  # Streaming intent classification
@@ -373,9 +403,185 @@ src/
 
 ---
 
-## 5. UI Tab System & Monetization
+## 5. Enhanced Conversation System
 
-### 5.1 Tiered Tab Access
+### 5.1 Overview
+
+The Enhanced Conversation System provides intelligent, context-aware interactions with tiered analysis options, multi-language support, and personalized user experiences.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    ENHANCED CONVERSATION FLOW                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  USER QUERY (any language)                                               │
+│      │                                                                   │
+│      ▼                                                                   │
+│  ┌───────────────────────────┐                                          │
+│  │  Multilingual Intent      │  • Hindi, Kannada, Tamil, Telugu, Malayalam
+│  │  Detector                 │  • Script detection + transliteration     │
+│  │  (multilingual_intent.py) │  • Mixed language support (Hinglish)      │
+│  └───────────┬───────────────┘                                          │
+│              │                                                           │
+│              ▼                                                           │
+│  ┌───────────────────────────┐                                          │
+│  │  Conversation Memory      │  • Previous queries & locations           │
+│  │  (conversation_memory.py) │  • User preferences & behavior            │
+│  │                           │  • Pronoun resolution ("it", "there")     │
+│  └───────────┬───────────────┘                                          │
+│              │                                                           │
+│              ▼                                                           │
+│  ┌───────────────────────────┐                                          │
+│  │  Analysis Opportunity     │  • Investment evaluation detection        │
+│  │  Detector                 │  • Price trend inquiry detection          │
+│  │  (analysis_opportunity_   │  • Area comparison detection              │
+│  │   detector.py)            │  • 10 sub-intent types                    │
+│  └───────────┬───────────────┘                                          │
+│              │                                                           │
+│              ▼                                                           │
+│  ┌───────────────────────────┐      ┌────────────────────────┐         │
+│  │  A/B Testing Manager      │◄────►│  User Segment          │         │
+│  │  (prompt_ab_testing.py)   │      │  • NEW_USER            │         │
+│  │                           │      │  • CASUAL_USER         │         │
+│  │  • Multi-armed bandit     │      │  • ACTIVE_USER         │         │
+│  │  • Variant tracking       │      │  • POWER_USER          │         │
+│  └───────────┬───────────────┘      └────────────────────────┘         │
+│              │                                                           │
+│              ▼                                                           │
+│  ┌───────────────────────────┐                                          │
+│  │  Tiered Options Builder   │                                          │
+│  │                           │                                          │
+│  │  • Quick Overview (Free)  │  ← Basic area summary                    │
+│  │  • Area Analysis (3 cr)   │  ← Detailed neighborhood insights        │
+│  │  • Investment Report (200)│  ← Comprehensive 9-section analysis      │
+│  └───────────┬───────────────┘                                          │
+│              │                                                           │
+│              ▼                                                           │
+│  ┌───────────────────────────┐                                          │
+│  │  Frontend Components      │                                          │
+│  │                           │                                          │
+│  │  • TieredOptionsDisplay   │  ← Clickable option cards                │
+│  │  • OnboardingModal        │  ← New user preferences                  │
+│  │  • ChatInputBar (lang)    │  ← Language selector                     │
+│  │  • Glow effect (15s)      │  ← New response notification             │
+│  └───────────────────────────┘                                          │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 Tiered Analysis Options
+
+| Tier | Credits | Description | Includes |
+|------|---------|-------------|----------|
+| **Quick Overview** | 0 (Free) | Basic area summary | Location highlights, Key amenities, Price range |
+| **Area Analysis** | 3 | Detailed neighborhood insights | Full amenity analysis, Connectivity score, Price trends |
+| **Investment Report** | 200 | Comprehensive 9-section analysis | Executive summary, Market analysis, Risk assessment, ROI projections |
+
+### 5.3 Sub-Intent Detection
+
+| Sub-Intent | Example Query |
+|------------|---------------|
+| `INVESTMENT_EVALUATION` | "Is Hebbal good for investment?" |
+| `PRICE_TREND_INQUIRY` | "What's the price trend in Whitefield?" |
+| `AREA_COMPARISON` | "Compare HSR Layout and Indiranagar" |
+| `ROI_INQUIRY` | "What ROI can I expect in JP Nagar?" |
+| `MARKET_OUTLOOK` | "How is the market in Electronic City?" |
+| `AREA_LIVABILITY` | "Is Koramangala good for families?" |
+| `EXPLICIT_REPORT` | "Generate report for Hebbal" |
+
+### 5.4 Multi-Language Support
+
+**Supported Languages:**
+| Language | Code | Script Detection |
+|----------|------|------------------|
+| English | `en` | Latin |
+| Hindi | `hi` | Devanagari (हिन्दी) |
+| Kannada | `kn` | Kannada (ಕನ್ನಡ) |
+| Tamil | `ta` | Tamil (தமிழ்) |
+| Telugu | `te` | Telugu (తెలుగు) |
+| Malayalam | `ml` | Malayalam (മലയാളം) |
+
+**Example:**
+```
+User: "हेब्बल में निवेश अच्छा है?" (Hindi: Is Hebbal good for investment?)
+System: Detects Hindi → Transliterates "हेब्बल" → "Hebbal" → Shows tiered options
+```
+
+### 5.5 Conversation Memory
+
+**File:** `backend/ai/conversation_memory.py`
+
+Stores per-user context:
+- Last locations discussed
+- Analysis types used
+- User preferences (investment focus, budget range)
+- Pronoun resolution ("it", "there", "that area")
+
+**Example:**
+```
+User: "Is Hebbal good for investment?"
+System: Stores Hebbal in session context
+User: "What about schools there?"
+System: Resolves "there" → Hebbal → Shows school information
+```
+
+### 5.6 Location Disambiguation
+
+**File:** `backend/spatial/local_geocoder.py`
+
+When location is ambiguous:
+```
+User: "How is the market in Richmond?"
+System: "I found multiple locations:
+        1. Richmond Town (Bangalore)
+        2. Richmond Road (Bangalore)
+        Which one would you like to analyze?"
+```
+
+### 5.7 A/B Testing for Prompts
+
+**File:** `backend/ai/prompt_ab_testing.py`
+
+Multi-armed bandit approach for prompt optimization:
+- 10% exploration (random variant)
+- 90% exploitation (best performing variant)
+- Tracks: shown, clicked, converted events
+- User segment-aware variants
+
+### 5.8 New User Onboarding
+
+**File:** `src/components/OnboardingModal.jsx`
+
+4-step wizard collecting:
+1. Primary interest (Investment/Rental/Commercial/Residential)
+2. Preferred areas in Bangalore
+3. Budget range
+4. Language preference
+
+### 5.9 Key Files
+
+**Backend:**
+| File | Purpose |
+|------|---------|
+| `backend/ai/conversation_memory.py` | Session context & pronoun resolution |
+| `backend/ai/analysis_opportunity_detector.py` | Sub-intent detection & tiered options |
+| `backend/ai/multilingual_intent.py` | Multi-language intent detection |
+| `backend/ai/prompt_ab_testing.py` | A/B testing for prompts |
+| `backend/spatial/local_geocoder.py` | Location disambiguation |
+
+**Frontend:**
+| File | Purpose |
+|------|---------|
+| `src/components/chat/TieredOptionsDisplay.jsx` | Tiered options UI |
+| `src/components/OnboardingModal.jsx` | New user onboarding |
+| `src/components/chat/ChatInputBar.jsx` | Language selector |
+| `src/styles/chat-glow.css` | New response glow effect |
+
+---
+
+## 6. UI Tab System & Monetization
+
+### 6.1 Tiered Tab Access
 
 **File:** `src/components/SmartTabsContainer.jsx`
 
@@ -410,7 +616,7 @@ const TIER_CONFIG = {
 }
 ```
 
-### 5.2 Tab Types
+### 6.2 Tab Types
 
 | Type | Behavior |
 |------|----------|
@@ -419,7 +625,7 @@ const TIER_CONFIG = {
 | `locked` | Shows 🔒 icon with upgrade button |
 | `full` | Complete access to all data |
 
-### 5.3 Tab Definitions
+### 6.3 Tab Definitions
 
 | Tab ID | Free | Pro | Purpose |
 |--------|------|-----|---------|
@@ -432,7 +638,7 @@ const TIER_CONFIG = {
 | **Strategy** | 🔒 Locked | Full | Entry/exit strategy |
 | **Client Pitch** | 🔒 Locked | Full | Broker presentation |
 
-### 5.4 Upgrade Flow
+### 6.4 Upgrade Flow
 
 **File:** `src/components/SmartTab.jsx`
 
@@ -517,7 +723,7 @@ class TaskGraphBuilder:
 
 ## 8. Resilience & Observability
 
-### 5.1 Circuit Breakers
+### 8.1 Circuit Breakers
 
 **File:** `backend/core/circuit_breaker.py`
 
@@ -532,7 +738,7 @@ States: **CLOSED** → (failures exceed threshold) → **OPEN** → (recovery ti
 
 When open, requests fall back to `_generate_fallback_response()` which synthesizes a basic response from grounded facts only.
 
-### 5.2 Chat Response Cache
+### 8.2 Chat Response Cache
 
 **File:** `backend/search/query_cache.py` → `get_chat_cache()`
 
@@ -669,6 +875,8 @@ All databases are **SQLite** (no PostgreSQL):
 | Agentic Memory | `agentic_memory.db` | Agentic loop memory |
 | Valora Memory | `valora_memory.db` | Conversation memory |
 | Self Learning | `self_learning.db` | Self-learning data |
+| Enhanced Learning | `enhanced_learning.db` | Cross-session learning, A/B tests, failure patterns |
+| Query Patterns | `valora_patterns.db` | Learned query patterns |
 | Pricing | `pricing.db` | Pricing data |
 
 ### 7.2 Main Database Tables
@@ -746,4 +954,118 @@ No model dropdown — the intelligent router handles selection automatically.
 
 ---
 
-*Valora AI — Production architecture with learning-aware model routing, circuit breakers, fact verification, and request tracing. February 2026.*
+## 12. Production Pipeline & Enhanced Learning (NEW)
+
+### 12.1 Production Query Pipeline
+
+**File:** `backend/ai/query_pipeline.py`
+
+The production pipeline provides infrastructure improvements for robust query handling:
+
+| Component | Class | Purpose |
+|-----------|-------|---------|
+| **Intent Confidence** | `IntentClassifierWithConfidence` | Returns confidence scores (0.0-1.0) for intent classification |
+| **Request Tracing** | `RequestTrace`, `TraceContext` | Tracks timing for each pipeline stage |
+| **Cancellation Tokens** | `CancellationToken` | Proper async cancellation with cleanup callbacks |
+| **Connection Pooling** | `ConnectionPool` | Shared `aiohttp.ClientSession` with keep-alive |
+| **Semantic Caching** | `SemanticCache` | Similarity-based cache matching (threshold: 0.92) |
+| **Parallel Fact Gathering** | `ParallelFactGatherer` | Concurrent execution of independent agents |
+
+### 12.2 Enhanced Learning Engine
+
+**File:** `backend/ai/enhanced_learning.py`
+
+Advanced self-learning capabilities beyond the base `self_learning.py`:
+
+| Feature | Method | Description |
+|---------|--------|-------------|
+| **Collective Learning** | `get_collective_recommendations()` | Aggregates learnings across all users (anonymized) |
+| **Semantic Clustering** | `discover_new_intent_patterns()` | Auto-discovers new intent categories from low-confidence queries |
+| **Failure Avoidance** | `get_failure_avoidance()` | Returns patterns to avoid based on past failures |
+| **A/B Testing** | `create_ab_experiment()`, `get_ab_test_variant()` | Framework for testing different approaches |
+| **Improvement Tracking** | `get_improvement_trend()` | Tracks improvement metrics over time |
+| **Entity Corrections** | `learn_entity_correction()` | Learns from entity extraction corrections |
+| **Query Rewriting** | `get_query_rewriting_suggestions()` | Suggests successful rephrasings |
+
+### 12.3 Enhanced Learning Database Schema
+
+**File:** `enhanced_learning.db`
+
+| Table | Purpose |
+|-------|---------|
+| `collective_learnings` | Aggregated patterns across users |
+| `query_clusters` | Semantic clusters of similar queries |
+| `cluster_members` | Individual queries in clusters |
+| `failure_patterns` | Learned failure modes (timeouts, errors, low ratings) |
+| `improvement_history` | Track improvement metrics over time |
+| `ab_experiments` | A/B test configurations |
+| `ab_outcomes` | A/B test results |
+| `entity_corrections` | User corrections for entity extraction |
+| `query_rewrites` | Successful query rephrasings |
+
+### 12.4 Learning Event Flow
+
+```
+Query Received
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  1. Check Collective Recommendations                         │
+│     → Get learned tool sequences for this intent            │
+│     → Emit learning_insight SSE event                       │
+├─────────────────────────────────────────────────────────────┤
+│  2. Check Failure Avoidance                                 │
+│     → Get patterns to avoid                                 │
+│     → Log warnings if approaching known failures            │
+├─────────────────────────────────────────────────────────────┤
+│  3. Execute Query (with parallel fact gathering)            │
+├─────────────────────────────────────────────────────────────┤
+│  4. Record Learning Event                                   │
+│     → Store in collective_learnings                         │
+│     → Update semantic cache                                 │
+│     → Track in improvement_history                          │
+├─────────────────────────────────────────────────────────────┤
+│  5. Periodic Analysis (background)                          │
+│     → Discover new intent patterns                          │
+│     → Promote A/B test winners                              │
+│     → Calculate improvement trends                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 12.5 SSE Events for Learning
+
+New SSE events emitted during query processing:
+
+```javascript
+// Learning insight event
+data: {
+  "type": "learning_insight",
+  "insight_type": "collective_recommendations",
+  "recommendations": {
+    "tool_sequence": ["geocode", "spatial", "market"],
+    "success_rate": 0.92,
+    "sample_count": 150
+  }
+}
+
+// Failure avoidance event
+data: {
+  "type": "learning_insight",
+  "insight_type": "failure_avoidance",
+  "patterns_to_avoid": [
+    {"pattern": "complex_simulation_timeout", "suggestion": "Use simpler model"}
+  ]
+}
+
+// Done event with learning insights
+data: {
+  "type": "done",
+  "learning_insights": {
+    "collective_recommendations_used": true,
+    "failure_patterns_avoided": 2
+  }
+}
+```
+
+---
+
+*Valora AI — Production architecture with learning-aware model routing, circuit breakers, fact verification, request tracing, and enhanced self-learning. February 2026.*

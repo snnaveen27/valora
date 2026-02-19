@@ -474,6 +474,259 @@ class LocalGeocoder:
         """Get the best match for a query"""
         results = self.search(query, limit=1)
         return results[0] if results else None
+    
+    def search_with_disambiguation(
+        self, 
+        query: str, 
+        limit: int = 5,
+        similarity_threshold: float = 0.15
+    ) -> Dict[str, Any]:
+        """
+        Search for locations and detect if disambiguation is needed.
+        
+        Args:
+            query: Search query
+            limit: Maximum number of results
+            similarity_threshold: Score difference threshold to consider ambiguous
+            
+        Returns:
+            Dict with:
+            - 'results': List of matching locations
+            - 'needs_disambiguation': Boolean indicating if user clarification needed
+            - 'disambiguation_prompt': Optional prompt for user
+            - 'best_match': Single best match if not ambiguous
+        """
+        results = self.search(query, limit=limit)
+        
+        if not results:
+            return {
+                'results': [],
+                'needs_disambiguation': False,
+                'disambiguation_prompt': None,
+                'best_match': None
+            }
+        
+        # Single result - no disambiguation needed
+        if len(results) == 1:
+            return {
+                'results': results,
+                'needs_disambiguation': False,
+                'disambiguation_prompt': None,
+                'best_match': results[0]
+            }
+        
+        # Check if top results are too similar (ambiguous)
+        top_score = results[0]['score']
+        second_score = results[1]['score']
+        
+        # If scores are very close, need disambiguation
+        score_diff = top_score - second_score
+        
+        if score_diff < similarity_threshold and top_score < 0.9:
+            # Generate disambiguation prompt
+            prompt = self._generate_disambiguation_prompt(results[:3])
+            return {
+                'results': results,
+                'needs_disambiguation': True,
+                'disambiguation_prompt': prompt,
+                'best_match': None
+            }
+        
+        # Check if results are different types of the same name
+        # (e.g., "Koramangala" the neighborhood vs "Koramangala" a specific building)
+        if self._are_results_ambiguous(results[:3]):
+            prompt = self._generate_disambiguation_prompt(results[:3])
+            return {
+                'results': results,
+                'needs_disambiguation': True,
+                'disambiguation_prompt': prompt,
+                'best_match': None
+            }
+        
+        # Clear best match
+        return {
+            'results': results,
+            'needs_disambiguation': False,
+            'disambiguation_prompt': None,
+            'best_match': results[0]
+        }
+    
+    def _are_results_ambiguous(self, results: List[Dict[str, Any]]) -> bool:
+        """
+        Check if results represent ambiguous matches.
+        
+        Ambiguity occurs when:
+        - Multiple results have similar names but different types
+        - Results are in different areas of the city
+        """
+        if len(results) < 2:
+            return False
+        
+        # Check for different types
+        types = set(r['type'] for r in results)
+        if len(types) > 1:
+            # Different types - might be ambiguous
+            # But only if they're not clearly hierarchical (e.g., neighborhood vs landmark in same area)
+            coords = [(r['lat'], r['lng']) for r in results]
+            
+            # Check if results are far apart (> 5km)
+            for i in range(len(coords) - 1):
+                for j in range(i + 1, len(coords)):
+                    dist = self._haversine_distance(
+                        coords[i][0], coords[i][1],
+                        coords[j][0], coords[j][1]
+                    )
+                    if dist > 5.0:  # 5km threshold
+                        return True
+        
+        return False
+    
+    def _haversine_distance(
+        self, 
+        lat1: float, lng1: float, 
+        lat2: float, lng2: float
+    ) -> float:
+        """Calculate distance between two points in km."""
+        from math import radians, cos, sin, asin, sqrt
+        
+        lat1, lng1, lat2, lng2 = map(radians, [lat1, lng1, lat2, lng2])
+        dlat = lat2 - lat1
+        dlng = lng2 - lng1
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlng/2)**2
+        return 6371 * 2 * asin(sqrt(a))
+    
+    def _generate_disambiguation_prompt(self, results: List[Dict[str, Any]]) -> str:
+        """
+        Generate a user-friendly disambiguation prompt.
+        
+        Args:
+            results: List of ambiguous results
+            
+        Returns:
+            Prompt string for user
+        """
+        if not results:
+            return ""
+        
+        # Build context for each result
+        options = []
+        for i, r in enumerate(results, 1):
+            type_desc = self._get_type_description(r['type'])
+            area_context = self._get_area_context(r['lat'], r['lng'])
+            
+            options.append(
+                f"{i}. **{r['name']}** ({type_desc})"
+                f"{f' - near {area_context}' if area_context else ''}"
+            )
+        
+        options_text = "\n".join(options)
+        
+        prompt = (
+            f"I found multiple locations matching '{results[0]['name']}'. "
+            f"Which one did you mean?\n\n{options_text}\n\n"
+            f"Please specify by number or provide more details."
+        )
+        
+        return prompt
+    
+    def _get_type_description(self, loc_type: str) -> str:
+        """Get human-readable description for location type."""
+        type_descriptions = {
+            'neighborhood': 'Residential Area',
+            'locality': 'Locality',
+            'tech_hub': 'Tech Hub',
+            'tech_park': 'Tech Park',
+            'mall': 'Shopping Mall',
+            'hospital': 'Hospital',
+            'school': 'School',
+            'college': 'College',
+            'park': 'Park',
+            'landmark': 'Landmark',
+            'airport': 'Airport',
+            'station': 'Railway Station',
+            'metro': 'Metro Station',
+            'bus_stop': 'Bus Stop',
+            'junction': 'Junction',
+            'place': 'Place',
+            'poi': 'Point of Interest',
+        }
+        return type_descriptions.get(loc_type, loc_type.title())
+    
+    def _get_area_context(self, lat: float, lng: float) -> Optional[str]:
+        """
+        Get nearby area context for coordinates.
+        
+        Returns the name of a nearby well-known area for context.
+        """
+        # Find nearest major neighborhood
+        major_areas = [
+            ('Koramangala', 12.9352, 77.6245),
+            ('Indiranagar', 12.9716, 77.6412),
+            ('Whitefield', 12.9698, 77.7499),
+            ('Electronic City', 12.8456, 77.6603),
+            ('Hebbal', 13.0359, 77.5946),
+            ('MG Road', 12.9758, 77.6066),
+            ('Jayanagar', 12.9250, 77.5800),
+            ('JP Nagar', 12.9063, 77.5857),
+            ('HSR Layout', 12.9116, 77.6474),
+            ('Marathahalli', 12.9591, 77.7010),
+            ('BTM Layout', 12.9166, 77.6101),
+            ('Bellandur', 12.9260, 77.6762),
+            ('Sarjapur Road', 12.9100, 77.6800),
+            ('Banashankari', 12.9255, 77.5468),
+            ('Malleshwaram', 13.0035, 77.5685),
+            ('Rajajinagar', 12.9914, 77.5521),
+            ('Yelahanka', 13.1007, 77.5963),
+        ]
+        
+        nearest_area = None
+        nearest_dist = float('inf')
+        
+        for name, area_lat, area_lng in major_areas:
+            dist = self._haversine_distance(lat, lng, area_lat, area_lng)
+            if dist < nearest_dist:
+                nearest_dist = dist
+                nearest_area = name
+        
+        # Only return if within 3km
+        if nearest_dist < 3.0:
+            return nearest_area
+        
+        return None
+    
+    def get_disambiguation_response(
+        self,
+        query: str,
+        user_selection: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Handle disambiguation response from user.
+        
+        Args:
+            query: Original search query
+            user_selection: User's selection number (1-indexed)
+            
+        Returns:
+            Dict with selected location or re-prompt
+        """
+        disambiguation = self.search_with_disambiguation(query)
+        
+        if not disambiguation['needs_disambiguation']:
+            return disambiguation
+        
+        if user_selection is not None and 1 <= user_selection <= len(disambiguation['results']):
+            # User made a valid selection
+            selected = disambiguation['results'][user_selection - 1]
+            return {
+                'results': disambiguation['results'],
+                'needs_disambiguation': False,
+                'disambiguation_prompt': None,
+                'best_match': selected,
+                'user_selected': True
+            }
+        
+        # Invalid selection or no selection - return disambiguation prompt
+        return disambiguation
 
 
 # Singleton instance

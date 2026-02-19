@@ -568,6 +568,33 @@ class UnifiedCreditsManager:
             'next_reset': user['reset_at']
         }
     
+    def get_credit_tier(self, user_id: str) -> str:
+        """
+        Get user's credit tier for response customization.
+        
+        Returns the credit tier based on available credits:
+        - 'high': >= 200 credits (can afford detailed report)
+        - 'medium': >= 10 credits (can afford most operations)
+        - 'low': >= 3 credits (can afford basic analysis)
+        - 'none': < 3 credits (only free operations)
+        
+        Args:
+            user_id: The user identifier
+            
+        Returns:
+            str: One of 'high', 'medium', 'low', or 'none'
+        """
+        user = self.get_or_create_user(user_id)
+        credits = user['total_available']
+        
+        if credits >= 200:
+            return 'high'
+        elif credits >= 10:
+            return 'medium'
+        elif credits >= 3:
+            return 'low'
+        return 'none'
+    
     def get_usage_stats(self, user_id: str, days: int = 30) -> Dict[str, Any]:
         """Get usage statistics for a user."""
         conn = self._get_conn()

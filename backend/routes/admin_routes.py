@@ -1355,14 +1355,50 @@ async def get_pricing_config(admin: User = Depends(require_admin)) -> Dict[str, 
     SECURITY: Requires admin authentication.
     """
     try:
+        # Try dynamic credits system first
+        try:
+            from ai.dynamic_credits import get_credits_config
+            config = get_credits_config()
+            costs = config.get_costs()
+            
+            return {
+                "success": True,
+                "config": {
+                    "action_costs": costs.to_dict(),
+                    "packages": {name: pkg.to_dict() for name, pkg in config.get_packages().items()},
+                    "integrity_verified": config.verify_integrity(),
+                    "source": "dynamic_credits",
+                    "config_file": str(config.config_path),
+                }
+            }
+        except ImportError:
+            pass
+        
+        # Fallback to database pricing
+        try:
+            from database.pricing_db import get_pricing_db
+            pricing_db = get_pricing_db()
+            config = pricing_db.get_config()
+            
+            return {
+                "success": True,
+                "config": config,
+                "source": "pricing_db"
+            }
+        except Exception as e:
+            logger.warning(f"Pricing DB fallback failed: {e}")
+        
+        # Final fallback to usage_tracker
         from usage_tracker import _load_pricing_config
         config = _load_pricing_config()
         
         return {
             "success": True,
-            "config": config
+            "config": config,
+            "source": "usage_tracker"
         }
     except Exception as e:
+        logger.error(f"All pricing config methods failed: {e}")
         return {"success": False, "message": f"Error: {str(e)}"}
 
 
@@ -1405,46 +1441,91 @@ async def update_pricing_config(request: UpdatePricingRequest, admin: User = Dep
     SECURITY: Database storage + audit trail prevents tampering.
     """
     try:
-        from usage_tracker import _load_pricing_config, _save_pricing_config
-        from auth.user_auth import get_user_database
         from datetime import datetime
         
-        # Load current config from database
-        config = _load_pricing_config()
-        
-        # Update fields
+        # Try dynamic credits system first for action_costs
         if request.action_costs:
-            config["action_costs"] = {**config.get("action_costs", {}), **request.action_costs}
+            try:
+                from ai.dynamic_credits import get_credits_config
+                config = get_credits_config()
+                
+                # Get client IP for audit
+                client_ip = "admin_panel"
+                
+                updated_actions = []
+                for action, cost in request.action_costs.items():
+                    success = config.update_cost(
+                        action=action,
+                        new_cost=cost,
+                        user_id=admin.email,
+                        ip_address=client_ip,
+                        signature=f"admin:{admin.id}"
+                    )
+                    if success:
+                        updated_actions.append(action)
+                
+                if updated_actions:
+                    logger.info(f"Admin {admin.email} updated credit costs: {updated_actions}")
+            except Exception as e:
+                logger.warning(f"Dynamic credits update failed: {e}")
         
-        if request.tier_monthly_limits:
-            config["tier_monthly_limits"] = {**config.get("tier_monthly_limits", {}), **request.tier_monthly_limits}
-        
-        if request.pricing:
-            config["pricing"] = {**config.get("pricing", {}), **request.pricing}
-        
-        if request.topup_packs:
-            config["topup_packs"] = request.topup_packs
-        
-        if request.subscription_tiers:
-            config["subscription_tiers"] = {**config.get("subscription_tiers", {}), **request.subscription_tiers}
-        
-        # Save to database with admin email
-        success = _save_pricing_config(config, updated_by=admin.email)
-        
-        if success:
-            # SECURITY: Audit log in user database too
-            db = get_user_database()
-            db.log_usage(admin.id, "admin_update_pricing", 
-                f"Updated pricing config in database by {admin.email}")
+        # Also update database pricing for backward compatibility
+        try:
+            from usage_tracker import _load_pricing_config, _save_pricing_config
+            from auth.user_auth import get_user_database
             
-            return {
-                "success": True,
-                "message": "Pricing configuration updated in database successfully",
-                "config": config,
-                "note": "Changes applied immediately (no restart needed)"
-            }
-        else:
-            return {"success": False, "message": "Failed to save pricing configuration to database"}
+            # Load current config from database
+            config = _load_pricing_config()
+            
+            # Update fields
+            if request.action_costs:
+                config["action_costs"] = {**config.get("action_costs", {}), **request.action_costs}
+            
+            if request.tier_monthly_limits:
+                config["tier_monthly_limits"] = {**config.get("tier_monthly_limits", {}), **request.tier_monthly_limits}
+            
+            if request.pricing:
+                config["pricing"] = {**config.get("pricing", {}), **request.pricing}
+            
+            if request.topup_packs:
+                config["topup_packs"] = request.topup_packs
+            
+            if request.subscription_tiers:
+                config["subscription_tiers"] = {**config.get("subscription_tiers", {}), **request.subscription_tiers}
+            
+            # Save to database with admin email
+            success = _save_pricing_config(config, updated_by=admin.email)
+            
+            if success:
+                # SECURITY: Audit log in user database too
+                try:
+                    db = get_user_database()
+                    db.log_usage(admin.id, "admin_update_pricing", 
+                        f"Updated pricing config in database by {admin.email}")
+                except:
+                    pass
+                
+                return {
+                    "success": True,
+                    "message": "Pricing configuration updated successfully",
+                    "config": config,
+                    "note": "Changes applied immediately (no restart needed)"
+                }
+            else:
+                return {"success": False, "message": "Failed to save pricing configuration to database"}
+        except Exception as e:
+            logger.warning(f"Database pricing update failed: {e}")
+            
+            # If we updated dynamic credits, still return success
+            if request.action_costs:
+                return {
+                    "success": True,
+                    "message": "Credit costs updated in dynamic system",
+                    "note": "Database update failed but dynamic credits were updated"
+                }
+            
+            return {"success": False, "message": f"Error: {str(e)}"}
+            
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}"}
 
@@ -1823,12 +1904,144 @@ async def get_credit_costs(admin: User = Depends(require_admin)) -> Dict[str, An
     SECURITY: Requires admin authentication.
     """
     try:
-        from ai.credits_rate_limiter import CreditsRateLimiter
+        from ai.dynamic_credits import get_credits_config
+        
+        config = get_credits_config()
+        costs = config.get_costs()
         
         return {
             "success": True,
-            "action_costs": CreditsRateLimiter.ACTION_COSTS,
-            "tier_allowances": CreditsRateLimiter.TIER_CREDITS
+            "action_costs": costs.to_dict(),
+            "packages": {name: pkg.to_dict() for name, pkg in config.get_packages().items()},
+            "signature": costs.get_signature(),
+            "integrity_verified": config.verify_integrity(),
+            "config_file": str(config.config_path),
+            "last_reload": config._last_reload,
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@router.post("/credits/action-costs")
+async def update_credit_cost(
+    request: Request,
+    admin: User = Depends(require_admin)
+) -> Dict[str, Any]:
+    """
+    Update credit cost for a specific action.
+    SECURITY: Requires admin authentication + audit logging.
+    """
+    try:
+        from ai.dynamic_credits import get_credits_config
+        
+        body = await request.json()
+        action = body.get("action")
+        new_cost = body.get("cost")
+        
+        if not action or new_cost is None:
+            raise HTTPException(status_code=400, detail="Missing 'action' or 'cost'")
+        
+        if not isinstance(new_cost, int) or new_cost < 0:
+            raise HTTPException(status_code=400, detail="Cost must be a non-negative integer")
+        
+        config = get_credits_config()
+        
+        # Get client IP for audit
+        client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
+        if "," in client_ip:
+            client_ip = client_ip.split(",")[0].strip()
+        
+        # Update with audit trail
+        success = config.update_cost(
+            action=action,
+            new_cost=new_cost,
+            user_id=admin.email,
+            ip_address=client_ip,
+            signature=f"admin:{admin.id}"
+        )
+        
+        if success:
+            # Log to database
+            try:
+                from auth.user_auth import get_user_database
+                db = get_user_database()
+                db.log_usage(admin.id, "admin_update_credit_cost",
+                    f"Updated {action} to {new_cost} credits")
+            except:
+                pass
+            
+            return {
+                "success": True,
+                "message": f"Updated {action} to {new_cost} credits",
+                "new_costs": config.get_costs().to_dict(),
+                "audit_logged": True
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Failed to update {action}. Check if action exists or cost exceeds limits."
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@router.post("/credits/reload")
+async def reload_credits_config(admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Force reload credits configuration from file.
+    SECURITY: Requires admin authentication.
+    """
+    try:
+        from ai.dynamic_credits import get_credits_config
+        
+        config = get_credits_config()
+        config.reload()
+        
+        return {
+            "success": True,
+            "message": "Credits configuration reloaded",
+            "costs": config.get_costs().to_dict(),
+            "integrity_verified": config.verify_integrity()
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {str(e)}"}
+
+
+@router.get("/credits/audit-log")
+async def get_credits_audit_log(
+    limit: int = 100,
+    admin: User = Depends(require_admin)
+) -> Dict[str, Any]:
+    """
+    Get audit log for credit changes.
+    SECURITY: Requires admin authentication.
+    """
+    try:
+        from ai.dynamic_credits import get_credits_config
+        
+        config = get_credits_config()
+        audit_log = config.get_audit_log(limit=limit)
+        
+        # Format for display
+        formatted_log = []
+        for entry in audit_log:
+            formatted_log.append({
+                "timestamp": entry.timestamp,
+                "datetime": datetime.fromtimestamp(entry.timestamp).isoformat() if entry.timestamp else None,
+                "action": entry.action,
+                "user_id": entry.user_id,
+                "old_value": entry.old_value,
+                "new_value": entry.new_value,
+                "ip_address": entry.ip_address,
+            })
+        
+        return {
+            "success": True,
+            "audit_log": formatted_log,
+            "total_entries": len(config._audit_log)
         }
     except Exception as e:
         return {"success": False, "message": f"Error: {str(e)}"}

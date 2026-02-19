@@ -598,6 +598,127 @@ class SpatialReasoningService:
             for r in results
         ]
     
+    async def get_spatial_context(self, lat: float, lng: float, radius_m: float = 3000) -> Dict[str, Any]:
+        """
+        Get spatial context for a location including POI counts and nearby features.
+        Used by smart report routes for location analysis.
+        
+        Returns:
+            Dict with 'pois', 'transport', 'places', and 'summary' keys
+        """
+        # Get nearby features
+        nearby = self.query_nearby(lat, lng, radius_m, limit=500)
+        
+        # Count POIs by category
+        poi_counts = {
+            'schools': 0,
+            'hospitals': 0,
+            'malls': 0,
+            'parks': 0,
+            'restaurants': 0,
+            'banks': 0,
+            'gyms': 0,
+            'supermarkets': 0,
+            'pharmacies': 0,
+            'total': 0
+        }
+        
+        transport_info = []
+        places_info = []
+        
+        for r in nearby:
+            if r.type == 'poi':
+                poi_counts['total'] += 1
+                amenity = r.properties.get('amenity', '')
+                shop = r.properties.get('shop', '')
+                
+                # Categorize POIs
+                if amenity in ('school', 'university', 'college'):
+                    poi_counts['schools'] += 1
+                elif amenity in ('hospital', 'clinic', 'doctors'):
+                    poi_counts['hospitals'] += 1
+                elif amenity == 'restaurant' or amenity == 'cafe':
+                    poi_counts['restaurants'] += 1
+                elif amenity == 'bank':
+                    poi_counts['banks'] += 1
+                elif amenity == 'gym' or amenity == 'fitness_centre':
+                    poi_counts['gyms'] += 1
+                elif amenity == 'pharmacy':
+                    poi_counts['pharmacies'] += 1
+                elif amenity == 'park':
+                    poi_counts['parks'] += 1
+                elif shop in ('supermarket', 'grocery'):
+                    poi_counts['supermarkets'] += 1
+                elif shop in ('mall', 'department_store'):
+                    poi_counts['malls'] += 1
+                    
+            elif r.type == 'transport':
+                transport_info.append({
+                    'name': r.name,
+                    'type': r.properties.get('transport_type', 'unknown'),
+                    'distance_m': r.distance_m
+                })
+                
+            elif r.type == 'place':
+                places_info.append({
+                    'name': r.name,
+                    'type': r.properties.get('place_type', 'unknown'),
+                    'distance_m': r.distance_m
+                })
+        
+        # Get summary scores
+        summary = self.get_summary(lat, lng, radius_m)
+        
+        # Build raw POI list for spatial reasoning (with category and distance_m)
+        poi_list = []
+        for r in nearby:
+            if r.type == 'poi':
+                amenity = r.properties.get('amenity', '')
+                shop = r.properties.get('shop', '')
+                
+                # Determine category
+                category = 'other'
+                if amenity in ('school', 'university', 'college'):
+                    category = 'education'
+                elif amenity in ('hospital', 'clinic', 'doctors'):
+                    category = 'healthcare'
+                elif amenity == 'restaurant' or amenity == 'cafe':
+                    category = 'shopping'
+                elif amenity == 'bank':
+                    category = 'shopping'
+                elif amenity == 'gym' or amenity == 'fitness_centre':
+                    category = 'recreation'
+                elif amenity == 'pharmacy':
+                    category = 'healthcare'
+                elif amenity == 'park':
+                    category = 'recreation'
+                elif shop in ('supermarket', 'grocery'):
+                    category = 'shopping'
+                elif shop in ('mall', 'department_store'):
+                    category = 'shopping'
+                
+                poi_list.append({
+                    'name': r.name,
+                    'category': category,
+                    'distance_m': r.distance_m,
+                    'lat': r.lat,
+                    'lng': r.lng
+                })
+        
+        return {
+            'pois': poi_counts,
+            'poi_list': poi_list,  # Raw POI list for spatial reasoning
+            'transport': transport_info[:20],  # Limit to 20 nearest
+            'infrastructure': transport_info[:20],  # Alias for compatibility
+            'places': places_info[:10],
+            'summary': {
+                'accessibility_score': summary.accessibility_score,
+                'walkability_score': summary.walkability_score,
+                'amenity_density': summary.amenity_density,
+                'total_features': summary.total_features
+            }
+        }
+    
     def get_h3_index(self, lat: float, lng: float, resolution: int = 9) -> Optional[str]:
         """Get H3 index for a point."""
         if not H3_AVAILABLE:

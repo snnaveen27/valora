@@ -1406,22 +1406,106 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
   const [analyzingProperty, setAnalyzingProperty] = useState(null);
   const [analysesRemaining, setAnalysesRemaining] = useState(3);
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  // Fetch free properties on mount
+  // Fetch free properties on mount - don't force refresh on initial load
   useEffect(() => {
-    fetchFreeProperties();
+    // Small delay to ensure backend is ready
+    const timer = setTimeout(() => {
+      fetchFreeProperties(false);  // Don't force refresh on initial load
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
+  
+  // Auto-retry with exponential backoff when there's an error
+  useEffect(() => {
+    if (error && retryCount < 3) {
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // 1s, 2s, 4s max 5s
+      console.log(`[FreeAnalysis] Auto-retrying in ${delay}ms (attempt ${retryCount + 1}/3)`);
+      const timer = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        fetchFreeProperties(false);
+      }, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [error, retryCount]);
 
-  const fetchFreeProperties = async () => {
+  // Show properties on map when loaded - filter for those with both images AND coordinates
+  useEffect(() => {
+    if (Object.keys(freeProperties).length > 0) {
+      // Filter properties that have both coordinates AND images
+      const validProperties = Object.entries(freeProperties)
+        .filter(([_, prop]) => {
+          const hasCoords = prop.latitude && prop.longitude;
+          const hasImage = prop.image_url;
+          return hasCoords && hasImage;
+        })
+        .map(([category, prop]) => ({
+          lat: prop.latitude,
+          lng: prop.longitude,
+          bedrooms: prop.bedrooms,
+          price: prop.price,
+          property_type: category,
+          image_url: prop.image_url,
+          title: prop.title,
+          locality: prop.locality,
+          ...prop
+        }));
+      
+      if (validProperties.length > 0) {
+        window.dispatchEvent(new CustomEvent('valora-map-command', {
+          detail: {
+            action: 'highlightProperties',
+            properties: validProperties
+          }
+        }));
+      }
+    }
+    
+    // Cleanup: clear markers when component unmounts
+    return () => {
+      window.dispatchEvent(new CustomEvent('valora-map-command', {
+        detail: { action: 'clearPropertyMarkers' }
+      }));
+    };
+  }, [freeProperties]);
+
+  const fetchFreeProperties = async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/api/free-properties?user_id=${localStorage.getItem('valora_user_id') || 'anonymous'}`);
+      const refreshParam = forceRefresh ? '&refresh=true' : '';
+      const response = await fetch(`${API_URL}/api/free-properties?user_id=${localStorage.getItem('valora_user_id') || 'anonymous'}${refreshParam}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
+      console.log('[FreeAnalysis] Fetched properties:', data);
+      console.log('[FreeAnalysis] Properties with coords AND images:', 
+        Object.entries(data.properties || {}).filter(([_, p]) => p.latitude && p.longitude && p.image_url).length
+      );
+      // Log each property's image URL for debugging
+      Object.entries(data.properties || {}).forEach(([cat, p]) => {
+        console.log(`[FreeAnalysis] ${cat}: image_url=${p.image_url}, lat=${p.latitude}, lng=${p.longitude}`);
+      });
+      
       if (data.success) {
-        setFreeProperties(data.properties);
+        // Filter to only include properties with both coordinates AND images
+        const filteredProperties = {};
+        for (const [category, prop] of Object.entries(data.properties)) {
+          const hasCoords = prop.latitude && prop.longitude;
+          const hasImage = prop.image_url;
+          if (hasCoords && hasImage) {
+            filteredProperties[category] = prop;
+          }
+        }
+        setFreeProperties(filteredProperties);
         setAnalysesRemaining(data.analyses_remaining);
+        setError(null); // Clear error on success
+        setRetryCount(0); // Reset retry count on success
       } else {
         setError('Failed to load free properties');
       }
@@ -1430,6 +1514,21 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
       setError('Failed to load free properties');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle card hover to fly to property location
+  const handleCardHover = (property) => {
+    if (property.latitude && property.longitude && setAgentData) {
+      setAgentData(prev => ({
+        ...prev,
+        flyTo: { 
+          lat: property.latitude, 
+          lng: property.longitude, 
+          zoom: 15,  // Zoom 15 for good visibility
+          pitch: -90  // Straight down for centered marker
+        }
+      }));
     }
   };
 
@@ -1463,7 +1562,7 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
       if (setAgentData && property.latitude && property.longitude) {
         setAgentData(prev => ({
           ...prev,
-          flyTo: { lat: property.latitude, lng: property.longitude, zoom: 17 },
+          flyTo: { lat: property.latitude, lng: property.longitude, zoom: 15, pitch: -90 },
           mapCenter: { lat: property.latitude, lng: property.longitude }
         }));
       }
@@ -1498,15 +1597,6 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
     }
   };
 
-  const handleViewOnMap = (property) => {
-    if (setAgentData && property.latitude && property.longitude) {
-      setAgentData(prev => ({
-        ...prev,
-        flyTo: { lat: property.latitude, lng: property.longitude, zoom: 17 }
-      }));
-    }
-  };
-
   const formatPrice = (price) => {
     if (!price) return 'N/A';
     if (price >= 10000000) return `₹${(price / 10000000).toFixed(1)}Cr`;
@@ -1534,24 +1624,8 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
     'office': 'from-indigo-500 to-blue-500'
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="free-analysis-content p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Eye className="w-5 h-5 text-emerald-400" />
-          <h3 className="text-lg font-bold text-white">Free Property Analysis</h3>
-        </div>
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-          <span className="ml-2 text-slate-400">Loading free properties...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
+  // Error state (only show after all retries exhausted)
+  if (error && retryCount >= 3 && !loading) {
     return (
       <div className="free-analysis-content p-4">
         <div className="flex items-center gap-2 mb-4">
@@ -1562,11 +1636,29 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
           <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-2" />
           <p className="text-red-400">{error}</p>
           <button 
-            onClick={fetchFreeProperties}
+            onClick={() => { setRetryCount(0); fetchFreeProperties(); }}
             className="mt-3 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded-lg"
           >
             Retry
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state (includes auto-retry)
+  if (loading) {
+    return (
+      <div className="free-analysis-content p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Eye className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-lg font-bold text-white">Free Property Analysis</h3>
+        </div>
+        <div className="flex flex-col items-center justify-center py-8">
+          <Loader2 className="w-8 h-8 text-blue-400 animate-spin mb-2" />
+          <p className="text-slate-400 text-sm">
+            {retryCount > 0 ? `Retrying... (${retryCount}/3)` : 'Loading properties...'}
+          </p>
         </div>
       </div>
     );
@@ -1601,8 +1693,33 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
           return (
             <div 
               key={category}
-              className="bg-slate-800/50 rounded-lg overflow-hidden border border-slate-700/50 hover:border-slate-600 transition"
+              className="bg-slate-800/50 rounded-lg overflow-hidden border border-slate-700/50 hover:border-slate-500 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300 cursor-pointer group"
+              onMouseEnter={() => handleCardHover(property)}
+              onClick={() => handleAnalyzeFree(property)}
             >
+              {/* Property Image with Zoom Effect */}
+              {property.image_url ? (
+                <div className="relative h-32 w-full overflow-hidden">
+                  <img 
+                    src={property.image_url} 
+                    alt={property.title || category}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    onError={(e) => {
+                      console.log('[FreeAnalysis] Image failed to load:', property.image_url);
+                      e.target.onerror = null; // Prevent infinite loop
+                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23334155" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%2394a3b8" font-size="12">No Image</text></svg>';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/10 transition-colors duration-300" />
+                </div>
+              ) : (
+                <div className="relative h-20 w-full overflow-hidden bg-slate-700/50 flex items-center justify-center">
+                  <Building className="w-8 h-8 text-slate-500" />
+                </div>
+              )}
+              
               {/* Category Header */}
               <div className={`bg-gradient-to-r ${gradient} px-3 py-1.5 flex items-center justify-between`}>
                 <div className="flex items-center gap-2">
@@ -1625,7 +1742,7 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
                   <span>{property.locality || 'Bangalore'}</span>
                 </div>
                 
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between">
                   <div>
                     <span className="text-lg font-bold text-white">{formatPrice(property.price)}</span>
                     {property.listing_type === 'rent' && <span className="text-xs text-slate-400">/mo</span>}
@@ -1636,36 +1753,10 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
                   </div>
                 </div>
                 
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleViewOnMap(property)}
-                    className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-xs rounded transition"
-                  >
-                    <MapPin className="w-3 h-3" />
-                    View Map
-                  </button>
-                  <button
-                    onClick={() => handleAnalyzeFree(property)}
-                    disabled={analysesRemaining <= 0 || analyzingProperty === property.id}
-                    className={`flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs rounded transition ${
-                      analysesRemaining <= 0 
-                        ? 'bg-slate-700/30 text-slate-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white'
-                    }`}
-                  >
-                    {analyzingProperty === property.id ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3 h-3" />
-                        Analyze Free
-                      </>
-                    )}
-                  </button>
+                {/* Click hint */}
+                <div className="mt-2 text-center text-xs text-slate-500 group-hover:text-purple-400 transition-colors">
+                  <Sparkles className="w-3 h-3 inline-block mr-1" />
+                  Click to analyze
                 </div>
               </div>
             </div>

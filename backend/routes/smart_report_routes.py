@@ -129,10 +129,11 @@ async def generate_decision_verdict(
     spatial_reasoning = get_spatial_reasoning()
     if spatial_reasoning and spatial_data:
         try:
-            pois = spatial_data.get('pois', [])
+            # Use poi_list (list of POI objects) instead of pois (dict of counts)
+            poi_list = spatial_data.get('poi_list', [])
             infrastructure = spatial_data.get('infrastructure', [])
             spatial_analysis = await spatial_reasoning.analyze_spatial_relationships(
-                lat, lng, pois, infrastructure
+                lat, lng, poi_list, infrastructure
             )
             cognitive_insights['spatial_relationships'] = spatial_analysis
         except Exception as e:
@@ -417,8 +418,8 @@ async def generate_risk_analysis(
 ) -> Dict[str, Any]:
     """Generate comprehensive risk analysis"""
     
-    # Get terrain data for flood risk
-    terrain_data = await terrain_service.get_terrain_data(lat, lng) if terrain_service else None
+    # Get terrain data for flood risk using get_terrain_analysis (not get_terrain_data)
+    terrain_data = terrain_service.get_terrain_analysis(lat, lng) if terrain_service else None
     
     # Get spatial data for infrastructure risk
     spatial_data = await spatial_service.get_spatial_context(lat, lng) if spatial_service else None
@@ -426,8 +427,8 @@ async def generate_risk_analysis(
     # Calculate individual risk scores
     flood_risk = 15  # Default low
     if terrain_data:
-        elevation = terrain_data.get('elevation', 850)
-        flood_zone = terrain_data.get('flood_zone', 'low')
+        elevation = terrain_data.get('elevation_mean', 850)
+        flood_zone = terrain_data.get('flood_risk', 'low')
         flood_risk = 15 if flood_zone == 'low' else 45 if flood_zone == 'moderate' else 75
     
     # Calculate overall risk

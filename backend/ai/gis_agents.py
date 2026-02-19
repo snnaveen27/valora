@@ -6,10 +6,29 @@ LLM only synthesizes narrative from these facts.
 
 import re
 import statistics
+import logging
 from datetime import datetime
 from dataclasses import dataclass, field, asdict
 from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
+
+# Import Analysis Opportunity Detector
+try:
+    from ai.analysis_opportunity_detector import (
+        AnalysisOpportunityDetector,
+        AnalysisSubIntent,
+        OpportunityResult,
+        get_analysis_opportunity_detector
+    )
+    ANALYSIS_OPPORTUNITY_AVAILABLE = True
+except ImportError:
+    ANALYSIS_OPPORTUNITY_AVAILABLE = False
+    AnalysisOpportunityDetector = None
+    AnalysisSubIntent = None
+    OpportunityResult = None
+    get_analysis_opportunity_detector = None
+
+logger = logging.getLogger("valora.gis_agents")
 
 # Import StateChange for digital twin updates
 # Import advanced reasoning engine (obsolete - removed)
@@ -218,6 +237,14 @@ class Intent(Enum):
     
     # Advanced
     SIMULATE = "simulate"           # "What if we add a metro station here?"
+    
+    # New intents for report generation, downloads, and UI control
+    REPORT = "report"               # "Generate report for Whitefield"
+    DOWNLOAD = "download"           # "Download PDF report"
+    MAP_CONTROL = "map_control"     # "Zoom to Koramangala", "Toggle 3D buildings"
+    UI_ACTION = "ui_action"         # "Open smart report panel"
+    CREDITS = "credits"             # "How many credits do I have?"
+    
     GENERAL = "general"             # Fallback for unclassified queries
 
 
@@ -829,6 +856,44 @@ class IntentRouter:
         r'\b(building|structure)\s*(info|information|details)\b',
     ]
     
+    # New patterns for report generation, downloads, map control, and credits
+    REPORT_PATTERNS = [
+        r'\b(generate|create|make|get)\s+(a\s+)?report\b',
+        r'\breport\s+(for|about|on)\b',
+        r'\b(detailed|full|comprehensive)\s+report\b',
+        r'\b(investment|property|area)\s+report\b',
+        r'\breport\s+generation\b',
+    ]
+    
+    DOWNLOAD_PATTERNS = [
+        r'\bdownload\s+(pdf|report|analysis)\b',
+        r'\bexport\s+(as\s+)?(pdf|report|markdown|md)\b',
+        r'\bsave\s+(as\s+)?(pdf|report)\b',
+        r'\bget\s+(the\s+)?(pdf|report)\b',
+    ]
+    
+    MAP_CONTROL_PATTERNS = [
+        r'\b(zoom|pan|fly|go|move|navigate)\s+(to|in|out)\b',
+        r'\b(show|hide|toggle)\s+(layer|terrain|3d|buildings|heatmap)\b',
+        r'\b(enable|disable)\s+(3d|terrain|satellite)\b',
+        r'\breset\s+(view|map|camera)\b',
+        r'\b(layer|terrain|satellite)\s+(view|mode)\b',
+    ]
+    
+    UI_ACTION_PATTERNS = [
+        r'\b(open|show|launch)\s+(smart\s+report|report\s+panel|sidebar)\b',
+        r'\b(close|hide)\s+(panel|sidebar|report)\b',
+        r'\bswitch\s+(to|tab)\b',
+        r'\bfullscreen\b',
+    ]
+    
+    CREDITS_PATTERNS = [
+        r'\b(credits|balance|how many credits)\b',
+        r'\b(credit|pricing)\s+(cost|price|balance)\b',
+        r'\bhow much\s+(does\s+it\s+cost|for)\b',
+        r'\b(check|show)\s+(my\s+)?credits\b',
+    ]
+    
     @classmethod
     def classify(cls, query: str, has_building: bool = False, has_location: bool = False) -> Intent:
         """Classify user intent from query."""
@@ -860,6 +925,32 @@ class IntentRouter:
         for pattern in cls.HELP_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.HELP
+        
+        # New patterns - check early for specific actions
+        # Credits patterns (check before other patterns as they're specific)
+        for pattern in cls.CREDITS_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.CREDITS
+        
+        # Report patterns
+        for pattern in cls.REPORT_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.REPORT
+        
+        # Download patterns
+        for pattern in cls.DOWNLOAD_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.DOWNLOAD
+        
+        # Map control patterns
+        for pattern in cls.MAP_CONTROL_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.MAP_CONTROL
+        
+        # UI action patterns
+        for pattern in cls.UI_ACTION_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.UI_ACTION
         
         # Recommendation patterns (check BEFORE property to catch "where should i buy for families")
         for pattern in cls.RECOMMENDATION_PATTERNS:
@@ -986,6 +1077,241 @@ class IntentRouter:
                 return locality
         
         return None
+    
+    @classmethod
+    def detect_analysis_opportunity(
+        cls,
+        query: str,
+        intent: 'Intent',
+        context: Optional[Dict] = None
+    ) -> Optional[Dict]:
+        """
+        Detect if query presents an analysis opportunity.
+        
+        Args:
+            query: User's query text
+            intent: Detected primary intent
+            context: Optional context including location, conversation history
+            
+        Returns:
+            Dict with opportunity details if detected, None otherwise:
+            - opportunity_type: str
+            - confidence: float
+            - location: Optional[str]
+            - suggested_tiers: List[str]
+            - sub_intent: str
+        """
+        if not ANALYSIS_OPPORTUNITY_AVAILABLE:
+            return None
+        
+        try:
+            detector = get_analysis_opportunity_detector()
+            result = detector.detect_opportunity(query, context)
+            
+            if result:
+                return {
+                    'opportunity_type': result.opportunity_type,
+                    'confidence': result.confidence,
+                    'location': result.location,
+                    'location2': result.location2,
+                    'lat': result.lat,
+                    'lng': result.lng,
+                    'suggested_tiers': result.suggested_tiers,
+                    'sub_intent': result.sub_intent.value,
+                    'contextual_hooks': result.contextual_hooks,
+                    'is_comparison': result.metadata.get('is_comparison', False)
+                }
+        except Exception as e:
+            logger.warning(f"Error detecting analysis opportunity: {e}")
+        
+        return None
+    
+    # Follow-up query handling patterns
+    FOLLOWUP_INDICATORS = [
+        r'\b(what|how|tell me)\s+about\s+(it|there|that|this)\b',
+        r'\b(just|only)\s+(tell|show|give)\s+me\b',
+        r'\b(and|also|additionally)\s+(what|how|tell)\b',
+        r'\b(what|how)\s+(about|is)\s+(it|there|that)\b',
+        r'\b(schools?|hospitals?|markets?|parks?|metro|transport)\s+(there|in\s+that\s+area)\b',
+        r'\bhow\s+(far|much|many)\s+(is|are)\s+(it|there)\b',
+        r'\b(is|are)\s+(it|there)\s+(safe|good|nice|bad)\b',
+    ]
+    
+    # Pronouns that reference previous context
+    LOCATION_PRONOUNS = ['it', 'there', 'that area', 'that place', 'that locality', 
+                         'this area', 'this place', 'this locality', 'here', 'that']
+    
+    @classmethod
+    def is_followup_query(cls, query: str) -> bool:
+        """
+        Detect if the query is a follow-up referencing previous context.
+        
+        Args:
+            query: User's query text
+            
+        Returns:
+            True if query appears to be a follow-up
+        """
+        q_lower = query.lower().strip()
+        
+        # Check for followup indicators
+        for pattern in cls.FOLLOWUP_INDICATORS:
+            if re.search(pattern, q_lower, re.IGNORECASE):
+                return True
+        
+        # Check for location pronouns
+        for pronoun in cls.LOCATION_PRONOUNS:
+            if pronoun in q_lower:
+                return True
+        
+        # Short queries after context is established are often followups
+        if len(q_lower.split()) <= 5:
+            # Check if it starts with question words
+            if re.match(r'^(what|how|is|are|where|which|can|does|do)', q_lower):
+                return True
+        
+        return False
+    
+    @classmethod
+    def resolve_followup_context(
+        cls,
+        query: str,
+        conversation_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Resolve follow-up query with conversation context.
+        
+        Args:
+            query: User's query text
+            conversation_context: Context from ConversationMemory
+            
+        Returns:
+            Enhanced context with resolved references
+        """
+        resolved = dict(conversation_context)
+        q_lower = query.lower()
+        
+        # Get last location from context
+        last_location = conversation_context.get('last_location')
+        last_coords = conversation_context.get('last_location_coords')
+        
+        if not last_location:
+            return resolved
+        
+        # Check if query contains location pronouns
+        has_pronoun = any(pronoun in q_lower for pronoun in cls.LOCATION_PRONOUNS)
+        
+        if has_pronoun:
+            # Replace pronoun with actual location in resolved context
+            resolved['resolved_location'] = last_location
+            resolved['resolved_location_coords'] = last_coords
+            resolved['pronoun_resolved'] = True
+            
+            logger.debug(f"Resolved pronoun to location: {last_location}")
+        
+        # Detect specific follow-up topics
+        topic_patterns = {
+            'schools': [r'\b(schools?|education|colleges?|institutes?)\b'],
+            'hospitals': [r'\b(hospitals?|clinics?|healthcare|medical|doctors?)\b'],
+            'transport': [r'\b(metro|transport|bus|train|connectivity|station)\b'],
+            'safety': [r'\b(safe|safety|crime|secure)\b'],
+            'price': [r'\b(price|cost|rate|value|expensive|cheap|affordable)\b'],
+            'investment': [r'\b(invest|roi|return|appreciation|growth)\b'],
+            'amenities': [r'\b(amenities|facilities|parks?|markets?|malls?)\b'],
+        }
+        
+        for topic, patterns in topic_patterns.items():
+            for pattern in patterns:
+                if re.search(pattern, q_lower):
+                    resolved['followup_topic'] = topic
+                    break
+        
+        return resolved
+    
+    @classmethod
+    def enhance_query_with_context(
+        cls,
+        query: str,
+        conversation_context: Dict[str, Any]
+    ) -> str:
+        """
+        Enhance a follow-up query with resolved context.
+        
+        Args:
+            query: Original query
+            conversation_context: Context from ConversationMemory
+            
+        Returns:
+            Enhanced query with resolved references
+        """
+        resolved = cls.resolve_followup_context(query, conversation_context)
+        
+        if not resolved.get('pronoun_resolved'):
+            return query
+        
+        last_location = resolved.get('resolved_location')
+        if not last_location:
+            return query
+        
+        q_lower = query.lower()
+        
+        # Replace pronouns with actual location
+        for pronoun in cls.LOCATION_PRONOUNS:
+            if pronoun in q_lower:
+                # Simple replacement - replace the pronoun with the location
+                enhanced = re.sub(
+                    re.escape(pronoun), 
+                    last_location, 
+                    query, 
+                    flags=re.IGNORECASE
+                )
+                logger.debug(f"Enhanced query: '{query}' -> '{enhanced}'")
+                return enhanced
+        
+        return query
+    
+    @classmethod
+    def classify_with_context(
+        cls,
+        query: str,
+        has_building: bool = False,
+        has_location: bool = False,
+        conversation_context: Optional[Dict[str, Any]] = None
+    ) -> Tuple['Intent', Dict[str, Any]]:
+        """
+        Classify intent with conversation context for follow-up handling.
+        
+        Args:
+            query: User's query text
+            has_building: Whether a building is selected
+            has_location: Whether a location is selected
+            conversation_context: Context from ConversationMemory
+            
+        Returns:
+            Tuple of (Intent, context_dict with followup info)
+        """
+        context = conversation_context or {}
+        is_followup = cls.is_followup_query(query)
+        
+        # Resolve follow-up context
+        if is_followup and context:
+            resolved = cls.resolve_followup_context(query, context)
+            
+            # If we resolved a location, use it for classification
+            if resolved.get('resolved_location'):
+                has_location = True
+                context['resolved_location'] = resolved['resolved_location']
+                context['resolved_location_coords'] = resolved.get('resolved_location_coords')
+            
+            context['is_followup'] = True
+            context['followup_topic'] = resolved.get('followup_topic')
+        else:
+            context['is_followup'] = False
+        
+        # Standard classification
+        intent = cls.classify(query, has_building, has_location)
+        
+        return intent, context
 
 
 class GISAgentOrchestrator:

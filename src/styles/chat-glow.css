@@ -1,0 +1,240 @@
+/**
+ * Chat Glow Animation Styles
+ * 
+ * Provides subtle but noticeable glow effects for new AI responses
+ * Glow pulses for 15 seconds after a response finishes
+ */
+
+/* Keyframes for the pulsing glow effect */
+@keyframes newMessageGlow {
+  0%, 100% {
+    box-shadow: 
+      0 0 5px rgba(59, 130, 246, 0.3),
+      0 0 10px rgba(59, 130, 246, 0.2),
+      0 0 15px rgba(59, 130, 246, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 10px rgba(59, 130, 246, 0.5),
+      0 0 20px rgba(59, 130, 246, 0.4),
+      0 0 30px rgba(59, 130, 246, 0.2);
+  }
+}
+
+/* Alternative glow with accent purple for variety */
+@keyframes newMessageGlowPurple {
+  0%, 100% {
+    box-shadow: 
+      0 0 5px rgba(139, 92, 246, 0.3),
+      0 0 10px rgba(139, 92, 246, 0.2),
+      0 0 15px rgba(139, 92, 246, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 10px rgba(139, 92, 246, 0.5),
+      0 0 20px rgba(139, 92, 246, 0.4),
+      0 0 30px rgba(139, 92, 246, 0.2);
+  }
+}
+
+/* Subtle border glow animation */
+@keyframes borderGlow {
+  0%, 100% {
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    border-color: rgba(59, 130, 246, 0.6);
+  }
+}
+
+/* Chat panel glow class - 15 seconds total (2s per iteration × 7.5 = 15s) */
+.chat-panel-glowing {
+  animation: newMessageGlow 2s ease-in-out 7.5;
+  border-radius: 1rem;
+}
+
+/* Chat panel glow with purple accent */
+.chat-panel-glowing-purple {
+  animation: newMessageGlowPurple 2s ease-in-out 7.5;
+  border-radius: 1rem;
+}
+
+/* Message bubble glow - for individual messages */
+.message-bubble-glowing {
+  animation: newMessageGlow 2s ease-in-out 7.5;
+  border-radius: 0.75rem;
+}
+
+/* Subtle border glow for input area */
+.input-glowing {
+  animation: borderGlow 2s ease-in-out 7.5;
+}
+
+/* Glow for the entire chat container */
+.chat-container-glowing {
+  position: relative;
+}
+
+.chat-container-glowing::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 1.25rem;
+  background: linear-gradient(
+    45deg,
+    rgba(59, 130, 246, 0.3),
+    rgba(139, 92, 246, 0.3),
+    rgba(59, 130, 246, 0.3)
+  );
+  background-size: 200% 200%;
+  animation: gradientGlow 3s ease-in-out 5;
+  z-index: -1;
+  opacity: 0;
+  animation: gradientFadeIn 0.5s ease-out forwards, gradientGlow 3s ease-in-out 5;
+}
+
+@keyframes gradientGlow {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 0.6;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 1;
+  }
+}
+
+@keyframes gradientFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.6;
+  }
+}
+
+/* Quick flash glow for instant feedback */
+@keyframes quickFlash {
+  0% {
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+}
+
+.quick-flash {
+  animation: quickFlash 0.5s ease-out;
+}
+
+/* Breathing glow effect - more subtle */
+@keyframes breathingGlow {
+  0%, 100% {
+    box-shadow: 
+      0 0 3px rgba(59, 130, 246, 0.2),
+      inset 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 8px rgba(59, 130, 246, 0.4),
+      inset 0 0 5px rgba(59, 130, 246, 0.2);
+  }
+}
+
+.breathing-glow {
+  animation: breathingGlow 3s ease-in-out 5;
+}
+
+/* Utility classes for controlling glow duration */
+.glow-duration-short {
+  animation-duration: 1s !important;
+}
+
+.glow-duration-medium {
+  animation-duration: 2s !important;
+}
+
+.glow-duration-long {
+  animation-duration: 3s !important;
+}
+
+/* Glow iteration count utilities */
+.glow-iterations-3 {
+  animation-iteration-count: 3 !important;
+}
+
+.glow-iterations-5 {
+  animation-iteration-count: 5 !important;
+}
+
+.glow-iterations-7 {
+  animation-iteration-count: 7 !important;
+}
+
+.glow-iterations-10 {
+  animation-iteration-count: 10 !important;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel-glowing,
+  .chat-panel-glowing-purple,
+  .message-bubble-glowing,
+  .input-glowing,
+  .chat-container-glowing::before,
+  .quick-flash,
+  .breathing-glow {
+    animation: none !important;
+  }
+  
+  /* Show a static subtle glow instead */
+  .chat-panel-glowing,
+  .chat-panel-glowing-purple,
+  .message-bubble-glowing {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* Dark mode optimizations */
+.dark .chat-panel-glowing,
+.dark .message-bubble-glowing {
+  animation-name: newMessageGlow;
+}
+
+/* Light mode adjustments (if applicable) */
+.light .chat-panel-glowing {
+  animation-name: newMessageGlow;
+}
+
+/* Glow for suggestion chips */
+@keyframes chipGlow {
+  0%, 100% {
+    box-shadow: 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+  }
+}
+
+.suggestion-chip-glowing {
+  animation: chipGlow 1.5s ease-in-out 5;
+}
+
+/* Glow for disambiguation options */
+@keyframes optionGlow {
+  0%, 100% {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.5);
+  }
+}
+
+.disambiguation-option-glowing {
+  animation: optionGlow 2s ease-in-out 3;
+}

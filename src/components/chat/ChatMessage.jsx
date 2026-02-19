@@ -1,13 +1,16 @@
 /**
  * ChatMessage - Production-grade message component with copy, edit, regenerate
+ * Handles disambiguation responses with clickable location options
  */
 
 import { useState, useEffect, memo } from 'react'
-import { Bot, User, Copy, Check, RotateCcw, Pencil, ChevronDown, ChevronRight, Brain, Loader2, Sparkles, Wrench, MessageSquare } from 'lucide-react'
+import { Bot, User, Copy, Check, RotateCcw, Pencil, ChevronDown, ChevronRight, Brain, Loader2, Sparkles, Wrench, MessageSquare, MapPin, Coins, Lock, AlertCircle, Search, BarChart3, TrendingUp, Zap, Navigation } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import TieredOptionsDisplay from './TieredOptionsDisplay'
+import '../../styles/chat-glow.css'
 
 // Code block with syntax highlighting and copy button
 function CodeBlock({ children, className, ...props }) {
@@ -149,6 +152,71 @@ function TypingIndicator() {
   )
 }
 
+// Disambiguation options component for location clarification
+function DisambiguationOptions({ options, onSelect, isProcessing }) {
+  const [selectedOption, setSelectedOption] = useState(null)
+  
+  if (!options || options.length === 0) return null
+  
+  const handleSelect = (option) => {
+    if (isProcessing) return
+    setSelectedOption(option.id)
+    onSelect?.(option)
+  }
+  
+  return (
+    <div className="mt-3 p-3 bg-primary-700/20 rounded-xl border border-primary-600/30">
+      <div className="flex items-center gap-2 mb-3">
+        <Navigation className="w-4 h-4 text-amber-400" />
+        <span className="text-xs font-medium text-amber-300">Which location did you mean?</span>
+      </div>
+      
+      <div className="space-y-2">
+        {options.map((option, idx) => (
+          <button
+            key={option.id || idx}
+            onClick={() => handleSelect(option)}
+            disabled={isProcessing}
+            className={`w-full p-3 rounded-lg text-left transition-all border ${
+              selectedOption === option.id
+                ? 'bg-primary-500/30 border-primary-400 text-white'
+                : 'bg-dark-800/50 border-primary-700/30 hover:border-primary-500/50 hover:bg-primary-700/20 text-primary-200'
+            } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <div className="flex items-start gap-3">
+              <MapPin className={`w-4 h-4 mt-0.5 shrink-0 ${selectedOption === option.id ? 'text-primary-300' : 'text-primary-400'}`} />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm">{option.name}</div>
+                {option.area && (
+                  <div className="text-xs text-primary-400 mt-0.5">{option.area}</div>
+                )}
+                {option.distance && (
+                  <div className="text-xs text-primary-500 mt-0.5">{option.distance}</div>
+                )}
+                {option.lat && option.lng && (
+                  <div className="text-[10px] text-primary-500/60 mt-1 font-mono">
+                    {option.lat.toFixed(4)}, {option.lng.toFixed(4)}
+                  </div>
+                )}
+              </div>
+              {selectedOption === option.id && (
+                <Check className="w-4 h-4 text-primary-400 shrink-0" />
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+      
+      {isProcessing && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-primary-400">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          <span>Processing selection...</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Main ChatMessage component
 const ChatMessage = memo(function ChatMessage({ 
   message, 
@@ -160,7 +228,8 @@ const ChatMessage = memo(function ChatMessage({
   isLoading,
   showFeedback,
   onToggleFeedback,
-  messageId
+  messageId,
+  onDisambiguationSelect
 }) {
   const [copied, setCopied] = useState(false)
   const [showActions, setShowActions] = useState(false)
@@ -267,6 +336,30 @@ const ChatMessage = memo(function ChatMessage({
                     </ReactMarkdown>
                     {message.isStreaming && !message.isThinking && <span className="animate-pulse text-primary-400">▌</span>}
                   </div>
+                )}
+                
+                {/* Tiered Options Display - when message has tiered_options */}
+                {message.tieredOptions && (
+                  <div className="mt-2">
+                    <TieredOptionsDisplay
+                      options={message.tieredOptions.options}
+                      locality={message.tieredOptions.locality}
+                      lat={message.tieredOptions.lat}
+                      lng={message.tieredOptions.lng}
+                      userCredits={message.tieredOptions.user_credits || 0}
+                      onSelectOption={message.onSelectOption}
+                      isProcessing={isLoading}
+                    />
+                  </div>
+                )}
+                
+                {/* Disambiguation Options - when message has disambiguation intent */}
+                {message.intent === 'disambiguation' && message.disambiguationOptions && (
+                  <DisambiguationOptions
+                    options={message.disambiguationOptions}
+                    onSelect={onDisambiguationSelect}
+                    isProcessing={isLoading}
+                  />
                 )}
               </>
             )}

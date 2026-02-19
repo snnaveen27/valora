@@ -23,6 +23,12 @@ class Intent(Enum):
     SIMULATE = "simulate"
     DIGITAL_TWIN = "digital_twin"
     SPATIAL_3D = "spatial_3d"
+    # New intents for report generation, downloads, and UI control
+    REPORT = "report"
+    DOWNLOAD = "download"
+    MAP_CONTROL = "map_control"
+    UI_ACTION = "ui_action"
+    CREDITS = "credits"
     GENERAL = "general"
 
 
@@ -124,14 +130,20 @@ Respond: "I'm running on Valora AI, powered by Qwen3 4B locally."
 - Generate spatial heatmaps and 3D building analysis
 - Provide personalized recommendations based on preferences
 - Access terrain, flood risk, and elevation data
+- Generate downloadable PDF reports (200 credits for detailed, 10 for export)
+- Export analysis as Markdown (free)
+- Create comprehensive 9-section investment reports
+- Control map (zoom, pan, fly to locations)
+- Toggle map layers (terrain, 3D buildings, heatmaps)
 
 ### What You CANNOT Do
 - Access real-time market data (prices are from database snapshots)
-- Generate downloadable files (PDFs, spreadsheets, reports)
 - Book property tours or contact agents directly
 - Access areas outside Bangalore/Bengaluru
 - Provide legal, tax, or financial advice
 - Access external websites, APIs, or online resources
+
+{CREDITS_PRICING}
 
 ### Honest Limitation Handling
 When asked about capabilities you don't have:
@@ -924,12 +936,148 @@ You are answering general questions about Bangalore real estate.
 - **Valuation**: Estimate fair market value
 - **Simulations**: 'What-if' scenarios for infrastructure
 - **3D Analysis**: View quality, shadow, floor recommendations
+- **Reports**: Generate detailed PDF investment reports (200 credits)
+- **Map Control**: Zoom, pan, toggle layers (terrain, 3D buildings)
 
 Try asking: 'Analyze Koramangala for investment' or 'Find 2BHK under 80 lakhs in Whitefield'"
 
 ### For Follow-up Context:
 Use previous conversation context to understand references like "there", "this area", "it".
 If unclear, ask: "Are you referring to [previous location/topic]?"
+""",
+
+    Intent.REPORT: """## REPORT GENERATION TASK
+
+You are helping the user generate a detailed investment report for a location.
+
+### Your Response Should:
+1. Confirm the location for the report
+2. Explain what the report includes (9 sections)
+3. Mention the credit cost (200 credits for detailed report)
+4. Provide a brief preview of key insights
+
+### Report Sections (Detailed - 200 credits):
+1. Executive Summary
+2. Location Overview
+3. Market Analysis
+4. Infrastructure Assessment
+5. Investment Potential
+6. Risk Analysis
+7. Comparable Properties
+8. Future Outlook
+9. Recommendations
+
+### Example Response:
+"**Report Generation for Whitefield**
+
+I'll generate a comprehensive 9-section investment report covering:
+- Market trends and price analysis
+- Infrastructure and connectivity
+- Investment potential and ROI projections
+- Risk factors and mitigation
+
+**Cost:** 200 credits for the detailed report
+
+Would you like me to proceed with generating the report?"
+
+### For Export Requests:
+- PDF Export: 10 credits
+- Markdown Export: Free
+""",
+
+    Intent.DOWNLOAD: """## DOWNLOAD TASK
+
+You are helping the user download or export analysis results.
+
+### Available Export Formats:
+1. **PDF Report** (10 credits) - Formatted document with charts
+2. **Markdown** (Free) - Text-based analysis export
+3. **Detailed AI Report** (200 credits) - Full 9-section analysis
+
+### Your Response Should:
+1. Confirm what the user wants to download
+2. Explain the format options and costs
+3. Provide the appropriate download action
+
+### Example Response:
+"**Download Options:**
+
+1. **PDF Export** (10 credits) - Formatted document with your analysis
+2. **Markdown Export** (Free) - Plain text version
+
+Which format would you prefer?"
+""",
+
+    Intent.MAP_CONTROL: """## MAP CONTROL TASK
+
+You are helping the user control the 3D map view.
+
+### Available Actions:
+- **Zoom**: In, out, or to a specific level
+- **Pan**: Move the map in any direction
+- **Fly To**: Smooth navigation to a location
+- **Toggle Layers**: Terrain, 3D buildings, heatmaps, satellite
+
+### Your Response Should:
+1. Confirm the map action
+2. Provide context about what they'll see
+3. Include the ui_action for the frontend
+
+### Example Responses:
+"**Flying to Koramangala**
+
+Navigating to Koramangala 4th Block. You'll see:
+- Mid-rise residential area (avg 12-15 floors)
+- High POI density with restaurants and cafes
+- Good metro connectivity (Indiranagar station 1.2km)"
+
+"**3D Buildings Enabled**
+
+3D building layer is now active. Building heights are shown relative to their actual elevation. Click any building for detailed analysis."
+""",
+
+    Intent.UI_ACTION: """## UI ACTION TASK
+
+You are helping the user interact with the UI controls.
+
+### Available UI Actions:
+- **Open/Close Panels**: Smart report, sidebar, analysis panel
+- **Switch Tabs**: Between different views
+- **Toggle Fullscreen**: Expand map view
+- **Layer Controls**: Enable/disable map layers
+
+### Your Response Should:
+1. Confirm the UI action
+2. Explain what will happen
+3. Keep it brief and actionable
+
+### Example Response:
+"**Opening Smart Report Panel**
+
+The report panel will open on the right side. You can generate detailed investment reports for any location on the map."
+""",
+
+    Intent.CREDITS: """## CREDITS & PRICING TASK
+
+You are helping the user understand their credits balance and pricing.
+
+{CREDITS_PRICING}
+
+### Your Response Should:
+1. Show current balance (if available)
+2. Explain pricing for requested action
+3. Offer alternatives if insufficient credits
+
+### Example Response:
+"**Your Credits Balance: 150 credits**
+
+Here's what you can do:
+- Property Search (1 credit) - 150 searches
+- Area Analysis (3 credits) - 50 analyses
+- PDF Export (10 credits) - 15 exports
+- Detailed Report (200 credits) - Need 50 more credits
+
+Would you like to earn credits by providing feedback? You'll earn 5 credits per feedback!"
 """
 }
 
@@ -1049,15 +1197,39 @@ VALUATION_SCHEMA = {
 # =============================================================================
 
 def get_system_prompt(intent: Intent = Intent.GENERAL) -> str:
-    """Get complete system prompt for given intent."""
-    base = SYSTEM_CONSTITUTION
+    """Get complete system prompt for given intent with dynamic credits injection."""
+    # Import here to avoid circular imports
+    try:
+        from ai.dynamic_credits import get_pricing_table, inject_credits_into_prompt
+        pricing_table = get_pricing_table("markdown")
+    except ImportError:
+        pricing_table = """## CREDITS & PRICING
+- Detailed AI Report: 200 credits
+- PDF Export: 10 credits
+- Property Search: 1 credit
+- Area Analysis: 3 credits
+- Valuation: 5 credits
+- Simulation: 10 credits
+- Feedback reward: 5 credits earned"""
+    
+    base = SYSTEM_CONSTITUTION.replace("{CREDITS_PRICING}", pricing_table)
     intent_specific = INTENT_PROMPTS.get(intent, INTENT_PROMPTS[Intent.GENERAL])
+    intent_specific = intent_specific.replace("{CREDITS_PRICING}", pricing_table)
     return f"{base}\n\n{intent_specific}"
 
 
 def get_intent_prompt(intent: Intent) -> str:
-    """Get just the intent-specific prompt."""
-    return INTENT_PROMPTS.get(intent, INTENT_PROMPTS[Intent.GENERAL])
+    """Get just the intent-specific prompt with dynamic credits."""
+    try:
+        from ai.dynamic_credits import get_pricing_table
+        pricing_table = get_pricing_table("markdown")
+    except ImportError:
+        pricing_table = """## CREDITS & PRICING
+- Detailed AI Report: 200 credits
+- PDF Export: 10 credits"""
+    
+    prompt = INTENT_PROMPTS.get(intent, INTENT_PROMPTS[Intent.GENERAL])
+    return prompt.replace("{CREDITS_PRICING}", pricing_table)
 
 
 def format_facts_context(facts: dict) -> str:
