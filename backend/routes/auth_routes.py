@@ -33,6 +33,7 @@ class SignupRequest(BaseModel):
     name: str
     company: Optional[str] = None
     phone: Optional[str] = None
+    job_role: Optional[str] = None  # New field for understanding target users
     
     @validator('password')
     def password_strength(cls, v):
@@ -61,6 +62,7 @@ class UserResponse(BaseModel):
     role: str
     company: Optional[str]
     phone: Optional[str]
+    job_role: Optional[str]
     queries_today: int
     reports_this_month: int
     created_at: str
@@ -72,6 +74,7 @@ class UpdateUserRequest(BaseModel):
     name: Optional[str] = None
     company: Optional[str] = None
     phone: Optional[str] = None
+    job_role: Optional[str] = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -200,7 +203,8 @@ async def signup(request: SignupRequest):
         tier=SubscriptionTier.FREE,
         role=UserRole.USER,
         company=request.company,
-        phone=request.phone
+        phone=request.phone,
+        job_role=request.job_role
     )
     
     if not user:

@@ -82,7 +82,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signup = async (email, password, name, company = '', phone = '') => {
+  const signup = async (email, password, name, company = '', phone = '', job_role = '') => {
     setError(null);
     setLoading(true);
     
@@ -92,7 +92,7 @@ export function AuthProvider({ children }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password, name, company, phone }),
+        body: JSON.stringify({ email, password, name, company, phone, job_role }),
       });
       
       const data = await response.json();

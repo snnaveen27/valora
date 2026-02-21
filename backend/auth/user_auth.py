@@ -70,6 +70,7 @@ class User:
     role: UserRole
     company: Optional[str]
     phone: Optional[str]
+    job_role: Optional[str]
     queries_today: int
     reports_this_month: int
     created_at: str
@@ -86,6 +87,7 @@ class User:
             "role": self.role.value,
             "company": self.company,
             "phone": self.phone,
+            "job_role": self.job_role,
             "queries_today": self.queries_today,
             "reports_this_month": self.reports_this_month,
             "created_at": self.created_at,
@@ -176,6 +178,7 @@ class UserDatabase:
                 role TEXT DEFAULT 'user',
                 company TEXT,
                 phone TEXT,
+                job_role TEXT,
                 queries_today INTEGER DEFAULT 0,
                 reports_this_month INTEGER DEFAULT 0,
                 last_query_date TEXT,
@@ -293,7 +296,8 @@ class UserDatabase:
         tier: SubscriptionTier = SubscriptionTier.FREE,
         role: UserRole = UserRole.USER,
         company: str = None,
-        phone: str = None
+        phone: str = None,
+        job_role: str = None
     ) -> Optional[User]:
         """Create new user."""
         conn = self._get_conn()
@@ -309,8 +313,8 @@ class UserDatabase:
         now = datetime.now().isoformat()
         
         cursor.execute("""
-            INSERT INTO users (email, name, password_hash, password_salt, tier, role, company, phone, created_at, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (email, name, password_hash, password_salt, tier, role, company, phone, job_role, created_at, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             email.lower(),
             name,
@@ -320,6 +324,7 @@ class UserDatabase:
             role.value,
             company,
             phone,
+            job_role,
             now,
             1
         ))
@@ -365,6 +370,7 @@ class UserDatabase:
             role=UserRole(row["role"]),
             company=row["company"],
             phone=row["phone"],
+            job_role=row["job_role"],
             queries_today=row["queries_today"],
             reports_this_month=row["reports_this_month"],
             created_at=row["created_at"],
