@@ -50,6 +50,10 @@ tmp/
 *.sqlite
 *.sqlite3
 
+# Exception for user database (small, can be committed)
+# Re-enable users.db in storage/database/
+!storage/database/users.db
+
 # Pricing database (contains sensitive pricing config)
 backend/database/pricing.db
 
@@ -127,6 +131,9 @@ data/model/
 # Large files in storage (exclude from git)
 storage/
 storage.zip
+
+# Exception: users.db can be committed (small user auth database)
+!storage/database/users.db
 
 # Large files to exclude
 ubuntu@3.109.34.1.ssl

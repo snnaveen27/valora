@@ -103,6 +103,11 @@ class UnifiedCreditsManager:
     # Admin users (auto-upgraded to Pro)
     ADMIN_USERS = ['admin', 'admin@valora.ai', 'nvnsa', '1', 'Admin']
     
+    # Pro users with initial credits (email -> initial credits)
+    PRO_USER_CREDITS = {
+        'prouser@valora.ai': 2000,  # Pro user with 2000 credits
+    }
+    
     # Local model patterns
     LOCAL_MODELS = ['qwen', 'phi', 'llama', 'mistral', 'valora-2025v1']
     
@@ -224,9 +229,10 @@ class UnifiedCreditsManager:
         conn = self._get_conn()
         cursor = conn.cursor()
         
-        # Determine tier (admin = pro)
+        # Determine tier (admin = pro, pro users = pro)
         is_admin = self._is_admin(user_id)
-        tier = 'pro' if is_admin else 'free'
+        is_pro_user = user_id.lower() in [u.lower() for u in self.PRO_USER_CREDITS.keys()]
+        tier = 'pro' if (is_admin or is_pro_user) else 'free'
         tier_config = self.TIERS[tier]
         
         cursor.execute("SELECT * FROM user_credits WHERE user_id = ?", (user_id,))
@@ -246,6 +252,18 @@ class UnifiedCreditsManager:
                     SET tier = 'pro', monthly_credits = ?, updated_at = ?
                     WHERE user_id = ?
                 """, (tier_config['monthly_credits'], now, user_id))
+                conn.commit()
+                current_tier = 'pro'
+            
+            # Upgrade pro users to pro tier and grant initial credits if not already granted
+            if is_pro_user and current_tier != 'pro':
+                initial_top_up = self.PRO_USER_CREDITS.get(user_id.lower(), 0)
+                logger.info(f"[Credits] Upgrading pro user {user_id} to Pro with {initial_top_up} initial credits")
+                cursor.execute("""
+                    UPDATE user_credits 
+                    SET tier = 'pro', monthly_credits = ?, top_up_credits = ?, updated_at = ?
+                    WHERE user_id = ?
+                """, (tier_config['monthly_credits'], initial_top_up, now, user_id))
                 conn.commit()
                 current_tier = 'pro'
             
@@ -297,11 +315,18 @@ class UnifiedCreditsManager:
             }
         
         # Create new user
+        # Check if pro user gets initial credits
+        initial_top_up = 0
+        if is_pro_user:
+            initial_top_up = self.PRO_USER_CREDITS.get(user_id.lower(), 0)
+            if initial_top_up > 0:
+                logger.info(f"[Credits] Granting {initial_top_up} initial credits to pro user {user_id}")
+        
         cursor.execute("""
             INSERT INTO user_credits 
-            (user_id, tier, monthly_credits, monthly_reset_at, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (user_id, tier, tier_config['monthly_credits'], now, now, now))
+            (user_id, tier, monthly_credits, top_up_credits, monthly_reset_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, tier, tier_config['monthly_credits'], initial_top_up, now, now, now))
         conn.commit()
         conn.close()
         
@@ -311,10 +336,10 @@ class UnifiedCreditsManager:
             'is_admin': is_admin,
             'monthly_credits': tier_config['monthly_credits'],
             'rollover_credits': 0,
-            'top_up_credits': 0,
+            'top_up_credits': initial_top_up,
             'total_earned': 0,
             'used_credits': 0,
-            'total_available': tier_config['monthly_credits'],
+            'total_available': tier_config['monthly_credits'] + initial_top_up,
             'reset_at': now + 30 * 24 * 3600
         }
     

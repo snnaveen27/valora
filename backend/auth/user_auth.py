@@ -259,6 +259,24 @@ class UserDatabase:
             1
         ))
         print("[OK] Demo user seeded: demouser@valora.ai")
+        
+        # Seed pro user with 2000 credits
+        pro_hash, pro_salt = hash_password("prouser")
+        cursor.execute("""
+            INSERT INTO users (email, name, password_hash, password_salt, tier, role, company, created_at, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            "prouser@valora.ai",
+            "Pro User",
+            pro_hash,
+            pro_salt,
+            SubscriptionTier.PRO.value,
+            UserRole.USER.value,
+            "Valora Pro",
+            datetime.now().isoformat(),
+            1
+        ))
+        print("[OK] Pro user seeded: prouser@valora.ai (PRO plan, 2000 credits)")
     
     def create_user(
         self,
