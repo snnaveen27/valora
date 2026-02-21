@@ -219,8 +219,33 @@ class UserDatabase:
             self._seed_admin(cursor)
             conn.commit()
         
+        # Seed pro user if not exists (always check, even if admin exists)
+        cursor.execute("SELECT id FROM users WHERE email = ?", ("prouser@valora.ai",))
+        if not cursor.fetchone():
+            self._seed_pro_user(cursor)
+            conn.commit()
+        
         conn.close()
     
+    def _seed_pro_user(self, cursor):
+        """Seed pro user with PRO plan and 2000 credits."""
+        pro_hash, pro_salt = hash_password("prouser")
+        cursor.execute("""
+            INSERT INTO users (email, name, password_hash, password_salt, tier, role, company, created_at, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            "prouser@valora.ai",
+            "Pro User",
+            pro_hash,
+            pro_salt,
+            SubscriptionTier.PRO.value,
+            UserRole.USER.value,
+            "Valora Pro",
+            datetime.now().isoformat(),
+            1
+        ))
+        print("[OK] Pro user seeded: prouser@valora.ai (PRO plan, 2000 credits)")
+
     def _seed_admin(self, cursor):
         """Seed admin user with PRO plan and 20k credits."""
         password_hash, salt = hash_password("admin@valora.ai")
@@ -259,24 +284,6 @@ class UserDatabase:
             1
         ))
         print("[OK] Demo user seeded: demouser@valora.ai")
-        
-        # Seed pro user with 2000 credits
-        pro_hash, pro_salt = hash_password("prouser")
-        cursor.execute("""
-            INSERT INTO users (email, name, password_hash, password_salt, tier, role, company, created_at, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            "prouser@valora.ai",
-            "Pro User",
-            pro_hash,
-            pro_salt,
-            SubscriptionTier.PRO.value,
-            UserRole.USER.value,
-            "Valora Pro",
-            datetime.now().isoformat(),
-            1
-        ))
-        print("[OK] Pro user seeded: prouser@valora.ai (PRO plan, 2000 credits)")
     
     def create_user(
         self,
