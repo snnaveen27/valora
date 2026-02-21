@@ -15,7 +15,13 @@ from enum import Enum
 from pathlib import Path
 
 # Configuration
-JWT_SECRET = os.environ.get("JWT_SECRET", "valora-jwt-secret-change-in-production-2026")
+# JWT Secret: Must be set via environment variable in production
+# Generate a secure secret: python -c "import secrets; print(secrets.token_urlsafe(64))"
+_DEFAULT_SECRET = secrets.token_urlsafe(64)  # Random secret for development only
+JWT_SECRET = os.environ.get("JWT_SECRET", _DEFAULT_SECRET)
+if JWT_SECRET == "valora-jwt-secret-change-in-production-2026":
+    # Reject known insecure secret
+    JWT_SECRET = _DEFAULT_SECRET
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24 * 7  # 7 days
 from config import config

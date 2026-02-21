@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Depends, Header, Request
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional, List
 from datetime import datetime
+import time
+from collections import defaultdict
 
 from auth.user_auth import (
     get_user_database, 
@@ -19,6 +21,25 @@ from auth.user_auth import (
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+# Simple in-memory rate limiting for signup
+_signup_rate_limit = defaultdict(list)  # IP -> [timestamps]
+SIGNUP_RATE_LIMIT = 5  # Max signups per IP per hour
+SIGNUP_RATE_WINDOW = 3600  # 1 hour
+
+def _check_signup_rate_limit(client_ip: str) -> bool:
+    """Check if IP is within signup rate limit."""
+    now = time.time()
+    # Clean old entries
+    _signup_rate_limit[client_ip] = [
+        t for t in _signup_rate_limit[client_ip] 
+        if now - t < SIGNUP_RATE_WINDOW
+    ]
+    return len(_signup_rate_limit[client_ip]) < SIGNUP_RATE_LIMIT
+
+def _record_signup_attempt(client_ip: str):
+    """Record a signup attempt."""
+    _signup_rate_limit[client_ip].append(time.time())
 
 
 # Request/Response Models
@@ -37,8 +58,18 @@ class SignupRequest(BaseModel):
     
     @validator('password')
     def password_strength(cls, v):
-        if len(v) < 6:
-            raise ValueError('Password must be at least 6 characters')
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not any(c.isupper() for c in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not any(c.islower() for c in v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Password must contain at least one number')
+        # Check for common weak passwords
+        weak_passwords = ['password', 'Password1', 'Password123', '12345678', 'Qwerty123']
+        if v.lower() in [p.lower() for p in weak_passwords]:
+            raise ValueError('Password is too common. Please choose a stronger password')
         return v
     
     @validator('email')
@@ -186,8 +217,16 @@ async def login(request: LoginRequest):
 
 
 @router.post("/signup", response_model=TokenResponse)
-async def signup(request: SignupRequest):
+async def signup(request: SignupRequest, http_request: Request):
     """Create new user account."""
+    # Rate limiting check
+    client_ip = http_request.headers.get("X-Forwarded-For", http_request.client.host if http_request.client else "unknown")
+    if "," in client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+    
+    if not _check_signup_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Too many signup attempts. Please try again later.")
+    
     db = get_user_database()
     
     # Check if email already exists
@@ -209,6 +248,9 @@ async def signup(request: SignupRequest):
     
     if not user:
         raise HTTPException(status_code=500, detail="Failed to create user")
+    
+    # Record successful signup for rate limiting
+    _record_signup_attempt(client_ip)
     
     token = create_token(user.id, user.email, user.tier.value, user.role.value)
     

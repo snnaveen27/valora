@@ -82,8 +82,21 @@ export default function SignupPage({ onSwitchToLogin }) {
       return;
     }
     
-    if (formData.password.length < 6) {
-      setLocalError('Password must be at least 6 characters');
+    // Enhanced password validation
+    if (formData.password.length < 8) {
+      setLocalError('Password must be at least 8 characters');
+      return;
+    }
+    if (!/[A-Z]/.test(formData.password)) {
+      setLocalError('Password must contain at least one uppercase letter');
+      return;
+    }
+    if (!/[a-z]/.test(formData.password)) {
+      setLocalError('Password must contain at least one lowercase letter');
+      return;
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      setLocalError('Password must contain at least one number');
       return;
     }
     
@@ -203,9 +216,10 @@ export default function SignupPage({ onSwitchToLogin }) {
                         value={formData.password}
                         onChange={handleChange}
                         className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        placeholder="Min 6 characters"
+                        placeholder="8+ chars, Uppercase, Lowercase, Number"
                       />
                     </div>
+                    <p className="text-xs text-slate-500 mt-1">Min 8 chars with uppercase, lowercase & number</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-2">
