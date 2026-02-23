@@ -101,6 +101,9 @@ backend/training_data/*.jsonl
 backend/session_memory/*.json
 !backend/session_memory/.gitkeep
 
+# Spatial session memory (user-specific, server-only)
+backend/spatial/session_memory/
+
 # Cache files
 backend/cache/
 backend/*.cache
