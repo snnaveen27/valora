@@ -5,94 +5,95 @@
 
 import React, { useState, useEffect } from 'react';
 import SmartTabsContainer from './SmartTabsContainer';
+import { useLanguage } from '../contexts/LanguageContext';
 import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
   Compass, Database, Presentation, Eye
 } from 'lucide-react';
 
-// Tab metadata with icons
-const TAB_METADATA = {
+// Tab metadata with icons - will be populated with translations
+const getTabMetadata = (t) => ({
   'free_analysis': {
-    title: 'Free Analysis',
+    title: t('freeAnalysisTab'),
     icon: '🔍',
     lucideIcon: Eye,
-    description: 'Basic area overview (Free)',
-    shortLabel: 'Free',
+    description: t('basicAreaOverview'),
+    shortLabel: t('free'),
     color: 'from-emerald-500 to-green-600'
   },
   'decision_verdict': {
-    title: 'Decision Verdict',
+    title: t('decisionVerdict'),
     icon: '⚖️',
     lucideIcon: TrendingUp,
-    description: 'BUY / HOLD / AVOID recommendation',
-    shortLabel: 'Verdict',
+    description: t('buyHoldAvoid'),
+    shortLabel: t('verdict'),
     color: 'from-green-500 to-emerald-600'
   },
   'market_snapshot': {
-    title: 'Market Snapshot',
+    title: t('marketSnapshot'),
     icon: '📈',
     lucideIcon: TrendingUp,
-    description: 'Price trends and market dynamics',
-    shortLabel: 'Market',
+    description: t('priceTrendsMarket'),
+    shortLabel: t('market'),
     color: 'from-blue-500 to-cyan-500'
   },
   'spatial_intelligence': {
-    title: 'Spatial Intelligence',
+    title: t('spatialIntelligence'),
     icon: '🗺️',
     lucideIcon: MapPin,
-    description: 'Infrastructure, connectivity, POIs',
-    shortLabel: 'Spatial',
+    description: t('infrastructureConnectivity'),
+    shortLabel: t('spatial'),
     color: 'from-purple-500 to-pink-500'
   },
   'risk_analysis': {
-    title: 'Risk Analysis',
+    title: t('riskAnalysisTab'),
     icon: '⚠️',
     lucideIcon: AlertTriangle,
-    description: 'Flood, legal, and market risks',
-    shortLabel: 'Risk',
+    description: t('floodLegalMarketRisks'),
+    shortLabel: t('risk'),
     color: 'from-orange-500 to-red-500'
   },
   'roi_projection': {
-    title: 'ROI Projection',
+    title: t('roiProjection'),
     icon: '%',
     lucideIcon: Percent,
-    description: '3-year return scenarios',
-    shortLabel: 'ROI',
+    description: t('threeYearReturn'),
+    shortLabel: t('roi'),
     color: 'from-green-500 to-teal-500'
   },
   'comparables': {
-    title: 'Comparables',
+    title: t('comparablesTab'),
     icon: '🏢',
     lucideIcon: Building,
-    description: 'Similar properties analysis',
-    shortLabel: 'Comps',
+    description: t('similarProperties'),
+    shortLabel: t('comps'),
     color: 'from-indigo-500 to-purple-500'
   },
   'strategy': {
-    title: 'Strategy',
+    title: t('strategyTab'),
     icon: '🧭',
     lucideIcon: Compass,
-    description: 'Entry/exit recommendations',
-    shortLabel: 'Strategy',
+    description: t('entryExitRecommendations'),
+    shortLabel: t('strategy'),
     color: 'from-cyan-500 to-blue-500'
   },
   'data_transparency': {
-    title: 'Data Transparency',
+    title: t('dataTransparency'),
     icon: '🗄️',
     lucideIcon: Database,
-    description: 'Source verification',
-    shortLabel: 'Data',
+    description: t('sourceVerification'),
+    shortLabel: t('data'),
     color: 'from-slate-500 to-slate-600'
   },
   'client_pitch': {
-    title: 'Client Pitch',
+    title: t('clientPitch'),
     icon: '📊',
     lucideIcon: Presentation,
-    description: 'Broker presentation',
-    shortLabel: 'Pitch',
+    description: t('brokerPresentation'),
+    shortLabel: t('pitch'),
     color: 'from-amber-500 to-orange-500'
   }
-};
+});
 
 const TAB_ORDER = [
   'free_analysis',
@@ -120,7 +121,11 @@ export default function SmartPanel({
   onTabChange,
   setAgentData
 }) {
+  const { t } = useLanguage();
   const [internalActiveTab, setInternalActiveTab] = useState('free_analysis');
+  
+  // Get translated tab metadata
+  const TAB_METADATA = getTabMetadata(t);
   
   // Use external activeTab if provided, otherwise use internal state
   const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
@@ -183,8 +188,8 @@ export default function SmartPanel({
                 <div className="flex items-center gap-3">
                   <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
                   <div>
-                    <p className="text-white font-medium text-sm">Analyzing Building...</p>
-                    <p className="text-slate-400 text-xs">Running 3D spatial + valuation analysis</p>
+                    <p className="text-white font-medium text-sm">{t('analyzingBuilding')}</p>
+                    <p className="text-slate-400 text-xs">{t('runningSpatialValuation')}</p>
                   </div>
                 </div>
               </div>

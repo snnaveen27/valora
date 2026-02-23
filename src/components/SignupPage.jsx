@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // Job role options for targeting users
 const JOB_ROLES = [
@@ -56,6 +57,7 @@ const FEATURES = [
 ];
 
 export default function SignupPage({ onSwitchToLogin }) {
+  const { t } = useLanguage()
   const { signup, loading, error } = useAuth();
   const [formData, setFormData] = useState({
     name: '',

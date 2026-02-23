@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function LoginPage({ onSwitchToSignup }) {
+  const { t } = useLanguage()
   const { login, loading, error } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,7 +46,7 @@ export default function LoginPage({ onSwitchToSignup }) {
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Email Address
+                {t('email')}
               </label>
               <input
                 type="email"
@@ -59,7 +61,7 @@ export default function LoginPage({ onSwitchToSignup }) {
             {/* Password */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Password
+                {t('password')}
               </label>
               <input
                 type="password"
@@ -90,10 +92,10 @@ export default function LoginPage({ onSwitchToSignup }) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Signing in...
+                  {t('signingIn')}
                 </span>
               ) : (
-                'Sign In'
+                <>{t('signIn')}</>
               )}
             </button>
           </form>
@@ -104,7 +106,7 @@ export default function LoginPage({ onSwitchToSignup }) {
               <div className="w-full border-t border-slate-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-slate-800/50 text-slate-500">New to Valora?</span>
+              <span className="px-4 bg-slate-800/50 text-slate-500">{t('newToValora')}</span>
             </div>
           </div>
 
@@ -113,7 +115,7 @@ export default function LoginPage({ onSwitchToSignup }) {
             onClick={onSwitchToSignup}
             className="w-full py-3 px-4 border border-slate-600 text-slate-300 font-medium rounded-xl hover:bg-slate-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all"
           >
-            Create an Account
+            {t('createAccount')}
           </button>
         </div>
 

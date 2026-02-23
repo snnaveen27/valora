@@ -287,6 +287,7 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
     context: Optional[Dict[str, Any]] = None
     bbox: Optional[List[float]] = None
+    language: Optional[str] = 'en'  # Language preference for response
 
 
 # ---------------------------------------------------------------------------
@@ -1533,6 +1534,10 @@ async def chat(request: ChatRequest):
     context = request.context or {}
     thread_id = context.get("thread_id")
     user_id = context.get("user_id", "anonymous")
+    
+    # Add language preference to context
+    if request.language:
+        context['response_language'] = request.language
 
     # Greeting fast-path (no LLM, no credits needed)
     greeting_resp = _try_greeting_fast_path(user_query)
@@ -1699,6 +1704,10 @@ async def chat_stream(request: ChatRequest, http_request: Request):
     user_query = request.messages[-1].content if request.messages else ""
     context = request.context or {}
     user_id = context.get("user_id", "anonymous")
+    
+    # Add language preference to context
+    if request.language:
+        context['response_language'] = request.language
     
     # Production: Create cancellation token for this request
     cancel_token = CancellationToken() if PRODUCTION_PIPELINE_AVAILABLE else None

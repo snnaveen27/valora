@@ -2,19 +2,20 @@
  * ChatInputBar - Valora AI
  * Default: qwen3:4b-instruct local. Cloud toggle enables intelligent model routing.
  * The model router auto-selects the best model based on query complexity.
- * Includes language selector for multilingual support.
+ * Includes language selector for multilingual support with UI translations.
  */
 
 import { useRef, useEffect, useState } from 'react'
 import { Send, Image, HardDrive, StopCircle, X, Zap, ChevronDown, Languages } from 'lucide-react'
 import { API_URL } from '../../apiConfig'
+import { t, LANGUAGES } from '../../i18n/translations'
 
-const LANGUAGE_OPTIONS = [
-  { id: 'en', label: 'English', native: 'English', flag: '🇬🇧' },
-  { id: 'hi', label: 'Hindi', native: 'हिंदी', flag: '🇮🇳' },
-  { id: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ', flag: '🇮🇳' },
-  { id: 'ta', label: 'Tamil', native: 'தமிழ்', flag: '🇮🇳' }
-]
+const LANGUAGE_OPTIONS = Object.entries(LANGUAGES).map(([code, info]) => ({
+  id: code,
+  label: info.name,
+  native: info.native,
+  flag: info.flag
+}))
 
 export default function ChatInputBar({
   value,
@@ -138,6 +139,9 @@ export default function ChatInputBar({
   const currentModel = llmConfig.local_model || 'valora-2025v1'
   const currentModelDisplay = availableModels.find(m => m.id === currentModel)?.name || currentModel
   const currentLanguage = LANGUAGE_OPTIONS.find(l => l.id === selectedLanguage) || LANGUAGE_OPTIONS[0]
+  
+  // Get translated placeholder based on selected language
+  const translatedPlaceholder = t('placeholder', selectedLanguage)
 
   const hasImages = attachedImages && attachedImages.length > 0
   const imageCount = attachedImages?.length || 0
@@ -309,18 +313,18 @@ export default function ChatInputBar({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
-          placeholder={placeholder}
+          placeholder={translatedPlaceholder}
           disabled={isLoading}
           rows={1}
           className="flex-1 bg-dark-800/50 border border-primary-700/50 rounded-lg px-3 py-2 text-sm text-white placeholder-primary-400/50 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30 disabled:opacity-50 min-w-0 resize-none overflow-y-auto max-h-[200px]"
         />
 
         {isLoading ? (
-          <button type="button" onClick={onStop} className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all shadow-lg shadow-red-900/30 shrink-0" title="Stop generating">
+          <button type="button" onClick={onStop} className="p-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all shadow-lg shadow-red-900/30 shrink-0" title={t('stop', selectedLanguage)}>
             <StopCircle className="w-4 h-4" />
           </button>
         ) : (
-          <button type="submit" disabled={!value.trim()} className="p-2 bg-gradient-to-br from-primary-600 to-accent-purple hover:from-primary-500 hover:to-accent-purple/90 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary-900/30 shrink-0">
+          <button type="submit" disabled={!value.trim()} className="p-2 bg-gradient-to-br from-primary-600 to-accent-purple hover:from-primary-500 hover:to-accent-purple/90 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary-900/30 shrink-0" title={t('send', selectedLanguage)}>
             <Send className="w-4 h-4" />
           </button>
         )}

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Coins, TrendingUp, Info, AlertCircle, Download } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const UsageDashboard = ({ user }) => {
+  const { t } = useLanguage()
   const [usageData, setUsageData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -73,8 +75,8 @@ const UsageDashboard = ({ user }) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Usage & Balance</h2>
-          <p className="text-sm text-gray-600 mt-1">Track your compute usage and balance</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t('usageBalance')}</h2>
+          <p className="text-sm text-gray-600 mt-1">{t('trackComputeUsage')}</p>
         </div>
         
         {/* Period Selector */}
@@ -83,9 +85,9 @@ const UsageDashboard = ({ user }) => {
           onChange={(e) => setPeriod(Number(e.target.value))}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value={7}>Last 7 days</option>
-          <option value={30}>Last 30 days</option>
-          <option value={90}>Last 90 days</option>
+          <option value={7}>{t('last7Days')}</option>
+          <option value={30}>{t('last30Days')}</option>
+          <option value={90}>{t('last90Days')}</option>
         </select>
       </div>
 
@@ -95,16 +97,16 @@ const UsageDashboard = ({ user }) => {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Coins className="h-5 w-5" />
-              <span className="text-sm font-medium opacity-90">Available Balance</span>
+              <span className="text-sm font-medium opacity-90">{t('availableBalance')}</span>
             </div>
             <div className="text-4xl font-bold">{formatNumber(balance)}</div>
-            <div className="text-sm opacity-75 mt-1">compute units</div>
+            <div className="text-sm opacity-75 mt-1">{t('computeUnits')}</div>
           </div>
           
           <div className="text-right">
-            <div className="text-sm opacity-75 mb-1">Lifetime Usage</div>
+            <div className="text-sm opacity-75 mb-1">{t('lifetimeUsage')}</div>
             <div className="text-2xl font-semibold">{formatNumber(usage.lifetime_usage || 0)}</div>
-            <div className="text-xs opacity-75 mt-1">units used</div>
+            <div className="text-xs opacity-75 mt-1">{t('unitsUsed')}</div>
           </div>
         </div>
         
@@ -112,7 +114,7 @@ const UsageDashboard = ({ user }) => {
         {balance < 100 && (
           <div className="mt-4 bg-white/20 rounded-lg p-3 flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
-            <span className="text-sm">Low balance! Consider topping up to continue using premium features.</span>
+            <span className="text-sm">{t('lowBalanceWarning')}</span>
           </div>
         )}
       </div>
@@ -122,7 +124,7 @@ const UsageDashboard = ({ user }) => {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-600 mb-2">
             <BarChart3 className="h-4 w-4" />
-            <span className="text-sm font-medium">Actions</span>
+            <span className="text-sm font-medium">{t('actions')}</span>
           </div>
           <div className="text-2xl font-bold text-gray-900">{formatNumber(usage.event_count || 0)}</div>
           <div className="text-xs text-gray-500 mt-1">in last {period} days</div>
@@ -131,7 +133,7 @@ const UsageDashboard = ({ user }) => {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-600 mb-2">
             <TrendingUp className="h-4 w-4" />
-            <span className="text-sm font-medium">Units Used</span>
+            <span className="text-sm font-medium">{t('unitsUsed')}</span>
           </div>
           <div className="text-2xl font-bold text-gray-900">{formatNumber(usage.total_units_used || 0)}</div>
           <div className="text-xs text-gray-500 mt-1">in last {period} days</div>
@@ -140,17 +142,17 @@ const UsageDashboard = ({ user }) => {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-2 text-gray-600 mb-2">
             <Coins className="h-4 w-4" />
-            <span className="text-sm font-medium">Units Earned</span>
+            <span className="text-sm font-medium">{t('unitsEarned')}</span>
           </div>
           <div className="text-2xl font-bold text-green-600">{formatNumber(usageData?.balance?.units_earned || 0)}</div>
-          <div className="text-xs text-gray-500 mt-1">from contributions</div>
+          <div className="text-xs text-gray-500 mt-1">{t('fromContributions')}</div>
         </div>
       </div>
 
       {/* Top Actions */}
       {topActions.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Actions</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('topActions')}</h3>
           <div className="space-y-3">
             {topActions.map((action, idx) => {
               const percentage = usage.total_units_used > 0 
@@ -165,7 +167,7 @@ const UsageDashboard = ({ user }) => {
                     </span>
                     <div className="flex items-center gap-3 text-gray-600">
                       <span>{action.count}×</span>
-                      <span className="font-semibold">{formatNumber(action.units)} units</span>
+                      <span className="font-semibold">{formatNumber(action.units)} {t('units')}</span>
                     </div>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
@@ -186,12 +188,12 @@ const UsageDashboard = ({ user }) => {
         <div className="flex gap-3">
           <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">How Usage Works</p>
+            <p className="font-medium mb-1">{t('howUsageWorks')}</p>
             <ul className="space-y-1 text-blue-700">
-              <li>• Each action (query, analysis, simulation) costs compute units</li>
-              <li>• Your contributions help improve our AI and earn you bonus units</li>
-              <li>• Top up anytime to continue using premium features</li>
-              <li>• All data collection is anonymized and privacy-compliant</li>
+              <li>• {t('eachActionCosts')}</li>
+              <li>• {t('contributionsEarnBonus')}</li>
+              <li>• {t('topUpAnytime')}</li>
+              <li>• {t('dataAnonymizedPrivacy')}</li>
             </ul>
           </div>
         </div>
@@ -203,13 +205,13 @@ const UsageDashboard = ({ user }) => {
           onClick={() => window.location.href = '/payments'}
           className="flex-1 bg-blue-600 text-white rounded-lg px-4 py-3 font-medium hover:bg-blue-700 transition-colors"
         >
-          Top Up Balance
+          {t('topUpBalance')}
         </button>
         <button 
           onClick={fetchUsageData}
           className="px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
         >
-          Refresh
+          {t('refresh')}
         </button>
       </div>
     </div>

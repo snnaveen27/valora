@@ -1196,8 +1196,13 @@ VALUATION_SCHEMA = {
 # HELPER FUNCTIONS
 # =============================================================================
 
-def get_system_prompt(intent: Intent = Intent.GENERAL) -> str:
-    """Get complete system prompt for given intent with dynamic credits injection."""
+def get_system_prompt(intent: Intent = Intent.GENERAL, response_language: str = 'en') -> str:
+    """Get complete system prompt for given intent with dynamic credits injection.
+    
+    Args:
+        intent: The detected intent for the query
+        response_language: Language code for response (en, hi, kn, ta, te, ml, etc.)
+    """
     # Import here to avoid circular imports
     try:
         from ai.dynamic_credits import get_pricing_table, inject_credits_into_prompt
@@ -1212,10 +1217,25 @@ def get_system_prompt(intent: Intent = Intent.GENERAL) -> str:
 - Simulation: 10 credits
 - Feedback reward: 5 credits earned"""
     
+    # Language instruction based on preference
+    language_map = {
+        'en': 'English',
+        'hi': 'Hindi (हिंदी)',
+        'kn': 'Kannada (ಕನ್ನಡ)',
+        'ta': 'Tamil (தமிழ்)',
+        'te': 'Telugu (తెలుగు)',
+        'ml': 'Malayalam (മലയാളം)',
+    }
+    language_name = language_map.get(response_language, 'English')
+    
     base = SYSTEM_CONSTITUTION.replace("{CREDITS_PRICING}", pricing_table)
     intent_specific = INTENT_PROMPTS.get(intent, INTENT_PROMPTS[Intent.GENERAL])
     intent_specific = intent_specific.replace("{CREDITS_PRICING}", pricing_table)
-    return f"{base}\n\n{intent_specific}"
+    
+    # Add language instruction
+    language_instruction = f"\n\n## RESPONSE LANGUAGE\nYou MUST respond in **{language_name}** regardless of the language used in the user's query. All your responses, explanations, and descriptions should be in {language_name}."
+    
+    return f"{base}{language_instruction}\n\n{intent_specific}"
 
 
 def get_intent_prompt(intent: Intent) -> str:

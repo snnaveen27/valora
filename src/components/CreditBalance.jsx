@@ -6,8 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import { Coins, Zap, Crown, Plus, RefreshCw, Calendar } from 'lucide-react';
 import { API_URL } from '../apiConfig';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
+  const { t } = useLanguage()
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showTopUp, setShowTopUp] = useState(false);
@@ -80,7 +82,7 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
     return (
       <div className="credit-balance flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg">
         <RefreshCw className="w-4 h-4 text-slate-400 animate-spin" />
-        <span className="text-xs text-slate-400">Loading...</span>
+        <span className="text-xs text-slate-400">{t('loading')}</span>
       </div>
     );
   }
@@ -107,7 +109,7 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
         {tierIcons[tier]}
         <span className="text-xs font-medium capitalize">{tier}</span>
         {daysRemaining !== null && (
-          <span className="text-[10px] opacity-80 ml-1">({daysRemaining}d left)</span>
+          <span className="text-[10px] opacity-80 ml-1">({t('daysLeft', { days: daysRemaining })})</span>
         )}
       </div>
 
@@ -115,7 +117,7 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/50 rounded-lg border border-slate-700">
         <Coins className="w-4 h-4 text-amber-400" />
         <span className="text-sm font-medium text-white">{credits.toLocaleString()}</span>
-        <span className="text-xs text-slate-400">credits</span>
+        <span className="text-xs text-slate-400">{t('credits')}</span>
       </div>
 
       {/* Top-up Button */}
@@ -125,7 +127,7 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
           className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span className="text-xs font-medium">Top Up</span>
+          <span className="text-xs font-medium">{t('topUp')}</span>
         </button>
 
         {/* Top-up Dropdown - Admin Panel Style */}
@@ -137,8 +139,8 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
             {/* Dropdown Panel */}
             <div className="absolute right-0 top-full mt-2 w-72 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[100] overflow-hidden">
               <div className="p-3 border-b border-slate-700 bg-slate-800/80">
-                <h3 className="text-sm font-semibold text-white">Top Up Credits</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Choose a package to add credits</p>
+                <h3 className="text-sm font-semibold text-white">{t('topUpCredits')}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{t('choosePackage')}</p>
               </div>
               
               <div className="p-2 space-y-1">
@@ -148,8 +150,8 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
                   className="w-full flex items-center justify-between p-3 bg-slate-700/30 hover:bg-slate-700/60 rounded-lg transition"
                 >
                   <div className="text-left">
-                    <div className="text-white font-medium text-sm">Starter</div>
-                    <div className="text-xs text-slate-400">100 credits</div>
+                    <div className="text-white font-medium text-sm">{t('starter')}</div>
+                    <div className="text-xs text-slate-400">{t('credits100', { credits: 100 })}</div>
                   </div>
                   <div className="text-green-400 font-bold text-sm">₹59</div>
                 </button>
@@ -163,8 +165,8 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
                     POPULAR
                   </div>
                   <div className="text-left">
-                    <div className="text-white font-medium text-sm">Standard</div>
-                    <div className="text-xs text-slate-400">300 credits</div>
+                    <div className="text-white font-medium text-sm">{t('standard')}</div>
+                    <div className="text-xs text-slate-400">{t('credits300', { credits: 300 })}</div>
                   </div>
                   <div className="text-green-400 font-bold text-sm">₹139</div>
                 </button>
@@ -175,8 +177,8 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
                   className="w-full flex items-center justify-between p-3 bg-slate-700/30 hover:bg-slate-700/60 rounded-lg transition"
                 >
                   <div className="text-left">
-                    <div className="text-white font-medium text-sm">Power</div>
-                    <div className="text-xs text-slate-400">1000 credits</div>
+                    <div className="text-white font-medium text-sm">{t('power')}</div>
+                    <div className="text-xs text-slate-400">{t('credits1000', { credits: 1000 })}</div>
                   </div>
                   <div className="text-green-400 font-bold text-sm">₹399</div>
                 </button>
@@ -195,9 +197,9 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
                     <div className="text-left">
                       <div className="text-white font-medium text-sm flex items-center gap-2">
                         <Crown className="w-3.5 h-3.5 text-amber-400" />
-                        Pro Subscription
+                        {t('proSubscription')}
                       </div>
-                      <div className="text-xs text-slate-400">1000 credits/mo + rollover</div>
+                      <div className="text-xs text-slate-400">{t('proSubscriptionCredits')}</div>
                     </div>
                     <div className="text-purple-400 font-bold text-sm">₹599/mo</div>
                   </button>
@@ -209,7 +211,7 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
                   onClick={() => setShowTopUp(false)}
                   className="w-full text-center text-xs text-slate-400 hover:text-white transition py-1"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
               </div>
             </div>

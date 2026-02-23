@@ -14,6 +14,7 @@ import {
   Star, Eye, EyeOff, Sparkles, Loader2
 } from 'lucide-react';
 import { API_URL } from '../apiConfig';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const TAB_ICONS = {
   'gavel': '⚖️',
@@ -77,6 +78,7 @@ function VerdictBadge({ verdict, size = 'large' }) {
 }
 
 function ConfidenceMeter({ score, showBreakdown = false, isLimited = false }) {
+  const { t } = useLanguage();
   const [animatedScore, setAnimatedScore] = useState(0);
   
   useEffect(() => {
@@ -101,7 +103,7 @@ function ConfidenceMeter({ score, showBreakdown = false, isLimited = false }) {
       <div className="flex items-center justify-between mb-2">
         <span className="text-slate-400 text-sm flex items-center gap-1">
           <Shield className="w-4 h-4" />
-          Confidence Score
+          {t('confidenceScore')}
         </span>
         <span className={`text-lg font-bold ${getScoreColor(animatedScore)}`}>
           {animatedScore}%
@@ -122,16 +124,16 @@ function ConfidenceMeter({ score, showBreakdown = false, isLimited = false }) {
       </div>
       
       <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-        <span>Low</span>
-        <span>Medium</span>
-        <span>High</span>
-        <span>Very High</span>
+        <span>{t('low')}</span>
+        <span>{t('medium')}</span>
+        <span>{t('high')}</span>
+        <span>{t('veryHigh')}</span>
       </div>
 
       {isLimited && (
         <div className="mt-2 text-[10px] text-blue-400 flex items-center gap-1">
           <Lock className="w-3 h-3" />
-          Full confidence breakdown available with Pro
+          {t('fullConfidencePro')}
         </div>
       )}
     </div>
@@ -139,6 +141,7 @@ function ConfidenceMeter({ score, showBreakdown = false, isLimited = false }) {
 }
 
 function RiskIndicator({ level, score }) {
+  const { t } = useLanguage();
   const config = {
     'LOW': { color: 'text-green-400', bg: 'bg-green-500/20', icon: Shield },
     'MEDIUM': { color: 'text-yellow-400', bg: 'bg-yellow-500/20', icon: AlertTriangle },
@@ -152,12 +155,12 @@ function RiskIndicator({ level, score }) {
     <div className={`flex items-center gap-2 ${c.bg} rounded-lg px-3 py-2`}>
       <Icon className={`w-4 h-4 ${c.color}`} />
       <div>
-        <div className="text-[10px] text-slate-400">Risk Level</div>
+        <div className="text-[10px] text-slate-400">{t('riskLevel')}</div>
         <div className={`text-sm font-bold ${c.color}`}>{level}</div>
       </div>
       {score && (
         <div className="ml-auto text-right">
-          <div className="text-[10px] text-slate-400">Score</div>
+          <div className="text-[10px] text-slate-400">{t('score')}</div>
           <div className="text-sm text-white font-medium">{score}/100</div>
         </div>
       )}
@@ -166,10 +169,11 @@ function RiskIndicator({ level, score }) {
 }
 
 function TimeHorizon({ horizon, reasoning }) {
+  const { t } = useLanguage();
   const config = {
-    'Short-term': { icon: Zap, color: 'text-orange-400', desc: '1-2 years' },
-    'Medium-term': { icon: Clock, color: 'text-blue-400', desc: '3-5 years' },
-    'Long-term': { icon: Target, color: 'text-purple-400', desc: '5+ years' }
+    'Short-term': { icon: Zap, color: 'text-orange-400', desc: t('shortTermDesc') },
+    'Medium-term': { icon: Clock, color: 'text-blue-400', desc: t('mediumTermDesc') },
+    'Long-term': { icon: Target, color: 'text-purple-400', desc: t('longTermDesc') }
   };
 
   const c = config[horizon] || config['Medium-term'];
@@ -179,7 +183,7 @@ function TimeHorizon({ horizon, reasoning }) {
     <div className="bg-slate-800/50 rounded-lg p-3">
       <div className="flex items-center gap-2 mb-2">
         <Icon className={`w-4 h-4 ${c.color}`} />
-        <span className="text-sm text-slate-300">Time Horizon</span>
+        <span className="text-sm text-slate-300">{t('timeHorizon')}</span>
       </div>
       <div className={`text-lg font-bold ${c.color}`}>{horizon}</div>
       <div className="text-xs text-slate-400">{c.desc}</div>
@@ -219,6 +223,7 @@ function ReasonItem({ reason, type = 'positive', impact, index }) {
 }
 
 function StrategyCard({ entryPrice, holdDuration, exitTarget, isLocked = false, onUpgrade }) {
+  const { t } = useLanguage();
   if (isLocked) {
     return (
       <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-4 relative overflow-hidden">
@@ -233,9 +238,9 @@ function StrategyCard({ entryPrice, holdDuration, exitTarget, isLocked = false, 
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60">
           <div className="text-center">
             <Lock className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-            <p className="text-sm text-slate-300">Strategy recommendations</p>
+            <p className="text-sm text-slate-300">{t('strategyRecommendations')}</p>
             <button onClick={onUpgrade} className="mt-2 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 mx-auto">
-              Unlock with Pro <ChevronRight className="w-3 h-3" />
+              {t('unlockWithPro')} <ChevronRight className="w-3 h-3" />
             </button>
           </div>
         </div>
@@ -247,21 +252,21 @@ function StrategyCard({ entryPrice, holdDuration, exitTarget, isLocked = false, 
     <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-4">
       <div className="flex items-center gap-2 mb-3">
         <Target className="w-4 h-4 text-blue-400" />
-        <span className="text-sm font-medium text-blue-400">Strategy Recommendation</span>
+        <span className="text-sm font-medium text-blue-400">{t('strategyRecommendation')}</span>
       </div>
       
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-slate-800/50 rounded-lg p-2">
-          <div className="text-[10px] text-slate-400 mb-1">Entry Price</div>
+          <div className="text-[10px] text-slate-400 mb-1">{t('entryPrice')}</div>
           <div className="text-sm font-bold text-white">{entryPrice}</div>
         </div>
         <div className="bg-slate-800/50 rounded-lg p-2">
-          <div className="text-[10px] text-slate-400 mb-1">Hold Duration</div>
+          <div className="text-[10px] text-slate-400 mb-1">{t('holdDuration')}</div>
           <div className="text-sm font-bold text-white">{holdDuration}</div>
         </div>
         {exitTarget && (
           <div className="col-span-2 bg-slate-800/50 rounded-lg p-2">
-            <div className="text-[10px] text-slate-400 mb-1">Exit Target</div>
+            <div className="text-[10px] text-slate-400 mb-1">{t('exitTarget')}</div>
             <div className="text-sm font-bold text-green-400">{exitTarget}</div>
           </div>
         )}
@@ -271,6 +276,7 @@ function StrategyCard({ entryPrice, holdDuration, exitTarget, isLocked = false, 
 }
 
 function UpgradePrompt({ onUpgrade, feature }) {
+  const { t } = useLanguage();
   return (
     <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg p-4">
       <div className="flex items-center gap-3">
@@ -278,16 +284,16 @@ function UpgradePrompt({ onUpgrade, feature }) {
           <BarChart3 className="w-5 h-5 text-purple-400" />
         </div>
         <div className="flex-1">
-          <div className="text-sm font-medium text-white">Unlock Full Analysis</div>
+          <div className="text-sm font-medium text-white">{t('unlockFullAnalysis')}</div>
           <div className="text-xs text-slate-400">
-            Get complete {feature} with Pro subscription
+            {t('getCompleteWithPro', { feature })}
           </div>
         </div>
         <button 
           onClick={onUpgrade}
           className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white text-sm font-medium rounded-lg transition"
         >
-          Upgrade
+          {t('upgrade')}
         </button>
       </div>
     </div>
@@ -296,22 +302,23 @@ function UpgradePrompt({ onUpgrade, feature }) {
 
 // Enhanced Decision Verdict Content
 function VerdictContent({ content, isLimited, onUpgrade }) {
+  const { t } = useLanguage();
   const verdict = content.verdict || 'HOLD';
   const confidenceScore = content.confidence_score || Math.round((content.confidence || 0.75) * 100);
   const riskLevel = content.risk_level || 'MEDIUM';
   const riskScore = content.risk_score || 35;
   const timeHorizon = content.time_horizon || 'Medium-term';
-  const summary = content.summary || 'Analysis based on available market data.';
+  const summary = content.summary || t('analysisBasedOnMarketData');
   
   const topReasons = content.top_reasons || [
-    'Good connectivity to major hubs',
-    'Developing infrastructure',
-    'Competitive pricing'
+    t('goodConnectivity'),
+    t('developingInfrastructure'),
+    t('competitivePricing')
   ];
   
   const keyRisks = content.key_risks || [
-    'Market volatility in short term',
-    'Infrastructure project delays possible'
+    t('marketVolatility'),
+    t('infrastructureDelays')
   ];
   
   const strategy = content.strategy_recommendation || {
@@ -340,7 +347,7 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
       {/* Quick Stats Row */}
       <div className="grid grid-cols-2 gap-3">
         <RiskIndicator level={riskLevel} score={riskScore} />
-        <TimeHorizon horizon={timeHorizon} reasoning={!isLimited ? 'Based on market cycle analysis' : null} />
+        <TimeHorizon horizon={timeHorizon} reasoning={!isLimited ? t('basedOnMarketCycle') : null} />
       </div>
 
       {/* Top Reasons */}
@@ -348,9 +355,9 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-green-400 flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
-            Top Reasons
+            {t('topReasons')}
           </h3>
-          <span className="text-[10px] text-slate-500">{topReasons.length} factors analyzed</span>
+          <span className="text-[10px] text-slate-500">{topReasons.length} {t('factorsAnalyzed')}</span>
         </div>
         <div className="space-y-1">
           {topReasons.slice(0, isLimited ? 3 : 5).map((reason, i) => (
@@ -366,7 +373,7 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
         {isLimited && topReasons.length > 3 && (
           <button onClick={onUpgrade} className="mt-3 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 mx-auto">
             <Lock className="w-3 h-3" />
-            Unlock {topReasons.length - 3} more reasons with Pro
+            {t('unlockMoreReasons', { count: topReasons.length - 3 })}
           </button>
         )}
       </div>
@@ -377,9 +384,9 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-yellow-400 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
-              Key Risks
+              {t('keyRisks')}
             </h3>
-            <span className="text-[10px] text-slate-500">Honest assessment</span>
+            <span className="text-[10px] text-slate-500">{t('honestAssessment')}</span>
           </div>
           <div className="space-y-1">
             {keyRisks.map((risk, i) => (
@@ -388,7 +395,7 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
           </div>
         </div>
       ) : (
-        <UpgradePrompt onUpgrade={onUpgrade} feature="risk analysis" />
+        <UpgradePrompt onUpgrade={onUpgrade} feature={t('riskAnalysis')} />
       )}
 
       {/* Strategy */}
@@ -406,9 +413,9 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-purple-400 flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
-              Why This Verdict?
+              {t('whyThisVerdict')}
             </h3>
-            <span className="text-[10px] text-slate-500">SHAP Analysis</span>
+            <span className="text-[10px] text-slate-500">{t('shapAnalysis')}</span>
           </div>
           
           {/* Feature Impacts */}
@@ -451,11 +458,11 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
       <div className="flex items-center justify-between text-[10px] text-slate-500 px-1">
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span>Analysis current as of {new Date().toLocaleTimeString()}</span>
+          <span>{t('analysisCurrentAsOf', { time: new Date().toLocaleTimeString() })}</span>
         </div>
         <button className="flex items-center gap-1 text-slate-400 hover:text-slate-300">
           <HelpCircle className="w-3 h-3" />
-          How is this calculated?
+          {t('howIsThisCalculated')}
         </button>
       </div>
 
@@ -463,12 +470,12 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
       {isLimited && (
         <div className="mt-4 p-4 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-xl">
           <div className="text-center">
-            <div className="text-lg font-bold text-white mb-1">Get the Complete Picture</div>
-            <p className="text-xs text-slate-400 mb-3">Unlock all analysis tabs, full risk assessment, and ROI projections</p>
+            <div className="text-lg font-bold text-white mb-1">{t('getCompletePicture')}</div>
+            <p className="text-xs text-slate-400 mb-3">{t('unlockAllAnalysisTabs')}</p>
             <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-medium rounded-lg transition shadow-lg">
-              Upgrade to Pro — $19/month
+              {t('upgradeToPro')}
             </button>
-            <div className="mt-2 text-[10px] text-slate-500">7-day free trial • Cancel anytime</div>
+            <div className="mt-2 text-[10px] text-slate-500">{t('freeTrialCancelAnytime')}</div>
           </div>
         </div>
       )}
@@ -481,6 +488,7 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
 // ============================================
 
 function MarketContent({ content, isLimited }) {
+  const { t } = useLanguage();
   const [selectedPeriod, setSelectedPeriod] = useState('1Y');
   const hasBuilding = content.has_building && content.building_valuation;
   const kpiMetrics = content.kpi_metrics;
@@ -492,21 +500,21 @@ function MarketContent({ content, isLimited }) {
         <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-3">
           <div className="grid grid-cols-4 gap-2 text-center">
             <div>
-              <div className="text-[10px] text-slate-400">Median Price</div>
+              <div className="text-[10px] text-slate-400">{t('medianPrice')}</div>
               <div className="text-sm font-bold text-white">₹{kpiMetrics.medianPrice?.toLocaleString() || 'N/A'}</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400">3Y Change</div>
+              <div className="text-[10px] text-slate-400">{t('threeYearChange')}</div>
               <div className="text-sm font-bold text-green-400">+{kpiMetrics.priceChange3Y}%</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400">Momentum</div>
+              <div className="text-[10px] text-slate-400">{t('momentum')}</div>
               <div className={`text-sm font-bold ${kpiMetrics.momentum === 'hot' ? 'text-red-400' : kpiMetrics.momentum === 'warming' ? 'text-yellow-400' : 'text-slate-400'}`}>
-                {kpiMetrics.momentum === 'hot' ? '🔥 Hot' : kpiMetrics.momentum === 'warming' ? '📈 Warming' : '➡️ Neutral'}
+                {kpiMetrics.momentum === 'hot' ? `🔥 ${t('hot')}` : kpiMetrics.momentum === 'warming' ? `📈 ${t('warming')}` : `➡️ ${t('neutral')}`}
               </div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400">Risk Score</div>
+              <div className="text-[10px] text-slate-400">{t('riskScore')}</div>
               <div className="text-sm font-bold text-yellow-400">{kpiMetrics.riskScore}%</div>
             </div>
           </div>
@@ -518,11 +526,11 @@ function MarketContent({ content, isLimited }) {
         <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <Building className="w-4 h-4 text-cyan-400" />
-            <span className="text-sm font-semibold text-cyan-400">🏢 THIS BUILDING</span>
+            <span className="text-sm font-semibold text-cyan-400">🏢 {t('thisBuilding')}</span>
           </div>
           
           <div className="mb-3">
-            <div className="text-[10px] text-slate-400 mb-1">Estimated Value</div>
+            <div className="text-[10px] text-slate-400 mb-1">{t('estimatedValue')}</div>
             <div className="text-2xl font-bold text-white">
               ₹{((content.building_valuation?.estimated_price || 0) / 100000).toFixed(1)}L
             </div>
@@ -534,7 +542,7 @@ function MarketContent({ content, isLimited }) {
           {/* Confidence */}
           <div className="mb-3">
             <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-slate-400">Confidence</span>
+              <span className="text-slate-400">{t('confidence')}</span>
               <span className="text-green-400 font-medium">
                 {Math.round((content.building_valuation?.confidence || 0.75) * 100)}%
               </span>
@@ -550,7 +558,7 @@ function MarketContent({ content, isLimited }) {
           {/* Price Range */}
           {content.building_valuation?.price_range && (
             <div className="bg-slate-800/50 rounded-lg p-2">
-              <div className="text-[10px] text-slate-400 mb-1">Price Range</div>
+              <div className="text-[10px] text-slate-400 mb-1">{t('priceRange')}</div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-300">
                   ₹{((content.building_valuation.price_range.low || 0) / 100000).toFixed(0)}L
@@ -566,9 +574,9 @@ function MarketContent({ content, isLimited }) {
           {/* vs Area Average */}
           {content.building_market && (
             <div className="mt-2 text-xs text-slate-400">
-              vs Area Avg: <span className="text-cyan-400 font-medium">
+              {t('vsAreaAvg')}: <span className="text-cyan-400 font-medium">
                 {content.avg_price_sqft && content.building_valuation?.price_per_sqft
-                  ? `${Math.round(((content.building_valuation.price_per_sqft / content.avg_price_sqft) - 1) * 100)}% ${content.building_valuation.price_per_sqft > content.avg_price_sqft ? 'premium' : 'discount'}`
+                  ? `${Math.round(((content.building_valuation.price_per_sqft / content.avg_price_sqft) - 1) * 100)}% ${content.building_valuation.price_per_sqft > content.avg_price_sqft ? t('premium') : t('discount')}`
                   : 'N/A'}
               </span>
             </div>
@@ -581,23 +589,23 @@ function MarketContent({ content, isLimited }) {
         <div className="flex items-center gap-2 mb-3">
           <MapPin className="w-4 h-4 text-blue-400" />
           <span className="text-sm font-semibold text-slate-300">
-            {hasBuilding ? '📍 AREA CONTEXT' : 'Market Overview'}
+            {hasBuilding ? `📍 ${t('areaContext')}` : t('marketOverview')}
           </span>
         </div>
         
         {/* Primary Metrics */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-slate-800/50 rounded-lg p-3">
-            <label className="text-xs text-slate-400 block mb-1">Avg Price/sqft</label>
+            <label className="text-xs text-slate-400 block mb-1">{t('avgPriceSqft')}</label>
             <span className="text-xl font-bold text-white">
               ₹{content.avg_price_sqft?.toLocaleString() || content.avg_price?.toLocaleString() || 'N/A'}
             </span>
             {!isLimited && (
-              <div className="text-[10px] text-slate-500 mt-1">Based on {content.sample_count || 156} listings</div>
+              <div className="text-[10px] text-slate-500 mt-1">{t('basedOnListings', { count: content.sample_count || 156 })}</div>
             )}
           </div>
           <div className="bg-slate-800/50 rounded-lg p-3">
-            <label className="text-xs text-slate-400 block mb-1">Price Trend</label>
+            <label className="text-xs text-slate-400 block mb-1">{t('priceTrend')}</label>
             <div className="flex items-center gap-2">
               <span className={`text-xl font-bold ${content.price_trend?.['1Y']?.includes('+') ? 'text-green-400' : 'text-red-400'}`}>
                 {content.price_trend?.[selectedPeriod] || content.price_trend || 'N/A'}
@@ -633,15 +641,15 @@ function MarketContent({ content, isLimited }) {
       {!isLimited && (
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="bg-slate-800/30 rounded p-2">
-            <div className="text-xs text-slate-400">Demand</div>
-            <div className="text-sm text-white font-medium">{content.demand_supply || 'High'}</div>
+            <div className="text-xs text-slate-400">{t('demand')}</div>
+            <div className="text-sm text-white font-medium">{content.demand_supply || t('high')}</div>
           </div>
           <div className="bg-slate-800/30 rounded p-2">
-            <div className="text-xs text-slate-400">Rental Yield</div>
+            <div className="text-xs text-slate-400">{t('rentalYield')}</div>
             <div className="text-sm text-white font-medium">{content.rental_yield || '3.5%'}</div>
           </div>
           <div className="bg-slate-800/30 rounded p-2">
-            <div className="text-xs text-slate-400">Liquidity</div>
+            <div className="text-xs text-slate-400">{t('liquidity')}</div>
             <div className="text-sm text-white font-medium">{content.liquidity_score || 70}%</div>
           </div>
         </div>
@@ -649,7 +657,7 @@ function MarketContent({ content, isLimited }) {
       {/* Advanced Indicators - Pro */}
       {!isLimited && content.advanced_indicators && (
         <div className="bg-slate-800/30 rounded-lg p-3">
-          <h4 className="text-xs font-medium text-slate-300 mb-2">Advanced Indicators</h4>
+          <h4 className="text-xs font-medium text-slate-300 mb-2">{t('advancedIndicators')}</h4>
           <div className="space-y-2">
             {Object.entries(content.advanced_indicators).map(([key, val]) => (
               <div key={key} className="flex items-center justify-between text-xs">
@@ -669,6 +677,7 @@ function MarketContent({ content, isLimited }) {
 // ============================================
 
 function SpatialContent({ content, isLimited }) {
+  const { t } = useLanguage();
   const hasBuilding = content.has_building && content.building_info;
   
   return (
@@ -678,21 +687,21 @@ function SpatialContent({ content, isLimited }) {
         <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <Building className="w-4 h-4 text-cyan-400" />
-            <span className="text-sm font-semibold text-cyan-400">🏢 BUILDING SPATIAL DATA</span>
+            <span className="text-sm font-semibold text-cyan-400">🏢 {t('buildingSpatialData')}</span>
           </div>
           
           {/* Building Info */}
           <div className="grid grid-cols-3 gap-2 text-xs">
             <div className="bg-slate-800/50 rounded p-2 text-center">
-              <div className="text-slate-400">Height</div>
+              <div className="text-slate-400">{t('height')}</div>
               <div className="text-white font-bold">{content.building_info?.height || '?'}m</div>
             </div>
             <div className="bg-slate-800/50 rounded p-2 text-center">
-              <div className="text-slate-400">Floors</div>
+              <div className="text-slate-400">{t('floors')}</div>
               <div className="text-white font-bold">{content.building_info?.levels || '?'}</div>
             </div>
             <div className="bg-slate-800/50 rounded p-2 text-center">
-              <div className="text-slate-400">Type</div>
+              <div className="text-slate-400">{t('type')}</div>
               <div className="text-cyan-400 font-bold capitalize">{content.building_info?.type || '?'}</div>
             </div>
           </div>
@@ -702,23 +711,23 @@ function SpatialContent({ content, isLimited }) {
             <div className="bg-slate-800/40 rounded-lg p-2">
               <div className="flex items-center gap-1.5 mb-2">
                 <span className="text-sm">🌑</span>
-                <span className="text-xs font-medium text-slate-300">Shadow Analysis</span>
+                <span className="text-xs font-medium text-slate-300">{t('shadowAnalysis')}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Length:</span>
+                  <span className="text-slate-400">{t('length')}:</span>
                   <span className="text-white font-medium">{content.shadow_analysis.shadow_length_m}m</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Direction:</span>
+                  <span className="text-slate-400">{t('direction')}:</span>
                   <span className="text-white font-medium">{content.shadow_analysis.shadow_direction}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Hours/Day:</span>
+                  <span className="text-slate-400">{t('hoursDay')}:</span>
                   <span className="text-white font-medium">{content.shadow_analysis.shadow_hours_per_day}h</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Impact:</span>
+                  <span className="text-slate-400">{t('impact')}:</span>
                   <span className={`font-medium ${content.shadow_analysis.impact_level === 'low' ? 'text-green-400' : 'text-yellow-400'}`}>
                     {content.shadow_analysis.impact_level}
                   </span>
@@ -733,7 +742,7 @@ function SpatialContent({ content, isLimited }) {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-1.5">
                   <Eye className="w-3 h-3 text-blue-400" />
-                  <span className="text-xs font-medium text-slate-300">View Quality</span>
+                  <span className="text-xs font-medium text-slate-300">{t('viewQuality')}</span>
                 </div>
                 <span className="text-white font-bold text-sm">{content.view_quality.view_score}<span className="text-slate-500 text-[10px]">/100</span></span>
               </div>

@@ -10,10 +10,12 @@ import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import TieredOptionsDisplay from './TieredOptionsDisplay'
+import { useLanguage } from '../../contexts/LanguageContext'
 import '../../styles/chat-glow.css'
 
 // Code block with syntax highlighting and copy button
 function CodeBlock({ children, className, ...props }) {
+  const { t } = useLanguage()
   const [copied, setCopied] = useState(false)
   const match = /language-(\w+)/.exec(className || '')
   const language = match ? match[1] : ''
@@ -36,7 +38,7 @@ function CodeBlock({ children, className, ...props }) {
         <button
           onClick={handleCopy}
           className="p-1.5 bg-dark-700 hover:bg-primary-700 rounded text-primary-300 hover:text-white transition-colors"
-          title="Copy code"
+          title={t('copyCode')}
         >
           {copied ? <Check className="w-3.5 h-3.5 text-accent-purple" /> : <Copy className="w-3.5 h-3.5" />}
         </button>
@@ -231,6 +233,7 @@ const ChatMessage = memo(function ChatMessage({
   messageId,
   onDisambiguationSelect
 }) {
+  const { t } = useLanguage()
   const [copied, setCopied] = useState(false)
   const [showActions, setShowActions] = useState(false)
   
@@ -263,7 +266,7 @@ const ChatMessage = memo(function ChatMessage({
               <button
                 onClick={handleCopy}
                 className="p-1 bg-surface-secondary hover:bg-primary-700/50 rounded text-primary-300 hover:text-white transition-all shadow-sm border border-primary-700/30"
-                title="Copy"
+                title={t('copy')}
               >
                 {copied ? <Check className="w-3 h-3 text-accent-purple" /> : <Copy className="w-3 h-3" />}
               </button>
@@ -272,7 +275,7 @@ const ChatMessage = memo(function ChatMessage({
                 <button
                   onClick={() => onRegenerate(index)}
                   className="p-1 bg-surface-secondary hover:bg-primary-700/50 rounded text-primary-300 hover:text-white transition-all shadow-sm border border-primary-700/30"
-                  title="Regenerate"
+                  title={t('regenerate')}
                 >
                   <RotateCcw className="w-3 h-3" />
                 </button>
@@ -285,7 +288,7 @@ const ChatMessage = memo(function ChatMessage({
                     ? 'bg-primary-500 text-white' 
                     : 'bg-surface-secondary hover:bg-primary-700/50 text-primary-300 hover:text-white'
                 }`}
-                title="Give feedback"
+                title={t('giveFeedback')}
               >
                 <MessageSquare className="w-3 h-3" />
               </button>

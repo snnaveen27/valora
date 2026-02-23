@@ -4,6 +4,7 @@
 
 import { useState } from 'react'
 import { MessageSquarePlus, Trash2, Edit3, Check, X, Download, MoreHorizontal, Clock, Search, Trash } from 'lucide-react'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 export default function ChatSidebar({ 
   sessions, 
@@ -17,6 +18,7 @@ export default function ChatSidebar({
   isOpen,
   onClose
 }) {
+  const { t } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
@@ -52,9 +54,9 @@ export default function ChatSidebar({
     const diffMs = now - date
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
     
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays} days ago`
+    if (diffDays === 0) return t('today')
+    if (diffDays === 1) return t('yesterday')
+    if (diffDays < 7) return `${diffDays} ${t('daysAgo')}`
     return date.toLocaleDateString()
   }
   
@@ -75,21 +77,21 @@ export default function ChatSidebar({
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary-600 to-accent-purple hover:from-primary-500 hover:to-accent-purple/90 text-white rounded-xl font-medium text-sm transition-all shadow-lg shadow-primary-900/30"
         >
           <MessageSquarePlus className="w-4 h-4" />
-          New Chat
+          {t('newChat')}
         </button>
         
         {/* Delete all chats button */}
         {sessions.length > 0 && (
           <button
             onClick={() => {
-              if (confirm(`Delete all ${sessions.length} chats? This cannot be undone.`)) {
+              if (confirm(t('deleteAllConfirm'))) {
                 onDeleteAllSessions?.()
               }
             }}
             className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg text-xs font-medium transition-all border border-red-500/30"
           >
             <Trash className="w-3.5 h-3.5" />
-            Delete All Chats
+            {t('deleteAllChats')}
           </button>
         )}
       </div>
@@ -102,7 +104,7 @@ export default function ChatSidebar({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search chats..."
+            placeholder={t('searchChats')}
             className="w-full bg-dark-800/50 border border-primary-700/50 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-primary-400/50 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
           />
         </div>
@@ -160,10 +162,10 @@ export default function ChatSidebar({
                       className="w-full text-left p-2 pr-8"
                     >
                       <div className="text-sm text-white truncate font-medium">
-                        {session.title || 'New Chat'}
+                        {session.title || t('newChat')}
                       </div>
                       <div className="text-xs text-primary-400/50 truncate mt-0.5">
-                        {session.messages?.length || 0} messages
+                        {session.messages?.length || 0} {t('messages')}
                       </div>
                     </button>
                   )}
@@ -192,7 +194,7 @@ export default function ChatSidebar({
                             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-accent-purple hover:bg-accent-purple/30"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
-                            Rename
+                            {t('rename')}
                           </button>
                           <button
                             onClick={(e) => {
@@ -203,7 +205,7 @@ export default function ChatSidebar({
                             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-accent-purple hover:bg-accent-purple/30"
                           >
                             <Download className="w-3.5 h-3.5" />
-                            Export
+                            {t('export')}
                           </button>
                           <div className="border-t border-accent-purple/50 my-1" />
                           <button
@@ -215,7 +217,7 @@ export default function ChatSidebar({
                             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                            Delete
+                            {t('delete')}
                           </button>
                         </div>
                       )}
@@ -229,7 +231,7 @@ export default function ChatSidebar({
         
         {filteredSessions.length === 0 && (
           <div className="text-center py-8 text-primary-400/50 text-sm">
-            {searchQuery ? 'No matching chats' : 'No chat history'}
+            {searchQuery ? t('noMatchingChats') : t('noChats')}
           </div>
         )}
       </div>

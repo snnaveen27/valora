@@ -1,6 +1,6 @@
 {
   "session_id": "default",
-  "session_start": "2026-02-20T00:47:22.493567",
+  "session_start": "2026-02-23T20:34:48.641886",
   "visits": [
     {
       "lat": 12.9782379,
@@ -4881,6 +4881,46 @@
       "duration_seconds": 0,
       "actions_taken": [],
       "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-23T20:00:41.345382",
+      "intent": "navigate",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.91859713504248,
+      "lng": 77.68648225246575,
+      "name": "Area at 12.91860, 77.68648",
+      "timestamp": "2026-02-23T20:34:48.673416",
+      "intent": "investment",
+      "duration_seconds": 3723.943476,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 12.911813686343997,
+      "lng": 77.68126727063627,
+      "name": "Area at 12.91181, 77.68127",
+      "timestamp": "2026-02-23T21:36:52.616892",
+      "intent": "investment",
+      "duration_seconds": 509.33171,
+      "actions_taken": [],
+      "sentiment": "neutral"
+    },
+    {
+      "lat": 13.0359,
+      "lng": 77.5946,
+      "name": "Hebbal",
+      "timestamp": "2026-02-23T21:45:21.948602",
+      "intent": "map_control",
+      "duration_seconds": 0,
+      "actions_taken": [],
+      "sentiment": "neutral"
     }
   ],
   "preferences": {
@@ -4898,5 +4938,5 @@
     "exploration_style": "focused"
   },
   "comparisons": [],
-  "last_updated": "2026-02-20T00:50:38.548637"
+  "last_updated": "2026-02-23T21:45:21.957325"
 }

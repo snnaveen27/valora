@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
 import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, ChevronDown, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud, Loader2, Activity, CheckCircle2, Circle, AlertTriangle, Percent, Building, Compass, Database, Presentation, Eye, Download } from 'lucide-react'
 
 import { API_URL } from '../apiConfig'
@@ -26,6 +27,7 @@ const ComponentLoader = () => (
 
 export default function MainApp() {
   const { user, logout, isAdmin, loading: authLoading } = useAuth()
+  const { t } = useLanguage()
   const [agentData, setAgentData] = useState({})
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true)
   const [isChatOpen, setIsChatOpen] = useState(true)
@@ -1051,7 +1053,7 @@ export default function MainApp() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg transition text-sm"
                     >
                       <FileText className="w-4 h-4" />
-                      Documents
+                      {t('documents') || 'Documents'}
                     </button>
                     
                     {/* Notes */}
@@ -1064,7 +1066,7 @@ export default function MainApp() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg transition text-sm"
                     >
                       <StickyNote className="w-4 h-4" />
-                      Notes
+                      {t('notes') || 'Notes'}
                     </button>
                     
                     {/* Divider */}
@@ -1079,7 +1081,7 @@ export default function MainApp() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg transition text-sm"
                     >
                       <Settings className="w-4 h-4" />
-                      Admin Panel
+                      {t('adminPanel') || 'Admin Panel'}
                     </button>
                     
                     {/* Divider */}
@@ -1094,7 +1096,7 @@ export default function MainApp() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition text-sm"
                     >
                       <LogOut className="w-4 h-4" />
-                      Sign Out
+                      {t('signOut') || 'Sign Out'}
                     </button>
                   </div>
                 </div>

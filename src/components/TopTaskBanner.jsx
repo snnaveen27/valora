@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useLanguage } from '../contexts/LanguageContext'
 import { Loader2, CheckCircle2, Circle, X, Zap, Brain, MapPin, Search, BarChart3, Route, Building, Globe, TrendingUp, Shield, Home } from 'lucide-react'
 
 // User-friendly task icons
@@ -34,34 +35,34 @@ const TaskIcon = ({ taskType, status }) => {
 }
 
 // Convert technical task to user-friendly description
-const getUserFriendlyLabel = (task) => {
+const getUserFriendlyLabel = (task, t) => {
   const label = task.label || task.description || ''
   const action = task.action?.toLowerCase() || ''
   const entity = task.entity?.toLowerCase() || ''
   
-  // User-friendly action mappings
+  // User-friendly action mappings (with translations)
   const actionLabels = {
-    'geocode': 'Locating',
-    'flyto': 'Navigating to',
-    'orbit': 'Exploring',
-    'spatialquery': 'Searching',
-    'areametrics': 'Analyzing',
-    'routeanalysis': 'Calculating route',
-    'terrainanalysis': 'Analyzing terrain',
-    'skyviewanalysis': 'Analyzing views',
-    'parse': 'Understanding',
-    'compare': 'Comparing',
-    'analyze': 'Analyzing',
-    'summarize': 'Summarizing',
-    'explain': 'Explaining',
-    'simulate': 'Simulating',
-    'getpropertydetails': 'Fetching property',
-    'getmarketdata': 'Getting market data',
-    'gethistoricaldata': 'Fetching history',
-    'getpoidata': 'Finding amenities',
-    'markproperties': 'Displaying results',
-    'drawroute': 'Drawing route',
-    'drawcircle': 'Drawing area'
+    'geocode': t('locating'),
+    'flyto': t('navigatingTo'),
+    'orbit': t('exploring'),
+    'spatialquery': t('searching'),
+    'areametrics': t('analyzing'),
+    'routeanalysis': t('calculatingRoute'),
+    'terrainanalysis': t('analyzingTerrain'),
+    'skyviewanalysis': t('analyzingViews'),
+    'parse': t('understanding'),
+    'compare': t('comparing'),
+    'analyze': t('analyzing'),
+    'summarize': t('summarizing'),
+    'explain': t('explaining'),
+    'simulate': t('simulating'),
+    'getpropertydetails': t('fetchingProperty'),
+    'getmarketdata': t('gettingMarketData'),
+    'gethistoricaldata': t('fetchingHistory'),
+    'getpoidata': t('findingAmenities'),
+    'markproperties': t('displayingResults'),
+    'drawroute': t('drawingRoute'),
+    'drawcircle': t('drawingArea')
   }
   
   // If we have a good label, use it
@@ -77,15 +78,15 @@ const getUserFriendlyLabel = (task) => {
 }
 
 // Get phase description for user
-const getPhaseDescription = (phase, task) => {
+const getPhaseDescription = (phase, task, t) => {
   const phases = {
-    'understanding': 'Understanding your request...',
-    'planning': 'Planning the analysis...',
-    'executing': task ? `Working: ${task}` : 'Processing...',
-    'finalizing': 'Finalizing results...',
-    'complete': 'Done!'
+    'understanding': t('understandingYourRequest'),
+    'planning': t('planningTheAnalysis'),
+    'executing': task ? `${t('processing')}: ${task}` : t('processing'),
+    'finalizing': t('finalizingResults'),
+    'complete': t('done')
   }
-  return phases[phase] || 'Processing...'
+  return phases[phase] || t('processing')
 }
 
 export default function TopTaskBanner({
@@ -98,6 +99,7 @@ export default function TopTaskBanner({
   taskProgress,
   taskHistory
 }) {
+  const { t } = useLanguage();
   const [tasks, setTasks] = useState([])
   const [progress, setProgress] = useState(0)
   const [isComplete, setIsComplete] = useState(false)
@@ -114,7 +116,7 @@ export default function TopTaskBanner({
     switch (type) {
       // Multi-Stage LLM Execution Events
       case 'orchestration_start':
-        setCurrentStep('Starting analysis...')
+        setCurrentStep(t('startingAnalysis'))
         setProcessingPhase('understanding')
         setProgress(0)
         setIsComplete(false)
@@ -123,11 +125,11 @@ export default function TopTaskBanner({
         
       case 'stage_start':
         const stageMessages = {
-          'understand': 'Understanding your request...',
-          'plan': 'Planning the analysis...',
-          'execute': 'Executing tasks...',
-          'validate': 'Validating results...',
-          'synthesize': 'Generating response...'
+          'understand': t('understandingYourRequest'),
+          'plan': t('planningTheAnalysis'),
+          'execute': t('executingTasks'),
+          'validate': t('validatingResults'),
+          'synthesize': t('generatingResponse')
         }
         const stagePhases = {
           'understand': 'understanding',
@@ -136,7 +138,7 @@ export default function TopTaskBanner({
           'validate': 'validating',
           'synthesize': 'finalizing'
         }
-        setCurrentStep(stageMessages[streamingData.stage] || 'Processing...')
+        setCurrentStep(stageMessages[streamingData.stage] || t('processing'))
         setProcessingPhase(stagePhases[streamingData.stage] || 'executing')
         break
         
@@ -155,7 +157,7 @@ export default function TopTaskBanner({
       case 'query_understood':
         setTasks([{
           id: 'understand',
-          label: 'Query analyzed',
+          label: t('queryAnalyzed'),
           type: 'ai',
           status: 'complete',
           progress_percent: 100

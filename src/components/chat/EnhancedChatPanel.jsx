@@ -36,13 +36,15 @@ import {
   exportSession
 } from './ChatSessionManager'
 import { getDefaultWelcomeMessage, getDynamicWelcomeTitle, getDynamicWelcomeSubtitle, getClosingMessage } from './ChatConfig'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 import { API_URL } from '../../apiConfig'
 
-// Welcome message - dynamically generated
+// Welcome message - dynamically generated with translations
 function WelcomeMessage({ onExampleClick }) {
-  const title = getDynamicWelcomeTitle()
-  const subtitle = getDynamicWelcomeSubtitle()
+  const { t } = useLanguage()
+  const title = t('welcomeTitle')
+  const subtitle = t('welcomeSubtitle')
   const closing = getClosingMessage()
   
   return (
@@ -172,6 +174,9 @@ export default function EnhancedChatPanel({
   onSidebarClose = null,
   authUser = null
 }) {
+  // Get translation function and language setter
+  const { t, language, setLanguage } = useLanguage()
+  
   // AI Thinking state - query-driven intelligent tasks
   const [currentQuery, setCurrentQuery] = useState('')
   const [streamingData, setStreamingData] = useState(null)
@@ -222,8 +227,7 @@ export default function EnhancedChatPanel({
   // Ref for handleSendMessage to avoid circular dependency in callbacks
   const sendMessageRef = useRef(null)
   
-  // Language selector state
-  const [selectedLanguage, setSelectedLanguage] = useState('en')
+  // Language selector state - now uses context
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
   
   // User preferences from localStorage
@@ -260,9 +264,6 @@ export default function EnhancedChatPanel({
       try {
         const prefs = JSON.parse(savedPrefs)
         setUserPreferences(prefs)
-        if (prefs.language) {
-          setSelectedLanguage(prefs.language)
-        }
       } catch (e) {
         console.warn('[EnhancedChatPanel] Failed to parse preferences:', e)
       }
@@ -936,11 +937,11 @@ export default function EnhancedChatPanel({
       skipFlyTo: skipFlyTo,
       clickedCoordinates: clickedCoordinates,
       // Add language preference for multilingual support
-      language: selectedLanguage,
+      language: language,
       // Add user preferences for personalized responses
       user_preferences: userPreferences
     }
-  }, [userId, currentSession?.id, agentData, userLocation, locationLabel, attachedImages, llmConfig, selectedLanguage, userPreferences])
+  }, [userId, currentSession?.id, agentData, userLocation, locationLabel, attachedImages, llmConfig, language, userPreferences])
   
   // Streaming chat with abort support
   const callAIStreaming = useCallback(async (userMessage, onThinking, onContent, onComplete, signal) => {
@@ -2082,12 +2083,12 @@ export default function EnhancedChatPanel({
     const clearedSession = {
       ...currentSession,
       messages: [getDefaultWelcomeMessage()],
-      title: 'New Chat'
+      title: t('newChat')
     }
     setCurrentSession(clearedSession)
     saveSession(clearedSession)
     setSessions(prev => prev.map(s => s.id === clearedSession.id ? clearedSession : s))
-  }, [currentSession])
+  }, [currentSession, t])
   
   const handleSelectSession = useCallback((sessionId) => {
     // Open in tab instead of just selecting
@@ -2236,11 +2237,11 @@ export default function EnhancedChatPanel({
                 ? 'bg-primary-600 text-white shadow-md' 
                 : 'text-primary-400/70 hover:text-white hover:bg-primary-700/30'
             }`}
-            title={sidebarOpen ? 'Hide history' : 'Show history'}
+            title={sidebarOpen ? t('hideHistory') : t('showHistory')}
           >
             {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
             <span className="text-xs font-medium hidden sm:block">
-              {sidebarOpen ? 'Hide' : 'History'}
+              {sidebarOpen ? t('hide') : t('history')}
             </span>
           </button>
           
@@ -2261,7 +2262,7 @@ export default function EnhancedChatPanel({
                 >
                   <MessageSquare className="w-3 h-3 shrink-0" />
                   <span className="text-xs font-medium truncate">
-                    {session?.title || 'New Chat'}
+                    {session?.title || t('newChat')}
                   </span>
                   <button
                     onClick={(e) => handleCloseTab(tabId, e)}
@@ -2279,7 +2280,7 @@ export default function EnhancedChatPanel({
             <button
               onClick={handleNewChat}
               className="p-1.5 text-primary-400/70 hover:text-white hover:bg-primary-700/30 rounded-lg transition-colors shrink-0"
-              title="New chat tab"
+              title={t('newChatTab')}
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -2290,21 +2291,21 @@ export default function EnhancedChatPanel({
             <button
               onClick={handleClearChat}
               className="p-1.5 text-primary-400/70 hover:text-accent-fuchsia hover:bg-accent-fuchsia/10 rounded-lg transition-colors"
-              title="Clear chat"
+              title={t('clearChat')}
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => currentSession && handleExportSession(currentSession)}
               className="p-1.5 text-primary-400/70 hover:text-white hover:bg-primary-700/30 rounded-lg transition-colors"
-              title="Export chat"
+              title={t('exportChat')}
             >
               <Download className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => currentSession && handleDeleteSession(currentSession.id)}
               className="p-1.5 text-primary-400/70 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-              title="Delete chat"
+              title={t('deleteChat')}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -2374,10 +2375,10 @@ export default function EnhancedChatPanel({
           <button
             onClick={scrollToBottom}
             className="absolute bottom-20 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-primary-600/90 hover:bg-primary-500 text-white text-xs rounded-full shadow-lg shadow-primary-900/30 transition-all flex items-center gap-1.5 animate-bounce-subtle z-50 pointer-events-auto"
-            title="Scroll to bottom"
+            title={t('scrollToBottom')}
           >
             <ArrowDown className="w-3.5 h-3.5" />
-            <span>Latest</span>
+            <span>{t('latest')}</span>
           </button>
         )}
         
@@ -2394,8 +2395,8 @@ export default function EnhancedChatPanel({
           llmConfig={llmConfig}
           onConfigChange={handleConfigChange}
           credits={credits}
-          selectedLanguage={selectedLanguage}
-          onLanguageChange={setSelectedLanguage}
+          selectedLanguage={language}
+          onLanguageChange={setLanguage}
         />
       </div>
     </div>
