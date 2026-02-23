@@ -165,7 +165,7 @@ class UserDatabase:
     def _get_conn(self) -> sqlite3.Connection:
         """Get database connection."""
         conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
+        conn.row_factory = lambda c, r: dict(zip([col[0] for col in c.description], r))
         return conn
     
     def _init_db(self):
@@ -374,14 +374,14 @@ class UserDatabase:
             password_hash=row["password_hash"],
             tier=SubscriptionTier(row["tier"]),
             role=UserRole(row["role"]),
-            company=row["company"],
-            phone=row["phone"],
-            job_role=row["job_role"],
-            queries_today=row["queries_today"],
-            reports_this_month=row["reports_this_month"],
+            company=row.get("company"),
+            phone=row.get("phone"),
+            job_role=row.get("job_role"),
+            queries_today=row.get("queries_today", 0),
+            reports_this_month=row.get("reports_this_month", 0),
             created_at=row["created_at"],
-            last_login=row["last_login"],
-            is_active=bool(row["is_active"])
+            last_login=row.get("last_login"),
+            is_active=bool(row.get("is_active", 1))
         )
     
     def authenticate(self, email: str, password: str) -> tuple[Optional[User], str]:

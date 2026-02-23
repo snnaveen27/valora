@@ -3232,6 +3232,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
         viewerRef.current = viewer
         
+        // Handle rendering errors gracefully - prevent "Rendering has stopped" crashes
+        viewer.scene.renderError.addEventListener((scene, error) => {
+          console.error('🚨 Cesium render error (non-fatal):', error)
+          // Don't stop rendering - just log the error
+          scene.requestRender()
+        })
+        
         // Force globe to be visible - critical for base map
         viewer.scene.globe.show = true
         viewer.scene.globe.enableLighting = false
@@ -4102,18 +4109,23 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 // Enable depth test so buildings with heightReference properly clamp to terrain
                 viewer.scene.globe.depthTestAgainstTerrain = true
                 
-                // Enable sky and atmosphere for 3D globe
-                viewer.scene.skyBox = new Cesium.SkyBox({
-                  sources: {
-                    positiveX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_px.jpg'),
-                    negativeX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mx.jpg'),
-                    positiveY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_py.jpg'),
-                    negativeY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_my.jpg'),
-                    positiveZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_pz.jpg'),
-                    negativeZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mz.jpg')
-                  }
-                })
-                viewer.scene.skyAtmosphere = new Cesium.SkyAtmosphere()
+                // Enable sky and atmosphere for 3D globe - with error handling for cache issues
+                try {
+                  viewer.scene.skyBox = new Cesium.SkyBox({
+                    sources: {
+                      positiveX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_px.jpg'),
+                      negativeX: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mx.jpg'),
+                      positiveY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_py.jpg'),
+                      negativeY: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_my.jpg'),
+                      positiveZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_pz.jpg'),
+                      negativeZ: Cesium.buildModuleUrl('Assets/Textures/SkyBox/tycho2t3_80_mz.jpg')
+                    }
+                  })
+                  viewer.scene.skyAtmosphere = new Cesium.SkyAtmosphere()
+                } catch (skyBoxError) {
+                  console.warn('⚠️ SkyBox initialization failed (cache issue?), using default sky:', skyBoxError.message)
+                  // Continue without custom skybox - Cesium will use default
+                }
                 
                 console.log('✅ 3D terrain enabled - receives building shadows only')
               }
