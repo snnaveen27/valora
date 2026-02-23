@@ -4,9 +4,10 @@
  * Tab priority: Decision Verdict → Market → Spatial → Risk → ROI → Comps → Strategy → Data → Pitch
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import SmartTab from './SmartTab';
 import { API_URL } from '../apiConfig';
+import { useLanguage } from '../contexts/LanguageContext';
 import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
   Compass, Database, Presentation, Lock, Sparkles,
@@ -14,98 +15,109 @@ import {
   Eye, Sun, Trophy, CheckCircle, Star
 } from 'lucide-react';
 
-// Enhanced tab metadata with icons, descriptions, and tier requirements
-const TAB_METADATA = {
-  'free_analysis': {
-    title: 'Free Analysis',
-    icon: '🔍',
-    lucideIcon: Eye,
-    description: 'Basic area overview (Free)',
-    shortLabel: 'Free',
-    priority: 0,
-    answerQuestion: 'What is this area like?'
-  },
-  'decision_verdict': {
-    title: 'Decision Verdict',
-    icon: '⚖️',
-    lucideIcon: TrendingUp,
-    description: 'BUY / HOLD / AVOID recommendation',
-    shortLabel: 'Verdict',
-    priority: 1,
-    answerQuestion: 'What should I do?'
-  },
-  'market_snapshot': {
-    title: 'Market Snapshot',
-    icon: '📈',
-    lucideIcon: TrendingUp,
-    description: 'Price trends and market dynamics',
-    shortLabel: 'Market',
-    priority: 2,
-    answerQuestion: 'Is market strong?'
-  },
-  'spatial_intelligence': {
-    title: 'Spatial Intelligence',
-    icon: '🗺️',
-    lucideIcon: MapPin,
-    description: 'Infrastructure, connectivity, POIs',
-    shortLabel: 'Spatial',
-    priority: 3,
-    answerQuestion: 'Why does location matter?'
-  },
-  'risk_analysis': {
-    title: 'Risk Analysis',
-    icon: '⚠️',
-    lucideIcon: AlertTriangle,
-    description: 'Flood, legal, and market risks',
-    shortLabel: 'Risk',
-    priority: 4,
-    answerQuestion: 'What could go wrong?'
-  },
-  'roi_projection': {
-    title: 'ROI Projection',
-    icon: '%',
-    lucideIcon: Percent,
-    description: '3-year return scenarios',
-    shortLabel: 'ROI',
-    priority: 5,
-    answerQuestion: 'What returns to expect?'
-  },
-  'comparables': {
-    title: 'Comparables',
-    icon: '🏢',
-    lucideIcon: Building,
-    description: 'Similar properties analysis',
-    shortLabel: 'Comps',
-    priority: 6,
-    answerQuestion: 'Is price justified?'
-  },
-  'strategy': {
-    title: 'Strategy',
-    icon: '🧭',
-    lucideIcon: Compass,
-    description: 'Entry/exit recommendations',
-    shortLabel: 'Strategy',
-    priority: 7,
-    answerQuestion: 'How to proceed?'
-  },
-  'data_transparency': {
-    title: 'Data Transparency',
-    icon: '🗄️',
-    lucideIcon: Database,
-    description: 'Source verification',
-    shortLabel: 'Data',
-    priority: 8,
-    answerQuestion: 'Can I trust this?'
-  },
-  'client_pitch': {
-    title: 'Client Pitch',
-    icon: '📊',
-    lucideIcon: Presentation,
-    description: 'Broker presentation',
-    shortLabel: 'Pitch',
-    priority: 9,
-    answerQuestion: 'How to present?'
-  }
+// Function to generate translated tab metadata
+const getTranslatedTabMetadata = (t) => {
+  const safeT = (key) => {
+    try {
+      const result = t(key);
+      return typeof result === 'string' ? result : key;
+    } catch {
+      return key;
+    }
+  };
+
+  return {
+    'free_analysis': {
+      title: safeT('freeAnalysisTab'),
+      icon: '🔍',
+      lucideIcon: Eye,
+      description: safeT('basicAreaOverview'),
+      shortLabel: safeT('free'),
+      priority: 0,
+      answerQuestion: 'What is this area like?'
+    },
+    'decision_verdict': {
+      title: safeT('decisionVerdict'),
+      icon: '⚖️',
+      lucideIcon: TrendingUp,
+      description: safeT('buyHoldAvoid'),
+      shortLabel: safeT('verdict'),
+      priority: 1,
+      answerQuestion: 'What should I do?'
+    },
+    'market_snapshot': {
+      title: safeT('marketSnapshot'),
+      icon: '📈',
+      lucideIcon: TrendingUp,
+      description: safeT('priceTrendsMarket'),
+      shortLabel: safeT('market'),
+      priority: 2,
+      answerQuestion: 'Is market strong?'
+    },
+    'spatial_intelligence': {
+      title: safeT('spatialIntelligence'),
+      icon: '🗺️',
+      lucideIcon: MapPin,
+      description: safeT('infrastructureConnectivity'),
+      shortLabel: safeT('spatial'),
+      priority: 3,
+      answerQuestion: 'Why does location matter?'
+    },
+    'risk_analysis': {
+      title: safeT('riskAnalysisTab'),
+      icon: '⚠️',
+      lucideIcon: AlertTriangle,
+      description: safeT('floodLegalMarketRisks'),
+      shortLabel: safeT('risk'),
+      priority: 4,
+      answerQuestion: 'What could go wrong?'
+    },
+    'roi_projection': {
+      title: safeT('roiProjection'),
+      icon: '%',
+      lucideIcon: Percent,
+      description: safeT('threeYearReturn'),
+      shortLabel: safeT('roi'),
+      priority: 5,
+      answerQuestion: 'What returns to expect?'
+    },
+    'comparables': {
+      title: safeT('comparablesTab'),
+      icon: '🏢',
+      lucideIcon: Building,
+      description: safeT('similarProperties'),
+      shortLabel: safeT('comps'),
+      priority: 6,
+      answerQuestion: 'Is price justified?'
+    },
+    'strategy': {
+      title: safeT('strategyTab'),
+      icon: '🧭',
+      lucideIcon: Compass,
+      description: safeT('entryExitRecommendations'),
+      shortLabel: safeT('strategy'),
+      priority: 7,
+      answerQuestion: 'How to proceed?'
+    },
+    'data_transparency': {
+      title: safeT('dataTransparency'),
+      icon: '🗄️',
+      lucideIcon: Database,
+      description: safeT('sourceVerification'),
+      shortLabel: safeT('data'),
+      priority: 8,
+      answerQuestion: 'Can I trust this?'
+    },
+    'client_pitch': {
+      title: safeT('clientPitch'),
+      icon: '📊',
+      lucideIcon: Presentation,
+      description: safeT('brokerPresentation'),
+      shortLabel: safeT('pitch'),
+      priority: 9,
+      answerQuestion: 'How to present?'
+    }
+  };
 };
 
 // Tier configuration for tabs - Only FREE and PRO tiers
@@ -160,6 +172,11 @@ export default function SmartTabsContainer({
   onTabChange,
   setAgentData
 }) {
+  const { t } = useLanguage();
+  
+  // Generate translated tab metadata dynamically
+  const TAB_METADATA = useMemo(() => getTranslatedTabMetadata(t || ((key) => key)), [t]);
+  
   const [internalActiveTab, setInternalActiveTab] = useState('decision_verdict');
   const [tabs, setTabs] = useState([]);
   const [loading, setLoading] = useState(false);
