@@ -12,88 +12,101 @@ import {
 } from 'lucide-react';
 
 // Tab metadata with icons - will be populated with translations
-const getTabMetadata = (t) => ({
+// Added safeT fallback to handle missing translations gracefully
+const getTabMetadata = (t) => {
+  // Safe translation function with fallback
+  const safeT = (key) => {
+    try {
+      const result = t(key);
+      return typeof result === 'string' ? result : key;
+    } catch {
+      return key;
+    }
+  };
+
+  return {
   'free_analysis': {
-    title: t('freeAnalysisTab'),
+    title: safeT('freeAnalysisTab'),
     icon: '🔍',
     lucideIcon: Eye,
-    description: t('basicAreaOverview'),
-    shortLabel: t('free'),
+    description: safeT('basicAreaOverview'),
+    shortLabel: safeT('free'),
     color: 'from-emerald-500 to-green-600'
   },
   'decision_verdict': {
-    title: t('decisionVerdict'),
+    title: safeT('decisionVerdict'),
     icon: '⚖️',
     lucideIcon: TrendingUp,
-    description: t('buyHoldAvoid'),
-    shortLabel: t('verdict'),
+    description: safeT('buyHoldAvoid'),
+    shortLabel: safeT('verdict'),
     color: 'from-green-500 to-emerald-600'
   },
   'market_snapshot': {
-    title: t('marketSnapshot'),
+    title: safeT('marketSnapshot'),
     icon: '📈',
     lucideIcon: TrendingUp,
-    description: t('priceTrendsMarket'),
-    shortLabel: t('market'),
+    description: safeT('priceTrendsMarket'),
+    shortLabel: safeT('market'),
     color: 'from-blue-500 to-cyan-500'
   },
   'spatial_intelligence': {
-    title: t('spatialIntelligence'),
+    title: safeT('spatialIntelligence'),
     icon: '🗺️',
     lucideIcon: MapPin,
-    description: t('infrastructureConnectivity'),
-    shortLabel: t('spatial'),
+    description: safeT('infrastructureConnectivity'),
+    shortLabel: safeT('spatial'),
     color: 'from-purple-500 to-pink-500'
   },
   'risk_analysis': {
-    title: t('riskAnalysisTab'),
+    title: safeT('riskAnalysisTab'),
     icon: '⚠️',
     lucideIcon: AlertTriangle,
-    description: t('floodLegalMarketRisks'),
-    shortLabel: t('risk'),
+    description: safeT('floodLegalMarketRisks'),
+    shortLabel: safeT('risk'),
     color: 'from-orange-500 to-red-500'
   },
   'roi_projection': {
-    title: t('roiProjection'),
+    title: safeT('roiProjection'),
     icon: '%',
     lucideIcon: Percent,
-    description: t('threeYearReturn'),
-    shortLabel: t('roi'),
+    description: safeT('threeYearReturn'),
+    shortLabel: safeT('roi'),
     color: 'from-green-500 to-teal-500'
   },
   'comparables': {
-    title: t('comparablesTab'),
+    title: safeT('comparablesTab'),
     icon: '🏢',
     lucideIcon: Building,
-    description: t('similarProperties'),
-    shortLabel: t('comps'),
+    description: safeT('similarProperties'),
+    shortLabel: safeT('comps'),
     color: 'from-indigo-500 to-purple-500'
   },
   'strategy': {
-    title: t('strategyTab'),
+    title: safeT('strategyTab'),
     icon: '🧭',
     lucideIcon: Compass,
-    description: t('entryExitRecommendations'),
-    shortLabel: t('strategy'),
+    description: safeT('entryExitRecommendations'),
+    shortLabel: safeT('strategy'),
     color: 'from-cyan-500 to-blue-500'
   },
   'data_transparency': {
-    title: t('dataTransparency'),
+    title: safeT('dataTransparency'),
     icon: '🗄️',
     lucideIcon: Database,
-    description: t('sourceVerification'),
-    shortLabel: t('data'),
+    description: safeT('sourceVerification'),
+    shortLabel: safeT('data'),
     color: 'from-slate-500 to-slate-600'
   },
   'client_pitch': {
-    title: t('clientPitch'),
+    title: safeT('clientPitch'),
     icon: '📊',
     lucideIcon: Presentation,
-    description: t('brokerPresentation'),
-    shortLabel: t('pitch'),
+    description: safeT('brokerPresentation'),
+    shortLabel: safeT('pitch'),
     color: 'from-amber-500 to-orange-500'
   }
-});
+  };
+};
 
 const TAB_ORDER = [
   'free_analysis',
