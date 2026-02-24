@@ -379,11 +379,12 @@ export default function SmartTabsContainer({
     const tabsWithContent = tabOrder.map(tabId => ({
       id: tabId,
       type: tierConfig.tabs[tabId] || 'locked',
-      ...TAB_METADATA[tabId],
+      ...(TAB_METADATA[tabId] || {}),
       content: generateTabContent(tabId, agentData, viewportAnalysis, reportData)
     }));
 
-    setTabs(tabsWithContent);
+    // Ensure we always set an array
+    setTabs(Array.isArray(tabsWithContent) ? tabsWithContent : []);
   };
 
   const generateTabContent = (tabId, agentData, viewportAnalysis, reportData) => {
@@ -426,18 +427,22 @@ export default function SmartTabsContainer({
           time_horizon: report.time_horizon || 'Medium-term',
           summary: report.summary || data.summary || data.explainability?.summary || 
             'Analysis based on available market data and spatial intelligence.',
-          top_reasons: report.top_reasons || data.explainability?.keyDrivers?.slice(0, 5).map(d => d.factor || d.name) || [
-            'Good connectivity to major hubs',
-            'Developing infrastructure',
-            'Competitive pricing relative to area',
-            'Strong rental yield potential',
-            'Low environmental risk'
-          ],
-          key_risks: report.key_risks || data.risks || [
-            'Market volatility in short term',
-            'Infrastructure project delays possible',
-            'Regulatory changes may impact returns'
-          ],
+          top_reasons: report.top_reasons || (Array.isArray(data.explainability?.keyDrivers) 
+            ? data.explainability.keyDrivers.slice(0, 5).map(d => d.factor || d.name)
+            : [
+                'Good connectivity to major hubs',
+                'Developing infrastructure',
+                'Competitive pricing relative to area',
+                'Strong rental yield potential',
+                'Low environmental risk'
+              ]),
+          key_risks: report.key_risks || (Array.isArray(data.risks) 
+            ? data.risks 
+            : [
+                'Market volatility in short term',
+                'Infrastructure project delays possible',
+                'Regulatory changes may impact returns'
+              ]),
           strategy_recommendation: report.strategy || {
             entry_price: '₹8,200-8,800/sqft',
             hold_duration: '3-5 years',
@@ -445,16 +450,18 @@ export default function SmartTabsContainer({
           },
           // INSIGHTS: SHAP Explainability data from Why? sub-tab
           shap_explainability: {
-            features: data.explainability?.keyDrivers?.map(d => ({
-              name: d.name || d.factor,
-              impact: (d.impact || 0) * 100,
-              direction: (d.impact || 0) > 0 ? 'positive' : 'negative'
-            })) || [
-              { name: 'Metro Connectivity', impact: 25, direction: 'positive' },
-              { name: 'School Proximity', impact: 18, direction: 'positive' },
-              { name: 'Market Trend', impact: 15, direction: 'positive' },
-              { name: 'Traffic Congestion', impact: -8, direction: 'negative' }
-            ],
+            features: (Array.isArray(data.explainability?.keyDrivers) 
+              ? data.explainability.keyDrivers.map(d => ({
+                  name: d.name || d.factor,
+                  impact: (d.impact || 0) * 100,
+                  direction: (d.impact || 0) > 0 ? 'positive' : 'negative'
+                }))
+              : [
+                  { name: 'Metro Connectivity', impact: 25, direction: 'positive' },
+                  { name: 'School Proximity', impact: 18, direction: 'positive' },
+                  { name: 'Market Trend', impact: 15, direction: 'positive' },
+                  { name: 'Traffic Congestion', impact: -8, direction: 'negative' }
+                ]),
             causalChain: data.simulation ? {
               trigger: data.simulation.scenario?.description || 'Infrastructure change',
               effect: `${data.simulation.impacts?.property_value_impact > 0 ? '+' : ''}${data.simulation.impacts?.property_value_impact || 12}% price impact`,
@@ -744,12 +751,12 @@ export default function SmartTabsContainer({
     }
   };
 
-  const activeTabData = tabs.find(t => t.id === activeTab) || tabs[0];
+  const activeTabData = (Array.isArray(tabs) && tabs.find(t => t.id === activeTab)) || (Array.isArray(tabs) ? tabs[0] : null);
   const tierConfig = TIER_CONFIG[userTier] || TIER_CONFIG['free'];
 
   // Count locked tabs for upgrade prompt
-  const lockedCount = tabs.filter(t => t.type === 'locked').length;
-  const limitedCount = tabs.filter(t => t.type === 'limited' || t.type === 'preview').length;
+  const lockedCount = Array.isArray(tabs) ? tabs.filter(t => t.type === 'locked').length : 0;
+  const limitedCount = Array.isArray(tabs) ? tabs.filter(t => t.type === 'limited' || t.type === 'preview').length : 0;
 
   return (
     <div className="smart-tabs-container p-2">

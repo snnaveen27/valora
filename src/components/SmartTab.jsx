@@ -360,7 +360,7 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
           <span className="text-[10px] text-slate-500">{topReasons.length} {t('factorsAnalyzed')}</span>
         </div>
         <div className="space-y-1">
-          {topReasons.slice(0, isLimited ? 3 : 5).map((reason, i) => (
+          {(Array.isArray(topReasons) ? topReasons : []).slice(0, isLimited ? 3 : 5).map((reason, i) => (
             <ReasonItem 
               key={i}
               reason={reason}
@@ -389,7 +389,7 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
             <span className="text-[10px] text-slate-500">{t('honestAssessment')}</span>
           </div>
           <div className="space-y-1">
-            {keyRisks.map((risk, i) => (
+            {(Array.isArray(keyRisks) ? keyRisks : []).map((risk, i) => (
               <ReasonItem key={i} reason={risk} type="risk" impact={Math.floor(Math.random() * 10) + 3} index={i} />
             ))}
           </div>
@@ -420,7 +420,7 @@ function VerdictContent({ content, isLimited, onUpgrade }) {
           
           {/* Feature Impacts */}
           <div className="space-y-2 mb-3">
-            {content.shap_explainability.features?.slice(0, 5).map((feature, i) => (
+            {(Array.isArray(content.shap_explainability?.features) ? content.shap_explainability.features : []).slice(0, 5).map((feature, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="flex-1">
                   <div className="flex items-center justify-between text-xs mb-1">
@@ -659,7 +659,7 @@ function MarketContent({ content, isLimited }) {
         <div className="bg-slate-800/30 rounded-lg p-3">
           <h4 className="text-xs font-medium text-slate-300 mb-2">{t('advancedIndicators')}</h4>
           <div className="space-y-2">
-            {Object.entries(content.advanced_indicators).map(([key, val]) => (
+            {Object.entries(content.advanced_indicators || {}).map(([key, val]) => (
               <div key={key} className="flex items-center justify-between text-xs">
                 <span className="text-slate-400 capitalize">{key.replace(/_/g, ' ')}</span>
                 <span className="text-white font-medium">{val}</span>
@@ -841,16 +841,16 @@ function SpatialContent({ content, isLimited }) {
         {/* Infrastructure List */}
         <div className="mb-4">
           <div className="space-y-2">
-            {(content.nearby_infrastructure || []).slice(0, isLimited ? 3 : 10).map((infra, i) => (
+            {(Array.isArray(content.nearby_infrastructure) ? content.nearby_infrastructure : []).slice(0, isLimited ? 3 : 10).map((infra, i) => (
               <div key={i} className="flex items-center justify-between text-xs bg-slate-800/30 rounded p-2">
                 <span className="text-white">{infra.name}</span>
                 <span className="text-slate-400">{infra.distance}</span>
               </div>
             ))}
           </div>
-          {isLimited && (content.nearby_infrastructure?.length || 0) > 3 && (
+          {isLimited && (Array.isArray(content.nearby_infrastructure) ? content.nearby_infrastructure.length : 0) > 3 && (
             <div className="text-center mt-2">
-              <span className="text-[10px] text-blue-400">+{(content.nearby_infrastructure?.length || 0) - 3} more with Pro</span>
+              <span className="text-[10px] text-blue-400">+{(Array.isArray(content.nearby_infrastructure) ? content.nearby_infrastructure.length : 0) - 3} more with Pro</span>
             </div>
           )}
         </div>
@@ -901,7 +901,7 @@ function SpatialContent({ content, isLimited }) {
       </div>
 
       {/* Growth Hotspots - Pro */}
-      {!isLimited && content.growth_hotspots && (
+      {!isLimited && content.growth_hotspots && Array.isArray(content.growth_hotspots) && (
         <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-lg p-3">
           <h4 className="text-xs font-medium text-green-400 mb-2 flex items-center gap-1">
             <Sparkles className="w-3 h-3" />
@@ -988,7 +988,7 @@ function RiskCategoryCard({ category, data, isExpanded, onToggle }) {
               />
             </div>
           </div>
-          {data.mitigation && (
+          {data.mitigation && Array.isArray(data.mitigation) && (
             <div className="bg-slate-700/30 rounded-lg p-2">
               <div className="text-[10px] text-slate-400 mb-1">Mitigation:</div>
               <ul className="space-y-1">
@@ -1057,7 +1057,7 @@ function RiskContent({ content, isLimited }) {
       </div>
 
       {/* Mitigation Suggestions */}
-      {content.mitigation_suggestions && (
+      {content.mitigation_suggestions && Array.isArray(content.mitigation_suggestions) && (
         <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-3">
           <h4 className="text-xs font-medium text-blue-400 mb-2">Recommended Actions</h4>
           <ul className="space-y-1">
@@ -1125,7 +1125,7 @@ function ROIContent({ content, isLimited }) {
             </div>
           </div>
           
-          {investmentScore.key_factors && investmentScore.key_factors.length > 0 && (
+          {investmentScore.key_factors && Array.isArray(investmentScore.key_factors) && investmentScore.key_factors.length > 0 && (
             <div className="mt-3 bg-slate-800/40 rounded-lg p-2">
               <div className="text-slate-400 text-[10px] mb-1.5">Key Factors</div>
               <div className="flex flex-wrap gap-1">
@@ -1217,7 +1217,7 @@ function ComparablesContent({ content, isLimited }) {
   return (
     <div className="comparables-content p-4 space-y-4">
       <div className="space-y-2 mb-4">
-        {comparables.map((comp, i) => (
+        {(Array.isArray(comparables) ? comparables : []).map((comp, i) => (
           <div key={i} className="bg-slate-800/30 rounded p-3 flex items-center justify-between">
             <div>
               <div className="text-sm text-white font-medium">{comp.project}</div>
@@ -1297,7 +1297,7 @@ function StrategyContent({ content, isLimited }) {
       <div className="mb-4">
         <h4 className="text-sm font-medium text-slate-300 mb-2">Action Items</h4>
         <ul className="space-y-1">
-          {(content.action_items || []).map((item, i) => (
+          {(Array.isArray(content.action_items) ? content.action_items : []).map((item, i) => (
             <li key={i} className="text-xs text-slate-300 flex items-start gap-2">
               <span className="text-blue-400">☐</span> {item}
             </li>
@@ -1381,7 +1381,7 @@ function TransparencyContent({ content, isLimited }) {
       </div>
       
       {/* Missing Data Warnings */}
-      {content.missing_data_warnings && content.missing_data_warnings.length > 0 && (
+      {content.missing_data_warnings && Array.isArray(content.missing_data_warnings) && content.missing_data_warnings.length > 0 && (
         <div className="bg-yellow-500/10 rounded p-2">
           <h4 className="text-xs font-medium text-yellow-400 mb-1 flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />
@@ -1441,7 +1441,7 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
 
   // Show properties on map when loaded - filter for those with both images AND coordinates
   useEffect(() => {
-    if (Object.keys(freeProperties).length > 0) {
+    if (freeProperties && typeof freeProperties === 'object' && Object.keys(freeProperties).length > 0) {
       // Filter properties that have both coordinates AND images
       const validProperties = Object.entries(freeProperties)
         .filter(([_, prop]) => {
@@ -1694,7 +1694,7 @@ function FreeAnalysisContent({ content, setAgentData, userTier }) {
 
       {/* Properties Grid */}
       <div className="grid grid-cols-1 gap-3">
-        {Object.entries(freeProperties).map(([category, property]) => {
+        {Object.entries(freeProperties || {}).map(([category, property]) => {
           if (!property) return null;
           const Icon = categoryIcons[category] || Building;
           const gradient = categoryColors[category] || 'from-slate-500 to-slate-600';
