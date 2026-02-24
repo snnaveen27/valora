@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
-import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, ChevronDown, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud, Loader2, Activity, CheckCircle2, Circle, AlertTriangle, Percent, Building, Compass, Database, Presentation, Eye, Download } from 'lucide-react'
+import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, ChevronDown, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud, Loader2, Activity, CheckCircle2, Circle, AlertTriangle, Percent, Building, Compass, Database, Presentation, Eye, Download, Users } from 'lucide-react'
 
 import { API_URL } from '../apiConfig'
 import CreditBalance from './CreditBalance'
@@ -1279,7 +1279,7 @@ export default function MainApp() {
             </>
           ) : (
             /* Collapsed Tab Sidebar */
-            <div className="h-full w-12 bg-slate-800/30 border-r border-slate-700 flex flex-col py-1 overflow-y-auto">
+            <div className="h-full w-12 bg-slate-800/30 border-r border-slate-700 flex flex-col py-1 overflow-hidden">
               {[
                 { id: 'free_analysis', icon: Eye, label: 'Free' },
                 { id: 'decision_verdict', icon: TrendingUp, label: 'Verdict' },
@@ -1291,7 +1291,8 @@ export default function MainApp() {
                 { id: 'strategy', icon: Compass, label: 'Strategy' },
                 { id: 'data_transparency', icon: Database, label: 'Data' },
                 { id: 'client_pitch', icon: Presentation, label: 'Pitch' },
-                { id: 'agent_control', icon: Brain, label: 'Agent' }
+                { id: 'agent_control', icon: Brain, label: 'Agent' },
+                { id: 'community_pulse', icon: Users, label: 'Comm' }
               ].map(tab => (
                 <button
                   key={tab.id}

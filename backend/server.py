@@ -217,6 +217,24 @@ from database.api_routes import router as database_router
 app.include_router(database_router)
 print("[OK] Database routes initialized")
 
+# Include family hub routes (Community Pulse Phase 1)
+from routes.family_routes import router as family_router, init_family_routes
+app.include_router(family_router)
+init_family_routes()  # Initialize database tables
+print("[OK] Family Hub routes initialized (Community Pulse Phase 1)")
+
+# Include review routes (Community Pulse Phase 2 - Locality & Builder Reviews)
+from routes.review_routes import router as review_router, rera_router, init_review_routes
+app.include_router(review_router)
+app.include_router(rera_router)
+init_review_routes()  # Initialize Phase 2 database tables
+
+# Phase 3: Sentiment Dashboard routes
+from routes.sentiment_routes import router as sentiment_router
+app.include_router(sentiment_router)
+print("[OK] Sentiment Dashboard routes initialized")
+print("[OK] Review routes initialized (Community Pulse Phase 2)")
+
 # CORS for frontend
 _default_origins = [
     "http://localhost:3000",

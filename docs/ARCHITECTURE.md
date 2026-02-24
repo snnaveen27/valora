@@ -638,6 +638,19 @@ const TIER_CONFIG = {
 | **Comparables** | 🔒 Locked | Full | Similar listings |
 | **Strategy** | 🔒 Locked | Full | Entry/exit strategy |
 | **Client Pitch** | 🔒 Locked | Full | Broker presentation |
+| **Agent Control** | Full | Full | Digital employee automation |
+| **Community Pulse** | Full | Full | Family hub, reviews, sentiment |
+
+### 6.4 Community Pulse Tab
+
+The Community Pulse tab provides collaborative real estate intelligence features:
+
+**Components:**
+- **Family Hub**: Collaborative property decisions with family members
+- **Locality Reviews**: Community-driven reviews with India-specific categories
+- **Sentiment Dashboard**: Market intelligence and sentiment analysis
+
+**See Also:** [Community Pulse Documentation](features/community_pulse.md)
 
 ### 6.4 Upgrade Flow
 

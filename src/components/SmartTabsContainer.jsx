@@ -13,8 +13,15 @@ import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
   Compass, Database, Presentation, Lock, Sparkles,
   Download, Share2, FileText, Loader2, Building2, Wallet,
-  Eye, Sun, Trophy, CheckCircle, Star, Bot
+  Eye, Sun, Trophy, CheckCircle, Star, Bot, Users, MessageSquare, Activity
 } from 'lucide-react';
+
+// Import Community Pulse components
+import {
+  FamilyHub,
+  LocalityReviews,
+  SentimentDashboard
+} from './community';
 
 // Function to generate translated tab metadata
 const getTranslatedTabMetadata = (t) => {
@@ -126,6 +133,15 @@ const getTranslatedTabMetadata = (t) => {
       shortLabel: 'agent',
       priority: 10,
       answerQuestion: 'What should I automate next?'
+    },
+    'community_pulse': {
+      title: safeT('communityPulse'),
+      icon: '👥',
+      lucideIcon: Users,
+      description: safeT('familyReviewsSentiment'),
+      shortLabel: safeT('community'),
+      priority: 11,
+      answerQuestion: 'What does the community say?'
     }
   };
 };
@@ -146,7 +162,8 @@ const TIER_CONFIG = {
       'strategy': 'locked',                // Locked
       'data_transparency': 'locked',       // Locked
       'client_pitch': 'locked',            // Locked
-      'agent_control': 'full'              // Available in free with limits
+      'agent_control': 'full',             // Available in free with limits
+      'community_pulse': 'full'            // Community features free
     },
     upgradeMessage: 'Upgrade to Pro for full analysis'
   },
@@ -164,7 +181,8 @@ const TIER_CONFIG = {
       'strategy': 'full',                  // Full access
       'data_transparency': 'full',         // Full access
       'client_pitch': 'full',              // Full access for Pro
-      'agent_control': 'full'              // Full automation panel
+      'agent_control': 'full',             // Full automation panel
+      'community_pulse': 'full'            // Community features
     },
     upgradeMessage: null  // No upgrade - Pro is the highest tier
   }
@@ -372,7 +390,8 @@ export default function SmartTabsContainer({
       'strategy',
       'data_transparency',
       'client_pitch',
-      'agent_control'
+      'agent_control',
+      'community_pulse'
     ];
 
     // Generate content for each tab based on agentData
@@ -746,6 +765,18 @@ export default function SmartTabsContainer({
           mode: 'digital_employee'
         };
 
+      case 'community_pulse':
+        return {
+          mode: 'community_pulse',
+          component: 'community_pulse',
+          FamilyHub,
+          LocalityReviews,
+          SentimentDashboard,
+          locality,
+          lat,
+          lng
+        };
+
       default:
         return {};
     }
@@ -808,6 +839,42 @@ export default function SmartTabsContainer({
             authToken={authToken}
             authUser={authUser}
           />
+        ) : activeTabData?.id === 'community_pulse' ? (
+          <div className="p-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-white mb-3">Family Hub</h3>
+              <FamilyHub
+                locality={locality}
+                lat={lat}
+                lng={lng}
+                userTier={userTier}
+                authToken={authToken}
+                authUser={authUser}
+              />
+            </div>
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-white mb-3">Locality Reviews</h3>
+              <LocalityReviews
+                locality={locality}
+                lat={lat}
+                lng={lng}
+                userTier={userTier}
+                authToken={authToken}
+                authUser={authUser}
+              />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-3">Market Sentiment</h3>
+              <SentimentDashboard
+                locality={locality}
+                lat={lat}
+                lng={lng}
+                userTier={userTier}
+                authToken={authToken}
+                authUser={authUser}
+              />
+            </div>
+          </div>
         ) : (
           activeTabData && (
           <SmartTab

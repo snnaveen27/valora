@@ -8,7 +8,7 @@ import SmartTabsContainer from './SmartTabsContainer';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
-  Compass, Database, Presentation, Eye, Bot
+  Compass, Database, Presentation, Eye, Bot, Users
 } from 'lucide-react';
 
 // Tab metadata with icons - will be populated with translations
@@ -112,6 +112,14 @@ const getTabMetadata = (t) => {
     description: 'Manage alerts, tasks, and leads',
     shortLabel: 'agent',
     color: 'from-cyan-500 to-blue-500'
+  },
+  'community_pulse': {
+    title: safeT('communityPulse'),
+    icon: '👥',
+    lucideIcon: Users,
+    description: 'Family Hub, Reviews & Market Sentiment',
+    shortLabel: 'community',
+    color: 'from-indigo-500 to-purple-500'
   }
   };
 };
@@ -127,7 +135,8 @@ const TAB_ORDER = [
   'strategy',
   'data_transparency',
   'client_pitch',
-  'agent_control'
+  'agent_control',
+  'community_pulse'
 ];
 
 export default function SmartPanel({

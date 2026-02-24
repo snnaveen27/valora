@@ -2089,6 +2089,449 @@ Will ORR traffic improve with metro?
 
 ---
 
+## 👥 Community Pulse Queries
+
+### Family Hub - Collaborative Decisions
+```
+Create a family session for property search
+Invite my family to review properties
+Share this property with my family
+Show our family watchlist
+What does my family think about this property?
+Add this to our family watchlist
+Vote yes on this property
+Vote no on this property
+Remove from family watchlist
+Show family voting results
+```
+
+**Expected:**
+- Family session created with shareable link
+- WhatsApp/email invitation sent
+- Shared watchlist updated in real-time
+- Voting recorded and aggregated
+- Timeline shows all family activity
+
+### Locality Reviews - Community Insights
+```
+Show reviews for Koramangala
+What do residents say about Whitefield?
+Rate this locality for Vastu compliance
+Write a review for Indiranagar
+Is this area good for families?
+How is the water supply in this area?
+Power cut frequency in this locality
+Safety rating for this neighborhood
+Show builder reviews for Prestige
+What do people say about Sobha builders?
+```
+
+**Expected:**
+- Locality reviews displayed with ratings
+- India-specific categories (Vastu, Water, Power, Safety)
+- Builder profiles with project history
+- Review submission form
+- Helpfulness voting on reviews
+
+### RERA Verification
+```
+Verify RERA for this project
+Is this project RERA registered?
+Show RERA details for PRM/KA/RERA/1251/310/...
+Check builder RERA compliance
+RERA status of this property
+```
+
+**Expected:**
+- RERA registration verified
+- Project status displayed
+- Builder compliance checked
+- Verification badge shown
+
+### Sentiment Dashboard - Market Intelligence
+```
+What is the market sentiment for Whitefield?
+Show demand trends in Koramangala
+Is now a good time to buy in Electronic City?
+Investment score for this locality
+Price trend analysis for Sarjapur Road
+Show trending localities in Bangalore
+Market activity feed
+What are the price trends saying?
+```
+
+**Expected:**
+- Sentiment gauge displayed (Bullish/Bearish/Neutral)
+- Demand/supply analysis shown
+- Investment score calculated
+- Price trend charts rendered
+- Activity feed with market signals
+
+### Community Credits & Rewards
+```
+How many credits do I have?
+What can I do with my credits?
+Earn credits for writing a review
+Spend credits on sentiment analysis
+Show my credit history
+```
+
+**Expected:**
+- Credit balance displayed
+- Earning/spending options shown
+- Transaction history available
+
+---
+
+## 🤖 Digital Employee / Agent Queries
+
+### Property Alerts
+```
+Alert me when 2BHK in Whitefield under 80L is listed
+Set up alert for 3BHK in Koramangala below 1.5cr
+Notify me when price drops in Electronic City
+Create alert for new listings near metro stations
+Track price changes for this property
+Show my active alerts
+Delete alert for Whitefield
+Pause all my alerts
+```
+
+**Expected:**
+- Alert created with criteria
+- Notification sent when match found
+- Alert management in Agent tab
+
+### Lead Management
+```
+Add lead Rahul rahul@example.com +91 98765 43210
+Create a lead for this buyer
+Show my leads
+Update lead status to hot
+Add notes to this lead
+Follow up with the Sharma family
+Convert lead to deal
+Delete this lead
+```
+
+**Expected:**
+- Lead captured in CRM
+- Lead list displayed
+- Status updates saved
+- Notes attached to lead
+
+### Scheduled Tasks & Reports
+```
+Schedule weekly report for Powai every Monday 09:00
+Send daily market summary at 8am
+Create monthly investment report
+Schedule a site visit for tomorrow
+Remind me to follow up with this client in 3 days
+Show my scheduled tasks
+Cancel my weekly report
+```
+
+**Expected:**
+- Task scheduled with timing
+- Report generated and delivered
+- Reminder notifications sent
+- Task management in Agent tab
+
+### Task Automation
+```
+Set up a property alert for 2BHK in Whitefield under 80L
+Create a lead for this buyer
+Schedule a site visit for tomorrow
+Remind me to follow up with this client
+Track this property for price changes
+```
+
+**Expected:**
+- Alert created with criteria
+- Lead captured in system
+- Calendar event scheduled
+- Reminder set with notification
+- Property added to watchlist
+
+### Agent Dashboard
+```
+What tasks do I have today?
+Show my pending follow-ups
+How many leads this week?
+My performance summary
+Agent productivity report
+Show recent activity
+```
+
+**Expected:**
+- Task list for the day
+- Follow-up queue displayed
+- Lead statistics shown
+- Performance metrics calculated
+
+### Broker Tools
+```
+Generate a client pitch for this property
+Create a presentation for this area
+Share this analysis with my client
+Export property comparison
+Prepare a site visit checklist
+Email this report to my client
+```
+
+**Expected:**
+- Pitch deck generated
+- Presentation created
+- Share link provided
+- Export file downloaded
+- Checklist displayed
+
+### Email Automation
+```
+Send weekly market report to client@example.com
+Email this property to my lead
+Send follow-up email to Sharma family
+Schedule email for tomorrow morning
+```
+
+**Expected:**
+- Email sent via configured SMTP
+- Delivery tracked
+- Email logged in activity
+
+### Advanced Alert Criteria
+```
+Alert me when 2BHK in Whitefield under 80L with parking is listed
+Notify me when 3BHK in Koramangala drops below 1.2cr
+Create alert for properties within 500m of metro station
+Alert when new launch project announced in Sarjapur
+Track price changes for 3BHK in this area
+Alert me when similar properties are listed
+Notify when rental yield exceeds 4% in this area
+```
+
+**Expected:**
+- Multi-criteria alert created
+- Complex filters applied
+- Alert triggered on match
+
+### Lead Qualification
+```
+Qualify this lead for 2BHK in Whitefield
+What properties match this lead's criteria?
+Score this lead based on budget and timeline
+Assign lead to agent Rajesh
+Transfer lead to senior team
+Mark lead as not interested
+Set lead to cold status
+```
+
+**Expected:**
+- Lead qualification workflow
+- Property matching
+- Lead scoring
+- Assignment and transfer
+
+### Follow-up Automation
+```
+Auto-follow up with leads after 48 hours
+Send reminder to client about site visit
+Schedule follow-up call for next week
+Create follow-up task for this lead
+Set recurring follow-up every Monday
+```
+
+**Expected:**
+- Automated follow-up scheduled
+- Reminder notifications
+- Recurring tasks created
+
+### Market Intelligence Automation
+```
+Monitor price trends in Whitefield weekly
+Track new launches in Koramangala
+Alert when competitor lists property nearby
+Monitor rental yields in Electronic City
+Track inventory levels in Sarjapur
+```
+
+**Expected:**
+- Market monitoring active
+- Trend alerts sent
+- Competitor tracking enabled
+
+### Client Communication
+```
+Send property brochure to client
+Share this analysis via WhatsApp
+Email market report to all my leads
+Broadcast new listing to hot leads
+Send birthday greeting to client
+```
+
+**Expected:**
+- Communication sent
+- Delivery confirmed
+- Activity logged
+
+### Calendar & Scheduling
+```
+Schedule site visit for tomorrow 3pm
+Block time for client meeting on Friday
+Check my calendar for next week
+Reschedule the Whitefield visit
+Cancel my appointment with Sharma
+Show today's schedule
+```
+
+**Expected:**
+- Calendar event created
+- Schedule displayed
+- Rescheduling handled
+
+### Performance Tracking
+```
+Show my conversion rate this month
+How many leads converted to deals?
+My top performing areas
+Agent leaderboard
+Revenue generated this quarter
+Properties sold this year
+```
+
+**Expected:**
+- Performance metrics displayed
+- Conversion statistics
+- Leaderboard rankings
+
+### Bulk Operations
+```
+Send market update to all leads
+Export all my leads to CSV
+Import leads from spreadsheet
+Bulk update lead status
+Delete inactive leads
+```
+
+**Expected:**
+- Bulk action executed
+- Export/import completed
+- Status updates applied
+
+### Notification Preferences
+```
+Set alert notifications to email only
+Enable push notifications for price drops
+Disable weekend alerts
+Set quiet hours from 10pm to 8am
+Notification frequency to daily digest
+```
+
+**Expected:**
+- Preferences saved
+- Notification behavior updated
+
+### Workflow Templates
+```
+Create workflow for new lead
+Set up buyer journey automation
+Create seller onboarding sequence
+Design follow-up cadence
+Save this as a template
+```
+
+**Expected:**
+- Workflow template created
+- Automation sequence saved
+- Reusable templates available
+- Report generated
+
+### Broker Tools
+```
+Generate a client pitch for this property
+Create a presentation for this area
+Share this analysis with my client
+Export property comparison
+Prepare a site visit checklist
+Email this report to my client
+```
+
+**Expected:**
+- Pitch deck generated
+- Presentation created
+- Share link provided
+- Export file downloaded
+- Checklist displayed
+
+### Email Automation
+```
+Send weekly market report to client@example.com
+Email this property to my lead
+Send follow-up email to Sharma family
+Schedule email for tomorrow morning
+```
+
+**Expected:**
+- Email sent via configured SMTP
+- Delivery tracked
+- Email logged in activity
+
+---
+
+## 👥 Community Pulse Queries
+- Reminder set with notification
+- Property added to watchlist
+
+### Lead Management
+```
+Show my leads
+Follow up with the Sharma family
+Update lead status to hot
+Add notes to this lead
+Convert lead to deal
+```
+
+**Expected:**
+- Lead list displayed
+- Lead details editable
+- Status updates saved
+- Notes attached to lead
+- Conversion workflow initiated
+
+### Agent Dashboard
+```
+What tasks do I have today?
+Show my pending follow-ups
+How many leads this week?
+My performance summary
+Agent productivity report
+```
+
+**Expected:**
+- Task list for the day
+- Follow-up queue displayed
+- Lead statistics shown
+- Performance metrics calculated
+- Report generated
+
+### Broker Tools
+```
+Generate a client pitch for this property
+Create a presentation for this area
+Share this analysis with my client
+Export property comparison
+Prepare a site visit checklist
+```
+
+**Expected:**
+- Pitch deck generated
+- Presentation created
+- Share link provided
+- Export file downloaded
+- Checklist displayed
+
+---
+
  *Generated: January 2026*
  *Platform: Valora AI v2.0 - City Intelligence Platform*
  *Query Count: 800+ test queries covering all intents and edge cases*
