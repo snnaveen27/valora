@@ -77,17 +77,19 @@ _pool_lock = threading.Lock()
 
 
 def get_pool(name: str, db_path: str, init_sql: Optional[str] = None) -> ThreadLocalSQLite:
-    """Get or create a named connection pool."""
+    """Get or create a connection pool keyed by (name, db_path)."""
+    db_key = str(db_path)
+    pool_key = (name, db_key)
     with _pool_lock:
-        if name not in _pools:
-            _pools[name] = ThreadLocalSQLite(db_path, init_sql)
-        return _pools[name]
+        if pool_key not in _pools:
+            _pools[pool_key] = ThreadLocalSQLite(db_key, init_sql)
+        return _pools[pool_key]
 
 
 def close_all_pools():
     """Close all pools (call on app shutdown)."""
     with _pool_lock:
-        for name, pool in _pools.items():
+        for _, pool in _pools.items():
             pool.close_all()
         _pools.clear()
     logger.info("[SQLitePool] All pools closed")

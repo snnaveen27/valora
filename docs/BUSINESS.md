@@ -78,6 +78,36 @@
 
 ---
 
+## Digital Employee Monetization (Implemented)
+
+Valora now includes a native digital employee layer (alerts + automations + lead CRM) inside the core product, not as a separate product line.
+
+### Free vs Pro Packaging
+
+| Capability | Free | Pro |
+|------------|------|-----|
+| Active property alerts | Up to 3 | Unlimited |
+| Scheduled automations | Up to 5 | Unlimited |
+| Email automation | No | Yes |
+| Auto-execution | Manual confirmation default | Auto-execution allowed |
+| Lead manager | Basic | Full workflow |
+
+### Revenue Impact Thesis
+
+- Improves **Free → Pro conversion** by gating high-frequency automation and email delivery.
+- Improves **retention** because users rely on always-on workflows, not just ad hoc chats.
+- Increases **ARPU** by combining subscription value (automation) with usage-based analytics/reporting.
+
+### Build-vs-Buy Decision (OpenClaw)
+
+Current direction is to **extend Valora’s own architecture** rather than replacing the stack with OpenClaw:
+
+- Existing auth, tiering, credits, and GIS data pipelines are already productionized.
+- A separate agent runtime would duplicate orchestration, state, and observability.
+- In-product integration keeps lower operational complexity and better control over policy/security.
+
+---
+
 ## Technology Differentiation
 
 | Feature | Generic PropTech | Valora AI |
@@ -135,6 +165,9 @@
 ### Product KPIs
 - Intent accuracy, tool success rate, median latency
 - % responses with grounded numeric facts
+- % users with active digital employee automations
+- Alert trigger-to-user-action conversion
+- Lead follow-up completion rate
 
 ### Business KPIs
 - Trial → paid conversion
@@ -154,4 +187,4 @@
 
 ---
 
-*Unified: February 2026 (merged BUSINESS_MODEL_AND_PLAN + INVESTOR_PITCH + USAGE_BASED_MONETIZATION + PRICING_DATABASE_SECURITY)*
+*Unified: February 2026 (includes digital employee packaging and automation GTM)*

@@ -15,6 +15,7 @@
 10. [Data Layer](#10-data-layer)
 11. [Testing](#11-testing)
 12. [Configuration](#12-configuration)
+13. [Digital Employee Runtime](#13-digital-employee-runtime)
 
 ---
 
@@ -1068,4 +1069,84 @@ data: {
 
 ---
 
-*Valora AI — Production architecture with learning-aware model routing, circuit breakers, fact verification, request tracing, and enhanced self-learning. February 2026.*
+## 13. Digital Employee Runtime
+
+### 13.1 Build Decision: Extend Current App (Not OpenClaw Replacement)
+
+Valora now implements digital employee workflows directly inside the existing stack.
+
+- Reuses existing auth, tiering, credits, and UI shell
+- Keeps one operational plane (same backend, same deployment, same observability)
+- Avoids dual orchestration layers and duplicated user state
+- Preserves the truth-firewall and grounded data pipeline already in production
+
+### 13.2 New Backend Components
+
+| Component | File | Responsibility |
+|-----------|------|----------------|
+| Digital Employee Core | `backend/services/digital_employee_service.py` | Alerts, schedules, leads, command parsing, audit log |
+| Scheduler Loop | `backend/services/scheduler_service.py` | Periodic alert scans + due task execution |
+| Email Automation | `backend/services/email_automation.py` | SMTP delivery with safe demo fallback |
+| Lead Manager | `backend/services/lead_manager.py` | Thin lead CRUD wrapper |
+| API Routes | `backend/routes/digital_employee_routes.py` | Authenticated endpoints + compatibility aliases |
+
+### 13.3 Runtime Wiring
+
+- `backend/server.py` includes:
+  - `/api/digital-employee/*`
+  - `/api/automations/*` (compatibility paths)
+  - `/api/leads/*` (compatibility paths)
+- Scheduler starts on FastAPI startup and stops gracefully on shutdown.
+
+### 13.4 API Surface
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/digital-employee/summary` | GET | Agent dashboard snapshot |
+| `/api/digital-employee/alerts` | GET/POST | List/create property alerts |
+| `/api/digital-employee/alerts/{id}` | PUT/DELETE | Update/deactivate alert |
+| `/api/digital-employee/scheduled-tasks` | GET/POST | List/create scheduled tasks |
+| `/api/digital-employee/scheduled-tasks/{id}` | PUT/DELETE | Update/deactivate task |
+| `/api/digital-employee/leads` | GET/POST | Lead CRM list/create |
+| `/api/digital-employee/leads/{id}` | PUT/DELETE | Lead update/archive |
+| `/api/digital-employee/activity` | GET | Automation audit/activity feed |
+| `/api/digital-employee/commands/parse` | POST | Parse command into structured intent |
+| `/api/digital-employee/commands/parse-and-execute` | POST | Execute supported commands |
+| `/api/digital-employee/scheduler/status` | GET | Scheduler health/status |
+| `/api/digital-employee/scheduler/run-once` | POST | Manual cycle trigger |
+
+### 13.5 Tier Policy Enforcement
+
+| Capability | Free | Pro |
+|------------|------|-----|
+| Active alerts | 3 max | Unlimited |
+| Scheduled tasks | 5 max | Unlimited |
+| Email channel | No | Yes |
+| Auto task execution | Manual confirmation default | Auto-execution allowed |
+| Instant alert scan interval | 60 min | 15 min |
+
+### 13.6 Frontend Integration
+
+New UI surface:
+
+- `src/components/AgentControlPanel.jsx`
+- New Smart tab: `agent_control`
+- Chat fast-path for explicit automation commands in `src/components/chat/EnhancedChatPanel.jsx`
+
+Automation commands like `alert me ...`, `schedule ...`, and `add lead ...` are routed to digital employee APIs before the normal LLM stream.
+
+### 13.7 Data Persistence
+
+`digital_employee.db` stores:
+
+- `property_alerts`
+- `scheduled_tasks`
+- `leads`
+- `automation_activity`
+- `automation_runs`
+
+This keeps automation state isolated from core GIS/property query tables while preserving auditable action history.
+
+---
+
+*Valora AI — Production architecture with grounded reasoning, learning-aware routing, and integrated digital employee automation. February 2026.*

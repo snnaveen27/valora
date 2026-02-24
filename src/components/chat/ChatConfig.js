@@ -27,7 +27,9 @@ const getConfig = () => ({
     { emoji: '📍', title: 'Exploring areas', example: 'Tell me about Koramangala' },
     { emoji: '💰', title: 'Investment advice', example: 'Is Hebbal a good investment?' },
     { emoji: '📊', title: 'Market trends', example: 'Price trends in HSR Layout' },
-    { emoji: '🔮', title: 'What-if scenarios', example: 'What if metro comes to Sarjapur?' }
+    { emoji: '🔮', title: 'What-if scenarios', example: 'What if metro comes to Sarjapur?' },
+    { emoji: '🤖', title: 'Automation commands', example: 'Alert me when 2BHK in Andheri under 70L is listed' },
+    { emoji: '👥', title: 'Lead management', example: 'Add lead Rahul mehta@example.com +91 98765 43210' }
   ],
   
   // Closing message

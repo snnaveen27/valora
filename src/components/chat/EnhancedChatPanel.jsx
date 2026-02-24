@@ -172,7 +172,8 @@ export default function EnhancedChatPanel({
   onTaskStreaming = null,
   onSidebarOpen = null,
   onSidebarClose = null,
-  authUser = null
+  authUser = null,
+  authToken = null
 }) {
   // Get translation function and language setter
   const { t, language, setLanguage } = useLanguage()
@@ -1481,6 +1482,52 @@ export default function EnhancedChatPanel({
     const { skipFlyTo, clickedCoordinates } = options
     const userMessage = messageOverride || input.trim()
     if (!userMessage || isLoading) return
+
+    // Fast-path for explicit automation commands routed to Digital Employee APIs.
+    const isAutomationCommand = /^(alert|alert me|schedule|weekly report|add lead|new lead|add a lead)/i.test(userMessage.trim())
+    if (isAutomationCommand) {
+      try {
+        if (!authToken) {
+          if (!skipUserMessage) addMessage({ role: 'user', content: userMessage })
+          addMessage({
+            role: 'assistant',
+            content: 'Digital employee commands require login. Please sign in and try again.',
+            intent: 'digital_employee_auth_required'
+          })
+          setInput('')
+          return
+        }
+
+        const cmdResp = await fetch(`${API_URL}/api/digital-employee/commands/parse-and-execute`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ command: userMessage })
+        })
+
+        const cmdData = await cmdResp.json().catch(() => ({}))
+        if (cmdResp.ok && cmdData?.handled) {
+          if (!skipUserMessage) addMessage({ role: 'user', content: userMessage })
+          addMessage({
+            role: 'assistant',
+            content: cmdData.executed
+              ? `✅ ${cmdData.summary || 'Automation command executed.'}`
+              : `⚠️ ${cmdData.reason || 'Command recognized but could not be executed.'}`,
+            intent: 'digital_employee_command'
+          })
+          window.dispatchEvent(new CustomEvent('valora-ui-command', {
+            detail: { action: 'switchTab', value: 'agent_control' }
+          }))
+          setInput('')
+          fetchCredits()
+          return
+        }
+      } catch (cmdErr) {
+        console.warn('[DigitalEmployee] Command fast-path failed, falling back to AI stream:', cmdErr)
+      }
+    }
     
     // Check if this is a confirmation response for report generation
     const lastMessage = currentSession?.messages?.slice(-1)[0]
@@ -2000,7 +2047,7 @@ export default function EnhancedChatPanel({
     )
     setAbortController(null)
     setAttachedImages([])
-  }, [input, isLoading, addMessage, updateLastMessage, callAIStreaming])
+  }, [input, isLoading, addMessage, updateLastMessage, callAIStreaming, authToken, fetchCredits, currentSession?.messages])
   
   // Effect to update sendMessageRef after handleSendMessage is defined
   useEffect(() => {

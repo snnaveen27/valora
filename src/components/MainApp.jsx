@@ -26,7 +26,7 @@ const ComponentLoader = () => (
 )
 
 export default function MainApp() {
-  const { user, logout, isAdmin, loading: authLoading } = useAuth()
+  const { user, token, logout, isAdmin, loading: authLoading } = useAuth()
   const { t } = useLanguage()
   const [agentData, setAgentData] = useState({})
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true)
@@ -649,6 +649,9 @@ export default function MainApp() {
         if (targetTab === 'analysis' || targetTab === 'market' || targetTab === 'city' || targetTab === 'insights') {
           setActiveTab('smart')
           setSmartPanelActiveTab('decision_verdict')
+        } else if (targetTab === 'agent' || targetTab === 'agent_control') {
+          setActiveTab('smart')
+          setSmartPanelActiveTab('agent_control')
         } else if (targetTab === 'verdict' || targetTab === 'decision_verdict') {
           setActiveTab('smart')
           setSmartPanelActiveTab('decision_verdict')
@@ -667,6 +670,10 @@ export default function MainApp() {
 
       if (action === 'openPanel') {
         if ((value || panel) === 'analysis' || (value || panel) === 'insights' || (value || panel) === 'smart') setIsAnalysisOpen(true)
+        if ((value || panel) === 'agent' || (value || panel) === 'agent_control') {
+          setIsAnalysisOpen(true)
+          setSmartPanelActiveTab('agent_control')
+        }
         if ((value || panel) === 'chat') setIsChatOpen(true)
       }
 
@@ -1257,6 +1264,8 @@ export default function MainApp() {
                     setAgentData={setAgentData}
                     viewportAnalysis={agentData?.viewportAnalysis}
                     userTier={userTier}
+                    authToken={token}
+                    authUser={user}
                     fontSize={analysisFontSize}
                     isFullscreen={isAnalysisFullscreen}
                     onToggleFullscreen={() => setIsAnalysisFullscreen(!isAnalysisFullscreen)}
@@ -1281,7 +1290,8 @@ export default function MainApp() {
                 { id: 'comparables', icon: Building, label: 'Comps' },
                 { id: 'strategy', icon: Compass, label: 'Strategy' },
                 { id: 'data_transparency', icon: Database, label: 'Data' },
-                { id: 'client_pitch', icon: Presentation, label: 'Pitch' }
+                { id: 'client_pitch', icon: Presentation, label: 'Pitch' },
+                { id: 'agent_control', icon: Brain, label: 'Agent' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -1395,6 +1405,7 @@ export default function MainApp() {
                     onSidebarOpen={() => setChatWidth('wide')}
                     onSidebarClose={() => setChatWidth('narrow')}
                     authUser={user}
+                    authToken={token}
                   />
                 </Suspense>
               </div>

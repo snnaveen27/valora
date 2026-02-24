@@ -201,6 +201,17 @@ from routes.task_routes import router as task_router
 app.include_router(task_router)
 print("[OK] Task routes initialized")
 
+# Include digital employee routes
+from routes.digital_employee_routes import (
+    router as digital_employee_router,
+    automations_router,
+    leads_router,
+)
+app.include_router(digital_employee_router)
+app.include_router(automations_router)
+app.include_router(leads_router)
+print("[OK] Digital Employee routes initialized")
+
 # Include database routes
 from database.api_routes import router as database_router
 app.include_router(database_router)
@@ -267,8 +278,25 @@ async def request_timing_middleware(request: Request, call_next):
 
 @app.on_event("startup")
 async def startup_event():
-    """Load tileset index on app startup"""
+    """Load startup resources and scheduler."""
     load_tileset_index()
+    try:
+        from services.scheduler_service import get_digital_scheduler
+        await get_digital_scheduler().start()
+        print("[OK] Digital Employee scheduler started")
+    except Exception as e:
+        print(f"[WARNING] Failed to start digital scheduler: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Gracefully stop background services."""
+    try:
+        from services.scheduler_service import get_digital_scheduler
+        await get_digital_scheduler().stop()
+        print("[OK] Digital Employee scheduler stopped")
+    except Exception as e:
+        print(f"[WARNING] Failed to stop digital scheduler cleanly: {e}")
 
 # Tileset index for tile-based loading
 tileset_index = None

@@ -8,7 +8,7 @@ import SmartTabsContainer from './SmartTabsContainer';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
-  Compass, Database, Presentation, Eye
+  Compass, Database, Presentation, Eye, Bot
 } from 'lucide-react';
 
 // Tab metadata with icons - will be populated with translations
@@ -104,6 +104,14 @@ const getTabMetadata = (t) => {
     description: safeT('brokerPresentation'),
     shortLabel: safeT('pitch'),
     color: 'from-amber-500 to-orange-500'
+  },
+  'agent_control': {
+    title: 'Agent',
+    icon: '🤖',
+    lucideIcon: Bot,
+    description: 'Manage alerts, tasks, and leads',
+    shortLabel: 'agent',
+    color: 'from-cyan-500 to-blue-500'
   }
   };
 };
@@ -118,7 +126,8 @@ const TAB_ORDER = [
   'comparables',
   'strategy',
   'data_transparency',
-  'client_pitch'
+  'client_pitch',
+  'agent_control'
 ];
 
 export default function SmartPanel({
@@ -132,7 +141,9 @@ export default function SmartPanel({
   onFontSizeChange,
   activeTab: externalActiveTab,
   onTabChange,
-  setAgentData
+  setAgentData,
+  authToken = null,
+  authUser = null
 }) {
   const { t } = useLanguage();
   const [internalActiveTab, setInternalActiveTab] = useState('free_analysis');
@@ -222,6 +233,8 @@ export default function SmartPanel({
             activeTab={activeTab}
             onTabChange={setActiveTab}
             setAgentData={setAgentData}
+            authToken={authToken}
+            authUser={authUser}
             onUpgrade={() => {
               window.dispatchEvent(new CustomEvent('valora-upgrade-request'));
             }}

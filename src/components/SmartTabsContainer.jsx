@@ -6,13 +6,14 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import SmartTab from './SmartTab';
+import AgentControlPanel from './AgentControlPanel';
 import { API_URL } from '../apiConfig';
 import { useLanguage } from '../contexts/LanguageContext';
 import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
   Compass, Database, Presentation, Lock, Sparkles,
   Download, Share2, FileText, Loader2, Building2, Wallet,
-  Eye, Sun, Trophy, CheckCircle, Star
+  Eye, Sun, Trophy, CheckCircle, Star, Bot
 } from 'lucide-react';
 
 // Function to generate translated tab metadata
@@ -116,6 +117,15 @@ const getTranslatedTabMetadata = (t) => {
       shortLabel: safeT('pitch'),
       priority: 9,
       answerQuestion: 'How to present?'
+    },
+    'agent_control': {
+      title: 'Agent',
+      icon: '🤖',
+      lucideIcon: Bot,
+      description: 'Manage alerts, tasks, leads',
+      shortLabel: 'agent',
+      priority: 10,
+      answerQuestion: 'What should I automate next?'
     }
   };
 };
@@ -135,7 +145,8 @@ const TIER_CONFIG = {
       'comparables': 'locked',             // Locked
       'strategy': 'locked',                // Locked
       'data_transparency': 'locked',       // Locked
-      'client_pitch': 'locked'             // Locked
+      'client_pitch': 'locked',            // Locked
+      'agent_control': 'full'              // Available in free with limits
     },
     upgradeMessage: 'Upgrade to Pro for full analysis'
   },
@@ -152,7 +163,8 @@ const TIER_CONFIG = {
       'comparables': 'full',               // Full access
       'strategy': 'full',                  // Full access
       'data_transparency': 'full',         // Full access
-      'client_pitch': 'full'               // Full access for Pro
+      'client_pitch': 'full',              // Full access for Pro
+      'agent_control': 'full'              // Full automation panel
     },
     upgradeMessage: null  // No upgrade - Pro is the highest tier
   }
@@ -170,7 +182,9 @@ export default function SmartTabsContainer({
   selectedBuilding,
   activeTab: externalActiveTab,
   onTabChange,
-  setAgentData
+  setAgentData,
+  authToken = null,
+  authUser = null
 }) {
   const { t } = useLanguage();
   
@@ -357,7 +371,8 @@ export default function SmartTabsContainer({
       'comparables',
       'strategy',
       'data_transparency',
-      'client_pitch'
+      'client_pitch',
+      'agent_control'
     ];
 
     // Generate content for each tab based on agentData
@@ -719,6 +734,11 @@ export default function SmartTabsContainer({
           has_building: !!buildingAnalysis
         };
 
+      case 'agent_control':
+        return {
+          mode: 'digital_employee'
+        };
+
       default:
         return {};
     }
@@ -775,13 +795,21 @@ export default function SmartTabsContainer({
 
       {/* Tab Content */}
       <div className="smart-tab-content bg-slate-800/30 rounded-lg min-h-[300px]">
-        {activeTabData && (
+        {activeTabData?.id === 'agent_control' ? (
+          <AgentControlPanel
+            userTier={userTier}
+            authToken={authToken}
+            authUser={authUser}
+          />
+        ) : (
+          activeTabData && (
           <SmartTab
             tab={activeTabData}
             userTier={userTier}
             onUpgrade={onUpgrade}
             setAgentData={setAgentData}
           />
+          )
         )}
       </div>
 
