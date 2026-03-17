@@ -17,6 +17,10 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, date, timedelta
 from enum import Enum
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from backend.config import config
 
 
 class MarketCondition(Enum):
@@ -87,7 +91,7 @@ class TransactionIntelligence:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
+            db_path = config.DB_PATH
         self.db_path = str(db_path)
     
     def _get_conn(self) -> sqlite3.Connection:

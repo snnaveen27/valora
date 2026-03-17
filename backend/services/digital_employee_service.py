@@ -100,6 +100,36 @@ CREATE TABLE IF NOT EXISTS automation_runs (
     error_message TEXT
 );
 
+CREATE TABLE IF NOT EXISTS runtime_execution_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    command_text TEXT NOT NULL,
+    intent TEXT,
+    runtime_requested TEXT NOT NULL DEFAULT 'native',
+    runtime_selected TEXT NOT NULL DEFAULT 'native',
+    fallback_used INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'success',
+    error_message TEXT,
+    latency_ms INTEGER,
+    created_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS social_message_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    channel TEXT NOT NULL,
+    recipient TEXT NOT NULL,
+    template_key TEXT,
+    content_text TEXT NOT NULL,
+    variables_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'draft',
+    runtime_selected TEXT NOT NULL DEFAULT 'native',
+    created_at REAL NOT NULL,
+    confirmed_at REAL,
+    sent_at REAL,
+    error_message TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_alerts_user ON property_alerts(user_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_alerts_schedule ON property_alerts(is_active, frequency, last_checked_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_user ON scheduled_tasks(user_id, is_active);
@@ -290,7 +320,7 @@ class DigitalEmployeeService:
 
         if schedule_type == "interval":
             minutes = int(schedule.get("minutes", 60))
-            minutes = max(5, min(minutes, 10_080))
+            minutes = max(5, min(minutes, 44_640))
             normalized["minutes"] = minutes
             return normalized
 
@@ -1016,22 +1046,184 @@ class DigitalEmployeeService:
         if not text:
             return {"handled": False}
         lower = text.lower()
-
-        if "alert me" in lower or lower.startswith("alert "):
-            locality_match = re.search(r"\bin\s+([a-zA-Z][a-zA-Z\s]{1,40}?)(?:\s+(under|below|for|with|when)\b|$)", text, re.I)
-            bhk_match = re.search(r"(\d+)\s*bhk", lower)
-            price_match = re.search(r"(?:under|below|max|less than)\s*₹?\s*([\d\.,]+\s*(?:cr|crore|l|lac|lakh)?)", lower)
-
-            criteria: Dict[str, Any] = {}
+        def _extract_locality() -> Optional[str]:
+            locality_match = re.search(
+                r"\b(?:in|near|around|for|at)\s+([a-zA-Z][a-zA-Z\s]{1,40}?)(?:\s+(under|below|with|when|every|from|to|is)\b|$)",
+                text,
+                re.I,
+            )
             if locality_match:
-                criteria["locality"] = locality_match.group(1).strip().title()
+                return locality_match.group(1).strip().title()
+            return None
+
+        def _extract_alert_criteria() -> Dict[str, Any]:
+            criteria: Dict[str, Any] = {}
+            locality = _extract_locality()
+            if locality:
+                criteria["locality"] = locality
+
+            bhk_match = re.search(r"(\d+)\s*bhk", lower)
             if bhk_match:
                 criteria["bhk"] = int(bhk_match.group(1))
-            if price_match:
-                max_price = self._parse_price_to_inr(price_match.group(1))
+
+            max_price_match = re.search(r"(?:under|below|max|less than|drops below)\s*₹?\s*([\d\.,]+\s*(?:cr|crore|l|lac|lakh)?)", lower)
+            if max_price_match:
+                max_price = self._parse_price_to_inr(max_price_match.group(1))
                 if max_price:
                     criteria["max_price"] = max_price
 
+            min_price_match = re.search(r"(?:above|min|greater than|over)\s*₹?\s*([\d\.,]+\s*(?:cr|crore|l|lac|lakh)?)", lower)
+            if min_price_match:
+                min_price = self._parse_price_to_inr(min_price_match.group(1))
+                if min_price:
+                    criteria["min_price"] = min_price
+
+            radius_match = re.search(r"(?:within|nearby)\s*(\d{2,5})\s*(m|meter|meters|km)", lower)
+            if radius_match:
+                radius_val = int(radius_match.group(1))
+                unit = radius_match.group(2)
+                criteria["radius_m"] = radius_val * 1000 if unit == "km" else radius_val
+
+            if "metro" in lower:
+                criteria["near_metro"] = True
+            if "parking" in lower:
+                criteria["has_parking"] = True
+            if "new launch" in lower or "pre-launch" in lower:
+                criteria["new_launch"] = True
+
+            yield_match = re.search(r"rental yield\s*(?:exceeds|above|over|>=?)\s*(\d+(?:\.\d+)?)\s*%?", lower)
+            if yield_match:
+                criteria["min_rental_yield"] = float(yield_match.group(1))
+
+            return criteria
+
+        # -----------------------------------------------------------------
+        # Read/list commands
+        # -----------------------------------------------------------------
+        if re.search(r"\b(show|list|view)\b.*\b(active\s+)?alerts?\b", lower) or "my alerts" in lower:
+            return {"handled": True, "intent": "list_alerts", "executable": True}
+
+        if re.search(r"\b(show|list|view)\b.*\b(leads?)\b", lower):
+            return {"handled": True, "intent": "list_leads", "executable": True}
+
+        if (
+            re.search(r"\b(show|list|view)\b.*\b(scheduled tasks?|tasks?|schedule)\b", lower)
+            or "what tasks do i have today" in lower
+            or "today's schedule" in lower
+            or "show today's schedule" in lower
+        ):
+            return {"handled": True, "intent": "list_scheduled_tasks", "executable": True}
+
+        if "show recent activity" in lower or "activity feed" in lower:
+            return {"handled": True, "intent": "list_activity", "executable": True}
+
+        if (
+            "pending follow-ups" in lower
+            or "performance summary" in lower
+            or "productivity report" in lower
+            or "conversion rate" in lower
+            or "how many leads this week" in lower
+            or "top performing areas" in lower
+            or "agent leaderboard" in lower
+            or "revenue generated" in lower
+            or "properties sold" in lower
+        ):
+            return {"handled": True, "intent": "dashboard_summary", "executable": True}
+
+        # -----------------------------------------------------------------
+        # Update/delete commands
+        # -----------------------------------------------------------------
+        if "pause all" in lower and "alert" in lower:
+            return {"handled": True, "intent": "deactivate_all_alerts", "executable": True}
+
+        if re.search(r"\b(delete|remove|pause|deactivate)\b.*\balert", lower):
+            alert_id_match = re.search(r"\balert\s*#?(\d+)\b", lower)
+            locality_hint = _extract_locality()
+            return {
+                "handled": True,
+                "intent": "deactivate_alert",
+                "executable": True,
+                "payload": {
+                    "alert_id": int(alert_id_match.group(1)) if alert_id_match else None,
+                    "locality_hint": locality_hint,
+                    "name_hint": text,
+                },
+            }
+
+        if re.search(r"\b(cancel|delete|remove)\b.*\b(weekly report|scheduled task|schedule)\b", lower):
+            return {"handled": True, "intent": "deactivate_weekly_report", "executable": True}
+
+        if (
+            "update lead status" in lower
+            or "mark lead as" in lower
+            or "set lead to" in lower
+            or "convert lead to deal" in lower
+            or "mark lead as not interested" in lower
+        ):
+            status_map = {
+                "hot": "qualified",
+                "qualified": "qualified",
+                "contacted": "contacted",
+                "negotiating": "negotiating",
+                "deal": "closed",
+                "closed": "closed",
+                "converted": "closed",
+                "not interested": "lost",
+                "cold": "lost",
+                "lost": "lost",
+            }
+            target_status = None
+            for key, mapped in status_map.items():
+                if key in lower:
+                    target_status = mapped
+                    break
+            if target_status is None:
+                return {
+                    "handled": True,
+                    "intent": "update_lead_status",
+                    "executable": False,
+                    "reason": "Could not infer target lead status.",
+                }
+            return {
+                "handled": True,
+                "intent": "update_lead_status",
+                "executable": True,
+                "payload": {"status": target_status, "lead_hint": text},
+            }
+
+        if "add notes to this lead" in lower or lower.startswith("add note") or "add notes" in lower:
+            note_match = re.search(r"(?:add notes? to (?:this )?lead|add note)\s*[:\-]?\s*(.+)$", text, re.I)
+            note_value = (note_match.group(1).strip() if note_match else "").strip() or "Updated via chat command."
+            return {
+                "handled": True,
+                "intent": "add_lead_note",
+                "executable": True,
+                "payload": {"note": note_value, "lead_hint": text},
+            }
+
+        if re.search(r"\b(delete|remove|archive)\b.*\blead\b", lower):
+            return {"handled": True, "intent": "archive_lead", "executable": True, "payload": {"lead_hint": text}}
+
+        # -----------------------------------------------------------------
+        # Create alert commands
+        # -----------------------------------------------------------------
+        if any(
+            phrase in lower
+            for phrase in [
+                "alert me",
+                "set up alert",
+                "set up a property alert",
+                "setup alert",
+                "create alert",
+                "notify me",
+                "track price changes",
+                "track this property",
+                "track new launches",
+                "alert when",
+                "notify when",
+            ]
+        ) or lower.startswith("alert "):
+            criteria = _extract_alert_criteria()
             if not criteria:
                 return {
                     "handled": True,
@@ -1040,6 +1232,16 @@ class DigitalEmployeeService:
                     "reason": "Missing usable alert criteria (location/budget/BHK).",
                 }
 
+            frequency = "instant"
+            if "daily" in lower:
+                frequency = "daily"
+            elif "weekly" in lower:
+                frequency = "weekly"
+
+            channels = ["in_app"]
+            if "email" in lower:
+                channels = ["in_app", "email"]
+
             location_hint = criteria.get("locality", "Custom")
             return {
                 "handled": True,
@@ -1047,15 +1249,33 @@ class DigitalEmployeeService:
                 "executable": True,
                 "payload": {
                     "name": f"Alert: {location_hint}",
-                    "frequency": "instant",
+                    "frequency": frequency,
                     "criteria": criteria,
-                    "channels": ["in_app"],
+                    "channels": channels,
                 },
             }
 
-        if "weekly report" in lower or lower.startswith("schedule"):
+        # -----------------------------------------------------------------
+        # Scheduling / reminder commands
+        # -----------------------------------------------------------------
+        if (
+            "weekly report" in lower
+            or lower.startswith("schedule")
+            or lower.startswith("remind me")
+            or "daily market summary" in lower
+            or "monthly investment report" in lower
+            or "follow up" in lower
+            or "follow-up" in lower
+            or "site visit" in lower
+            or "monitor price trends" in lower
+            or "track inventory levels" in lower
+            or "monitor rental yields" in lower
+            or "send weekly market report" in lower
+            or "schedule email" in lower
+        ):
             email_match = re.search(r"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})", text)
-            locality_match = re.search(r"\bfor\s+([a-zA-Z][a-zA-Z\s]{1,40}?)(?:\s+to\b|$)", text, re.I)
+            locality = _extract_locality()
+
             day_map = {
                 "monday": 0,
                 "tuesday": 1,
@@ -1071,9 +1291,10 @@ class DigitalEmployeeService:
                     day = day_idx
                     break
 
+            # Default schedule = weekly Monday 09:00
+            schedule: Dict[str, Any] = {"type": "weekly", "day_of_week": day, "time": "09:00"}
+
             time_match = re.search(r"\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", lower)
-            hh = 9
-            mm = 0
             if time_match:
                 hh = int(time_match.group(1))
                 mm = int(time_match.group(2) or 0)
@@ -1084,16 +1305,66 @@ class DigitalEmployeeService:
                     hh = 0
                 hh = max(0, min(hh, 23))
                 mm = max(0, min(mm, 59))
+                schedule["time"] = f"{hh:02d}:{mm:02d}"
+            else:
+                hhmm_match = re.search(r"\b(\d{1,2}):(\d{2})\b", lower)
+                if hhmm_match:
+                    hh = max(0, min(int(hhmm_match.group(1)), 23))
+                    mm = max(0, min(int(hhmm_match.group(2)), 59))
+                    schedule["time"] = f"{hh:02d}:{mm:02d}"
+
+            in_days_match = re.search(r"\bin\s+(\d+)\s+days?\b", lower)
+            if in_days_match:
+                schedule = {"type": "interval", "minutes": max(5, int(in_days_match.group(1)) * 24 * 60)}
+            elif "tomorrow" in lower:
+                schedule = {"type": "interval", "minutes": 24 * 60}
+            elif "next week" in lower:
+                schedule = {"type": "interval", "minutes": 7 * 24 * 60}
+            elif "monthly" in lower:
+                schedule = {"type": "interval", "minutes": 30 * 24 * 60}
+            elif "daily" in lower:
+                schedule = {"type": "daily", "time": schedule.get("time", "09:00")}
+
+            task_type = "weekly_market_report"
+            task_name = "Weekly Market Report"
+            task_payload: Dict[str, Any] = {
+                "recipient_email": email_match.group(1).lower() if email_match else None,
+                "locality": locality,
+            }
+
+            if "follow up" in lower or "follow-up" in lower:
+                task_type = "lead_follow_up"
+                task_name = "Lead Follow-up"
+                task_payload["note"] = text
+            elif "site visit" in lower:
+                task_type = "custom_task"
+                task_name = "Site Visit Reminder"
+                task_payload["note"] = text
+            elif "monthly investment report" in lower:
+                task_type = "weekly_market_report"
+                task_name = "Monthly Investment Report"
+            elif (
+                "monitor price trends" in lower
+                or "track inventory levels" in lower
+                or "monitor rental yields" in lower
+            ):
+                task_type = "weekly_market_report"
+                task_name = "Market Intelligence Monitor"
+                task_payload["note"] = text
+            elif "daily market summary" in lower:
+                task_type = "weekly_market_report"
+                task_name = "Daily Market Summary"
+
+            channels = ["in_app"]
+            if email_match or "email" in lower:
+                channels = ["email", "in_app"]
+            task_payload["channels"] = channels
 
             payload = {
-                "name": "Weekly Market Report",
-                "task_type": "weekly_market_report",
-                "schedule": {"type": "weekly", "day_of_week": day, "time": f"{hh:02d}:{mm:02d}"},
-                "payload": {
-                    "channels": ["email"] if email_match else ["in_app"],
-                    "recipient_email": email_match.group(1).lower() if email_match else None,
-                    "locality": locality_match.group(1).strip().title() if locality_match else None,
-                },
+                "name": task_name,
+                "task_type": task_type,
+                "schedule": schedule,
+                "payload": task_payload,
                 "requires_confirmation": False,
             }
             return {
@@ -1103,19 +1374,25 @@ class DigitalEmployeeService:
                 "payload": payload,
             }
 
-        if lower.startswith("add lead") or lower.startswith("new lead") or "add a lead" in lower:
+        # -----------------------------------------------------------------
+        # Create lead commands
+        # -----------------------------------------------------------------
+        if (
+            lower.startswith("add lead")
+            or lower.startswith("new lead")
+            or "add a lead" in lower
+            or lower.startswith("create lead")
+            or "create a lead" in lower
+        ):
             email_match = re.search(r"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})", text)
             phone_match = re.search(r"(\+?\d[\d\s\-]{7,}\d)", text)
             name_match = re.search(
-                r"(?:add lead|new lead|add a lead)\s*[:\-]?\s*([A-Za-z][A-Za-z\s]{1,60}?)(?:,|$|\s+\+?\d|\s+[A-Za-z0-9._%+-]+@)",
+                r"(?:add lead|new lead|add a lead|create lead|create a lead)\s*[:\-]?\s*([A-Za-z][A-Za-z\s]{1,60}?)(?:,|$|\s+\+?\d|\s+[A-Za-z0-9._%+-]+@)",
                 text,
                 re.I,
             )
 
-            full_name = (name_match.group(1).strip() if name_match else "").strip()
-            if not full_name:
-                full_name = "New Lead"
-
+            full_name = (name_match.group(1).strip() if name_match else "").strip() or "New Lead"
             return {
                 "handled": True,
                 "intent": "create_lead",
@@ -1148,6 +1425,91 @@ class DigitalEmployeeService:
         payload = parsed.get("payload") or {}
 
         try:
+            if intent == "list_alerts":
+                alerts = self.list_alerts(user_id=user_id, include_inactive=False)
+                return {
+                    "handled": True,
+                    "executed": True,
+                    "intent": intent,
+                    "summary": f"You have {len(alerts)} active alert(s).",
+                    "entity": {"alerts": alerts[:25]},
+                }
+
+            if intent == "deactivate_all_alerts":
+                alerts = self.list_alerts(user_id=user_id, include_inactive=False)
+                deactivated = 0
+                for alert in alerts:
+                    self.delete_alert(user_id=user_id, alert_id=int(alert["id"]))
+                    deactivated += 1
+                return {
+                    "handled": True,
+                    "executed": True,
+                    "intent": intent,
+                    "summary": f"Paused {deactivated} alert(s).",
+                }
+
+            if intent == "deactivate_alert":
+                alerts = self.list_alerts(user_id=user_id, include_inactive=False)
+                target = None
+                alert_id = payload.get("alert_id")
+                locality_hint = str(payload.get("locality_hint") or "").strip().lower()
+                name_hint = str(payload.get("name_hint") or "").strip().lower()
+
+                if alert_id:
+                    target = next((a for a in alerts if int(a["id"]) == int(alert_id)), None)
+                if target is None and locality_hint:
+                    target = next(
+                        (
+                            a for a in alerts
+                            if locality_hint in str(a.get("name", "")).lower()
+                            or locality_hint in str((a.get("criteria") or {}).get("locality", "")).lower()
+                        ),
+                        None,
+                    )
+                if target is None and name_hint:
+                    target = next((a for a in alerts if str(a.get("name", "")).lower() in name_hint), None)
+                if target is None and len(alerts) == 1:
+                    target = alerts[0]
+                if target is None:
+                    return {
+                        "handled": True,
+                        "executed": False,
+                        "intent": intent,
+                        "reason": "Could not find a matching alert to deactivate.",
+                    }
+                self.delete_alert(user_id=user_id, alert_id=int(target["id"]))
+                return {
+                    "handled": True,
+                    "executed": True,
+                    "intent": intent,
+                    "summary": f"Paused alert '{target['name']}'.",
+                    "entity": target,
+                }
+
+            if intent == "deactivate_weekly_report":
+                tasks = self.list_scheduled_tasks(user_id=user_id, include_inactive=False)
+                matches = [
+                    t for t in tasks
+                    if t.get("task_type") == "weekly_market_report"
+                    or "weekly" in str(t.get("name", "")).lower()
+                    or "report" in str(t.get("name", "")).lower()
+                ]
+                if not matches:
+                    return {
+                        "handled": True,
+                        "executed": False,
+                        "intent": intent,
+                        "reason": "No active weekly report task found.",
+                    }
+                for task in matches:
+                    self.delete_scheduled_task(user_id=user_id, task_id=int(task["id"]))
+                return {
+                    "handled": True,
+                    "executed": True,
+                    "intent": intent,
+                    "summary": f"Cancelled {len(matches)} weekly report task(s).",
+                }
+
             if intent == "create_alert":
                 created = self.create_alert(user_id=user_id, tier=tier, payload=payload)
                 return {
@@ -1166,6 +1528,17 @@ class DigitalEmployeeService:
                     "summary": f"Scheduled task '{created['name']}' ({created['task_type']}).",
                     "entity": created,
                 }
+
+            if intent == "list_scheduled_tasks":
+                tasks = self.list_scheduled_tasks(user_id=user_id, include_inactive=False)
+                return {
+                    "handled": True,
+                    "executed": True,
+                    "intent": intent,
+                    "summary": f"You have {len(tasks)} active scheduled task(s).",
+                    "entity": {"tasks": tasks[:25]},
+                }
+
             if intent == "create_lead":
                 created = self.create_lead(user_id=user_id, payload=payload)
                 return {
@@ -1174,6 +1547,98 @@ class DigitalEmployeeService:
                     "intent": intent,
                     "summary": f"Lead '{created['full_name']}' added to your pipeline.",
                     "entity": created,
+                }
+
+            if intent == "list_leads":
+                leads = self.list_leads(user_id=user_id, status=None, limit=200)
+                return {
+                    "handled": True,
+                    "executed": True,
+                    "intent": intent,
+                    "summary": f"You have {len(leads)} lead(s) in your pipeline.",
+                    "entity": {"leads": leads[:50]},
+                }
+
+            if intent == "list_activity":
+                activity = self.list_activity(user_id=user_id, limit=50)
+                return {
+                    "handled": True,
+                    "executed": True,
+                    "intent": intent,
+                    "summary": f"Fetched {len(activity)} recent activity event(s).",
+                    "entity": {"activity": activity},
+                }
+
+            if intent == "dashboard_summary":
+                summary = self.get_dashboard_snapshot(user_id=user_id, tier=tier)
+                return {
+                    "handled": True,
+                    "executed": True,
+                    "intent": intent,
+                    "summary": "Loaded your agent dashboard summary.",
+                    "entity": summary,
+                }
+
+            if intent in {"update_lead_status", "add_lead_note", "archive_lead"}:
+                leads = self.list_leads(user_id=user_id, status=None, limit=200)
+                active_leads = [lead for lead in leads if lead.get("status") != "archived"]
+                lead_hint = str(payload.get("lead_hint") or "").strip().lower()
+                target = None
+
+                lead_id = payload.get("lead_id")
+                if lead_id is not None:
+                    target = next((lead for lead in active_leads if int(lead["id"]) == int(lead_id)), None)
+                if target is None and lead_hint:
+                    target = next((lead for lead in active_leads if str(lead.get("full_name", "")).lower() in lead_hint), None)
+                if target is None and active_leads:
+                    target = active_leads[0]
+
+                if target is None:
+                    return {
+                        "handled": True,
+                        "executed": False,
+                        "intent": intent,
+                        "reason": "No active lead found to update.",
+                    }
+
+                if intent == "update_lead_status":
+                    updated = self.update_lead(
+                        user_id=user_id,
+                        lead_id=int(target["id"]),
+                        payload={"status": payload.get("status")},
+                    )
+                    return {
+                        "handled": True,
+                        "executed": True,
+                        "intent": intent,
+                        "summary": f"Lead '{updated['full_name']}' status updated to {updated['status']}.",
+                        "entity": updated,
+                    }
+
+                if intent == "add_lead_note":
+                    existing_notes = str(target.get("notes") or "").strip()
+                    new_note = str(payload.get("note") or "").strip()
+                    merged_notes = f"{existing_notes}\n{new_note}".strip() if existing_notes else new_note
+                    updated = self.update_lead(
+                        user_id=user_id,
+                        lead_id=int(target["id"]),
+                        payload={"notes": merged_notes},
+                    )
+                    return {
+                        "handled": True,
+                        "executed": True,
+                        "intent": intent,
+                        "summary": f"Added note to lead '{updated['full_name']}'.",
+                        "entity": updated,
+                    }
+
+                self.delete_lead(user_id=user_id, lead_id=int(target["id"]))
+                return {
+                    "handled": True,
+                    "executed": True,
+                    "intent": intent,
+                    "summary": f"Archived lead '{target['full_name']}'.",
+                    "entity": target,
                 }
         except (PermissionError, ValueError, KeyError) as exc:
             return {

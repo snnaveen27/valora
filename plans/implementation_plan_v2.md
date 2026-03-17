@@ -968,7 +968,7 @@ LLM_CREDIT_COSTS = {
 }
 
 # Local models (all cost same - 2 credits)
-LOCAL_MODELS = ['qwen3:4b-instruct', 'qwen3:8b', 'phi-4', 'valora-2025v1']
+LOCAL_MODELS = ['qwen3:4b-instruct', 'qwen3:8b', 'phi-4', 'valora-ai-mini']
 
 # Cloud models (all cost same - 5 credits)
 CLOUD_MODELS = ['deepseek-chat', 'deepseek-reasoner', 'openrouter/*']

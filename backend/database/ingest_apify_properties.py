@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 load_dotenv()
 
 from backend.database.db_service import DatabaseService
+from backend.config import config
 
 # Configuration
 APIFY_TOKEN = os.getenv("APIFY_API_TOKEN")
@@ -31,7 +32,7 @@ APIFY_BASE_URL = "https://api.apify.com/v2"
 
 # Directories
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DB_PATH = BASE_DIR / "storage" / "valora.db"
+DB_PATH = config.DB_PATH
 TEMP_DIR = BASE_DIR / "scripts" / "ingest" / "temp_apify_downloads"
 POSTED_PROPERTIES_DIR = BASE_DIR / "storage" / "posted_properties"
 

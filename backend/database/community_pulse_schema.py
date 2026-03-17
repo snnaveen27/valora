@@ -1,30 +1,38 @@
 """
-Community Pulse Database Schema - Phase 1, Phase 2 & Phase 3
+Community Pulse Database Schema - Focused on Valora's Product Thesis
 
-Phase 1: Family Hub
-Enables collaborative property decision-making for joint families.
-Tables:
-- family_sessions: Core session management for family property search
-- family_members: Members invited to participate in family sessions
-- family_watchlist: Properties saved for family consideration
-- family_votes: Individual votes and aspect-based ratings on properties
-- family_timeline_events: Activity feed for family session events
+This schema is intentionally narrowed to focus on features that directly 
+support the product thesis: broker productivity, explainable decision 
+intelligence, and client-ready outputs.
 
-Phase 2: Locality Reviews
-Community-driven reviews with India-specific categories.
-Tables:
-- locality_reviews: User reviews for localities with Vastu, schools, transport ratings
-- builder_profiles: Builder/developer profiles with RERA info
-- builder_reviews: User reviews for builders
-- review_helpful: Helpful votes on reviews
-- rera_verifications: RERA registration verification data
+CORE FEATURES (Aligned with Product Thesis):
+=============================================
+1. Decision-Room (Family Hub) - Multi-stakeholder buying workflow
+   - family_sessions: Collaborative property decision sessions
+   - family_members: Committee members with roles
+   - family_watchlist: Properties under consideration
+   - family_votes: Individual votes with aspect-based ratings
+   - family_timeline_events: Decision activity feed
 
-Phase 3: Sentiment Dashboard
-Market sentiment analysis, price trends, and investment intelligence.
-Tables:
-- market_sentiment: Overall market sentiment per locality with price metrics
-- sentiment_signals: User signals (views, saves, searches) for sentiment
-- sentiment_trends: Daily aggregated sentiment trends per locality
+2. Locality Reviews with Verified Resident Proof
+   - locality_reviews: User reviews with verification badges
+   - review_helpful: Community validation of reviews
+   - Focus: Vastu, schools, transport, safety - defensible locality context
+
+3. Market Sentiment as Supporting Intelligence
+   - market_sentiment: Price trends supporting shortlisted decisions
+   - NOT a consumer-style sentiment dashboard
+   - Supports broker decision-making, not passive browsing
+
+DEPRECATED/REMOVED (Not aligned with product thesis):
+======================================================
+- Builder profiles and reviews (generic, not broker-focused)
+- RERA verification (not core to decision workflow)
+- Raw sentiment signals (complex, not client-ready)
+- Historical sentiment trends (supporting, not primary)
+
+These were removed to keep Valora niche: broker workflow, explainable reasoning,
+and client-ready intelligence outputs.
 """
 
 import sqlite3
@@ -89,7 +97,17 @@ class CommunityPulseDB:
 
 def init_community_pulse_tables(db_path: str = None) -> bool:
     """
-    Initialize all Community Pulse tables (Phase 1, Phase 2, and Phase 3).
+    Initialize Community Pulse tables - FOCUSED VERSION.
+    
+    Only includes tables aligned with product thesis:
+    - Decision-Room (Family Hub) for multi-stakeholder buying
+    - Locality reviews with verified resident proof
+    - Market sentiment as supporting intelligence (not dashboard)
+    
+    Removed (not aligned with broker workflow):
+    - Builder profiles/reviews
+    - RERA verification
+    - Raw sentiment signals
     
     Args:
         db_path: Optional path to database file. Uses main DB if not specified.
@@ -97,17 +115,17 @@ def init_community_pulse_tables(db_path: str = None) -> bool:
     Returns:
         True if successful, False otherwise.
     """
-    # Initialize Phase 1 tables
+    # Initialize Decision-Room (Family Hub) tables
     phase1_success = _init_phase1_tables(db_path)
     
-    # Initialize Phase 2 tables
+    # Initialize Locality Reviews (focused on verified resident proof)
     phase2_success = init_phase2_tables(db_path)
     
-    # Initialize Phase 3 tables
+    # Initialize Market Sentiment (supporting intelligence only)
     phase3_success = init_phase3_tables(db_path)
     
     if phase1_success and phase2_success and phase3_success:
-        logger.info("[CommunityPulse] All tables (Phase 1, 2 & 3) initialized successfully")
+        logger.info("[CommunityPulse] All focused tables initialized successfully")
         return True
     else:
         logger.error("[CommunityPulse] Failed to initialize some tables")
@@ -332,7 +350,19 @@ def _init_phase1_tables(db_path: str = None) -> bool:
 
 def init_phase2_tables(db_path: str = None) -> bool:
     """
-    Initialize Phase 2 tables for Locality Reviews.
+    Initialize Phase 2 tables - LOCALITY REVIEWS WITH VERIFIED RESIDENT PROOF.
+    
+    This focuses on defensible locality context that brokers need:
+    - Vastu compliance ratings
+    - School accessibility
+    - Transport connectivity
+    - Safety ratings
+    - Verified resident badges
+    
+    REMOVED (not aligned with product thesis):
+    - Builder profiles (generic directory)
+    - Builder reviews (not locality-focused)
+    - RERA verification (not core to broker workflow)
     
     Args:
         db_path: Optional path to database file. Uses main DB if not specified.
@@ -412,98 +442,7 @@ def init_phase2_tables(db_path: str = None) -> bool:
             ON locality_reviews(is_verified)
         """)
         
-        # 2. builder_profiles table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS builder_profiles (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                description TEXT,
-                logo_url TEXT,
-                website TEXT,
-                established_year INTEGER,
-                cities_operating TEXT,
-                total_projects INTEGER DEFAULT 0,
-                completed_projects INTEGER DEFAULT 0,
-                ongoing_projects INTEGER DEFAULT 0,
-                avg_delivery_time_months REAL,
-                on_time_delivery_rate REAL,
-                avg_construction_quality_rating REAL,
-                avg_after_sales_rating REAL,
-                rera_registered INTEGER DEFAULT 0,
-                rera_ids TEXT,
-                contact_phone TEXT,
-                contact_email TEXT,
-                address TEXT,
-                created_at TEXT,
-                updated_at TEXT
-            )
-        """)
-        
-        # Indexes for builder_profiles
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_builder_profiles_name 
-            ON builder_profiles(name)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_builder_profiles_rera 
-            ON builder_profiles(rera_registered)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_builder_profiles_rating 
-            ON builder_profiles(avg_construction_quality_rating)
-        """)
-        
-        # 3. builder_reviews table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS builder_reviews (
-                id TEXT PRIMARY KEY,
-                builder_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                project_name TEXT,
-                project_location TEXT,
-                overall_rating REAL NOT NULL,
-                construction_quality REAL,
-                timely_delivery REAL,
-                after_sales_service REAL,
-                value_for_money REAL,
-                transparency REAL,
-                pros TEXT,
-                cons TEXT,
-                review_text TEXT,
-                is_verified_buyer INTEGER DEFAULT 0,
-                purchase_date TEXT,
-                helpful_count INTEGER DEFAULT 0,
-                status TEXT DEFAULT 'active',
-                created_at TEXT,
-                updated_at TEXT,
-                FOREIGN KEY (builder_id) REFERENCES builder_profiles(id) ON DELETE CASCADE,
-                FOREIGN KEY (user_id) REFERENCES users(user_id)
-            )
-        """)
-        
-        # Indexes for builder_reviews
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_builder_reviews_builder 
-            ON builder_reviews(builder_id)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_builder_reviews_user 
-            ON builder_reviews(user_id)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_builder_reviews_status 
-            ON builder_reviews(status)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_builder_reviews_rating 
-            ON builder_reviews(overall_rating)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_builder_reviews_verified 
-            ON builder_reviews(is_verified_buyer)
-        """)
-        
-        # 4. review_helpful table
+        # 2. review_helpful table - Community validation of reviews
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS review_helpful (
                 id TEXT PRIMARY KEY,
@@ -525,28 +464,11 @@ def init_phase2_tables(db_path: str = None) -> bool:
             ON review_helpful(user_id)
         """)
         
-        # 5. rera_verifications table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS rera_verifications (
-                id TEXT PRIMARY KEY,
-                rera_id TEXT NOT NULL,
-                state TEXT NOT NULL,
-                project_name TEXT,
-                builder_name TEXT,
-                project_status TEXT,
-                registration_date TEXT,
-                expiry_date TEXT,
-                project_address TEXT,
-                project_type TEXT,
-                land_area REAL,
-                proposed_units INTEGER,
-                verification_status TEXT,
-                verification_data TEXT,
-                last_verified_at TEXT,
-                created_at TEXT,
-                updated_at TEXT
-            )
-        """)
+        conn.commit()
+        conn.close()
+        
+        logger.info("[CommunityPulse] Phase 2 tables initialized: locality_reviews, review_helpful")
+        return True
         
         # Indexes for rera_verifications
         cursor.execute("""
@@ -579,7 +501,20 @@ def init_phase2_tables(db_path: str = None) -> bool:
 
 def init_phase3_tables(db_path: str = None) -> bool:
     """
-    Initialize Phase 3 tables for Sentiment Dashboard.
+    Initialize Phase 3 tables - MARKET SENTIMENT AS SUPPORTING INTELLIGENCE.
+    
+    This is SECONDARY to core broker workflow features.
+    Market sentiment should support shortlisted decisions, not dominate the tab.
+    
+    Only includes:
+    - market_sentiment: Price trends and sentiment for decision support
+    
+    REMOVED (not aligned with product thesis):
+    - sentiment_signals: Raw user behavior tracking (too complex)
+    - sentiment_trends: Historical trends (can be derived from market_sentiment)
+    
+    Valora wins on broker workflow + explainable reasoning, not consumer-style 
+    sentiment dashboard.
     
     Args:
         db_path: Optional path to database file. Uses main DB if not specified.
@@ -653,79 +588,324 @@ def init_phase3_tables(db_path: str = None) -> bool:
             ON market_sentiment(last_updated)
         """)
         
-        # 2. sentiment_signals table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sentiment_signals (
-                id TEXT PRIMARY KEY,
-                locality_id TEXT,
-                property_id TEXT,
-                signal_type TEXT NOT NULL,
-                user_hash TEXT NOT NULL,
-                signal_data TEXT,
-                created_at TEXT
-            )
-        """)
-        
-        # Indexes for sentiment_signals
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_sentiment_signals_locality 
-            ON sentiment_signals(locality_id)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_sentiment_signals_property 
-            ON sentiment_signals(property_id)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_sentiment_signals_type 
-            ON sentiment_signals(signal_type)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_sentiment_signals_user_hash 
-            ON sentiment_signals(user_hash)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_sentiment_signals_created 
-            ON sentiment_signals(created_at)
-        """)
-        
-        # 3. sentiment_trends table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sentiment_trends (
-                id TEXT PRIMARY KEY,
-                locality_id TEXT NOT NULL,
-                trend_date TEXT NOT NULL,
-                sentiment_score REAL,
-                price_avg REAL,
-                activity_count INTEGER,
-                search_volume INTEGER,
-                created_at TEXT,
-                UNIQUE(locality_id, trend_date)
-            )
-        """)
-        
-        # Indexes for sentiment_trends
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_sentiment_trends_locality 
-            ON sentiment_trends(locality_id)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_sentiment_trends_date 
-            ON sentiment_trends(trend_date)
-        """)
-        cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_sentiment_trends_sentiment 
-            ON sentiment_trends(sentiment_score)
-        """)
-        
         conn.commit()
         conn.close()
         
-        logger.info("[CommunityPulse] Phase 3 tables initialized successfully")
+        logger.info("[CommunityPulse] Phase 3 tables initialized: market_sentiment (supporting intelligence)")
         return True
         
     except Exception as e:
         logger.error(f"[CommunityPulse] Failed to initialize Phase 3 tables: {e}")
         return False
+
+
+# ============================================================================
+# SENTIMENT SIGNALS (for user behavior tracking)
+# ============================================================================
+
+def _init_sentiment_signals_table(db_path: str = None) -> bool:
+    """Initialize sentiment_signals table."""
+    try:
+        db = CommunityPulseDB(db_path)
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS sentiment_signals (
+                    id TEXT PRIMARY KEY,
+                    signal_type TEXT NOT NULL,
+                    user_hash TEXT NOT NULL,
+                    locality_id TEXT,
+                    property_id TEXT,
+                    signal_data TEXT,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_signals_locality
+                ON sentiment_signals(locality_id)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_signals_user
+                ON sentiment_signals(user_hash)
+            """)
+            conn.commit()
+        logger.info("[CommunityPulse] Sentiment signals table initialized")
+        return True
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to init sentiment_signals: {e}")
+        return False
+
+
+def record_signal(
+    db: CommunityPulseDB,
+    signal_type: str,
+    user_hash: str,
+    locality_id: str = None,
+    property_id: str = None,
+    signal_data: Dict[str, Any] = None
+) -> Optional[str]:
+    """Record a user sentiment signal."""
+    try:
+        signal_id = db._generate_id()
+        timestamp = db._get_timestamp()
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO sentiment_signals (
+                    id, signal_type, user_hash, locality_id, property_id, signal_data, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (signal_id, signal_type, user_hash, locality_id, property_id,
+                   json.dumps(signal_data) if signal_data else None, timestamp))
+        return signal_id
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to record signal: {e}")
+        return None
+
+
+def get_signals_by_locality(
+    db: CommunityPulseDB,
+    locality_id: str,
+    signal_type: str = None,
+    limit: int = 100
+) -> List[Dict[str, Any]]:
+    """Get sentiment signals for a locality."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            if signal_type:
+                cursor.execute("""
+                    SELECT * FROM sentiment_signals 
+                    WHERE locality_id = ? AND signal_type = ?
+                    ORDER BY created_at DESC LIMIT ?
+                """, (locality_id, signal_type, limit))
+            else:
+                cursor.execute("""
+                    SELECT * FROM sentiment_signals 
+                    WHERE locality_id = ?
+                    ORDER BY created_at DESC LIMIT ?
+                """, (locality_id, limit))
+            return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to get signals: {e}")
+        return []
+
+
+# ============================================================================
+# MARKET SENTIMENT FUNCTIONS (for sentiment_engine.py)
+# ============================================================================
+
+def create_market_sentiment(
+    db: CommunityPulseDB,
+    locality_id: str,
+    locality_name: str,
+    city: str = None,
+    **kwargs
+) -> Optional[str]:
+    """Create a market sentiment record."""
+    try:
+        sentiment_id = db._generate_id()
+        timestamp = db._get_timestamp()
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO market_sentiment (
+                    id, locality_id, locality_name, city, last_updated, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (sentiment_id, locality_id, locality_name, city, timestamp, timestamp))
+        return sentiment_id
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to create market sentiment: {e}")
+        return None
+
+
+def get_market_sentiment(
+    db: CommunityPulseDB,
+    locality_id: str = None,
+    city: str = None
+) -> List[Dict[str, Any]]:
+    """Get market sentiment records."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            if locality_id:
+                cursor.execute("SELECT * FROM market_sentiment WHERE locality_id = ?", (locality_id,))
+            elif city:
+                cursor.execute("SELECT * FROM market_sentiment WHERE city = ?", (city,))
+            else:
+                cursor.execute("SELECT * FROM market_sentiment")
+            return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to get market sentiment: {e}")
+        return []
+
+
+def update_market_sentiment(
+    db: CommunityPulseDB,
+    locality_id: str,
+    **updates
+) -> bool:
+    """Update market sentiment record."""
+    try:
+        timestamp = db._get_timestamp()
+        sets = ", ".join(f"{k} = ?" for k in updates.keys())
+        values = list(updates.values()) + [timestamp, locality_id]
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE market_sentiment SET {sets}, last_updated = ? WHERE locality_id = ?", values)
+        return True
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to update market sentiment: {e}")
+        return False
+
+
+def get_sentiment_history(
+    db: CommunityPulseDB,
+    locality_id: str,
+    days: int = 30
+) -> List[Dict[str, Any]]:
+    """Get historical sentiment data."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM market_sentiment 
+                WHERE locality_id = ? 
+                ORDER BY last_updated DESC LIMIT ?
+            """, (locality_id, days))
+            return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to get sentiment history: {e}")
+        return []
+
+
+def get_trending_localities(
+    db: CommunityPulseDB,
+    city: str = None,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """Get trending localities by sentiment score."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            if city:
+                cursor.execute("""
+                    SELECT * FROM market_sentiment 
+                    WHERE city = ? AND sentiment_score > 0
+                    ORDER BY sentiment_score DESC LIMIT ?
+                """, (city, limit))
+            else:
+                cursor.execute("""
+                    SELECT * FROM market_sentiment 
+                    WHERE sentiment_score > 0
+                    ORDER BY sentiment_score DESC LIMIT ?
+                """, (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to get trending localities: {e}")
+        return []
+
+
+def record_trend(
+    db: CommunityPulseDB,
+    locality_id: str,
+    trend_type: str,
+    value: float
+) -> Optional[str]:
+    """Record a trend for a locality."""
+    try:
+        trend_id = db._generate_id()
+        timestamp = db._get_timestamp()
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE market_sentiment 
+                SET trend_indicators = ?, last_updated = ?
+                WHERE locality_id = ?
+            """, (json.dumps({trend_type: value}), timestamp, locality_id))
+        return trend_id
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to record trend: {e}")
+        return None
+
+
+def get_aggregated_signals(
+    db: CommunityPulseDB,
+    locality_id: str = None,
+    days: int = 30
+) -> Dict[str, Any]:
+    """Get aggregated signal counts."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            if locality_id:
+                cursor.execute("""
+                    SELECT signal_type, COUNT(*) as count 
+                    FROM sentiment_signals 
+                    WHERE locality_id = ? AND created_at > datetime('now', '-' || ? || ' days')
+                    GROUP BY signal_type
+                """, (locality_id, days))
+            else:
+                cursor.execute("""
+                    SELECT signal_type, COUNT(*) as count 
+                    FROM sentiment_signals 
+                    WHERE created_at > datetime('now', '-' || ? || ' days')
+                    GROUP BY signal_type
+                """, (days,))
+            rows = cursor.fetchall()
+            return {row['signal_type']: row['count'] for row in rows}
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to get aggregated signals: {e}")
+        return {}
+
+
+def get_trends(
+    db: CommunityPulseDB,
+    locality_id: str = None,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """Get trend data for localities."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            if locality_id:
+                cursor.execute("""
+                    SELECT * FROM market_sentiment 
+                    WHERE locality_id = ? AND trend_indicators IS NOT NULL
+                    ORDER BY last_updated DESC LIMIT ?
+                """, (locality_id, limit))
+            else:
+                cursor.execute("""
+                    SELECT * FROM market_sentiment 
+                    WHERE trend_indicators IS NOT NULL
+                    ORDER BY last_updated DESC LIMIT ?
+                """, (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        logger.error(f"[CommunityPulse] Failed to get trends: {e}")
+        return []
+
+
+def calculate_sentiment_score(
+    signals: List[Dict[str, Any]],
+    weights: Dict[str, float] = None
+) -> float:
+    """Calculate overall sentiment score from signals."""
+    if not signals:
+        return 0.0
+    
+    if weights is None:
+        weights = {'view': 1, 'like': 2, 'search': 1, 'compare': 3}
+    
+    total_score = 0.0
+    total_weight = 0
+    
+    for signal in signals:
+        signal_type = signal.get('signal_type', '')
+        weight = weights.get(signal_type, 1)
+        total_score += weight
+        total_weight += weight
+    
+    return total_score / total_weight if total_weight > 0 else 0.0
 
 
 # ============================================================================
@@ -1818,6 +1998,11 @@ def get_locality_review_stats(db: CommunityPulseDB, locality_id: str) -> Dict[st
             
             if row:
                 stats = dict(row)
+                # Handle None values - convert to defaults
+                if stats.get('verified_count') is None:
+                    stats['verified_count'] = 0
+                if stats.get('total_helpful') is None:
+                    stats['total_helpful'] = 0
                 # Get rating distribution
                 cursor.execute("""
                     SELECT overall_rating, COUNT(*) as count 
@@ -1828,7 +2013,21 @@ def get_locality_review_stats(db: CommunityPulseDB, locality_id: str) -> Dict[st
                 """, (locality_id,))
                 stats['rating_distribution'] = {str(r['overall_rating']): r['count'] for r in cursor.fetchall()}
                 return stats
-            return {}
+            # Return default stats when no reviews
+            return {
+                'total_reviews': 0,
+                'avg_overall_rating': None,
+                'avg_vastu_rating': None,
+                'avg_school_rating': None,
+                'avg_transport_rating': None,
+                'avg_safety_rating': None,
+                'avg_amenities_rating': None,
+                'avg_water_supply_rating': None,
+                'avg_power_supply_rating': None,
+                'verified_count': 0,
+                'total_helpful': 0,
+                'rating_distribution': {}
+            }
             
     except Exception as e:
         logger.error(f"[CommunityPulse] Failed to get locality review stats: {e}")
@@ -1932,539 +2131,6 @@ def delete_locality_review(
 
 
 # ============================================================================
-# PHASE 2: BUILDER PROFILES CRUD
-# ============================================================================
-
-def create_builder_profile(
-    db: CommunityPulseDB,
-    name: str,
-    description: str = None,
-    logo_url: str = None,
-    website: str = None,
-    established_year: int = None,
-    cities_operating: List[str] = None,
-    rera_registered: bool = False,
-    rera_ids: List[str] = None,
-    contact_phone: str = None,
-    contact_email: str = None,
-    address: str = None
-) -> Optional[str]:
-    """
-    Create a new builder profile.
-    
-    Args:
-        db: CommunityPulseDB instance
-        name: Builder/developer name
-        description: Builder description
-        logo_url: URL to builder logo
-        website: Builder website
-        established_year: Year established
-        cities_operating: List of cities where builder operates
-        rera_registered: Whether builder is RERA registered
-        rera_ids: List of RERA registration IDs
-        contact_phone: Contact phone number
-        contact_email: Contact email
-        address: Office address
-    
-    Returns:
-        Builder ID if successful, None otherwise
-    """
-    try:
-        builder_id = db._generate_id()
-        timestamp = db._get_timestamp()
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO builder_profiles (
-                    id, name, description, logo_url, website,
-                    established_year, cities_operating, rera_registered,
-                    rera_ids, contact_phone, contact_email, address,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                builder_id, name, description, logo_url, website,
-                established_year,
-                json.dumps(cities_operating) if cities_operating else None,
-                1 if rera_registered else 0,
-                json.dumps(rera_ids) if rera_ids else None,
-                contact_phone, contact_email, address,
-                timestamp, timestamp
-            ))
-        
-        logger.info(f"[CommunityPulse] Created builder profile {builder_id}")
-        return builder_id
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to create builder profile: {e}")
-        return None
-
-
-def get_builder_profile(db: CommunityPulseDB, builder_id: str) -> Optional[Dict[str, Any]]:
-    """
-    Get a builder profile by ID.
-    
-    Args:
-        db: CommunityPulseDB instance
-        builder_id: Builder ID to retrieve
-    
-    Returns:
-        Builder profile as dict, or None if not found
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM builder_profiles WHERE id = ?
-            """, (builder_id,))
-            row = cursor.fetchone()
-            
-            if row:
-                builder = dict(row)
-                # Parse JSON fields
-                if builder.get('cities_operating'):
-                    builder['cities_operating'] = json.loads(builder['cities_operating'])
-                if builder.get('rera_ids'):
-                    builder['rera_ids'] = json.loads(builder['rera_ids'])
-                return builder
-            return None
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to get builder profile: {e}")
-        return None
-
-
-def search_builders(
-    db: CommunityPulseDB,
-    query: str = None,
-    city: str = None,
-    rera_registered: bool = None,
-    min_rating: float = None,
-    limit: int = 20,
-    offset: int = 0
-) -> List[Dict[str, Any]]:
-    """
-    Search for builder profiles.
-    
-    Args:
-        db: CommunityPulseDB instance
-        query: Search query for builder name
-        city: Filter by city
-        rera_registered: Filter by RERA registration status
-        min_rating: Minimum average rating
-        limit: Maximum results to return
-        offset: Pagination offset
-    
-    Returns:
-        List of builder profile dicts
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            conditions = []
-            params = []
-            
-            if query:
-                conditions.append("name LIKE ?")
-                params.append(f"%{query}%")
-            
-            if city:
-                conditions.append("cities_operating LIKE ?")
-                params.append(f"%{city}%")
-            
-            if rera_registered is not None:
-                conditions.append("rera_registered = ?")
-                params.append(1 if rera_registered else 0)
-            
-            if min_rating is not None:
-                conditions.append("avg_construction_quality_rating >= ?")
-                params.append(min_rating)
-            
-            where_clause = " AND ".join(conditions) if conditions else "1=1"
-            
-            query_sql = f"""
-                SELECT * FROM builder_profiles 
-                WHERE {where_clause}
-                ORDER BY avg_construction_quality_rating DESC NULLS LAST, name ASC
-                LIMIT ? OFFSET ?
-            """
-            params.extend([limit, offset])
-            
-            cursor.execute(query_sql, tuple(params))
-            rows = cursor.fetchall()
-            
-            builders = []
-            for row in rows:
-                builder = dict(row)
-                if builder.get('cities_operating'):
-                    builder['cities_operating'] = json.loads(builder['cities_operating'])
-                if builder.get('rera_ids'):
-                    builder['rera_ids'] = json.loads(builder['rera_ids'])
-                builders.append(builder)
-            
-            return builders
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to search builders: {e}")
-        return []
-
-
-def update_builder_profile(
-    db: CommunityPulseDB,
-    builder_id: str,
-    **kwargs
-) -> bool:
-    """
-    Update a builder profile.
-    
-    Args:
-        db: CommunityPulseDB instance
-        builder_id: Builder ID to update
-        **kwargs: Fields to update
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        allowed_fields = {
-            'name', 'description', 'logo_url', 'website',
-            'established_year', 'cities_operating', 'total_projects',
-            'completed_projects', 'ongoing_projects', 'avg_delivery_time_months',
-            'on_time_delivery_rate', 'avg_construction_quality_rating',
-            'avg_after_sales_rating', 'rera_registered', 'rera_ids',
-            'contact_phone', 'contact_email', 'address'
-        }
-        
-        updates = {}
-        for key, value in kwargs.items():
-            if key in allowed_fields:
-                if key in ('cities_operating', 'rera_ids') and value is not None:
-                    updates[key] = json.dumps(value)
-                else:
-                    updates[key] = value
-        
-        if not updates:
-            return True
-        
-        updates['updated_at'] = db._get_timestamp()
-        
-        set_clause = ', '.join([f"{k} = ?" for k in updates.keys()])
-        query = f"UPDATE builder_profiles SET {set_clause} WHERE id = ?"
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, tuple(updates.values()) + (builder_id,))
-        
-        logger.info(f"[CommunityPulse] Updated builder profile {builder_id}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to update builder profile: {e}")
-        return False
-
-
-def update_builder_aggregates(db: CommunityPulseDB, builder_id: str) -> bool:
-    """
-    Update aggregate ratings for a builder based on reviews.
-    
-    Args:
-        db: CommunityPulseDB instance
-        builder_id: Builder ID to update aggregates for
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Calculate aggregates from reviews
-            cursor.execute("""
-                SELECT 
-                    COUNT(*) as total_reviews,
-                    AVG(overall_rating) as avg_overall,
-                    AVG(construction_quality) as avg_construction,
-                    AVG(timely_delivery) as avg_timely,
-                    AVG(after_sales_service) as avg_after_sales,
-                    AVG(value_for_money) as avg_value,
-                    AVG(transparency) as avg_transparency
-                FROM builder_reviews 
-                WHERE builder_id = ? AND status = 'active'
-            """, (builder_id,))
-            row = cursor.fetchone()
-            
-            if row and row['total_reviews'] > 0:
-                cursor.execute("""
-                    UPDATE builder_profiles SET
-                        avg_construction_quality_rating = ?,
-                        avg_after_sales_rating = ?,
-                        updated_at = ?
-                    WHERE id = ?
-                """, (
-                    row['avg_construction'],
-                    row['avg_after_sales'],
-                    db._get_timestamp(),
-                    builder_id
-                ))
-        
-        logger.info(f"[CommunityPulse] Updated builder aggregates for {builder_id}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to update builder aggregates: {e}")
-        return False
-
-
-# ============================================================================
-# PHASE 2: BUILDER REVIEWS CRUD
-# ============================================================================
-
-def create_builder_review(
-    db: CommunityPulseDB,
-    builder_id: str,
-    user_id: str,
-    overall_rating: float,
-    project_name: str = None,
-    project_location: str = None,
-    construction_quality: float = None,
-    timely_delivery: float = None,
-    after_sales_service: float = None,
-    value_for_money: float = None,
-    transparency: float = None,
-    pros: List[str] = None,
-    cons: List[str] = None,
-    review_text: str = None,
-    is_verified_buyer: bool = False,
-    purchase_date: str = None
-) -> Optional[str]:
-    """
-    Create a new builder review.
-    
-    Args:
-        db: CommunityPulseDB instance
-        builder_id: Builder ID being reviewed
-        user_id: User ID creating the review
-        overall_rating: Overall rating (1-5)
-        project_name: Name of the project
-        project_location: Location of the project
-        construction_quality: Construction quality rating (1-5)
-        timely_delivery: Timely delivery rating (1-5)
-        after_sales_service: After-sales service rating (1-5)
-        value_for_money: Value for money rating (1-5)
-        transparency: Transparency rating (1-5)
-        pros: List of pros
-        cons: List of cons
-        review_text: Full review text
-        is_verified_buyer: Whether the reviewer is a verified buyer
-        purchase_date: Date of purchase
-    
-    Returns:
-        Review ID if successful, None otherwise
-    """
-    try:
-        review_id = db._generate_id()
-        timestamp = db._get_timestamp()
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO builder_reviews (
-                    id, builder_id, user_id, overall_rating, project_name,
-                    project_location, construction_quality, timely_delivery,
-                    after_sales_service, value_for_money, transparency,
-                    pros, cons, review_text, is_verified_buyer, purchase_date,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                review_id, builder_id, user_id, overall_rating, project_name,
-                project_location, construction_quality, timely_delivery,
-                after_sales_service, value_for_money, transparency,
-                json.dumps(pros) if pros else None,
-                json.dumps(cons) if cons else None,
-                review_text, 1 if is_verified_buyer else 0, purchase_date,
-                timestamp, timestamp
-            ))
-        
-        # Update builder aggregates
-        update_builder_aggregates(db, builder_id)
-        
-        logger.info(f"[CommunityPulse] Created builder review {review_id}")
-        return review_id
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to create builder review: {e}")
-        return None
-
-
-def get_builder_reviews(
-    db: CommunityPulseDB,
-    builder_id: str,
-    status: str = 'active',
-    limit: int = 20,
-    offset: int = 0,
-    sort_by: str = 'created_at'
-) -> List[Dict[str, Any]]:
-    """
-    Get reviews for a builder.
-    
-    Args:
-        db: CommunityPulseDB instance
-        builder_id: Builder ID to get reviews for
-        status: Status filter (default: 'active')
-        limit: Maximum number of reviews to return
-        offset: Pagination offset
-        sort_by: Sort field (created_at/helpful_count/overall_rating)
-    
-    Returns:
-        List of review dicts
-    """
-    try:
-        valid_sort_fields = {'created_at', 'helpful_count', 'overall_rating'}
-        if sort_by not in valid_sort_fields:
-            sort_by = 'created_at'
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(f"""
-                SELECT * FROM builder_reviews 
-                WHERE builder_id = ? AND status = ?
-                ORDER BY {sort_by} DESC
-                LIMIT ? OFFSET ?
-            """, (builder_id, status, limit, offset))
-            rows = cursor.fetchall()
-            
-            reviews = []
-            for row in rows:
-                review = dict(row)
-                if review.get('pros'):
-                    review['pros'] = json.loads(review['pros'])
-                if review.get('cons'):
-                    review['cons'] = json.loads(review['cons'])
-                reviews.append(review)
-            
-            return reviews
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to get builder reviews: {e}")
-        return []
-
-
-def update_builder_review(
-    db: CommunityPulseDB,
-    review_id: str,
-    user_id: str,
-    **kwargs
-) -> bool:
-    """
-    Update a builder review. Only the original author can update.
-    
-    Args:
-        db: CommunityPulseDB instance
-        review_id: Review ID to update
-        user_id: User ID (for authorization)
-        **kwargs: Fields to update
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        allowed_fields = {
-            'overall_rating', 'project_name', 'project_location',
-            'construction_quality', 'timely_delivery', 'after_sales_service',
-            'value_for_money', 'transparency', 'pros', 'cons',
-            'review_text', 'is_verified_buyer', 'purchase_date', 'status'
-        }
-        
-        updates = {}
-        for key, value in kwargs.items():
-            if key in allowed_fields:
-                if key in ('pros', 'cons') and value is not None:
-                    updates[key] = json.dumps(value)
-                else:
-                    updates[key] = value
-        
-        if not updates:
-            return True
-        
-        updates['updated_at'] = db._get_timestamp()
-        
-        set_clause = ', '.join([f"{k} = ?" for k in updates.keys()])
-        query = f"UPDATE builder_reviews SET {set_clause} WHERE id = ? AND user_id = ?"
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, tuple(updates.values()) + (review_id, user_id))
-            
-            if cursor.rowcount == 0:
-                logger.warning(f"[CommunityPulse] No review updated - review not found or unauthorized")
-                return False
-            
-            # Get builder_id to update aggregates
-            cursor.execute("SELECT builder_id FROM builder_reviews WHERE id = ?", (review_id,))
-            row = cursor.fetchone()
-            if row:
-                builder_id = row['builder_id']
-        
-        # Update builder aggregates
-        if builder_id:
-            update_builder_aggregates(db, builder_id)
-        
-        logger.info(f"[CommunityPulse] Updated builder review {review_id}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to update builder review: {e}")
-        return False
-
-
-def delete_builder_review(
-    db: CommunityPulseDB,
-    review_id: str,
-    user_id: str
-) -> bool:
-    """
-    Delete a builder review. Only the original author can delete.
-    
-    Args:
-        db: CommunityPulseDB instance
-        review_id: Review ID to delete
-        user_id: User ID (for authorization)
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Get builder_id before deletion
-            cursor.execute("SELECT builder_id FROM builder_reviews WHERE id = ? AND user_id = ?", 
-                          (review_id, user_id))
-            row = cursor.fetchone()
-            
-            if not row:
-                logger.warning(f"[CommunityPulse] No review deleted - review not found or unauthorized")
-                return False
-            
-            builder_id = row['builder_id']
-            
-            cursor.execute("""
-                DELETE FROM builder_reviews 
-                WHERE id = ? AND user_id = ?
-            """, (review_id, user_id))
-        
-        # Update builder aggregates
-        update_builder_aggregates(db, builder_id)
-        
-        logger.info(f"[CommunityPulse] Deleted builder review {review_id}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to delete builder review: {e}")
-        return False
-
-
 # ============================================================================
 # PHASE 2: REVIEW HELPFUL CRUD
 # ============================================================================
@@ -2476,19 +2142,19 @@ def mark_review_helpful(
     user_id: str
 ) -> Optional[str]:
     """
-    Mark a review as helpful.
+    Mark a locality review as helpful.
     
     Args:
         db: CommunityPulseDB instance
         review_id: Review ID
-        review_type: Type of review ('locality' or 'builder')
+        review_type: Type of review ('locality')
         user_id: User ID marking as helpful
     
     Returns:
         Helpful entry ID if successful, None otherwise
     """
     try:
-        if review_type not in ('locality', 'builder'):
+        if review_type != 'locality':
             logger.error(f"[CommunityPulse] Invalid review type: {review_type}")
             return None
         
@@ -2508,10 +2174,9 @@ def mark_review_helpful(
                 # Already marked as helpful
                 return helpful_id
             
-            # Update helpful count on the review
-            table = 'locality_reviews' if review_type == 'locality' else 'builder_reviews'
-            cursor.execute(f"""
-                UPDATE {table} SET helpful_count = helpful_count + 1
+            # Update helpful count on the locality review
+            cursor.execute("""
+                UPDATE locality_reviews SET helpful_count = helpful_count + 1
                 WHERE id = ?
             """, (review_id,))
         
@@ -2530,19 +2195,19 @@ def unmark_review_helpful(
     user_id: str
 ) -> bool:
     """
-    Remove helpful mark from a review.
+    Remove helpful mark from a locality review.
     
     Args:
         db: CommunityPulseDB instance
         review_id: Review ID
-        review_type: Type of review ('locality' or 'builder')
+        review_type: Type of review ('locality')
         user_id: User ID
     
     Returns:
         True if successful, False otherwise
     """
     try:
-        if review_type not in ('locality', 'builder'):
+        if review_type != 'locality':
             logger.error(f"[CommunityPulse] Invalid review type: {review_type}")
             return False
         
@@ -2558,10 +2223,9 @@ def unmark_review_helpful(
             if cursor.rowcount == 0:
                 return True  # Already not marked
             
-            # Update helpful count on the review
-            table = 'locality_reviews' if review_type == 'locality' else 'builder_reviews'
-            cursor.execute(f"""
-                UPDATE {table} SET helpful_count = MAX(0, helpful_count - 1)
+            # Update helpful count on the locality review
+            cursor.execute("""
+                UPDATE locality_reviews SET helpful_count = MAX(0, helpful_count - 1)
                 WHERE id = ?
             """, (review_id,))
         
@@ -2579,12 +2243,12 @@ def get_user_helpful_reviews(
     review_type: str = None
 ) -> List[Dict[str, Any]]:
     """
-    Get all reviews marked as helpful by a user.
+    Get all locality reviews marked as helpful by a user.
     
     Args:
         db: CommunityPulseDB instance
         user_id: User ID
-        review_type: Optional filter by review type
+        review_type: Optional filter by review type (only 'locality' supported)
     
     Returns:
         List of helpful entries
@@ -2613,840 +2277,11 @@ def get_user_helpful_reviews(
         logger.error(f"[CommunityPulse] Failed to get user helpful reviews: {e}")
         return []
 
-
-# ============================================================================
-# PHASE 2: RERA VERIFICATIONS CRUD
-# ============================================================================
-
-def create_rera_verification(
-    db: CommunityPulseDB,
-    rera_id: str,
-    state: str,
-    project_name: str = None,
-    builder_name: str = None,
-    project_status: str = None,
-    registration_date: str = None,
-    expiry_date: str = None,
-    project_address: str = None,
-    project_type: str = None,
-    land_area: float = None,
-    proposed_units: int = None,
-    verification_status: str = 'pending',
-    verification_data: Dict[str, Any] = None
-) -> Optional[str]:
-    """
-    Create a new RERA verification record.
-    
-    Args:
-        db: CommunityPulseDB instance
-        rera_id: RERA registration number
-        state: State where the project is registered
-        project_name: Name of the project
-        builder_name: Name of the builder/developer
-        project_status: Status (registered/ongoing/completed/expired)
-        registration_date: Date of registration
-        expiry_date: Expiry date of registration
-        project_address: Project address
-        project_type: Type of project
-        land_area: Land area in sq meters
-        proposed_units: Number of proposed units
-        verification_status: Verification status (verified/not_found/error/pending)
-        verification_data: Full verification data from RERA API
-    
-    Returns:
-        Verification record ID if successful, None otherwise
-    """
-    try:
-        record_id = db._generate_id()
-        timestamp = db._get_timestamp()
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO rera_verifications (
-                    id, rera_id, state, project_name, builder_name,
-                    project_status, registration_date, expiry_date,
-                    project_address, project_type, land_area, proposed_units,
-                    verification_status, verification_data, last_verified_at,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                record_id, rera_id, state, project_name, builder_name,
-                project_status, registration_date, expiry_date,
-                project_address, project_type, land_area, proposed_units,
-                verification_status,
-                json.dumps(verification_data) if verification_data else None,
-                timestamp, timestamp, timestamp
-            ))
-        
-        logger.info(f"[CommunityPulse] Created RERA verification record {record_id}")
-        return record_id
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to create RERA verification: {e}")
-        return None
-
-
-def get_rera_verification(
-    db: CommunityPulseDB,
-    rera_id: str = None,
-    builder_name: str = None,
-    state: str = None
-) -> Optional[Dict[str, Any]]:
-    """
-    Get RERA verification by ID or builder name.
-    
-    Args:
-        db: CommunityPulseDB instance
-        rera_id: RERA registration number
-        builder_name: Builder name to search for
-        state: State filter
-    
-    Returns:
-        Verification record as dict, or None if not found
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            if rera_id:
-                cursor.execute("""
-                    SELECT * FROM rera_verifications WHERE rera_id = ?
-                """, (rera_id,))
-            elif builder_name and state:
-                cursor.execute("""
-                    SELECT * FROM rera_verifications 
-                    WHERE builder_name LIKE ? AND state = ?
-                    ORDER BY last_verified_at DESC
-                    LIMIT 1
-                """, (f"%{builder_name}%", state))
-            elif builder_name:
-                cursor.execute("""
-                    SELECT * FROM rera_verifications 
-                    WHERE builder_name LIKE ?
-                    ORDER BY last_verified_at DESC
-                    LIMIT 1
-                """, (f"%{builder_name}%",))
-            else:
-                return None
-            
-            row = cursor.fetchone()
-            
-            if row:
-                record = dict(row)
-                if record.get('verification_data'):
-                    record['verification_data'] = json.loads(record['verification_data'])
-                return record
-            return None
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to get RERA verification: {e}")
-        return None
-
-
-def update_rera_verification(
-    db: CommunityPulseDB,
-    verification_id: str,
-    **kwargs
-) -> bool:
-    """
-    Update a RERA verification record.
-    
-    Args:
-        db: CommunityPulseDB instance
-        verification_id: Verification record ID
-        **kwargs: Fields to update
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        allowed_fields = {
-            'rera_id', 'state', 'project_name', 'builder_name',
-            'project_status', 'registration_date', 'expiry_date',
-            'project_address', 'project_type', 'land_area', 'proposed_units',
-            'verification_status', 'verification_data', 'last_verified_at'
-        }
-        
-        updates = {}
-        for key, value in kwargs.items():
-            if key in allowed_fields:
-                if key == 'verification_data' and value is not None:
-                    updates[key] = json.dumps(value)
-                else:
-                    updates[key] = value
-        
-        if not updates:
-            return True
-        
-        updates['updated_at'] = db._get_timestamp()
-        
-        set_clause = ', '.join([f"{k} = ?" for k in updates.keys()])
-        query = f"UPDATE rera_verifications SET {set_clause} WHERE id = ?"
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, tuple(updates.values()) + (verification_id,))
-        
-        logger.info(f"[CommunityPulse] Updated RERA verification {verification_id}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to update RERA verification: {e}")
-        return False
-
-
-# ============================================================================
-# PHASE 3: SENTIMENT DASHBOARD CRUD
-# ============================================================================
-
-def create_market_sentiment(
-    db: CommunityPulseDB,
-    locality_id: str,
-    locality_name: str,
-    city: str = None,
-    price_current: float = None,
-    price_1_month_ago: float = None,
-    price_3_months_ago: float = None,
-    price_6_months_ago: float = None,
-    price_1_year_ago: float = None,
-    price_change_pct: float = None,
-    price_momentum: str = None,
-    sentiment_score: float = None,
-    demand_score: float = None,
-    supply_score: float = None,
-    investment_score: float = None,
-    rental_yield_avg: float = None,
-    rental_yield_min: float = None,
-    rental_yield_max: float = None,
-    days_on_market_avg: int = None,
-    price_per_sqft_avg: float = None,
-    inventory_count: int = None,
-    new_listings_30d: int = None,
-    transactions_30d: int = None,
-    sentiment_breakdown: Dict[str, Any] = None,
-    trend_indicators: Dict[str, Any] = None
-) -> Optional[str]:
-    """
-    Create a new market sentiment record.
-    
-    Args:
-        db: CommunityPulseDB instance
-        locality_id: Locality identifier
-        locality_name: Locality name
-        city: City name
-        price_current: Current price
-        price_1_month_ago: Price 1 month ago
-        price_3_months_ago: Price 3 months ago
-        price_6_months_ago: Price 6 months ago
-        price_1_year_ago: Price 1 year ago
-        price_change_pct: Price change percentage
-        price_momentum: bullish/bearish/neutral
-        sentiment_score: Overall sentiment score (0-100)
-        demand_score: Demand score (0-100)
-        supply_score: Supply score (0-100)
-        investment_score: Investment score (0-100)
-        rental_yield_avg: Average rental yield
-        rental_yield_min: Minimum rental yield
-        rental_yield_max: Maximum rental yield
-        days_on_market_avg: Average days on market
-        price_per_sqft_avg: Average price per sqft
-        inventory_count: Total inventory count
-        new_listings_30d: New listings in last 30 days
-        transactions_30d: Transactions in last 30 days
-        sentiment_breakdown: JSON breakdown of sentiment
-        trend_indicators: JSON trend indicators
-    
-    Returns:
-        Sentiment record ID if successful, None otherwise
-    """
-    try:
-        record_id = db._generate_id()
-        timestamp = db._get_timestamp()
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO market_sentiment (
-                    id, locality_id, locality_name, city,
-                    price_current, price_1_month_ago, price_3_months_ago,
-                    price_6_months_ago, price_1_year_ago, price_change_pct,
-                    price_momentum, sentiment_score, demand_score, supply_score,
-                    investment_score, rental_yield_avg, rental_yield_min,
-                    rental_yield_max, days_on_market_avg, price_per_sqft_avg,
-                    inventory_count, new_listings_30d, transactions_30d,
-                    sentiment_breakdown, trend_indicators, last_updated, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                record_id, locality_id, locality_name, city,
-                price_current, price_1_month_ago, price_3_months_ago,
-                price_6_months_ago, price_1_year_ago, price_change_pct,
-                price_momentum, sentiment_score, demand_score, supply_score,
-                investment_score, rental_yield_avg, rental_yield_min,
-                rental_yield_max, days_on_market_avg, price_per_sqft_avg,
-                inventory_count, new_listings_30d, transactions_30d,
-                json.dumps(sentiment_breakdown) if sentiment_breakdown else None,
-                json.dumps(trend_indicators) if trend_indicators else None,
-                timestamp, timestamp
-            ))
-        
-        logger.info(f"[CommunityPulse] Created market sentiment {record_id}")
-        return record_id
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to create market sentiment: {e}")
-        return None
-
-
-def get_market_sentiment(
-    db: CommunityPulseDB,
-    locality_id: str = None,
-    city: str = None,
-    limit: int = 50
-) -> List[Dict[str, Any]]:
-    """
-    Get market sentiment records.
-    
-    Args:
-        db: CommunityPulseDB instance
-        locality_id: Optional locality filter
-        city: Optional city filter
-        limit: Maximum records to return
-    
-    Returns:
-        List of market sentiment records
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            query = "SELECT * FROM market_sentiment WHERE 1=1"
-            params = []
-            
-            if locality_id:
-                query += " AND locality_id = ?"
-                params.append(locality_id)
-            
-            if city:
-                query += " AND city = ?"
-                params.append(city)
-            
-            query += " ORDER BY last_updated DESC LIMIT ?"
-            params.append(limit)
-            
-            cursor.execute(query, tuple(params))
-            rows = cursor.fetchall()
-            
-            results = []
-            for row in rows:
-                record = dict(row)
-                if record.get('sentiment_breakdown'):
-                    record['sentiment_breakdown'] = json.loads(record['sentiment_breakdown'])
-                if record.get('trend_indicators'):
-                    record['trend_indicators'] = json.loads(record['trend_indicators'])
-                results.append(record)
-            
-            return results
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to get market sentiment: {e}")
-        return []
-
-
-def update_market_sentiment(
-    db: CommunityPulseDB,
-    sentiment_id: str,
-    **kwargs
-) -> bool:
-    """
-    Update a market sentiment record.
-    
-    Args:
-        db: CommunityPulseDB instance
-        sentiment_id: Sentiment record ID
-        **kwargs: Fields to update
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        allowed_fields = {
-            'locality_name', 'city', 'price_current', 'price_1_month_ago',
-            'price_3_months_ago', 'price_6_months_ago', 'price_1_year_ago',
-            'price_change_pct', 'price_momentum', 'sentiment_score',
-            'demand_score', 'supply_score', 'investment_score',
-            'rental_yield_avg', 'rental_yield_min', 'rental_yield_max',
-            'days_on_market_avg', 'price_per_sqft_avg', 'inventory_count',
-            'new_listings_30d', 'transactions_30d', 'sentiment_breakdown',
-            'trend_indicators'
-        }
-        
-        updates = {}
-        for key, value in kwargs.items():
-            if key in allowed_fields:
-                if key in ('sentiment_breakdown', 'trend_indicators') and value is not None:
-                    updates[key] = json.dumps(value)
-                else:
-                    updates[key] = value
-        
-        if not updates:
-            return True
-        
-        updates['last_updated'] = db._get_timestamp()
-        
-        set_clause = ', '.join([f"{k} = ?" for k in updates.keys()])
-        query = f"UPDATE market_sentiment SET {set_clause} WHERE id = ?"
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, tuple(updates.values()) + (sentiment_id,))
-        
-        logger.info(f"[CommunityPulse] Updated market sentiment {sentiment_id}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to update market sentiment: {e}")
-        return False
-
-
-def get_sentiment_history(
-    db: CommunityPulseDB,
-    locality_id: str,
-    days: int = 30
-) -> List[Dict[str, Any]]:
-    """
-    Get sentiment history for a locality.
-    
-    Args:
-        db: CommunityPulseDB instance
-        locality_id: Locality ID
-        days: Number of days to look back
-    
-    Returns:
-        List of historical sentiment records
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM market_sentiment 
-                WHERE locality_id = ?
-                ORDER BY created_at DESC
-                LIMIT ?
-            """, (locality_id, days))
-            rows = cursor.fetchall()
-            
-            results = []
-            for row in rows:
-                record = dict(row)
-                if record.get('sentiment_breakdown'):
-                    record['sentiment_breakdown'] = json.loads(record['sentiment_breakdown'])
-                if record.get('trend_indicators'):
-                    record['trend_indicators'] = json.loads(record['trend_indicators'])
-                results.append(record)
-            
-            return results
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to get sentiment history: {e}")
-        return []
-
-
-def get_trending_localities(
-    db: CommunityPulseDB,
-    city: str = None,
-    limit: int = 10
-) -> List[Dict[str, Any]]:
-    """
-    Get trending localities based on sentiment score.
-    
-    Args:
-        db: CommunityPulseDB instance
-        city: Optional city filter
-        limit: Number of results
-    
-    Returns:
-        List of trending localities
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            query = """
-                SELECT * FROM market_sentiment 
-                WHERE 1=1
-            """
-            params = []
-            
-            if city:
-                query += " AND city = ?"
-                params.append(city)
-            
-            query += " ORDER BY sentiment_score DESC LIMIT ?"
-            params.append(limit)
-            
-            cursor.execute(query, tuple(params))
-            rows = cursor.fetchall()
-            
-            results = []
-            for row in rows:
-                record = dict(row)
-                if record.get('sentiment_breakdown'):
-                    record['sentiment_breakdown'] = json.loads(record['sentiment_breakdown'])
-                if record.get('trend_indicators'):
-                    record['trend_indicators'] = json.loads(record['trend_indicators'])
-                results.append(record)
-            
-            return results
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to get trending localities: {e}")
-        return []
-
-
-# ============================================================================
-# SENTIMENT SIGNALS CRUD
-# ============================================================================
-
-def record_signal(
-    db: CommunityPulseDB,
-    signal_type: str,
-    user_hash: str,
-    locality_id: str = None,
-    property_id: str = None,
-    signal_data: Dict[str, Any] = None
-) -> Optional[str]:
-    """
-    Record a user signal for sentiment analysis.
-    
-    Args:
-        db: CommunityPulseDB instance
-        signal_type: Type of signal (property_view/property_save/property_share/analysis_request/search)
-        user_hash: Anonymized user identifier
-        locality_id: Optional locality ID
-        property_id: Optional property ID
-        signal_data: Additional signal data as JSON
-    
-    Returns:
-        Signal ID if successful, None otherwise
-    """
-    try:
-        signal_id = db._generate_id()
-        timestamp = db._get_timestamp()
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO sentiment_signals (
-                    id, locality_id, property_id, signal_type, 
-                    user_hash, signal_data, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                signal_id, locality_id, property_id, signal_type,
-                user_hash, json.dumps(signal_data) if signal_data else None,
-                timestamp
-            ))
-        
-        logger.info(f"[CommunityPulse] Recorded signal {signal_id} of type {signal_type}")
-        return signal_id
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to record signal: {e}")
-        return None
-
-
-def get_signals_by_locality(
-    db: CommunityPulseDB,
-    locality_id: str,
-    signal_type: str = None,
-    limit: int = 100
-) -> List[Dict[str, Any]]:
-    """
-    Get signals for a specific locality.
-    
-    Args:
-        db: CommunityPulseDB instance
-        locality_id: Locality ID
-        signal_type: Optional signal type filter
-        limit: Maximum records
-    
-    Returns:
-        List of signal records
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            if signal_type:
-                cursor.execute("""
-                    SELECT * FROM sentiment_signals 
-                    WHERE locality_id = ? AND signal_type = ?
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                """, (locality_id, signal_type, limit))
-            else:
-                cursor.execute("""
-                    SELECT * FROM sentiment_signals 
-                    WHERE locality_id = ?
-                    ORDER BY created_at DESC
-                    LIMIT ?
-                """, (locality_id, limit))
-            
-            rows = cursor.fetchall()
-            
-            results = []
-            for row in rows:
-                signal = dict(row)
-                if signal.get('signal_data'):
-                    signal['signal_data'] = json.loads(signal['signal_data'])
-                results.append(signal)
-            
-            return results
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to get signals by locality: {e}")
-        return []
-
-
-def get_aggregated_signals(
-    db: CommunityPulseDB,
-    locality_id: str = None,
-    days: int = 30
-) -> Dict[str, Any]:
-    """
-    Get aggregated signal counts for a locality or overall.
-    
-    Args:
-        db: CommunityPulseDB instance
-        locality_id: Optional locality ID
-        days: Number of days to aggregate
-    
-    Returns:
-        Dict with aggregated signal counts
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            if locality_id:
-                cursor.execute("""
-                    SELECT signal_type, COUNT(*) as count 
-                    FROM sentiment_signals 
-                    WHERE locality_id = ? AND created_at >= datetime('now', '-' || ? || ' days')
-                    GROUP BY signal_type
-                """, (locality_id, days))
-            else:
-                cursor.execute("""
-                    SELECT signal_type, COUNT(*) as count 
-                    FROM sentiment_signals 
-                    WHERE created_at >= datetime('now', '-' || ? || ' days')
-                    GROUP BY signal_type
-                """, (days,))
-            
-            rows = cursor.fetchall()
-            
-            aggregated = {}
-            total = 0
-            for row in rows:
-                signal_type = row['signal_type']
-                count = row['count']
-                aggregated[signal_type] = count
-                total += count
-            
-            aggregated['total'] = total
-            
-            return aggregated
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to get aggregated signals: {e}")
-        return {}
-
-
-# ============================================================================
-# SENTIMENT TRENDS CRUD
-# ============================================================================
-
-def record_trend(
-    db: CommunityPulseDB,
-    locality_id: str,
-    trend_date: str,
-    sentiment_score: float = None,
-    price_avg: float = None,
-    activity_count: int = None,
-    search_volume: int = None
-) -> Optional[str]:
-    """
-    Record a daily sentiment trend.
-    
-    Args:
-        db: CommunityPulseDB instance
-        locality_id: Locality ID
-        trend_date: Date for the trend (YYYY-MM-DD)
-        sentiment_score: Sentiment score
-        price_avg: Average price
-        activity_count: Number of activities
-        search_volume: Search volume
-    
-    Returns:
-        Trend ID if successful, None otherwise
-    """
-    try:
-        trend_id = db._generate_id()
-        timestamp = db._get_timestamp()
-        
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT OR REPLACE INTO sentiment_trends (
-                    id, locality_id, trend_date, sentiment_score,
-                    price_avg, activity_count, search_volume, created_at
-                ) VALUES (
-                    COALESCE(
-                        (SELECT id FROM sentiment_trends 
-                         WHERE locality_id = ? AND trend_date = ?),
-                        ?
-                    ), ?, ?, ?, ?, ?, ?, ?
-                )
-            """, (
-                locality_id, trend_date,  # For COALESCE subquery
-                trend_id,  # Default ID if no existing
-                locality_id, trend_date, sentiment_score,
-                price_avg, activity_count, search_volume, timestamp
-            ))
-            
-            # Get the actual ID
-            cursor.execute("""
-                SELECT id FROM sentiment_trends 
-                WHERE locality_id = ? AND trend_date = ?
-            """, (locality_id, trend_date))
-            result = cursor.fetchone()
-            actual_id = result['id'] if result else trend_id
-        
-        logger.info(f"[CommunityPulse] Recorded trend for {locality_id} on {trend_date}")
-        return actual_id
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to record trend: {e}")
-        return None
-
-
-def get_trends(
-    db: CommunityPulseDB,
-    locality_id: str,
-    start_date: str = None,
-    end_date: str = None,
-    limit: int = 90
-) -> List[Dict[str, Any]]:
-    """
-    Get sentiment trends for a locality.
-    
-    Args:
-        db: CommunityPulseDB instance
-        locality_id: Locality ID
-        start_date: Start date (YYYY-MM-DD)
-        end_date: End date (YYYY-MM-DD)
-        limit: Maximum records
-    
-    Returns:
-        List of trend records
-    """
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            query = "SELECT * FROM sentiment_trends WHERE locality_id = ?"
-            params = [locality_id]
-            
-            if start_date:
-                query += " AND trend_date >= ?"
-                params.append(start_date)
-            
-            if end_date:
-                query += " AND trend_date <= ?"
-                params.append(end_date)
-            
-            query += " ORDER BY trend_date DESC LIMIT ?"
-            params.append(limit)
-            
-            cursor.execute(query, tuple(params))
-            rows = cursor.fetchall()
-            
-            return [dict(row) for row in rows]
-            
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to get trends: {e}")
-        return []
-
-
-def calculate_sentiment_score(
-    db: CommunityPulseDB,
-    locality_id: str
-) -> Optional[float]:
-    """
-    Calculate sentiment score based on aggregated signals.
-    
-    Args:
-        db: CommunityPulseDB instance
-        locality_id: Locality ID
-    
-    Returns:
-        Calculated sentiment score (0-100), or None on error
-    """
-    try:
-        # Get recent signals for the locality
-        signals = get_aggregated_signals(db, locality_id, days=30)
-        
-        if not signals or signals.get('total', 0) == 0:
-            return None
-        
-        # Weight different signal types
-        weights = {
-            'property_view': 1,
-            'property_save': 3,
-            'property_share': 4,
-            'analysis_request': 5,
-            'search': 2
-        }
-        
-        weighted_sum = 0
-        total_weight = 0
-        
-        for signal_type, count in signals.items():
-            if signal_type != 'total' and signal_type in weights:
-                weighted_sum += count * weights[signal_type]
-                total_weight += count
-        
-        if total_weight == 0:
-            return None
-        
-        # Normalize to 0-100 scale (cap at 100)
-        raw_score = (weighted_sum / total_weight) * 20
-        sentiment_score = min(100, max(0, raw_score))
-        
-        return round(sentiment_score, 2)
-        
-    except Exception as e:
-        logger.error(f"[CommunityPulse] Failed to calculate sentiment score: {e}")
-        return None
-
-
-# ============================================================================
-# SINGLETON INSTANCE
-# ============================================================================
-
-_community_pulse_db = None
-
-def get_community_pulse_db(db_path: str = None) -> CommunityPulseDB:
-    """
-    Get or create the Community Pulse database instance.
-    
-    Args:
-        db_path: Optional database path
-    
-    Returns:
-        CommunityPulseDB instance
-    """
-    global _community_pulse_db
-    if _community_pulse_db is None:
-        _community_pulse_db = CommunityPulseDB(db_path)
-    return _community_pulse_db
+  
+_community_pulse_db = None  
+  
+def get_community_pulse_db(db_path = None):  
+    global _community_pulse_db  
+    if _community_pulse_db is None:  
+        _community_pulse_db = CommunityPulseDB(db_path)  
+    return _community_pulse_db 

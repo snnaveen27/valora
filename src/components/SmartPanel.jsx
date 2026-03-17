@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import SmartTabsContainer from './SmartTabsContainer';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useLocation } from '../contexts/LocationContext';
 import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
   Compass, Database, Presentation, Eye, Bot, Users
@@ -117,7 +118,7 @@ const getTabMetadata = (t) => {
     title: safeT('communityPulse'),
     icon: '👥',
     lucideIcon: Users,
-    description: 'Family Hub, Reviews & Market Sentiment',
+    description: 'Decision-Room, Locality Reviews & Market Sentiment',
     shortLabel: 'community',
     color: 'from-indigo-500 to-purple-500'
   }
@@ -155,6 +156,7 @@ export default function SmartPanel({
   authUser = null
 }) {
   const { t } = useLanguage();
+  const { location, coordinates, locality, place } = useLocation();
   const [internalActiveTab, setInternalActiveTab] = useState('free_analysis');
   
   // Get translated tab metadata
@@ -185,6 +187,7 @@ export default function SmartPanel({
             const tab = TAB_METADATA[tabId];
             const Icon = tab.lucideIcon;
             const isActive = activeTab === tabId;
+            const isShineTab = tabId === 'agent_control' || tabId === 'community_pulse';
             
             return (
               <button
@@ -192,16 +195,19 @@ export default function SmartPanel({
                 onClick={() => setActiveTab(tabId)}
                 className={`
                   relative flex flex-col items-center justify-center py-2 px-1
-                  transition-all duration-200 group
+                  transition-all duration-200 group overflow-hidden
                   ${isActive 
                     ? 'bg-blue-500/20 text-blue-400 border-r-2 border-blue-400' 
                     : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/30'
                   }
                 `}
                 title={tab.title}
+                style={isShineTab && !isActive ? {
+                   boxShadow: '0 0 8px 2px rgba(34, 211, 238, 0.5)'
+                 } : undefined}
               >
-                <Icon className="w-4 h-4" />
-                <span className="text-[8px] mt-0.5 font-medium">{tab.shortLabel}</span>
+                <Icon className={`w-4 h-4 z-10 ${isShineTab && !isActive ? 'text-cyan-400 drop-shadow-[0_0_6px_rgba(34,211,238,0.8)]' : ''}`} />
+                <span className={`text-[8px] mt-0.5 font-medium z-10 ${isShineTab && !isActive ? 'text-cyan-300' : ''}`}>{tab.shortLabel}</span>
                 
                 {/* Tooltip */}
                 <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-[10px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
@@ -234,9 +240,11 @@ export default function SmartPanel({
             agentData={agentData}
             viewportAnalysis={viewportAnalysis}
             userTier={userTier}
-            lat={agentData?.mapCenter?.lat}
-            lng={agentData?.mapCenter?.lng}
-            locality={viewportAnalysis?.area_name}
+            lat={coordinates?.lat || agentData?.mapCenter?.lat}
+            lng={coordinates?.lng || agentData?.mapCenter?.lng}
+            locality={locality || viewportAnalysis?.area_name}
+            place={place}
+            location={location}
             buildingAnalysis={agentData?.buildingAnalysis}
             selectedBuilding={agentData?.selectedBuilding}
             activeTab={activeTab}

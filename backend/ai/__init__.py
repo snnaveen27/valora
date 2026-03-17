@@ -19,7 +19,6 @@ DEPRECATED (not in active pipeline, kept for reference):
 - production_task_planner: Legacy task planner (replaced by agentic_loop)
 - pattern_learner: Legacy pattern matching (replaced by self_learning)
 - query_refiner: Legacy query refinement (unused)
-- streaming_intent_classifier: Legacy classifier stub (unused)
 - multimodal_reasoning: Only used by unified_valora_brain (unused)
 - response_templates: Only used by gis_agents for format hints
 

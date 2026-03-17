@@ -57,15 +57,15 @@ class SequentialModelManager:
             vram_required_gb=4.8,
             purpose='specialist_planner'
         ),
-        'valora-2025v1': ModelInfo(
-            name='valora-2025v1',
+        'valora-ai-mini': ModelInfo(
+            name='valora-ai-mini',
             vram_required_gb=4.0,
             purpose='general_execution'
         )
     }
     
     # Local models (2 credits per inference)
-    LOCAL_MODELS = ['qwen3:4b-instruct', 'qwen3:8b', 'phi-4', 'valora-2025v1', 'qwen', 'phi']
+    LOCAL_MODELS = ['qwen3:4b-instruct', 'qwen3:8b', 'phi-4', 'valora-ai-mini', 'qwen', 'phi']
     
     def __init__(
         self, 
@@ -175,7 +175,7 @@ class SequentialModelManager:
             'qwen': 'qwen3:4b-instruct',
             'phi4': 'phi-4',
             'phi': 'phi-4',
-            'valora': 'valora-2025v1',
+            'valora': 'valora-ai-mini',
         }
         return aliases.get(name.lower(), name)
     

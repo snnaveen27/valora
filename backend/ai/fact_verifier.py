@@ -29,6 +29,9 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from enum import Enum
 
+# Import config for database path
+from backend.config import config
+
 # Import deterministic agents for verification
 try:
     from utils.geo import haversine_distance
@@ -144,7 +147,7 @@ class FactVerifier:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
+            db_path = config.DB_PATH
         self.db_path = str(db_path)
         
         # Lazy-load agents

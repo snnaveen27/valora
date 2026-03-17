@@ -1,35 +1,26 @@
 /**
- * Community Pulse Components - Phases 1, 2 & 3
+ * Community Components - FOCUSED VERSION
  * 
- * This module exports all components for the Community Pulse feature,
- * which includes collaborative property decision-making (Phase 1),
- * locality/builder reviews (Phase 2), and sentiment dashboard (Phase 3).
+ * This module exports components aligned with Valora's product thesis:
+ * - Broker productivity and explainable decision intelligence
+ * - Client-ready outputs
  * 
- * Phase 1 - Family Hub:
- * - FamilyHub: Main container with tab navigation
- * - FamilySessionCreate: Form to create new family sessions
- * - FamilyInviteModal: Modal for inviting family members
- * - FamilyWatchlist: Shared property watchlist
- * - FamilyVotingPanel: Voting interface for properties
- * - FamilyTimeline: Activity timeline visualization
- * - WhatsAppShare: WhatsApp sharing component
+ * KEPT (Aligned with Product Thesis):
+ * ================================
+ * 1. Decision-Room (Family Hub) - Multi-stakeholder workflow
+ * 2. Locality Reviews with Verified Resident Proof
+ * 3. Market Sentiment as Supporting Intelligence
  * 
- * Phase 2 - Reviews:
- * - LocalityReviews: Locality reviews container
- * - ReviewForm: Review submission form
- * - VastuRating: Vastu-specific ratings
- * - BuilderProfile: Builder profiles component
- * - RERAVerification: RERA verification badge
+ * REMOVED (Not aligned with product thesis):
+ * ==========================================
+ * - BuilderProfile - Generic builder directory
+ * - RERAVerification - Not core to broker workflow
  * 
- * Phase 3 - Sentiment Dashboard:
- * - SentimentDashboard: Main sentiment dashboard
- * - SentimentGauge: Visual gauge for sentiment score
- * - ActivityFeed: Activity stream component
- * - InvestmentScore: Investment score card
- * - PriceTrendChart: Price trend visualization
+ * These changes ensure Valora stays niche: broker workflow,
+ * explainable reasoning, and client-ready intelligence outputs.
  */
 
-// Phase 1 - Family Hub (existing)
+// Decision-Room (Family Hub) - Multi-stakeholder workflow
 export { default as FamilyHub } from './FamilyHub';
 export { default as FamilySessionCreate } from './FamilySessionCreate';
 export { default as FamilyInviteModal } from './FamilyInviteModal';
@@ -45,14 +36,12 @@ export {
   formatPrice,
 } from './WhatsAppShare';
 
-// Phase 2 - Reviews (existing)
+// Locality Reviews with Verified Resident Proof
 export { default as LocalityReviews } from './LocalityReviews';
 export { default as ReviewForm } from './ReviewForm';
 export { default as VastuRating } from './VastuRating';
-export { default as BuilderProfile } from './BuilderProfile';
-export { default as RERAVerification } from './RERAVerification';
 
-// Phase 3 - Sentiment Dashboard (new)
+// Market Sentiment - Supporting Intelligence (Secondary)
 export { default as SentimentDashboard } from './SentimentDashboard';
 export { default as SentimentGauge } from './SentimentGauge';
 export { default as ActivityFeed, generateMockActivities } from './ActivityFeed';

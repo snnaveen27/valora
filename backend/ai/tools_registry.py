@@ -343,7 +343,7 @@ def _tool_property_search(location: str, bhk: int = None, budget_max: float = No
 
         # Format results
         listings = []
-        for p in props[:10]:
+        for p in props[:20]:
             listings.append({
                 "type": p.get("property_type", p.get("type", "")),
                 "bedrooms": p.get("bedrooms", p.get("bhk")),

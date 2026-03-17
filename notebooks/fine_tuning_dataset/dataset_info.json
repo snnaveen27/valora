@@ -1,40 +1,59 @@
 {
-  "name": "valora-qwen3-4b-v2.0",
-  "version": "2.0.0",
-  "created": "2026-02-10T02:47:39.229240",
-  "model_target": "Qwen3-4B-Instruct",
+  "name": "valora-qwen3-9b-v2.1",
+  "version": "2.1.0",
+  "created": "2026-03-06T14:06:55.787914",
+  "enriched": "2026-03-09T13:10:34Z",
+  "model_target": "Qwen/Qwen3.5-9B",
   "total_examples": 3600,
-  "train_examples": 3240,
-  "eval_examples": 360,
+  "train_examples": 3234,
+  "eval_examples": 366,
   "intents": [
     "analyze_area",
-    "property_search",
     "comparison",
-    "investment",
-    "simulate",
-    "valuation",
-    "navigate",
-    "analyze_building",
-    "market_trend",
-    "terrain",
-    "recommendation",
+    "conversational",
     "general",
-    "conversational"
+    "investment",
+    "market_trend",
+    "navigate",
+    "property_search",
+    "simulate",
+    "terrain"
   ],
   "distribution": {
     "analyze_area": 500,
-    "property_search": 500,
-    "comparison": 350,
-    "investment": 350,
-    "simulate": 300,
-    "valuation": 300,
-    "navigate": 250,
-    "analyze_building": 250,
-    "market_trend": 250,
-    "terrain": 200,
-    "recommendation": 150,
+    "comparison": 800,
+    "conversational": 100,
     "general": 100,
-    "conversational": 100
+    "investment": 600,
+    "market_trend": 250,
+    "navigate": 250,
+    "property_search": 500,
+    "simulate": 300,
+    "terrain": 200
+  },
+  "train_distribution": {
+    "comparison": 720,
+    "simulate": 268,
+    "property_search": 446,
+    "analyze_area": 453,
+    "investment": 531,
+    "market_trend": 223,
+    "general": 92,
+    "navigate": 228,
+    "terrain": 184,
+    "conversational": 89
+  },
+  "eval_distribution": {
+    "property_search": 54,
+    "market_trend": 27,
+    "analyze_area": 47,
+    "comparison": 80,
+    "simulate": 32,
+    "terrain": 16,
+    "general": 8,
+    "investment": 69,
+    "navigate": 22,
+    "conversational": 11
   },
   "features": [
     "grounded_facts_production_format",
@@ -44,7 +63,10 @@
     "indian_formatting",
     "chat_format_api_chat",
     "to_context_string_aligned",
-    "all_production_fields"
+    "all_production_fields",
+    "enriched_think_blocks",
+    "qwen_inner_monologue_style",
+    "fact_grounded_reasoning"
   ],
   "source_localities": 30,
   "alignment": {
@@ -52,5 +74,40 @@
     "system_prompt": "condensed SYSTEM_CONSTITUTION + intent instruction",
     "llm_call": "/api/chat with messages array",
     "response_format": "<think> reasoning + structured response"
+  },
+  "reasoning_enrichment": {
+    "method": "rule-based_fact_grounded_expansion",
+    "intents_enriched": [
+      "analyze_area",
+      "property_search",
+      "comparison",
+      "investment",
+      "simulate",
+      "valuation",
+      "navigate",
+      "analyze_building",
+      "market_trend",
+      "terrain",
+      "recommendation"
+    ],
+    "intents_skipped": [
+      "general",
+      "conversational"
+    ],
+    "train_blocks_enriched": 3053,
+    "eval_blocks_enriched": 347,
+    "think_length_before": {
+      "train_avg": 131,
+      "eval_avg": 129
+    },
+    "think_length_after": {
+      "train_avg": 730,
+      "eval_avg": 719
+    },
+    "reasoning_style": "Qwen-3.5-9B inner monologue CoT \u2014 step-by-step, fact-citing, conversational"
+  },
+  "file_sizes_mb": {
+    "train_enriched": 10.87,
+    "eval_enriched": 1.23
   }
 }

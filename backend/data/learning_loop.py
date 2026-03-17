@@ -10,9 +10,13 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 import json
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from backend.config import config
 
 # Database path
-DB_PATH = Path(__file__).parent.parent / "storage" / "valora.db"
+DB_PATH = config.DB_PATH
 
 
 @dataclass

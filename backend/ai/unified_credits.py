@@ -109,7 +109,7 @@ class UnifiedCreditsManager:
     }
     
     # Local model patterns
-    LOCAL_MODELS = ['qwen', 'phi', 'llama', 'mistral', 'valora-2025v1']
+    LOCAL_MODELS = ['qwen', 'phi', 'llama', 'mistral', 'valora-ai-mini']
     
     # Database schema
     _SCHEMA = """

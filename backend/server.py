@@ -212,28 +212,37 @@ app.include_router(automations_router)
 app.include_router(leads_router)
 print("[OK] Digital Employee routes initialized")
 
+# Include agent routes (preferences, recommendations, feedback, market coverage)
+from routes.agent_routes import router as agent_router
+app.include_router(agent_router)
+print("[OK] Agent routes initialized")
+
 # Include database routes
 from database.api_routes import router as database_router
 app.include_router(database_router)
 print("[OK] Database routes initialized")
 
-# Include family hub routes (Community Pulse Phase 1)
+# Include Decision-Room routes (Family Hub - Multi-stakeholder workflow)
 from routes.family_routes import router as family_router, init_family_routes
 app.include_router(family_router)
 init_family_routes()  # Initialize database tables
 print("[OK] Family Hub routes initialized (Community Pulse Phase 1)")
 
-# Include review routes (Community Pulse Phase 2 - Locality & Builder Reviews)
-from routes.review_routes import router as review_router, rera_router, init_review_routes
+# Include review routes (Community Pulse - Locality Reviews with Verified Proof)
+from routes.review_routes import router as review_router, init_review_routes
 app.include_router(review_router)
-app.include_router(rera_router)
-init_review_routes()  # Initialize Phase 2 database tables
+init_review_routes()  # Initialize database tables
 
-# Phase 3: Sentiment Dashboard routes
+# Include sentiment routes (Market Sentiment - Supporting Intelligence Only)
 from routes.sentiment_routes import router as sentiment_router
 app.include_router(sentiment_router)
 print("[OK] Sentiment Dashboard routes initialized")
 print("[OK] Review routes initialized (Community Pulse Phase 2)")
+
+# Include Test Suite routes (Quality Testing & Debug)
+from routes.test_suite_routes import router as test_suite_router
+app.include_router(test_suite_router)
+print("[OK] Test Suite routes initialized (Quality & Debug)")
 
 # CORS for frontend
 _default_origins = [
@@ -525,7 +534,7 @@ async def health():
     """Health check including Nominatim and database status"""
     nominatim_ok = False
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=1.0) as client:
             resp = await client.get(f"{NOMINATIM_URL}/status")
             nominatim_ok = resp.status_code == 200
     except Exception:

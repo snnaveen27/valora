@@ -5,8 +5,9 @@
   "description": "Valora AI - 3D Reasoning AI GIS Platform for Real Estate",
   "scripts": {
     "dev": "concurrently -k -s first -n backend,frontend \"python scripts/start_dev.py\" \"vite\"",
-    "dev:frontend": "vite",
+    "dev:frontend": "vite --port 3000",
     "dev:backend": "python -c \"import uvicorn, fastapi\" && python -m uvicorn server:app --app-dir backend --port 8000 --reload",
+    "start-all": "concurrently -k -s first -n backend,frontend \"npm run dev:backend\" \"npm run dev:frontend\"",
     "start:all": "concurrently -k -s first -n backend,frontend \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "vite build",
     "preview": "vite preview",

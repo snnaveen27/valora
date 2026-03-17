@@ -11,6 +11,7 @@ from typing import Dict, Any, List
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.database.db_service import DatabaseService
+from backend.config import config
 
 
 def ingest_pois(db: DatabaseService, geojson_path: Path) -> int:
@@ -270,7 +271,7 @@ def main():
     print("="*70)
     
     # Initialize database
-    db_path = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
+    db_path = config.DB_PATH
     data_dir = Path(__file__).parent.parent.parent / 'storage' / 'osm_extracted'
     
     db = DatabaseService(str(db_path))

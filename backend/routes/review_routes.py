@@ -1,35 +1,30 @@
 """
-Valora AI - Review Routes (Community Pulse Phase 2)
-Locality and Builder Reviews API.
+Valora AI - Locality Review Routes
+
+FOCUSED: Locality reviews with verified resident proof.
+
+This supports the product thesis: "defensible locality context" that brokers need.
+Key features:
+- Verified resident badges (not anonymous reviews)
+- India-specific categories: Vastu, schools, transport, safety
+- Community validation (helpful votes)
+
+REMOVED (not aligned with product thesis):
+- Builder profiles and reviews (generic directory)
+- RERA verification (not core to broker workflow)
 
 Endpoints:
   Locality Reviews:
-    POST   /api/reviews/locality                    - Submit locality review
+    POST   /api/reviews/locality                    - Submit locality review (with verification)
     GET    /api/reviews/locality/{locality_id}      - Get reviews for locality
     GET    /api/reviews/locality/{locality_id}/stats - Get review statistics
     PUT    /api/reviews/locality/{review_id}        - Update review
     DELETE /api/reviews/locality/{review_id}        - Delete review
 
-  Builder Profiles:
-    POST   /api/reviews/builder                     - Create builder profile (admin)
-    GET    /api/reviews/builder/{builder_id}        - Get builder profile
-    GET    /api/reviews/builders                    - Search builders
-    PUT    /api/reviews/builder/{builder_id}         - Update builder profile (admin)
-
-  Builder Reviews:
-    POST   /api/reviews/builder/{builder_id}/review - Submit builder review
-    GET    /api/reviews/builder/{builder_id}/reviews - Get builder reviews
-    PUT    /api/reviews/builder/review/{review_id}   - Update review
-    DELETE /api/reviews/builder/review/{review_id}   - Delete review
-
-  Helpful System:
-    POST   /api/reviews/{review_type}/{review_id}/helpful - Mark helpful
+  Community Validation:
+    POST   /api/reviews/{review_type}/{review_id}/helpful - Mark review helpful
     DELETE /api/reviews/{review_type}/{review_id}/helpful - Remove helpful
     GET    /api/reviews/user/helpful                  - Get user's helpful reviews
-
-  RERA Verification:
-    GET    /api/rera/verify/{rera_id}               - Verify RERA ID
-    POST   /api/rera/refresh/{rera_id}              - Force refresh RERA data
 """
 
 import logging
@@ -40,7 +35,7 @@ from pydantic import BaseModel, Field, validator
 from enum import Enum
 
 from auth.user_auth import User
-from routes.auth_routes import require_auth, require_admin
+from routes.auth_routes import require_auth
 from database.community_pulse_schema import (
     CommunityPulseDB,
     get_community_pulse_db,
@@ -50,27 +45,14 @@ from database.community_pulse_schema import (
     get_locality_review_stats,
     update_locality_review,
     delete_locality_review,
-    create_builder_profile,
-    get_builder_profile,
-    search_builders,
-    update_builder_profile,
-    update_builder_aggregates,
-    create_builder_review,
-    get_builder_reviews,
-    update_builder_review,
-    delete_builder_review,
     mark_review_helpful,
     unmark_review_helpful,
     get_user_helpful_reviews,
-    create_rera_verification,
-    get_rera_verification,
-    update_rera_verification,
 )
 
 logger = logging.getLogger("valora.review_routes")
 
-router = APIRouter(prefix="/api/reviews", tags=["Reviews (Community Pulse)"])
-rera_router = APIRouter(prefix="/api/rera", tags=["RERA Verification"])
+router = APIRouter(prefix="/api/reviews", tags=["Locality Reviews (Community)"])
 
 
 # ============================================================================
@@ -79,7 +61,6 @@ rera_router = APIRouter(prefix="/api/rera", tags=["RERA Verification"])
 
 class ReviewType(str, Enum):
     LOCALITY = "locality"
-    BUILDER = "builder"
 
 
 class VerificationType(str, Enum):
@@ -189,78 +170,6 @@ class UpdateLocalityReviewRequest(BaseModel):
 
 
 # ============================================================================
-# REQUEST MODELS - BUILDER PROFILES
-# ============================================================================
-
-class CreateBuilderProfileRequest(BaseModel):
-    """Request to create a builder profile."""
-    name: str = Field(..., min_length=1, max_length=200, description="Builder name")
-    description: Optional[str] = Field(None, max_length=1000, description="Builder description")
-    logo_url: Optional[str] = Field(None, description="URL to builder logo")
-    website: Optional[str] = Field(None, description="Builder website")
-    established_year: Optional[int] = Field(None, ge=1900, le=2030, description="Year established")
-    cities_operating: Optional[List[str]] = Field(None, description="List of cities")
-    rera_registered: bool = Field(False, description="RERA registration status")
-    rera_ids: Optional[List[str]] = Field(None, description="RERA registration IDs")
-    contact_phone: Optional[str] = Field(None, description="Contact phone")
-    contact_email: Optional[str] = Field(None, description="Contact email")
-    address: Optional[str] = Field(None, max_length=500, description="Office address")
-
-
-class UpdateBuilderProfileRequest(BaseModel):
-    """Request to update a builder profile."""
-    name: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = Field(None, max_length=1000)
-    logo_url: Optional[str] = None
-    website: Optional[str] = None
-    established_year: Optional[int] = Field(None, ge=1900, le=2030)
-    cities_operating: Optional[List[str]] = None
-    rera_registered: Optional[bool] = None
-    rera_ids: Optional[List[str]] = None
-    contact_phone: Optional[str] = None
-    contact_email: Optional[str] = None
-    address: Optional[str] = Field(None, max_length=500)
-
-
-# ============================================================================
-# REQUEST MODELS - BUILDER REVIEWS
-# ============================================================================
-
-class CreateBuilderReviewRequest(BaseModel):
-    """Request to create a builder review."""
-    overall_rating: float = Field(..., ge=1, le=5, description="Overall rating (1-5)")
-    project_name: Optional[str] = Field(None, max_length=200, description="Project name")
-    project_location: Optional[str] = Field(None, max_length=200, description="Project location")
-    construction_quality: Optional[float] = Field(None, ge=1, le=5, description="Construction quality rating")
-    timely_delivery: Optional[float] = Field(None, ge=1, le=5, description="Timely delivery rating")
-    after_sales_service: Optional[float] = Field(None, ge=1, le=5, description="After-sales service rating")
-    value_for_money: Optional[float] = Field(None, ge=1, le=5, description="Value for money rating")
-    transparency: Optional[float] = Field(None, ge=1, le=5, description="Transparency rating")
-    pros: Optional[List[str]] = Field(None, description="List of pros")
-    cons: Optional[List[str]] = Field(None, description="List of cons")
-    review_text: Optional[str] = Field(None, max_length=2000, description="Full review text")
-    is_verified_buyer: bool = Field(False, description="Verified buyer status")
-    purchase_date: Optional[str] = Field(None, description="Date of purchase")
-
-
-class UpdateBuilderReviewRequest(BaseModel):
-    """Request to update a builder review."""
-    overall_rating: Optional[float] = Field(None, ge=1, le=5)
-    project_name: Optional[str] = Field(None, max_length=200)
-    project_location: Optional[str] = Field(None, max_length=200)
-    construction_quality: Optional[float] = Field(None, ge=1, le=5)
-    timely_delivery: Optional[float] = Field(None, ge=1, le=5)
-    after_sales_service: Optional[float] = Field(None, ge=1, le=5)
-    value_for_money: Optional[float] = Field(None, ge=1, le=5)
-    transparency: Optional[float] = Field(None, ge=1, le=5)
-    pros: Optional[List[str]] = None
-    cons: Optional[List[str]] = None
-    review_text: Optional[str] = Field(None, max_length=2000)
-    is_verified_buyer: Optional[bool] = None
-    purchase_date: Optional[str] = None
-
-
-# ============================================================================
 # RESPONSE MODELS
 # ============================================================================
 
@@ -311,55 +220,6 @@ class LocalityReviewStatsResponse(BaseModel):
     rating_distribution: Dict[str, int]
 
 
-class BuilderProfileResponse(BaseModel):
-    """Response for a builder profile."""
-    id: str
-    name: str
-    description: Optional[str]
-    logo_url: Optional[str]
-    website: Optional[str]
-    established_year: Optional[int]
-    cities_operating: Optional[List[str]]
-    total_projects: int
-    completed_projects: int
-    ongoing_projects: int
-    avg_delivery_time_months: Optional[float]
-    on_time_delivery_rate: Optional[float]
-    avg_construction_quality_rating: Optional[float]
-    avg_after_sales_rating: Optional[float]
-    rera_registered: int
-    rera_ids: Optional[List[str]]
-    contact_phone: Optional[str]
-    contact_email: Optional[str]
-    address: Optional[str]
-    created_at: str
-    updated_at: str
-
-
-class BuilderReviewResponse(BaseModel):
-    """Response for a builder review."""
-    id: str
-    builder_id: str
-    user_id: str
-    project_name: Optional[str]
-    project_location: Optional[str]
-    overall_rating: float
-    construction_quality: Optional[float]
-    timely_delivery: Optional[float]
-    after_sales_service: Optional[float]
-    value_for_money: Optional[float]
-    transparency: Optional[float]
-    pros: Optional[List[str]]
-    cons: Optional[List[str]]
-    review_text: Optional[str]
-    is_verified_buyer: int
-    purchase_date: Optional[str]
-    helpful_count: int
-    status: str
-    created_at: str
-    updated_at: str
-
-
 class HelpfulResponse(BaseModel):
     """Response for helpful mark."""
     id: str
@@ -367,27 +227,6 @@ class HelpfulResponse(BaseModel):
     review_type: str
     user_id: str
     created_at: str
-
-
-class ReraVerificationResponse(BaseModel):
-    """Response for RERA verification."""
-    id: str
-    rera_id: str
-    state: str
-    project_name: Optional[str]
-    builder_name: Optional[str]
-    project_status: Optional[str]
-    registration_date: Optional[str]
-    expiry_date: Optional[str]
-    project_address: Optional[str]
-    project_type: Optional[str]
-    land_area: Optional[float]
-    proposed_units: Optional[int]
-    verification_status: str
-    verification_data: Optional[Dict[str, Any]]
-    last_verified_at: str
-    created_at: str
-    updated_at: str
 
 
 class SuccessResponse(BaseModel):
@@ -417,7 +256,7 @@ async def create_locality_review_endpoint(
         db=db,
         locality_id=request.locality_id,
         locality_name=request.locality_name,
-        user_id=user.user_id,
+        user_id=user.id,
         overall_rating=request.overall_rating,
         vastu_rating=request.vastu_rating,
         vastu_notes=request.vastu_notes,
@@ -443,7 +282,7 @@ async def create_locality_review_endpoint(
     
     # Award credits for verified reviews (+10 credits)
     if request.verification_type in [VerificationType.RESIDENT, VerificationType.OWNER]:
-        await award_credits(user.user_id, 10, f"verified locality review for {request.locality_name}")
+        await award_credits(user.id, 10, f"verified locality review for {request.locality_name}")
     
     # Get the created review
     reviews = get_locality_reviews(db, request.locality_id, limit=1, offset=0)
@@ -520,7 +359,7 @@ async def update_locality_review_endpoint(
     success = update_locality_review(
         db=db,
         review_id=review_id,
-        user_id=user.user_id,
+        user_id=user.id,
         **kwargs
     )
     
@@ -541,237 +380,7 @@ async def delete_locality_review_endpoint(
     success = delete_locality_review(
         db=db,
         review_id=review_id,
-        user_id=user.user_id
-    )
-    
-    if not success:
-        raise HTTPException(status_code=403, detail="Review not found or unauthorized")
-    
-    return SuccessResponse(success=True, message="Review deleted successfully")
-
-
-# ============================================================================
-# BUILDER PROFILE ENDPOINTS
-# ============================================================================
-
-@router.post("/builder", response_model=BuilderProfileResponse, status_code=201)
-async def create_builder_profile_endpoint(
-    request: CreateBuilderProfileRequest,
-    user: User = Depends(require_admin)
-):
-    """Create a builder profile (admin only)."""
-    db = get_db()
-    
-    builder_id = create_builder_profile(
-        db=db,
-        name=request.name,
-        description=request.description,
-        logo_url=request.logo_url,
-        website=request.website,
-        established_year=request.established_year,
-        cities_operating=request.cities_operating,
-        rera_registered=request.rera_registered,
-        rera_ids=request.rera_ids,
-        contact_phone=request.contact_phone,
-        contact_email=request.contact_email,
-        address=request.address
-    )
-    
-    if not builder_id:
-        raise HTTPException(status_code=500, detail="Failed to create builder profile")
-    
-    # Get the created profile
-    profile = get_builder_profile(db, builder_id)
-    if not profile:
-        raise HTTPException(status_code=500, detail="Failed to retrieve created profile")
-    
-    return profile
-
-
-@router.get("/builder/{builder_id}", response_model=BuilderProfileResponse)
-async def get_builder_profile_endpoint(
-    builder_id: str = Path(..., description="Builder ID")
-):
-    """Get a builder profile with aggregates."""
-    db = get_db()
-    
-    profile = get_builder_profile(db, builder_id)
-    
-    if not profile:
-        raise HTTPException(status_code=404, detail="Builder profile not found")
-    
-    return profile
-
-
-@router.get("/builders", response_model=List[BuilderProfileResponse])
-async def search_builders_endpoint(
-    query: str = Query(None, description="Search query for builder name"),
-    city: str = Query(None, description="Filter by city"),
-    rera_registered: bool = Query(None, description="Filter by RERA registration"),
-    min_rating: float = Query(None, ge=1, le=5, description="Minimum rating"),
-    limit: int = Query(20, ge=1, le=100, description="Maximum results"),
-    offset: int = Query(0, ge=0, description="Pagination offset")
-):
-    """Search builder profiles."""
-    db = get_db()
-    
-    builders = search_builders(
-        db=db,
-        query=query,
-        city=city,
-        rera_registered=rera_registered,
-        min_rating=min_rating,
-        limit=limit,
-        offset=offset
-    )
-    
-    return builders
-
-
-@router.put("/builder/{builder_id}", response_model=SuccessResponse)
-async def update_builder_profile_endpoint(
-    request: UpdateBuilderProfileRequest,
-    builder_id: str = Path(..., description="Builder ID"),
-    user: User = Depends(require_admin)
-):
-    """Update a builder profile (admin only)."""
-    db = get_db()
-    
-    # Check if builder exists
-    profile = get_builder_profile(db, builder_id)
-    if not profile:
-        raise HTTPException(status_code=404, detail="Builder profile not found")
-    
-    # Build kwargs from request
-    kwargs = {k: v for k, v in request.dict().items() if v is not None}
-    
-    success = update_builder_profile(
-        db=db,
-        builder_id=builder_id,
-        **kwargs
-    )
-    
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to update builder profile")
-    
-    return SuccessResponse(success=True, message="Builder profile updated successfully")
-
-
-# ============================================================================
-# BUILDER REVIEW ENDPOINTS
-# ============================================================================
-
-@router.post("/builder/{builder_id}/review", response_model=BuilderReviewResponse, status_code=201)
-async def create_builder_review_endpoint(
-    request: CreateBuilderReviewRequest,
-    builder_id: str = Path(..., description="Builder ID"),
-    user: User = Depends(require_auth)
-):
-    """
-    Submit a builder review.
-    
-    Awards +8 credits for the review.
-    """
-    db = get_db()
-    
-    # Check if builder exists
-    builder = get_builder_profile(db, builder_id)
-    if not builder:
-        raise HTTPException(status_code=404, detail="Builder profile not found")
-    
-    review_id = create_builder_review(
-        db=db,
-        builder_id=builder_id,
-        user_id=user.user_id,
-        overall_rating=request.overall_rating,
-        project_name=request.project_name,
-        project_location=request.project_location,
-        construction_quality=request.construction_quality,
-        timely_delivery=request.timely_delivery,
-        after_sales_service=request.after_sales_service,
-        value_for_money=request.value_for_money,
-        transparency=request.transparency,
-        pros=request.pros,
-        cons=request.cons,
-        review_text=request.review_text,
-        is_verified_buyer=request.is_verified_buyer,
-        purchase_date=request.purchase_date
-    )
-    
-    if not review_id:
-        raise HTTPException(status_code=500, detail="Failed to create builder review")
-    
-    # Award credits for the review (+8 credits)
-    await award_credits(user.user_id, 8, f"builder review for {builder.get('name', 'Unknown')}")
-    
-    # Get the created review
-    reviews = get_builder_reviews(db, builder_id, limit=1, offset=0)
-    if reviews:
-        return reviews[0]
-    
-    raise HTTPException(status_code=500, detail="Failed to retrieve created review")
-
-
-@router.get("/builder/{builder_id}/reviews", response_model=List[BuilderReviewResponse])
-async def get_builder_reviews_endpoint(
-    builder_id: str = Path(..., description="Builder ID"),
-    status: str = Query("active", description="Status filter"),
-    limit: int = Query(20, ge=1, le=100, description="Maximum results"),
-    offset: int = Query(0, ge=0, description="Pagination offset"),
-    sort_by: SortBy = Query(SortBy.CREATED_AT, description="Sort field")
-):
-    """Get reviews for a builder."""
-    db = get_db()
-    
-    reviews = get_builder_reviews(
-        db=db,
-        builder_id=builder_id,
-        status=status,
-        limit=limit,
-        offset=offset,
-        sort_by=sort_by.value
-    )
-    
-    return reviews
-
-
-@router.put("/builder/review/{review_id}", response_model=SuccessResponse)
-async def update_builder_review_endpoint(
-    request: UpdateBuilderReviewRequest,
-    review_id: str = Path(..., description="Review ID"),
-    user: User = Depends(require_auth)
-):
-    """Update a builder review (only by the original author)."""
-    db = get_db()
-    
-    # Build kwargs from request
-    kwargs = {k: v for k, v in request.dict().items() if v is not None}
-    
-    success = update_builder_review(
-        db=db,
-        review_id=review_id,
-        user_id=user.user_id,
-        **kwargs
-    )
-    
-    if not success:
-        raise HTTPException(status_code=403, detail="Review not found or unauthorized")
-    
-    return SuccessResponse(success=True, message="Review updated successfully")
-
-
-@router.delete("/builder/review/{review_id}", response_model=SuccessResponse)
-async def delete_builder_review_endpoint(
-    review_id: str = Path(..., description="Review ID"),
-    user: User = Depends(require_auth)
-):
-    """Delete a builder review (only by the original author)."""
-    db = get_db()
-    
-    success = delete_builder_review(
-        db=db,
-        review_id=review_id,
-        user_id=user.user_id
+        user_id=user.id
     )
     
     if not success:
@@ -786,18 +395,18 @@ async def delete_builder_review_endpoint(
 
 @router.post("/{review_type}/{review_id}/helpful", response_model=SuccessResponse)
 async def mark_review_helpful_endpoint(
-    review_type: ReviewType = Path(..., description="Type of review (locality or builder)"),
+    review_type: ReviewType = Path(..., description="Type of review (locality)"),
     review_id: str = Path(..., description="Review ID"),
     user: User = Depends(require_auth)
 ):
-    """Mark a review as helpful."""
+    """Mark a locality review as helpful."""
     db = get_db()
     
     helpful_id = mark_review_helpful(
         db=db,
         review_id=review_id,
         review_type=review_type.value,
-        user_id=user.user_id
+        user_id=user.id
     )
     
     if not helpful_id:
@@ -808,7 +417,7 @@ async def mark_review_helpful_endpoint(
 
 @router.delete("/{review_type}/{review_id}/helpful", response_model=SuccessResponse)
 async def unmark_review_helpful_endpoint(
-    review_type: ReviewType = Path(..., description="Type of review (locality or builder)"),
+    review_type: ReviewType = Path(..., description="Type of review (locality)"),
     review_id: str = Path(..., description="Review ID"),
     user: User = Depends(require_auth)
 ):
@@ -819,7 +428,7 @@ async def unmark_review_helpful_endpoint(
         db=db,
         review_id=review_id,
         review_type=review_type.value,
-        user_id=user.user_id
+        user_id=user.id
     )
     
     if not success:
@@ -833,12 +442,12 @@ async def get_user_helpful_reviews_endpoint(
     user: User = Depends(require_auth),
     review_type: ReviewType = Query(None, description="Filter by review type")
 ):
-    """Get all reviews marked as helpful by the user."""
+    """Get all locality reviews marked as helpful by the user."""
     db = get_db()
     
     helpful_reviews = get_user_helpful_reviews(
         db=db,
-        user_id=user.user_id,
+        user_id=user.id,
         review_type=review_type.value if review_type else None
     )
     
@@ -846,51 +455,8 @@ async def get_user_helpful_reviews_endpoint(
 
 
 # ============================================================================
-# RERA VERIFICATION ENDPOINTS
+# LOCALITY REVIEWS - FOCUSED VERSION
 # ============================================================================
-
-@rera_router.get("/verify/{rera_id}", response_model=Optional[ReraVerificationResponse])
-async def verify_rera_endpoint(
-    rera_id: str = Path(..., description="RERA ID to verify")
-):
-    """Verify a RERA ID (check cache or fetch)."""
-    db = get_db()
-    
-    verification = get_rera_verification(db, rera_id=rera_id)
-    
-    if not verification:
-        raise HTTPException(status_code=404, detail="RERA ID not found in cache")
-    
-    return verification
-
-
-@rera_router.post("/refresh/{rera_id}", response_model=SuccessResponse)
-async def refresh_rera_endpoint(
-    rera_id: str = Path(..., description="RERA ID to refresh"),
-    user: User = Depends(require_admin)
-):
-    """
-    Force refresh RERA data.
-    
-    This endpoint would typically call an external RERA API to fetch fresh data.
-    For now, it just updates the last_verified_at timestamp.
-    """
-    db = get_db()
-    
-    # Check if RERA exists
-    verification = get_rera_verification(db, rera_id=rera_id)
-    
-    if not verification:
-        raise HTTPException(status_code=404, detail="RERA ID not found")
-    
-    # Update the verification timestamp
-    success = update_rera_verification(
-        db=db,
-        verification_id=verification['id'],
-        last_verified_at=datetime.now().isoformat()
-    )
-    
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to refresh RERA data")
-    
-    return SuccessResponse(success=True, message="RERA data refreshed successfully")
+# This file exports only locality review functionality.
+# Builder profiles/reviews and RERA verification have been removed
+# as they are not aligned with Valora's product thesis.

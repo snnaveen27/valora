@@ -1,371 +1,196 @@
-# Valora AI — Investor Pitch Deck
-> **The City Operating System for Real Estate Intelligence**
+# Valora AI - Investor Deck (10 Slides)
+
+Audience: Seed investors  
+Date: March 2026  
+Deck goal: show a Bengaluru-first execution wedge, credible monetization, and 24-month scale path.
 
 ---
 
-## The Problem
+## Slide 1 - Title and One-Line Thesis
 
-### Real Estate Decisions Are Broken
+### On Slide
+- **Valora AI**
+- **Bengaluru-First Self-Learning GIS Agent for Real-Estate Decisions**
+- Broker wedge now, all-rounder platform scale over 24 months
 
-| Stakeholder | Pain Point | Cost of Failure |
-|-------------|------------|-----------------|
-| **Brokers** | Hours spent explaining "why this area" to clients | Lost deals, low conversion |
-| **Developers** | No data-driven way to identify micro-markets | Wrong land acquisitions, ₹100Cr+ losses |
-| **Banks** | Valuation based on gut, not grounded data | NPAs, regulatory scrutiny |
-| **NRIs** | Can't verify claims remotely | Trust deficit, missed opportunities |
-
-### Current Solutions Fail
-
-- **PropTech platforms**: Scraped listings with no intelligence
-- **Generic AI**: Hallucinates prices, invents amenities
-- **GIS tools**: Require PhD to operate, no natural language interface
-- **Brokers**: Subjective advice, no audit trail
-
-**The market is flooded with data but starved for trustworthy intelligence.**
+### Speaker Notes
+- We are building a decision agent, not a listing portal and not a generic chatbot.
+- We start with Bengaluru where data density and transaction velocity are high.
+- We win first through broker workflows, then scale to developers and institutional users.
 
 ---
 
-## Our Solution: Valora AI
+## Slide 2 - Problem (Stakeholder Pain, Broker Urgency First)
 
-### Truth Firewall + 3D GIS + Digital Employees
+### On Slide
+- High-stakes property decisions are still made with fragmented and low-trust information.
+- Broker pain (most urgent):
+  1. Hard to defend recommendations with evidence.
+  2. Manual follow-ups and fragmented lead workflows reduce closure speed.
+- Developer pain:
+  3. Launch decisions lack micro-market confidence.
+- Investor and NRI pain:
+  4. Remote diligence is time-consuming and inconsistent.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     VALORA AI PLATFORM                       │
-├─────────────────────────────────────────────────────────────┤
-│  "Find 2BHK in Whitefield under 80L with good schools"      │
-│                           ↓                                  │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │         TRUTH FIREWALL (Verified Facts Only)         │    │
-│  │  • 1.5M+ GIS datasets (government + proprietary)     │    │
-│  │  • 3D volumetric analysis (shadows, views, terrain)  │    │
-│  │  • AI narrates — never invents                       │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                           ↓                                  │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │         DIGITAL EMPLOYEE (Autonomous Actions)        │    │
-│  │  • "Alert me when similar property lists"            │    │
-│  │  • "Email weekly report to my client"                │    │
-│  │  • "Add this lead and schedule follow-up"            │    │
-│  └─────────────────────────────────────────────────────┘    │
-│                           ↓                                  │
-│  Grounded Report + Automated Workflow                        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Key Differentiators
-
-| Feature | Competitors | Valora AI |
-|---------|-------------|-----------|
-| **Data Source** | Scraped listings | 455K+ Gov/GIS datasets + listings |
-| **AI Reliability** | Hallucinates numbers | Truth Firewall verified |
-| **Spatial Analysis** | 2D maps only | Volumetric 3D (shadows, views) |
-| **Automation** | None | Digital Employee workflows |
-| **Privacy** | Cloud-only | Offline-first, on-prem option |
-| **Reasoning** | Text matching | Causal simulations |
+### Speaker Notes
+- The issue is not data absence; it is decision fragmentation.
+- The fastest monetization wedge is broker productivity and trust-backed recommendations.
 
 ---
 
-## Product Demo
+## Slide 3 - Solution Architecture (Learning GIS Agent)
 
-### For Brokers: Close Deals Faster
+### On Slide
+- Valora combines six layers:
+  1. Search + locality intelligence
+  2. Explainable comparison + risk
+  3. Reports and exports
+  4. Digital employee workflows (alerts, tasks, leads)
+  5. Learning loop (feedback + pattern reinforcement)
+  6. Monetization layer (plans, usage, B2B)
+- Principle: evidence-first reasoning with confidence and freshness metadata
 
-**Before Valora:**
-- 3 hours explaining locality benefits
-- Subjective claims clients don't trust
-- Manual follow-ups, lost leads
-
-**With Valora:**
-```
-Broker: "Show me 2BHK options in HSR Layout for IT couple, budget 1.2Cr"
-
-Valora AI:
-✓ 12 properties matched
-✓ School catchment analysis (3 top schools within 2km)
-✓ Metro connectivity score: 8.5/10
-✓ 3D shadow analysis for each unit
-✓ Price trend: +12% YoY (verified from registration data)
-
-[Generate Shareable Report] [Set Alert for New Listings]
-```
-
-### For Developers: Land Acquisition Intelligence
-
-```
-Developer: "Which micro-markets in East Bangalore will appreciate 20%+ by 2027?"
-
-Valora AI:
-✓ Analyzing 47 factors across 23 micro-markets...
-✓ Top 3 recommendations:
-   1. Whitefield Extension — Metro Phase 3 + IT park expansion
-   2. Sarjapur-ORR Junction — New tech campus announced
-   3. Budigere Cross — Road widening + airport connectivity
-
-[Run What-If Simulation] [Schedule Monitoring Alert]
-```
-
-### Digital Employee: Always-On Intelligence
-
-```
-User: "Alert me when 3BHK in Koramangala lists below 1.5Cr, 
-       email it to client priya@example.com, and add her as lead"
-
-Valora Digital Employee:
-✓ Alert created (scanning every 15 minutes)
-✓ Lead added to CRM
-✓ Will auto-email when match found
-✓ Follow-up reminder set for 48 hours
-
-[View in Agent Dashboard]
-```
+### Speaker Notes
+- Our agent improves through user actions (save/reject/contacted/closed).
+- The moat is grounded data + workflow stickiness + learning feedback loops.
 
 ---
 
-## Market Opportunity
+## Slide 4 - Product Proof and Reliability Reality
 
-### India Real Estate: $1 Trillion by 2030
+### On Slide
+- **Live capabilities**
+  - Grounded chat and streaming pipeline
+  - Spatial analysis (terrain, 3D, visibility, sunlight heuristics)
+  - Digital employee flows (alerts, tasks, leads)
+  - Credits and pricing controls
+- **Commercial readiness status**
+  - Subscription and top-up paths active
+  - Stripe route exists
+  - Some billing paths are still being hardened for full production consistency
 
-| Segment | Size | Opportunity |
-|---------|------|-------------|
-| Brokerages | 100K+ in Bengaluru alone | SaaS subscription |
-| Developers | 500+ active in top 7 cities | Project-based + retainer |
-| Banks/HFCs | 40+ major lenders | Enterprise license |
-| NRI Investors | 32M diaspora | Premium reports |
-
-### Beachhead: Bengaluru
-
-- **14.7M sq ft** office absorption (2024)
-- **47,000** housing sales annually
-- **Tech-savvy broker community** (BRAI network)
-- **Highest GIS data availability** in India
-
-### Expansion Roadmap
-
-```
-Year 1: Bengaluru (beachhead)
-    ↓
-Year 2: Mumbai + NCR (replicate pipeline)
-    ↓
-Year 3: Pune, Hyderabad, Chennai
-    ↓
-Year 5: Pan-India + SE Asia
-```
+### Speaker Notes
+- This is beyond prototype stage.
+- We explicitly separate production-ready modules from hardening-in-progress modules.
 
 ---
 
-## Business Model
+## Slide 5 - Bengaluru Coverage and Defensibility
 
-### Usage-Based + Subscription Hybrid
+### On Slide
+- Local data footprint (March 2026 snapshot):
+  - Properties: **42,452**
+  - Buildings: **686,370**
+  - POIs: **26,961**
+  - Roads: **334,784**
+  - Transport stops: **5,384**
+  - Open datasets catalog: **455,066**
+- Top-12 launch micro-markets:
+  Whitefield, Sarjapur Road, Electronic City, HSR Layout, Koramangala, Indiranagar, Bellandur, Marathahalli, Hebbal, Yelahanka, JP Nagar, Kanakapura Road
 
-#### Credit System
-
-| Action | Credits | Launch Price |
-|--------|---------|--------------|
-| Chat Query | 1 | ₹2 |
-| Property Search | 2 | ₹4 |
-| Area Analysis | 3 | ₹6 |
-| Valuation Report | 10 | ₹20 |
-| What-If Simulation | 25 | ₹50 |
-
-#### Subscription Tiers
-
-| Tier | Credits/Month | Price | Target |
-|------|---------------|-------|--------|
-| **Free** | 50 | ₹0 | Home buyers, trials |
-| **Pro** | 1,000 | ₹599/mo | Brokers, agents |
-| **Team** | 3,000/seat | ₹999/seat | Agencies |
-| **Enterprise** | Unlimited | Custom | Banks, developers |
-
-#### Digital Employee Packaging
-
-| Capability | Free | Pro |
-|------------|------|-----|
-| Property alerts | 3 max | Unlimited |
-| Scheduled automations | 5 max | Unlimited |
-| Email delivery | ❌ | ✅ |
-| Auto-execution | Manual confirm | Allowed |
-| Lead CRM | Basic | Full workflow |
-
-**Revenue Thesis**: Digital employees drive Free → Pro conversion by gating high-frequency automation.
+### Speaker Notes
+- We intentionally constrain phase-1 to 12 micro-markets for quality and trust.
+- Defensibility comes from map-grounded evidence and workflow adoption, not prompt wrappers.
 
 ---
 
-## Traction & Metrics
+## Slide 6 - Business Model (Hybrid and Phase-Aware)
 
-### Current Status (February 2026)
+### On Slide
+- Monetization stack:
+  1. Subscription (Free to Pro to Team)
+  2. Usage units (analysis/report/simulation depth)
+  3. B2B pilots and retainers
+- Baseline tiers:
+  - Free: 50 units/month
+  - Pro: 1,000 units/month (launch price Rs 599)
+- Sample action economics:
+  - Chat 1, Search 2, Area 3, Valuation 10, Export 20, Simulation 25
 
-| Metric | Value |
-|--------|-------|
-| Properties indexed | 42,452 |
-| GIS datasets | 455,066 |
-| Buildings modeled | 686,370 |
-| Total data points | 1.5M+ |
-| Core platform | ✅ Production-ready |
-| Digital Employee | ✅ Implemented |
-| Email automation | ✅ Live |
-| Payment integration | ✅ Razorpay + Stripe ready |
-
-### Product KPIs (Target)
-
-| Metric | Month 6 | Year 1 |
-|--------|---------|--------|
-| Weekly Active Users | 500 | 5,000 |
-| Paid conversion | 5% | 12% |
-| Query success rate | 90% | 95% |
-| NPS | 40+ | 60+ |
+### Speaker Notes
+- Subscriptions capture frequency; usage captures depth; B2B captures ACV.
+- This hybrid structure is designed for both early cash velocity and later ARR quality.
 
 ---
 
-## Competitive Landscape
+## Slide 7 - Retention Engine: Digital Employee + WAWU
 
-| Player | Strength | Gap We Fill |
-|--------|----------|-------------|
-| **Housing.com** | Listings reach | No intelligence layer |
-| **MagicBricks** | Brand, traffic | No 3D/verified analysis |
-| **PropTiger** | Transaction data | No offline/GIS depth |
-| **ChatGPT/Claude** | General AI | Hallucinates real estate data |
-| **ESRI/ArcGIS** | GIS depth | No natural language, expensive |
+### On Slide
+- Free vs Pro workflow gating:
+  - Alerts: 3 vs unlimited
+  - Scheduled tasks: 5 vs unlimited
+  - Email channels: no vs yes
+  - Auto execution: manual default vs allowed
+- North-star metric: **Weekly Active Workflow Users (WAWU)**
+- Supporting metrics:
+  - Free to Pro conversion
+  - Workflow activation rate
+  - 4-week retention
+  - Top-up attach rate
 
-### Our Moat
-
-1. **Truth Firewall**: Verified data pipeline that competitors can't replicate without years of GIS integration
-2. **3D-Native**: Volumetric analysis requires specialized spatial compute
-3. **Offline-First**: Architecture choice that enables on-prem enterprise deals
-4. **Digital Employee**: Automation stickiness reduces churn
-
----
-
-## Go-To-Market Strategy
-
-### Phase 1: Broker Beachhead (Months 1-6)
-
-**Target**: 50 pilot brokers in East/South Bengaluru IT corridors
-
-**Channels**:
-- Direct sales to BRAI members
-- Broker association partnerships
-- Free trial with Pro features
-
-**Success Metrics**:
-- 90%+ query success rate
-- 10+ active users per broker
-- 20% weekly retention
-
-### Phase 2: Developer Partnerships (Months 7-12)
-
-**Target**: 5 major project launches with "Sales Office Twin"
-
-**Offering**:
-- 3D storytelling for marketing
-- Scenario simulations for pricing
-- Quarterly retainer model
-
-**Success Metrics**:
-- 3+ projects renewed
-- ₹15L+ ARR per developer
-- Case studies published
-
-### Phase 3: Enterprise Expansion (Year 2)
-
-**Target**: Banks, HFCs, institutional investors
-
-**Offering**:
-- Automated valuation support
-- Risk flag dashboards
-- On-prem deployment option
+### Speaker Notes
+- WAWU is our primary health metric because it measures recurring utility, not vanity traffic.
+- The digital employee layer creates retention and expansion by default.
 
 ---
 
-## The Ask: $2M Seed
+## Slide 8 - 24-Month Roadmap
 
-### Use of Funds
+### On Slide
+1. **Months 0-6:** Broker-first penetration in top-12 Bengaluru micro-markets; workflow stabilization
+2. **Months 6-12:** Recommendation learning-loop and conversion hooks; start developer paid pilots
+3. **Months 12-18:** Scale broker teams and B2B repeatability; improve automation/report quality
+4. **Months 18-24:** Institutional-ready packaging; broader Bengaluru coverage and city replication prep
 
-| Allocation | Amount | Purpose |
-|------------|--------|---------|
-| **Engineering** | $900K (45%) | Truth Firewall v2, Simulation Engine, Mobile app |
-| **Data Ops** | $600K (30%) | Historical price data, GIS layer expansion, Mumbai/NCR |
-| **GTM** | $500K (25%) | Sales team, marketing, broker partnerships |
-
-### Milestones to Series A
-
-| Milestone | Timeline |
-|-----------|----------|
-| 1,000 paying brokers | Month 12 |
-| ₹1Cr ARR | Month 15 |
-| Mumbai launch | Month 18 |
-| Enterprise pilot live | Month 18 |
-| Break-even operations | Month 24 |
+### Speaker Notes
+- Sequencing is aligned to sales cycle length and operational risk.
+- We prioritize repeatability before geographic or segment sprawl.
 
 ---
 
-## Team
+## Slide 9 - Milestones and Revenue Quality
 
-### Leadership
+### On Slide
+- By month 12:
+  1. Repeatable broker conversion engine
+  2. Measurable workflow-led retention
+  3. Initial paying developer pilots
+- By month 24:
+  1. Diversified revenue mix (subscription + usage + retained B2B)
+  2. Stronger ARR quality from renewals
+  3. Evidence-backed readiness for multi-city replication
 
-**Founder & CEO**
-- Background: [Your background]
-- Previous: [Relevant experience]
-
-**CTO / Head of Engineering**
-- Background: [Technical background]
-- Previous: [Relevant experience]
-
-### Hiring Plan (Post-Funding)
-
-- 2 Senior GIS Engineers
-- 2 ML/AI Engineers
-- 1 DevOps/Infrastructure
-- 2 Sales/Partnership Managers
-- 1 Product Manager
+### Speaker Notes
+- We optimize for quality of revenue: retention, expansion, and renewal behavior.
+- Growth claims are tied to execution milestones, not top-line vanity metrics.
 
 ---
 
-## Why Now?
+## Slide 10 - Seed Ask and Use of Funds (Risk-Tied)
 
-### Market Timing
+### On Slide
+- **Raise target: $2M seed equivalent**
+- Use of funds:
+  - 45% product and engineering reliability
+  - 30% data and model operations (freshness, confidence, coverage)
+  - 25% GTM and customer success (broker + developer motions)
+- 24-month objective:
+  - harden monetization consistency,
+  - scale broker and B2B revenue,
+  - prepare institutional-grade packaging
 
-1. **AI Maturity**: LLMs finally good enough for complex reasoning
-2. **Data Availability**: Government open data initiatives (OSM, Bhuvan)
-3. **Broker Digitization**: Post-COVID shift to digital tools
-4. **NRI Demand**: Remote verification needs accelerated
-
-### Technology Inflection
-
-- Local LLMs (Ollama) enable offline-first architecture
-- Vector databases enable semantic search over GIS data
-- 3D rendering in browser now performant
-- India Stack (UPI, ONDC) enables embedded payments
-
----
-
-## Vision: The City Operating System
-
-**Today**: Real estate intelligence for brokers and developers
-
-**Tomorrow**: Urban planning, infrastructure planning, municipal governance
-
-```
-Real Estate Intelligence (Now)
-        ↓
-City Planning Dashboard (Year 3)
-        ↓
-Municipal Decision Support (Year 5)
-        ↓
-City Operating System (Vision)
-```
-
-Every city decision — from zoning to transit — grounded in verified spatial intelligence.
+### Speaker Notes
+- Primary risk is execution discipline, not market demand.
+- Capital is for reliable scaling of a validated product direction.
 
 ---
 
-## Contact
+## Appendix Notes (For Q&A)
 
-**Valora AI**
-
-- Website: [valora.ai]
-- Email: [founders@valora.ai]
-- Location: Bengaluru, India
-
----
-
-*Pitch Deck — February 2026*
+- All external market and leasing claims in live presentations must include dated citations.
+- Citation placeholders to replace before investor meetings:
+  1. `[SOURCE: India office leasing trend, publication, date, accessed date]`
+  2. `[SOURCE: Bengaluru housing transaction or demand report, publication, date, accessed date]`
+  3. `[SOURCE: India real-estate market size projection, publication, date, accessed date]`
+- Keep one source-of-truth for pricing and units in `docs/BUSINESS.md` and app pricing config.
+- Continue disclosing production-ready vs hardening-in-progress features transparently.

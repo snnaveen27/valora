@@ -2,8 +2,12 @@
 import sqlite3
 import json
 from pathlib import Path
+import sys
 
-db_path = Path(__file__).parent.parent / 'storage' / 'valora.db'
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from backend.config import config
+
+db_path = config.DB_PATH
 conn = sqlite3.connect(str(db_path))
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()

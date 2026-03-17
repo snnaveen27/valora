@@ -301,6 +301,160 @@ class DatabaseService:
         
         return self.execute(query, (min_lat, max_lat, min_lng, max_lng))
     
+    def get_nearby_properties(self, lat: float, lng: float, radius: int = 1000, limit: int = 20) -> List[Dict]:
+        """
+        Get properties near a location.
+        
+        Args:
+            lat: Latitude of center point
+            lng: Longitude of center point
+            radius: Search radius in meters (default 1000m)
+            limit: Maximum number of results (default 20)
+        
+        Returns:
+            List of property dictionaries with distance information
+        """
+        # Use search_properties with radius
+        properties = self.search_properties(
+            lat=lat,
+            lng=lng,
+            radius_meters=radius,
+            limit=limit
+        )
+        
+        # Add distance to each property
+        results = []
+        for prop in properties:
+            prop_lat = prop.get('latitude') or prop.get('lat')
+            prop_lng = prop.get('longitude') or prop.get('lng')
+            
+            if prop_lat and prop_lng:
+                # Calculate approximate distance using Haversine
+                import math
+                R = 6371000  # Earth radius in meters
+                
+                lat1_rad = math.radians(lat)
+                lat2_rad = math.radians(prop_lat)
+                delta_lat = math.radians(prop_lat - lat)
+                delta_lng = math.radians(prop_lng - lng)
+                
+                a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lng/2)**2
+                c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+                distance = R * c
+                
+                prop['distance_m'] = distance
+            
+            results.append(prop)
+        
+        return results
+    
+    def get_all_localities(self) -> List[Dict]:
+        """
+        Get all unique localities from the database with property counts and statistics.
+        
+        Returns:
+            List of dictionaries with locality info: name, count, avg_price, avg_price_per_sqft
+        """
+        query = """
+            SELECT 
+                locality as name,
+                COUNT(*) as property_count,
+                AVG(price) as avg_price,
+                AVG(price_per_sqft) as avg_price_per_sqft,
+                AVG(latitude) as avg_lat,
+                AVG(longitude) as avg_lng
+            FROM properties
+            WHERE locality IS NOT NULL 
+                AND locality != ''
+                AND status = 'active'
+            GROUP BY locality
+            ORDER BY property_count DESC
+            LIMIT 100
+        """
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            
+            results = []
+            for row in rows:
+                results.append({
+                    'name': row[0],
+                    'property_count': row[1],
+                    'avg_price': row[2] or 0,
+                    'avg_price_per_sqft': row[3] or 0,
+                    'avg_lat': row[4],
+                    'avg_lng': row[5]
+                })
+            
+            return results
+    
+    def get_area_stats(self, locality: str) -> Dict:
+        """
+        Get statistics for a specific locality/area.
+        
+        Args:
+            locality: The name of the locality to get stats for
+        
+        Returns:
+            Dictionary with buildingCount, pricePerSqft, investmentScore, connectivityScore
+        """
+        query = """
+            SELECT 
+                COUNT(*) as property_count,
+                AVG(price_per_sqft) as avg_price_per_sqft,
+                AVG(price) as avg_price,
+                AVG(latitude) as avg_lat,
+                AVG(longitude) as avg_lng
+            FROM properties
+            WHERE (locality LIKE ? OR area_name LIKE ?)
+                AND status = 'active'
+        """
+        
+        search_pattern = f"%{locality}%"
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (search_pattern, search_pattern))
+            row = cursor.fetchone()
+            
+            if row and row[0]:
+                return {
+                    'buildingCount': row[0],
+                    'pricePerSqft': int(row[1]) if row[1] else 0,
+                    'investmentScore': self._calculate_investment_score(row[1] or 0, row[2] or 0) if row[1] else 50,
+                    'connectivityScore': 75,  # Default - could be enhanced with actual transit data
+                    'avgLat': row[3],
+                    'avgLng': row[4]
+                }
+            
+            return None
+    
+    def _calculate_investment_score(self, price_per_sqft: float, avg_price: float) -> int:
+        """
+        Calculate investment score based on price metrics.
+        Lower price per sqft = higher investment potential.
+        """
+        # Bangalore average is around ₹10,000-12,000/sqft
+        # Below average = higher score, above average = lower score
+        if price_per_sqft <= 0:
+            return 50
+        
+        # Score based on price per sqft (lower = better investment)
+        if price_per_sqft < 6000:
+            return 90
+        elif price_per_sqft < 8000:
+            return 80
+        elif price_per_sqft < 10000:
+            return 70
+        elif price_per_sqft < 13000:
+            return 60
+        elif price_per_sqft < 16000:
+            return 50
+        else:
+            return 40
+    
     def log_ingestion(
         self,
         source_name: str,

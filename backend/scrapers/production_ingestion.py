@@ -22,6 +22,10 @@ from datetime import datetime, date
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 import math
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from backend.config import config
 
 
 @dataclass
@@ -70,7 +74,7 @@ class ProductionIngestionService:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
+            db_path = config.DB_PATH
         self.db_path = str(db_path)
         self._ensure_tables()
     
@@ -100,6 +104,36 @@ class ProductionIngestionService:
                 duplicate_records INTEGER DEFAULT 0,
                 error_records INTEGER DEFAULT 0,
                 notes TEXT
+            )
+        """)
+
+        # Quarantine table for invalid/problematic records
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ingestion_quarantine (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                source TEXT NOT NULL,
+                source_file TEXT,
+                reason TEXT NOT NULL,
+                errors_json TEXT NOT NULL,
+                raw_data TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Quality metrics per ingestion run
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ingestion_quality_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT UNIQUE NOT NULL,
+                source TEXT NOT NULL,
+                total_records INTEGER NOT NULL,
+                valid_records INTEGER NOT NULL,
+                quarantined_records INTEGER NOT NULL,
+                duplicate_records INTEGER NOT NULL,
+                error_records INTEGER NOT NULL,
+                quality_score REAL NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
@@ -148,9 +182,105 @@ class ProductionIngestionService:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_history_location ON price_history(location_key)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_history_date ON price_history(snapshot_date DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_history_locality ON price_history(locality)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_ingestion_quarantine_run ON ingestion_quarantine(run_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_ingestion_quarantine_source ON ingestion_quarantine(source)")
         
         conn.commit()
         conn.close()
+
+    def _validate_record(self, raw_data: Dict) -> Tuple[bool, List[str]]:
+        """Validate a raw record before ingestion."""
+        errors: List[str] = []
+
+        lat = self._extract_float(raw_data, ['latitude', 'lat', 'geo_lat'])
+        lng = self._extract_float(raw_data, ['longitude', 'lng', 'lon', 'geo_lng'])
+        price = self._extract_price(raw_data)
+        locality = self._extract_str(raw_data, ['locality', 'location', 'area_name', 'localityName'])
+
+        if lat is None or lng is None:
+            errors.append("missing_coordinates")
+        else:
+            if lat < -90 or lat > 90:
+                errors.append("invalid_latitude")
+            if lng < -180 or lng > 180:
+                errors.append("invalid_longitude")
+
+        if price is None or price <= 0:
+            errors.append("invalid_price")
+
+        if not locality:
+            errors.append("missing_locality")
+
+        return len(errors) == 0, errors
+
+    def _quarantine_record(
+        self,
+        run_id: str,
+        source: str,
+        source_file: Optional[str],
+        raw_data: Dict,
+        errors: List[str],
+    ) -> None:
+        """Store an invalid record in quarantine for later inspection."""
+        conn = self._connect()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO ingestion_quarantine (
+                    run_id, source, source_file, reason, errors_json, raw_data
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run_id,
+                    source,
+                    source_file,
+                    "record_validation_failed",
+                    json.dumps(errors),
+                    json.dumps(raw_data),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _record_quality_metrics(self, run_id: str, source: str, stats: Dict[str, int]) -> None:
+        """Persist quality metrics for a completed ingestion run."""
+        total = max(1, stats.get('total', 0))
+        valid = max(0, stats.get('new', 0) + stats.get('duplicate', 0) + stats.get('updated', 0))
+        quarantined = max(0, stats.get('quarantined', 0))
+        errors = max(0, stats.get('error', 0))
+        duplicates = max(0, stats.get('duplicate', 0))
+
+        quality_score = max(
+            0.0,
+            min(100.0, ((valid - quarantined - errors) / total) * 100.0)
+        )
+
+        conn = self._connect()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO ingestion_quality_metrics (
+                    run_id, source, total_records, valid_records, quarantined_records,
+                    duplicate_records, error_records, quality_score
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run_id,
+                    source,
+                    stats.get('total', 0),
+                    valid,
+                    quarantined,
+                    duplicates,
+                    errors,
+                    quality_score,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
     
     def _generate_location_key(self, lat: float, lng: float, precision: int = 4) -> str:
         """
@@ -301,11 +431,18 @@ class ProductionIngestionService:
             'new': 0,
             'updated': 0,
             'duplicate': 0,
-            'error': 0
+            'error': 0,
+            'quarantined': 0,
         }
         
         for i, record in enumerate(records):
             try:
+                valid, errors = self._validate_record(record)
+                if not valid:
+                    stats['quarantined'] += 1
+                    self._quarantine_record(run_id, source, source_file, record, errors)
+                    continue
+
                 property_id, listing_id, is_new = self.ingest_property(
                     record, source, source_file, datetime.now()
                 )
@@ -320,7 +457,10 @@ class ProductionIngestionService:
             
             # Progress logging
             if (i + 1) % 1000 == 0:
-                print(f"  Progress: {i+1}/{len(records)} ({stats['new']} new, {stats['duplicate']} dup)")
+                print(
+                    f"  Progress: {i+1}/{len(records)} "
+                    f"({stats['new']} new, {stats['duplicate']} dup, {stats['quarantined']} quarantined)"
+                )
         
         # Update ingestion log
         conn = self._connect()
@@ -335,6 +475,8 @@ class ProductionIngestionService:
               stats['duplicate'], stats['error'], run_id))
         conn.commit()
         conn.close()
+
+        self._record_quality_metrics(run_id, source, stats)
         
         return stats
     

@@ -102,13 +102,22 @@ except ImportError:
     get_tool_executor = None
     ToolCall = None
 
-# Occlusion engine module removed - functionality integrated elsewhere
-OCCLUSION_AVAILABLE = False
-get_occlusion_engine = None
+try:
+    from analyzers.viewshed_analyzer import get_viewshed_analyzer
+    VIEWSHED_AVAILABLE = True
+except ImportError:
+    try:
+        from viewshed_analyzer import get_viewshed_analyzer
+        VIEWSHED_AVAILABLE = True
+    except ImportError:
+        VIEWSHED_AVAILABLE = False
+        get_viewshed_analyzer = None
 
-# Solar engine module removed - functionality integrated elsewhere
-SOLAR_AVAILABLE = False
-get_solar_engine = None
+# Occlusion/sunlight are served by local analyzers (viewshed + 3D shadow heuristics)
+OCCLUSION_AVAILABLE = VIEWSHED_AVAILABLE or SPATIAL_3D_AVAILABLE
+SOLAR_AVAILABLE = SPATIAL_3D_AVAILABLE or VIEWSHED_AVAILABLE
+get_occlusion_engine = get_viewshed_analyzer if VIEWSHED_AVAILABLE else None
+get_solar_engine = get_spatial_3d_reasoning if SPATIAL_3D_AVAILABLE else None
 
 try:
     from spatial.spatial_memory_graph import get_spatial_graph
@@ -259,6 +268,9 @@ class AgentFacts:
     
     # Reasoning metadata
     confidence_score: Optional[float] = None
+    evidence_sources: Optional[List[str]] = None
+    freshness_ts: Optional[str] = None
+    risk_flags: Optional[List[str]] = None
     
     # Spatial facts
     poi_count: Optional[int] = None
@@ -800,12 +812,16 @@ class IntentRouter:
         r'\b(future (price|value|growth)|projection)\b',
         r'\b(market (going|heading|moving))\b',
         r'\b(trends?)\s+(in|for|of)\b',
+        r'\b(average|median|price per sqft|price\/sqft|active listings?)\b',
+        r'\b(most expensive|affordable|cheapest)\s+(areas|localities|neighborhoods?)\b',
+        r'\b(rental yield|days on market|inventory)\b',
     ]
     
     NAVIGATE_PATTERNS = [
         r'\b(show me|go to|take me to|navigate to|fly to|zoom to|where is)\b',
         r'\b(locate|search for)\s+\w+\s*(area|location|place|neighborhood)\b',
         r'\b(move to|pan to|center on|focus on)\b',
+        r'\b(explore|tour|show me around|take me around)\b',
     ]
     
     AREA_PATTERNS = [
@@ -814,6 +830,9 @@ class IntentRouter:
         r'\b(how is|what about|info about|details of)\s+.*(area|location|place)\b',
         r'\b(neighbourhood|neighborhood|locality|surroundings)\b',
         r'\b(livability|liveable|safe|safety)\b',
+        r'\b(walkability|accessibility|poi|transport options|nearest metro|nearest bus)\b',
+        r'\b(top amenities|how many pois|amenity count)\b',
+        r'\b(flood risk|key risks?|risk profile)\b',
     ]
     
     PROPERTY_PATTERNS = [
@@ -825,6 +844,7 @@ class IntentRouter:
         r'\b(villas?|duplex|penthouses?|studio)\b',
         r'\b(commercial|office|shop|warehouse|industrial)\s*(space|property)?\b',
         r'\b(top|best)\s*(properties|apartments?|flats?|houses?|listings?)\b',
+        r'\b(new launch|pre-launch|new construction|under construction)\b',
     ]
     
     VALUATION_PATTERNS = [
@@ -848,12 +868,16 @@ class IntentRouter:
     SIMULATE_PATTERNS = [
         r'\b(simulate|what if|proposed|scenario|impact of)\b',
         r'\b(add|new|build|construct)\s+(metro|highway|road|park|school|hospital|station)\b',
+        r'\b(digital twin|city simulation model|simulation model|twin state|change history)\b',
+        r'\b(project|forecast)\s+.*\b(years?|months?)\b',
     ]
     
     BUILDING_PATTERNS = [
         r'\b(this building|selected building|building details)\b',
         r'\b(what is this|tell me about this|analyze this)\s+(building|structure)\b',
         r'\b(building|structure)\s*(info|information|details)\b',
+        r'\b(sky view|skyline|shadow|sunlight|open view|optimal floor|best floor)\b',
+        r'\b(taller buildings?|building heights?|3d density)\b',
     ]
     
     # New patterns for report generation, downloads, map control, and credits
@@ -1536,7 +1560,7 @@ class GISAgentOrchestrator:
         
         # Enhanced: Use Spatial NLP for better query understanding
         parsed_spatial = None
-        if SPATIAL_NLP_AVAILABLE and intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA]:
+        if SPATIAL_NLP_AVAILABLE and intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.ANALYZE_BUILDING]:
             try:
                 spatial_nlp = get_spatial_nlp(geocoder=self.geocoder)
                 parsed_spatial = spatial_nlp.parse(query, context)
@@ -1564,7 +1588,7 @@ class GISAgentOrchestrator:
         
         # Fallback: If navigate, property_search, or analyze_area intent, try to geocode location from query
         # Only do this if no location has been determined yet
-        if intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND, Intent.VALUATION, Intent.TERRAIN, Intent.COMPARISON] and not lat:
+        if intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.ANALYZE_BUILDING, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND, Intent.VALUATION, Intent.TERRAIN, Intent.COMPARISON, Intent.SIMULATE] and not lat:
             next_task(f"Geocoding location from query")
             place_name = IntentRouter.extract_place_name(query)
             print(f"[GIS Agents] Extracted place name: '{place_name}' from query: '{query}'")
@@ -1591,7 +1615,7 @@ class GISAgentOrchestrator:
         
         # Add UI actions (flyTo, load_buildings) for location-based intents - now outside fallback block
         # Skip flyTo if frontend requested it (e.g., when user clicked on map)
-        if lat and lng and intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND, Intent.VALUATION]:
+        if lat and lng and intent in [Intent.NAVIGATE, Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.ANALYZE_BUILDING, Intent.INVESTMENT, Intent.RECOMMENDATION, Intent.MARKET_TREND, Intent.VALUATION, Intent.TERRAIN, Intent.COMPARISON, Intent.SIMULATE]:
             # flyTo action - skip if user already clicked on map
             if not skip_fly_to:
                 if intent == Intent.NAVIGATE:
@@ -1602,7 +1626,7 @@ class GISAgentOrchestrator:
                     ui_actions.append({"action": "flyTo", "lat": lat, "lng": lng, "zoom": 14})
             
             # load_buildings for property searches and area analysis to show 3D buildings
-            if intent in [Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.INVESTMENT]:
+            if intent in [Intent.PROPERTY_SEARCH, Intent.ANALYZE_AREA, Intent.ANALYZE_BUILDING, Intent.INVESTMENT]:
                 print(f"[GIS Agents] Adding load_buildings for {intent.value} at lat={lat}, lng={lng}")
                 print(f"[GIS Agents] Query was: '{query}' | Location: '{location_name}'")
                 ui_actions.append({"action": "load_buildings", "lat": lat, "lng": lng, "radius_km": 5})
@@ -1815,16 +1839,17 @@ class GISAgentOrchestrator:
                 print(f"[GIS] Enhanced data service error: {e}")
         
         # Phase 2.2: True 3D Spatial Reasoning
+        spatial_3d_engine = None
         if lat and lng and SPATIAL_3D_AVAILABLE:
             try:
-                spatial_3d = get_spatial_3d_reasoning()
+                spatial_3d_engine = get_spatial_3d_reasoning()
                 floor_height = 0
                 
                 # If analyzing a building, use its height
                 if selected_building and selected_building.get('height'):
                     floor_height = selected_building['height'] / 2  # Mid-floor analysis
                 
-                analysis_3d = spatial_3d.analyze_3d_context(lat, lng, floor_height, radius_m=200)
+                analysis_3d = spatial_3d_engine.analyze_3d_context(lat, lng, floor_height, radius_m=200)
                 
                 facts.spatial_3d_analysis = {
                     'buildings_above': len(analysis_3d.buildings_above),
@@ -1840,11 +1865,11 @@ class GISAgentOrchestrator:
                 
                 # Get optimal floor recommendation
                 if intent == Intent.PROPERTY_SEARCH or intent == Intent.ANALYZE_BUILDING:
-                    optimal = spatial_3d.find_best_floor(lat, lng, max_floor=15)
+                    optimal = spatial_3d_engine.find_best_floor(lat, lng, max_floor=15)
                     facts.optimal_floor = optimal.get('recommended_floor')
                 
                 # Shadow analysis for morning/noon
-                shadow_10am = spatial_3d.get_shadow_impact(lat, lng, hour=10)
+                shadow_10am = spatial_3d_engine.get_shadow_impact(lat, lng, hour=10)
                 facts.shadow_analysis = shadow_10am
                 
                 facts.reasoning_chain = analysis_3d.reasoning
@@ -1858,70 +1883,202 @@ class GISAgentOrchestrator:
             except Exception as e:
                 print(f"[GIS] 3D spatial reasoning error: {e}")
         
-        # Phase 4: Enhanced Occlusion Analysis (True Line-of-Sight)
+        # Phase 4: Occlusion / Viewshed analysis (local analyzer-backed)
         if lat and lng and OCCLUSION_AVAILABLE:
             try:
-                occlusion = get_occlusion_engine()
                 floor = 5  # Default analysis floor
                 if selected_building and selected_building.get('height'):
                     floor = max(1, int(selected_building['height'] / 3))
-                
-                visibility_360 = occlusion.get_360_visibility(lat, lng, floor=floor, radius_m=300)
-                facts.visibility_360 = {
-                    'view_quality': visibility_360.get('view_quality'),
-                    'open_directions': visibility_360.get('open_directions', []),
-                    'blocked_directions': visibility_360.get('blocked_directions', []),
-                    'openness_score': visibility_360.get('openness_score', 0),
-                }
-                
-                # Find view blockers if view is not excellent
-                if visibility_360.get('view_quality') != 'excellent':
-                    blockers = occlusion.find_view_blockers(lat, lng, floor * 3, radius_m=200)
-                    if blockers:
-                        facts.view_blockers = blockers[:5]  # Top 5 blockers
-                
-                if reasoning_trace:
+
+                visibility_360 = None
+                blockers: List[Dict[str, Any]] = []
+
+                if VIEWSHED_AVAILABLE:
+                    viewshed = get_viewshed_analyzer()
+                    viewshed_result = viewshed.analyze_viewshed(lat, lng, floor=floor)
+                    rays = viewshed_result.rays or []
+                    open_directions = [r.direction for r in rays if r.view_quality == 'open']
+                    blocked_directions = [r.direction for r in rays if r.view_quality == 'blocked']
+                    partial_directions = [r.direction for r in rays if r.view_quality == 'partial']
+                    openness_score = float(viewshed_result.openness_score or 0.0)
+                    if openness_score >= 80:
+                        view_quality = "excellent"
+                    elif openness_score >= 60:
+                        view_quality = "good"
+                    elif openness_score >= 40:
+                        view_quality = "moderate"
+                    else:
+                        view_quality = "poor"
+
+                    visibility_360 = {
+                        'view_quality': view_quality,
+                        'open_directions': open_directions,
+                        'blocked_directions': blocked_directions,
+                        'partially_blocked_directions': partial_directions,
+                        'openness_score': round(openness_score, 1),
+                        'sky_view_factor': round(float(viewshed_result.sky_view_factor or 0.0), 3),
+                        'best_view_direction': viewshed_result.best_view_direction,
+                        'worst_view_direction': viewshed_result.worst_view_direction,
+                        'description': viewshed_result.view_description,
+                    }
+
+                    for ray in rays:
+                        if ray.blocked_at_m is None:
+                            continue
+                        blockers.append({
+                            "direction": ray.direction,
+                            "distance_m": int(round(ray.blocked_at_m)),
+                            "blocked_by": ray.blocked_by or "building",
+                            "severity": "high" if ray.blocked_at_m < 75 else "medium" if ray.blocked_at_m < 200 else "low",
+                        })
+                elif facts.open_view_directions:
+                    # Fallback without viewshed: infer 360 visibility from 3D open directions
+                    all_directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+                    open_directions = list(facts.open_view_directions or [])
+                    blocked_directions = [d for d in all_directions if d not in open_directions]
+                    openness_score = (len(open_directions) / len(all_directions)) * 100
+                    if openness_score >= 80:
+                        view_quality = "excellent"
+                    elif openness_score >= 60:
+                        view_quality = "good"
+                    elif openness_score >= 40:
+                        view_quality = "moderate"
+                    else:
+                        view_quality = "poor"
+                    visibility_360 = {
+                        'view_quality': view_quality,
+                        'open_directions': open_directions,
+                        'blocked_directions': blocked_directions,
+                        'partially_blocked_directions': [],
+                        'openness_score': round(openness_score, 1),
+                        'sky_view_factor': round(float(facts.sky_view_factor or 0.0), 3),
+                        'description': "Estimated from 3D directional openness.",
+                    }
+
+                if visibility_360:
+                    facts.visibility_360 = visibility_360
+                if blockers:
+                    facts.view_blockers = blockers[:8]
+
+                if reasoning_trace and visibility_360:
                     reasoning_trace.add_step(
                         ReasoningStep.INFER,
-                        f"Occlusion: {visibility_360.get('view_quality')}, open={len(visibility_360.get('open_directions', []))} dirs",
-                        {"blockers": len(blockers) if 'blockers' in dir() else 0}
+                        f"Viewshed: {visibility_360.get('view_quality')}, open={len(visibility_360.get('open_directions', []))} dirs",
+                        {"blockers": len(blockers)}
                     )
             except Exception as e:
-                print(f"[GIS] Occlusion engine error: {e}")
+                print(f"[GIS] Occlusion/viewshed error: {e}")
         
-        # Phase 4: Solar/Sunlight Analysis
+        # Phase 4: Solar / sunlight analysis (3D shadow + viewshed heuristics)
         if lat and lng and SOLAR_AVAILABLE:
             try:
-                solar = get_solar_engine()
                 floor = 5
                 if selected_building and selected_building.get('height'):
                     floor = max(1, int(selected_building['height'] / 3))
-                
-                sunlight = solar.analyze_sunlight(lat, lng, floor=floor)
+
+                if spatial_3d_engine is None and SPATIAL_3D_AVAILABLE:
+                    spatial_3d_engine = get_spatial_3d_reasoning()
+
+                visible_directions = set(
+                    (facts.visibility_360 or {}).get('open_directions')
+                    or (facts.open_view_directions or [])
+                )
+                openness_score = float((facts.visibility_360 or {}).get('openness_score') or (len(visible_directions) * 12.5))
+                sky_view_factor = facts.sky_view_factor
+                if sky_view_factor is None:
+                    sky_view_factor = (facts.visibility_360 or {}).get('sky_view_factor')
+                if sky_view_factor is None:
+                    sky_view_factor = max(0.2, min(1.0, openness_score / 100.0))
+
+                shadow_by_hour: Dict[str, Dict[str, Any]] = {}
+                if spatial_3d_engine:
+                    for hour in [8, 10, 12, 15, 17]:
+                        try:
+                            shadow_by_hour[str(hour)] = spatial_3d_engine.get_shadow_impact(lat, lng, hour=hour)
+                        except Exception:
+                            continue
+
+                def _impact_multiplier(impact: str) -> float:
+                    return {
+                        "minimal": 1.0,
+                        "moderate": 0.7,
+                        "significant": 0.4,
+                    }.get((impact or "").lower(), 0.7)
+
+                def _quality_label(score: float) -> str:
+                    if score >= 80:
+                        return "excellent"
+                    if score >= 65:
+                        return "good"
+                    if score >= 45:
+                        return "moderate"
+                    return "poor"
+
+                base_light = max(20.0, min(95.0, (float(sky_view_factor) * 70.0) + (openness_score * 0.25)))
+                east_open = any(d in visible_directions for d in ["E", "NE", "SE"])
+                south_open = any(d in visible_directions for d in ["S", "SE", "SW"])
+                west_open = any(d in visible_directions for d in ["W", "NW", "SW"])
+
+                morning_impact = (shadow_by_hour.get("8") or shadow_by_hour.get("10") or {}).get("impact", "moderate")
+                noon_impact = (shadow_by_hour.get("12") or {}).get("impact", "moderate")
+                evening_impact = (shadow_by_hour.get("17") or shadow_by_hour.get("15") or {}).get("impact", "moderate")
+
+                morning_score = max(0.0, min(100.0, base_light * _impact_multiplier(morning_impact) + (8 if east_open else -6)))
+                noon_score = max(0.0, min(100.0, base_light * _impact_multiplier(noon_impact) + (6 if south_open else 0)))
+                evening_score = max(0.0, min(100.0, base_light * _impact_multiplier(evening_impact) + (8 if west_open else -6)))
+
+                natural_light_score = round((morning_score + noon_score + evening_score) / 3.0, 1)
+                daylight_hours = round(4.5 + (natural_light_score / 100.0) * 7.5, 1)
+
+                best_hours = [
+                    f"{int(h):02d}:00"
+                    for h, payload in sorted(shadow_by_hour.items(), key=lambda item: int(item[0]))
+                    if payload.get("impact") == "minimal"
+                ]
+                if not best_hours:
+                    best_hours = [
+                        f"{int(h):02d}:00"
+                        for h, payload in sorted(shadow_by_hour.items(), key=lambda item: int(item[0]))
+                        if payload.get("impact") == "moderate"
+                    ][:3]
+                if not best_hours:
+                    best_hours = ["09:00", "10:00", "11:00"]
+
                 facts.sunlight_analysis = {
-                    'daylight_hours': sunlight.daylight_hours,
-                    'natural_light_score': sunlight.natural_light_score,
-                    'morning_sun': sunlight.morning_sun_quality,
-                    'evening_sun': sunlight.evening_sun_quality,
-                    'best_hours': sunlight.best_sunlight_hours,
+                    'daylight_hours': daylight_hours,
+                    'natural_light_score': natural_light_score,
+                    'morning_sun': _quality_label(morning_score),
+                    'midday_sun': _quality_label(noon_score),
+                    'evening_sun': _quality_label(evening_score),
+                    'best_hours': best_hours,
+                    'sky_view_factor': round(float(sky_view_factor), 3),
+                    'model': "3d_shadow_plus_viewshed_heuristic",
+                    'shadow_by_hour': shadow_by_hour,
                 }
-                
-                # Facade sunlight for property search
+
+                # Facade sunlight recommendation for property/building-specific queries
                 if intent in [Intent.PROPERTY_SEARCH, Intent.ANALYZE_BUILDING]:
-                    facade = solar.get_facade_sunlight(lat, lng, floor=floor)
-                    facts.facade_sunlight = {
-                        'best_facade': facade.get('best_facade'),
-                        'recommendation': facade.get('recommendation'),
+                    facade_scores = {
+                        "east": round(morning_score, 1),
+                        "south": round(noon_score, 1),
+                        "west": round(evening_score, 1),
+                        "north": round(max(30.0, noon_score * 0.7), 1),
                     }
-                
+                    best_facade = max(facade_scores.items(), key=lambda kv: kv[1])[0]
+                    facts.facade_sunlight = {
+                        'best_facade': best_facade,
+                        'recommendation': f"{best_facade.title()} facade has the strongest daylight profile for this location.",
+                        'facade_scores': facade_scores,
+                    }
+
                 if reasoning_trace:
                     reasoning_trace.add_step(
                         ReasoningStep.INFER,
-                        f"Solar: {sunlight.daylight_hours:.1f}h daylight, score={sunlight.natural_light_score:.0f}",
-                        {"best_facade": facade.get('best_facade') if 'facade' in dir() else None}
+                        f"Sunlight: {daylight_hours:.1f}h/day, score={natural_light_score:.0f}",
+                        {"best_facade": (facts.facade_sunlight or {}).get('best_facade')}
                     )
             except Exception as e:
-                print(f"[GIS] Solar engine error: {e}")
+                print(f"[GIS] Sunlight analysis error: {e}")
         
         # Phase 2.2: AI Self-Learning Context
         if AI_CONTEXT_AVAILABLE:
@@ -1979,13 +2136,24 @@ class GISAgentOrchestrator:
         # Gather property facts for property search
         if lat and lng and self.property_service and intent == Intent.PROPERTY_SEARCH:
             next_task(f"Searched properties in database")
+            
+            # Extract property count from query (e.g., "3 properties", "5 homes")
+            property_count = 3  # Default
+            try:
+                import re
+                count_match = re.search(r'(\d+)\s*(?:properties?|homes?|apartments?|flats?|listings?|results?)', query.lower())
+                if count_match:
+                    property_count = min(int(count_match.group(1)), 10)  # Cap at 10
+            except:
+                pass
+                
             try:
                 # Build search params from parsed spatial filters
                 search_params = {
                     'lat': lat,
                     'lng': lng,
                     'radius_m': 2000,
-                    'limit': 20,
+                    'limit': property_count,
                 }
                 
                 # Apply filters from spatial NLP parsing
@@ -2045,11 +2213,12 @@ class GISAgentOrchestrator:
                         "distance_m": int(p.get('_distance', 0)),
                         "lat": p.get('latitude'),
                         "lng": p.get('longitude'),
-                    }
-                    for p in props[:10]
-                ]
+                     }
+                     for p in props[:20]
+                 ]
                 
                 # Map Sync: Add highlightProperties action for properties with coordinates
+                # Limit to property_count properties extracted from query
                 properties_to_highlight = [
                     {
                         "lat": p.get('latitude'),
@@ -2060,10 +2229,17 @@ class GISAgentOrchestrator:
                         "property_type": p.get('property_type'),
                         "locality": p.get('locality') or p.get('area_name'),
                         "area": p.get('total_area_sqft') or p.get('covered_area'),
+                        "total_area_sqft": p.get('total_area_sqft'),
+                        "covered_area": p.get('covered_area'),
+                        "furnishing": p.get('furnishing'),
+                        "property_age": p.get('property_age'),
+                        "parking": p.get('parking'),
+                        "address": p.get('address'),
                     }
-                    for p in props[:10]
+                    for p in props[:property_count]
                     if p.get('latitude') and p.get('longitude')
                 ]
+                print(f"[GIS] highlightProperties: {len(properties_to_highlight)} properties with coords out of {len(props) if props else 0}")
                 if properties_to_highlight:
                     ui_actions.append({
                         "action": "highlightProperties",

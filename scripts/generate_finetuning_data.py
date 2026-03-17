@@ -40,8 +40,8 @@ INTENT_DISTRIBUTION = {
     "terrain":          200,
     "recommendation":   150,
     "general":          100,
-    "conversational":   100,
-}
+    "conversational":   100
+  }
 
 
 def generate_dataset():
@@ -85,7 +85,7 @@ def generate_dataset():
     
     total = len(all_examples)
     info = {
-        "name": "valora-qwen3-4b-v2.0",
+        "name": "valora-qwen3-9b-v2.1",
         "version": "2.0.0",
         "created": datetime.now().isoformat(),
         "model_target": "Qwen3-4B-Instruct",

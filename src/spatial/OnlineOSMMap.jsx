@@ -3,7 +3,88 @@ import * as Cesium from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import '../styles/cesium.css'
 import DrawingTools from '../components/DrawingTools'
+import MapCallout from '../components/MapCallout'
 import { API_URL } from '../apiConfig'
+import { AREA_PRECOMPUTED_DATA } from '../config/precomputedAreaData';
+
+// Helper function for fuzzy string matching (Levenshtein distance based)
+const calculateFuzzyBoost = (text, searchTerm) => {
+  if (!searchTerm || searchTerm.length < 2) return 0
+  
+  const textLower = text.toLowerCase()
+  const termLower = searchTerm.toLowerCase()
+  
+  // Exact match gets highest boost
+  if (textLower === termLower) return 5
+  
+  // Check if search term is a substring of text OR text is a substring of search term
+  // This handles both cases: user types subset or superset of the target
+  if (textLower.includes(termLower)) {
+    // Earlier position in text gets higher boost
+    const position = textLower.indexOf(termLower)
+    return Math.max(1, 3 - position * 0.1)
+  }
+  
+  if (termLower.includes(textLower)) {
+    // User typed more characters than needed - still good match
+    const position = termLower.indexOf(textLower)
+    return Math.max(1, 3 - position * 0.1) * 0.8 // Slightly lower boost for extra chars
+  }
+  
+  // Calculate similarity based on common prefixes
+  let commonPrefix = 0
+  const minLength = Math.min(textLower.length, termLower.length)
+  for (let i = 0; i < minLength; i++) {
+    if (textLower[i] === termLower[i]) {
+      commonPrefix++
+    } else {
+      break
+    }
+  }
+  
+  // Boost based on prefix similarity
+  if (commonPrefix > 0) {
+    const prefixRatio = commonPrefix / termLower.length
+    return prefixRatio * 2
+  }
+  
+  // Check for swapped characters (common typo)
+  if (termLower.length === textLower.length) {
+    let differences = 0
+    for (let i = 0; i < termLower.length; i++) {
+      if (termLower[i] !== textLower[i]) differences++
+    }
+    if (differences === 2) {
+      // Check if it's a simple swap
+      let diffPos = []
+      for (let i = 0; i < termLower.length; i++) {
+        if (termLower[i] !== textLower[i]) diffPos.push(i)
+      }
+      if (diffPos.length === 2 && 
+          termLower[diffPos[0]] === textLower[diffPos[1]] && 
+          termLower[diffPos[1]] === textLower[diffPos[0]]) {
+        return 1.5
+      }
+    }
+  }
+  
+  // Handle single character differences (insertions/deletions)
+  const lengthDiff = Math.abs(textLower.length - termLower.length)
+  if (lengthDiff === 1) {
+    // Check if removing one character from longer string makes them equal
+    const longer = textLower.length > termLower.length ? textLower : termLower
+    const shorter = textLower.length > termLower.length ? termLower : textLower
+    
+    for (let i = 0; i < longer.length; i++) {
+      const modified = longer.slice(0, i) + longer.slice(i + 1)
+      if (modified === shorter) {
+        return 1 // Good boost for single char insertion/deletion
+      }
+    }
+  }
+  
+  return 0
+}
 
 // Throttle helper to reduce React re-renders
 const throttle = (fn, wait) => {
@@ -15,6 +96,57 @@ const throttle = (fn, wait) => {
       fn(...args)
     }
   }
+}
+
+// Helper to create a marker with billboard icon + label at location
+const createSelectedLocationMarker = (viewer, lng, lat, color = '#8b5cf6', label = null) => {
+  if (!viewer || viewer.isDestroyed()) return null
+  
+  const cesiumColor = Cesium.Color.fromCssColorString(color)
+  const labelText = label ? `${label}` : `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+  
+  // Create SVG marker icon as data URL
+  const svgIcon = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="64" viewBox="0 0 384 512">
+    <path fill="${color}" d="M384 192c0 87.4-117 243-168.3 307.2c-12.3 15.3-35.1 15.3-47.4 0C117 435 0 279.4 0 192C0 86 86 0 192 0s192 86 192 192z"/>
+    <circle cx="192" cy="192" r="50" fill="white"/>
+  </svg>`)}`
+  
+  // Billboard marker at exact location (with pin icon)
+  const billboardEntity = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(lng, lat),
+    billboard: {
+      image: svgIcon,
+      width: 40,
+      height: 53,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      scale: 1.2
+    }
+  })
+  
+  // Label above marker
+  const labelEntity = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(lng, lat),
+    label: {
+      text: labelText,
+      font: 'bold 14px Inter, sans-serif',
+      fillColor: Cesium.Color.WHITE,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 3,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      verticalOrigin: Cesium.VerticalOrigin.TOP,
+      horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+      pixelOffset: new Cesium.Cartesian2(0, 10),
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      showBackground: true,
+      backgroundColor: cesiumColor.withAlpha(0.9),
+      backgroundPadding: new Cesium.Cartesian2(8, 4)
+    }
+  })
+  
+  return [billboardEntity, labelEntity]
 }
 
 // Cesium base URL - use Vite's define in production, fallback to /cesium/ for dev
@@ -139,8 +271,13 @@ const BANGALORE_AREAS = {
   jayanagar: { lng: 77.5800, lat: 12.9250, name: 'Jayanagar', icon: '🏛️' },
   mgroad: { lng: 77.6066, lat: 12.9758, name: 'MG Road', icon: '🛍️' },
   electroniccity: { lng: 77.6600, lat: 12.8456, name: 'Electronic City', icon: '💻' },
-  malleshwaram: { lng: 77.5685, lat: 13.0035, name: 'Malleshwaram', icon: '🕉️' }
+  malleshwaram: { lng: 77.5685, lat: 13.0035, name: 'Malleshwaram', icon: '🕉️' },
+  hennur: { lng: 77.6430, lat: 13.0350, name: 'Hennur', icon: '🏗️' },
+  bellandur: { lng: 77.6310, lat: 12.9252, name: 'Bellandur', icon: '🌿' },
+  marathahalli: { lng: 77.7012, lat: 12.9590, name: 'Marathahalli', icon: '🏪' }
 }
+
+
 
 // Default location: Indiranagar, Bangalore
 const DEFAULT_LOCATION = {
@@ -221,8 +358,41 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const selectedBuildingEntityRef = useRef(null)  // Track currently highlighted building
   const keyDownHandlerRef = useRef(null) // Track key handler so we can remove it on cleanup
   const lastCameraViewRef = useRef(null)
-  const placeMarkerRef = useRef(null)
+  const placeMarkerRef = useRef(null) // Stores marker entities
   const placeMarkerClickTimeRef = useRef(null) // Track when user clicked to avoid overwriting
+  
+  // Helper to remove place marker (handles both single entity and array of entities)
+  const removePlaceMarker = useCallback((viewer) => {
+    if (!viewer || viewer.isDestroyed()) return
+    if (placeMarkerRef.current) {
+      try {
+        if (Array.isArray(placeMarkerRef.current)) {
+          // Remove multiple entities
+          placeMarkerRef.current.forEach(entity => {
+            try { viewer.entities.remove(entity) } catch (e) { /* ignore */ }
+          })
+        } else {
+          // Remove single entity
+          viewer.entities.remove(placeMarkerRef.current)
+        }
+      } catch (e) {
+        console.warn('[Map] Failed to remove place marker:', e)
+      }
+      placeMarkerRef.current = null
+    }
+  }, [])
+  
+  // Helper to create and set place marker (replaces existing)
+  const setPlaceMarker = useCallback((viewer, lng, lat, color = '#8b5cf6', label = null) => {
+    if (!viewer || viewer.isDestroyed()) return
+    
+    // Remove existing marker first
+    removePlaceMarker(viewer)
+    
+    // Create new marker
+    const markerEntities = createSelectedLocationMarker(viewer, lng, lat, color, label)
+    placeMarkerRef.current = markerEntities
+  }, [removePlaceMarker])
   const rotationIntervalRef = useRef(null)
   const rotationTargetRef = useRef(null)
   const ionPhotorealisticTilesetRef = useRef(null)
@@ -305,12 +475,38 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   const [selectedBuilding, setSelectedBuilding] = useState(null)
   const [buildingPopupPosition, setBuildingPopupPosition] = useState(null)
   
+  // Premium callout markers state (supports multiple)
+  const [showCallouts, setShowCallouts] = useState(false)
+  const [calloutsData, setCalloutsData] = useState([])
+  const [activeCalloutIndex, setActiveCalloutIndex] = useState(0)
+  
+  // Ref to track callout state for postUpdate callback (avoid stale closure)
+  const calloutsDataRef = useRef([])
+  const showCalloutsRef = useRef(false)
+  
+  // Sync refs with state for postUpdate callback
+  useEffect(() => {
+    calloutsDataRef.current = calloutsData
+  }, [calloutsData])
+  
+  useEffect(() => {
+    showCalloutsRef.current = showCallouts
+  }, [showCallouts])
+  
+  // Ref to track callout cartesian for camera move updates (avoid closure issues)
+  const calloutCartesianRef = useRef(null)
+  const postUpdateCallbackRef = useRef(null)
+  const lastCalloutUpdateRef = useRef(0)
+  
   // Search bar
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const searchDebounceRef = useRef(null)
+  const isSettingSearchQueryRef = useRef(false)
+  const searchCacheRef = useRef(new Map()) // Cache for recent searches
+  const MAX_CACHE_SIZE = 20
   
   // Basemap toggle: 'osm', 'mapbox_streets', 'mapbox_satellite', 'mapbox_satellite_streets', 'mapbox_dark', 'mapbox_light', 'mapbox_outdoors'
   const [basemapType, setBasemapType] = useState(() => initialPrefsRef.current.basemapType ?? 'osm')
@@ -592,11 +788,26 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     return () => clearInterval(evictionInterval)
   }, [showBuildings])
 
-  // Auto-search with debounce
+  // Auto-search with debounce and caching
   useEffect(() => {
+    // Skip if this is a programmatic search query update (from search result click)
+    if (isSettingSearchQueryRef.current) {
+      isSettingSearchQueryRef.current = false
+      return
+    }
+    
     if (!searchQuery.trim()) {
       setSearchResults([])
       setShowSearchResults(false)
+      return
+    }
+
+    // Check cache first
+    const cacheKey = searchQuery.toLowerCase().trim()
+    if (searchCacheRef.current.has(cacheKey)) {
+      const cachedResult = searchCacheRef.current.get(cacheKey)
+      setSearchResults(cachedResult.results)
+      setShowSearchResults(cachedResult.results.length > 0)
       return
     }
 
@@ -605,22 +816,105 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       clearTimeout(searchDebounceRef.current)
     }
 
-    // Debounce search by 500ms
+    // Debounce search by 300ms for better responsiveness
     searchDebounceRef.current = setTimeout(async () => {
       setIsSearching(true)
       try {
+        // Enhanced search parameters for better accuracy and fuzzy matching
+        const searchParams = new URLSearchParams({
+          q: searchQuery + ', Bangalore, India',
+          format: 'json',
+          limit: '15', // Get more results to filter and rank
+          addressdetails: '1',
+          extratags: '1',
+          namedetails: '1',
+          acceptlanguage: 'en', // Prefer English results
+          'dedupe': '1' // Remove duplicates
+        })
+        
         const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery + ', Bangalore, India')}&format=json&limit=5`
+          `https://nominatim.openstreetmap.org/search?${searchParams.toString()}`
         )
         const results = await resp.json()
-        setSearchResults(results)
-        setShowSearchResults(true)
+        
+        // Enhanced filtering and scoring with fuzzy matching for misspellings
+        const filteredResults = results
+          .filter(result => {
+            // Prioritize results that are actually in Bangalore area
+            const displayName = result.display_name.toLowerCase()
+            return displayName.includes('bangalore') || 
+                   displayName.includes('bengaluru') ||
+                   // Also accept results with specific locality types
+                   result.addresstype && 
+                   ['city', 'town', 'village', 'suburb', 'neighbourhood', 'quarter', 'city_district', 'borough'].includes(result.addresstype)
+          })
+          .map(result => {
+            // Calculate enhanced relevance score
+            const displayName = result.display_name.toLowerCase()
+            const searchTerm = searchQuery.toLowerCase()
+            
+            // Base score from Nominatim importance
+            let score = parseFloat(result.importance) || 0
+            
+            // Boost for exact substring matches
+            if (displayName.includes(searchTerm)) {
+              score += 3
+            }
+            
+            // Boost for word-start matches (more important than substring)
+            const words = displayName.split(/[\s,-]+/)
+            if (words.some(word => word.startsWith(searchTerm))) {
+              score += 2
+            }
+            
+            // Fuzzy matching for common misspellings/typoes
+            const fuzzyBoost = calculateFuzzyBoost(displayName, searchTerm)
+            score += fuzzyBoost
+            
+            // Boost for preferred locality types
+            const localityBoost = {
+              'city': 2,
+              'town': 1.5,
+              'village': 1,
+              'suburb': 1.5,
+              'neighbourhood': 1.5,
+              'quarter': 1,
+              'city_district': 1.5,
+              'borough': 1
+            }[result.addresstype] || 0
+            score += localityBoost
+            
+            // Penalize results that are too far from Bangalore (basic check)
+            if (!displayName.includes('bangalore') && !displayName.includes('bengaluru')) {
+              score *= 0.8 // Slight penalty for non-Bangalore results
+            }
+            
+            return { ...result, relevanceScore: score }
+          })
+          // Sort by relevance score (descending)
+          .sort((a, b) => b.relevanceScore - a.relevanceScore)
+          // Take top 5 results
+          .slice(0, 5)
+          // Remove the temporary relevanceScore property
+          .map(({ relevanceScore, ...result }) => result)
+        
+        // Cache the results
+        if (searchCacheRef.current.size >= MAX_CACHE_SIZE) {
+          // Remove oldest entry (simple FIFO)
+          const firstKey = searchCacheRef.current.keys().next().value
+          searchCacheRef.current.delete(firstKey)
+        }
+        searchCacheRef.current.set(cacheKey, { results: filteredResults, timestamp: Date.now() })
+        
+        setSearchResults(filteredResults)
+        setShowSearchResults(filteredResults.length > 0)
       } catch (err) {
         console.warn('Auto-search failed:', err)
         setSearchResults([])
+        setShowSearchResults(false)
       }
       setIsSearching(false)
-    }, 500)
+    }, 300)
 
     return () => {
       if (searchDebounceRef.current) {
@@ -1303,7 +1597,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   // Buildings now load on click — no auto-load on state change needed
 
 
-  const flyToArea = (areaKey, height = 1200) => {
+  const flyToArea = async (areaKey, height = 1200) => {
     const viewer = viewerRef.current
     if (!viewer || viewer.isDestroyed()) return
     
@@ -1321,22 +1615,42 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     }
     setCanGoBack(true)
 
-    if (placeMarkerRef.current) {
-      viewer.entities.remove(placeMarkerRef.current)
-      placeMarkerRef.current = null
-    }
-
-    placeMarkerRef.current = viewer.entities.add({
-      position: Cesium.Cartesian3.fromDegrees(area.lng, area.lat),
-      point: {
-        pixelSize: 12,
-        color: Cesium.Color.fromCssColorString('#3b82f6'),
-        outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 2,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY
+    // Show premium callout for selected area with terrain-aware position
+    const areaCartesian = getTerrainAwareTarget(area.lng, area.lat)
+    const areaScreenCoords = viewer.scene.cartesianToCanvasCoordinates(areaCartesian)
+    
+    // Get precomputed data for this area
+    const precomputedData = AREA_PRECOMPUTED_DATA[areaKey] || {}
+    
+    // Set callout data (single area callout)
+    setCalloutsData([{
+      id: 'area',
+      lat: area.lat,
+      lng: area.lng,
+      cartesian: areaCartesian,
+      x: areaScreenCoords ? areaScreenCoords.x : window.innerWidth / 2,
+      y: areaScreenCoords ? areaScreenCoords.y : window.innerHeight / 2,
+      type: 'area',
+      color: '#8b5cf6',
+      locality: area.name,
+      place: 'Bangalore, Karnataka',
+      buildingCount: precomputedData.buildingCount || 0,
+      pricePerSqft: precomputedData.pricePerSqft || null,
+      investmentScore: precomputedData.investmentScore || null,
+      connectivityScore: precomputedData.connectivityScore || null,
+      status: 'Live',
+      isLoading: false,
+      propertyData: null,
+      buildingData: null,
+      // For locate me
+      locateInfo: {
+        lat: area.lat,
+        lng: area.lng,
+        height: height
       }
-    })
+    }])
+    calloutCartesianRef.current = areaCartesian
+    setShowCallouts(true)
     
     // Terrain-aware camera height
     const terrainHeight = getTerrainHeight(area.lng, area.lat)
@@ -1961,8 +2275,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             perPositionHeight: false,
             closeTop: isHighQuality,  // Only close top for high quality
             closeBottom: false,
-            // High quality buildings cast shadows, lower quality buildings don't for performance
-            shadows: isHighQuality ? Cesium.ShadowMode.CAST_ONLY : Cesium.ShadowMode.DISABLED
+            // All loaded buildings cast shadows for consistent visuals
+            shadows: Cesium.ShadowMode.CAST_ONLY
           },
           properties: {
             height: height,
@@ -2431,7 +2745,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 
                 entity.polygon.outline = false
                 entity.polygon.closeTop = false
-                entity.polygon.shadows = Cesium.ShadowMode.DISABLED
+                // All loaded buildings cast shadows for consistent visuals
+                entity.polygon.shadows = Cesium.ShadowMode.CAST_ONLY
               }
               
               entity.polygon.material = Cesium.Color.fromCssColorString(color).withAlpha(alpha)
@@ -2637,6 +2952,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       setLoadingBuildings(false)
       loadingBuildingsRef.current = false
       
+      // Update callout with actual building count if callout is visible
+      if (showCallouts && calloutsData.length > 0) {
+        setCalloutsData(prev => prev.map(c => ({ ...c, buildingCount: finalTotal, isLoading: false, status: 'Live' })))
+      }
+      
       if (setAgentData) {
         setAgentData(prev => ({ 
           ...prev, 
@@ -2713,30 +3033,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       
       // height calculation for closer zoom (production grade)
       const height = zoom ? Math.max(50, 15000000 / Math.pow(2, zoom)) : 400
-      
-      // FIX: Don't overwrite marker if user recently clicked (within 5 seconds)
-      const timeSinceLastClick = Date.now() - (placeMarkerClickTimeRef.current || 0)
-      const skipMarkerUpdate = timeSinceLastClick < 5000 // 5 seconds grace period
-      
-      if (placeMarkerRef.current && !skipMarkerUpdate) {
-        viewer.entities.remove(placeMarkerRef.current)
-        placeMarkerRef.current = null
-      }
-
-      // Only create new marker if user hasn't recently clicked
-      if (!skipMarkerUpdate) {
-        placeMarkerRef.current = viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(lngNum, latNum),
-        point: {
-          pixelSize: 12,
-          color: Cesium.Color.fromCssColorString('#8b5cf6'),
-          outlineColor: Cesium.Color.WHITE,
-          outlineWidth: 2,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY
-        }
-      })
-      } // end if (!skipMarkerUpdate)
 
       // Terrain-aware camera height
       const terrainHeight = getTerrainHeight(lngNum, latNum)
@@ -2785,7 +3081,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
   // Listen for map commands
   useEffect(() => {
-    const handleMapCommand = (e) => {
+    const handleMapCommand = async (e) => {
       const viewer = viewerRef.current
       if (!viewer || viewer.isDestroyed()) return
       
@@ -2793,158 +3089,146 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       
       // Handle highlightProperties action for map sync
       if (action === 'highlightProperties' && properties && Array.isArray(properties)) {
+        // Debug: log properties count
+        const propsWithCoords = properties.filter(p => (p.lat || p.latitude) && (p.lng || p.longitude))
+        console.log('[Map] highlightProperties received:', properties.length, 'properties,', propsWithCoords.length, 'with coordinates')
+        
         // Clear previous property markers
         propertyMarkersRef.current.forEach(entity => {
           try { viewer.entities.remove(entity) } catch {}
         })
         propertyMarkersRef.current = []
         
-        // Create canvas-rendered property billboard
-        const createPropertyCanvas = (index, bhk, price, type) => {
-          const canvas = document.createElement('canvas')
-          const ctx = canvas.getContext('2d')
-          const dpr = 2 // High-DPI
+        // Group properties by similar coordinates (within ~10 meters = 0.0001 degrees)
+        const COORD_THRESHOLD = 0.0001
+        const grouped = {}
+        properties.forEach((prop, index) => {
+          const lat = prop.lat || prop.latitude
+          const lng = prop.lng || prop.longitude
+          if (!lat || !lng) return
           
-          // Layout
-          const priceText = price ? `₹${price >= 10000000 ? (price / 10000000).toFixed(1) + 'Cr' : (price / 100000).toFixed(0) + 'L'}` : ''
-          const bhkText = bhk ? `${bhk}BHK` : ''
-          const typeText = type ? String(type).substring(0, 12) : ''
-          const line1 = [bhkText, typeText].filter(Boolean).join(' · ') || `Property ${index + 1}`
-          const line2 = priceText
-          
-          ctx.font = `bold ${13 * dpr}px Inter, system-ui, sans-serif`
-          const w1 = ctx.measureText(line1).width
-          ctx.font = `bold ${15 * dpr}px Inter, system-ui, sans-serif`
-          const w2 = line2 ? ctx.measureText(line2).width : 0
-          
-          const padX = 14 * dpr
-          const padY = 8 * dpr
-          const gap = line2 ? 4 * dpr : 0
-          const lineH1 = 16 * dpr
-          const lineH2 = line2 ? 18 * dpr : 0
-          const indexW = 24 * dpr
-          const w = Math.max(w1, w2) + padX * 2 + indexW + 8 * dpr
-          const h = padY * 2 + lineH1 + gap + lineH2
-          const pointerH = 8 * dpr
-          
-          canvas.width = w
-          canvas.height = h + pointerH
-          
-          // Background with subtle gradient
-          const grad = ctx.createLinearGradient(0, 0, 0, h)
-          grad.addColorStop(0, 'rgba(15, 23, 42, 0.95)')
-          grad.addColorStop(1, 'rgba(30, 41, 59, 0.95)')
-          
-          // Rounded rect
-          const r = 6 * dpr
-          ctx.beginPath()
-          ctx.moveTo(r, 0)
-          ctx.lineTo(w - r, 0)
-          ctx.quadraticCurveTo(w, 0, w, r)
-          ctx.lineTo(w, h - r)
-          ctx.quadraticCurveTo(w, h, w - r, h)
-          ctx.lineTo(w / 2 + pointerH, h)
-          ctx.lineTo(w / 2, h + pointerH)
-          ctx.lineTo(w / 2 - pointerH, h)
-          ctx.lineTo(r, h)
-          ctx.quadraticCurveTo(0, h, 0, h - r)
-          ctx.lineTo(0, r)
-          ctx.quadraticCurveTo(0, 0, r, 0)
-          ctx.closePath()
-          ctx.fillStyle = grad
-          ctx.fill()
-          
-          // Left accent border
-          ctx.fillStyle = '#8b5cf6'
-          ctx.fillRect(0, 6 * dpr, 3 * dpr, h - 12 * dpr)
-          
-          // Index badge
-          const badgeX = padX - 2 * dpr
-          const badgeY = padY
-          const badgeR = 10 * dpr
-          ctx.beginPath()
-          ctx.arc(badgeX + badgeR, badgeY + badgeR, badgeR, 0, Math.PI * 2)
-          ctx.fillStyle = '#8b5cf6'
-          ctx.fill()
-          ctx.font = `bold ${11 * dpr}px Inter, system-ui, sans-serif`
-          ctx.fillStyle = '#ffffff'
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText(String(index + 1), badgeX + badgeR, badgeY + badgeR)
-          
-          // Line 1: BHK · Type
-          const textX = badgeX + badgeR * 2 + 8 * dpr
-          ctx.textAlign = 'left'
-          ctx.textBaseline = 'top'
-          ctx.font = `600 ${13 * dpr}px Inter, system-ui, sans-serif`
-          ctx.fillStyle = '#e2e8f0'
-          ctx.fillText(line1, textX, padY + 2 * dpr)
-          
-          // Line 2: Price (if exists)
-          if (line2) {
-            ctx.font = `bold ${15 * dpr}px Inter, system-ui, sans-serif`
-            ctx.fillStyle = '#a78bfa'
-            ctx.fillText(line2, textX, padY + lineH1 + gap)
+          // Find existing group or create new
+          let groupKey = null
+          for (const key of Object.keys(grouped)) {
+            const [gLat, gLng] = key.split(',').map(Number)
+            if (Math.abs(gLat - lat) < COORD_THRESHOLD && Math.abs(gLng - lng) < COORD_THRESHOLD) {
+              groupKey = key
+              break
+            }
           }
           
-          return canvas
-        }
-        
-        // Add new property markers with modern design
-        // Group properties by coordinate so overlapping ones stack vertically
-        const coordGroups = {}
-        properties.forEach((prop, index) => {
-          if (!prop.lat || !prop.lng) return
-          const key = `${Number(prop.lat).toFixed(5)}_${Number(prop.lng).toFixed(5)}`
-          if (!coordGroups[key]) coordGroups[key] = []
-          coordGroups[key].push({ ...prop, _originalIndex: index })
+          if (!groupKey) {
+            groupKey = `${lat},${lng}`
+            grouped[groupKey] = []
+          }
+          grouped[groupKey].push({ ...prop, originalIndex: index })
         })
-
-        let firstProp = null
-        Object.values(coordGroups).forEach(group => {
-          group.forEach((prop, stackIndex) => {
-            if (!firstProp) firstProp = prop
-            const index = prop._originalIndex
-            
-            const canvas = createPropertyCanvas(
-              index,
-              prop.bedrooms,
-              prop.price,
-              prop.property_type || prop.type
-            )
-            
-            // Stack vertically: each card at same coord gets 60m height offset
-            const verticalOffset = stackIndex * 60
-            
-            const marker = viewer.entities.add({
-              name: `property_marker_${index}`,
-              position: Cesium.Cartesian3.fromDegrees(prop.lng, prop.lat, verticalOffset),
-              billboard: {
-                image: canvas,
-                width: canvas.width / 2,
-                height: canvas.height / 2,
-                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-                heightReference: verticalOffset > 0 ? Cesium.HeightReference.RELATIVE_TO_GROUND : Cesium.HeightReference.CLAMP_TO_GROUND,
-                disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                scaleByDistance: new Cesium.NearFarScalar(500, 1.0, 15000, 0.5),
-                translucencyByDistance: new Cesium.NearFarScalar(500, 1.0, 25000, 0.3),
-                eyeOffset: new Cesium.Cartesian3(0, 0, -(index * 0.5))
-              },
-              properties: {
-                isPropertyMarker: true,
-                propertyIndex: index,
-                propertyData: JSON.stringify(prop)
-              }
-            })
-            propertyMarkersRef.current.push(marker)
+        
+        // Build callouts for each group
+        const groupKeys = Object.keys(grouped)
+        const allCallouts = groupKeys.map((key, groupIndex) => {
+          const [lat, lng] = key.split(',').map(Number)
+          const propsInGroup = grouped[key]
+          
+          // Build tabs for properties in this group
+          const tabs = propsInGroup.map((p, idx) => ({
+            id: idx,
+            name: p.name || `Property ${p.originalIndex + 1}`,
+            price: p.price,
+            bhk: p.bedrooms,
+            propertyType: p.property_type || p.type,
+            sqft: p.area || p.total_area_sqft || p.covered_area,
+            locality: p.locality || p.area_name || p.area,
+            pricePerSqft: p.price && p.area ? Math.round(p.price / p.area) : null,
+            furnishing: p.furnishing,
+            propertyAge: p.property_age,
+            parking: p.parking,
+          }))
+          
+          return {
+            id: `property_group_${groupIndex}`,
+            lat,
+            lng,
+            cartesian: null,
+            x: 0,
+            y: 0,
+            type: 'property',
+            color: '#10b981',
+            locality: propsInGroup[0].name || `Properties in area`,
+            place: propsInGroup[0].locality || propsInGroup[0].area_name || 'Bangalore',
+            buildingCount: 0,
+            pricePerSqft: propsInGroup[0].price && propsInGroup[0].area ? Math.round(propsInGroup[0].price / propsInGroup[0].area) : null,
+            investmentScore: null,
+            connectivityScore: null,
+            status: 'Live',
+            isLoading: false,
+            propertyData: null,
+            buildingData: null,
+            // New: tabs for grouped properties
+            hasMultipleProperties: propsInGroup.length > 1,
+            tabs: tabs,
+            activeTabIndex: 0,
+            totalProperties: properties.length,
+            allProperties: properties, // Store all for locate me function
+          }
+        })
+        
+        if (allCallouts.length > 0) {
+          // Calculate bounding box for all properties
+          let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity
+          properties.forEach(p => {
+            const lat = p.lat || p.latitude
+            const lng = p.lng || p.longitude
+            if (lat && lng) {
+              minLat = Math.min(minLat, lat)
+              maxLat = Math.max(maxLat, lat)
+              minLng = Math.min(minLng, lng)
+              maxLng = Math.max(maxLng, lng)
+            }
           })
-        })
-        
-        // Also trigger building load at the center of properties
-        if (firstProp && loadBuildingsAtPointRef.current) {
-          loadingBuildingsRef.current = false
-          loadBuildingsAtPointRef.current(Number(firstProp.lat), Number(firstProp.lng), BUILDING_LOAD_RADIUS_KM)
+          
+          // Calculate center and best height to fit all properties
+          const centerLat = (minLat + maxLat) / 2
+          const centerLng = (minLng + maxLng) / 2
+          const latSpan = maxLat - minLat
+          const lngSpan = maxLng - minLng
+          const maxSpan = Math.max(latSpan, lngSpan)
+          const fitHeight = maxSpan > 0 ? Math.max(2000, maxSpan * 111000 * 2) : 2000 // Rough conversion to meters
+          
+          const terrainHeight = getTerrainHeight(centerLng, centerLat)
+          const adjustedHeight = fitHeight + terrainHeight
+          
+          // First set callouts with initial positions
+          setCalloutsData(allCallouts)
+          setActiveCalloutIndex(0)
+          setShowCallouts(true)
+          
+          // Fly camera to show all properties
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(centerLng, centerLat, adjustedHeight),
+            orientation: {
+              heading: Cesium.Math.toRadians(0),
+              pitch: Cesium.Math.toRadians(-35),
+              roll: 0
+            },
+            duration: 1.5,
+            complete: () => {
+              // After camera settles, calculate screen positions for all callouts
+              setTimeout(() => {
+                const updatedCallouts = allCallouts.map(callout => {
+                  const cartesian = getTerrainAwareTarget(callout.lng, callout.lat)
+                  const screenCoords = viewer.scene.cartesianToCanvasCoordinates(cartesian)
+                  return {
+                    ...callout,
+                    cartesian,
+                    x: screenCoords?.x || window.innerWidth / 2,
+                    y: screenCoords?.y || window.innerHeight / 2
+                  }
+                })
+                setCalloutsData(updatedCallouts)
+              }, 100)
+            }
+          })
         }
         return
       }
@@ -2963,23 +3247,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           roll: camera.roll
         }
         setCanGoBack(true)
-
-        if (placeMarkerRef.current) {
-          viewer.entities.remove(placeMarkerRef.current)
-          placeMarkerRef.current = null
-        }
-
-        placeMarkerRef.current = viewer.entities.add({
-          position: Cesium.Cartesian3.fromDegrees(lngNum, latNum),
-          point: {
-            pixelSize: 12,
-            color: Cesium.Color.fromCssColorString('#8b5cf6'),
-            outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 2,
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY
-          }
-        })
 
         const height = zoom ? Math.max(100, 20000 / Math.pow(2, zoom)) : 600
         // Terrain-aware camera height
@@ -3033,8 +3300,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       pulseEntityRef.current = viewer.entities.add({
         position: center,
         ellipse: {
-          semiMajorAxis: 200,
-          semiMinorAxis: 200,
+          semiMajorAxis: 50,
+          semiMinorAxis: 50,
           height: 0,
           material: Cesium.Color.fromCssColorString('#8b5cf6').withAlpha(0.15),
           outline: true,
@@ -3057,9 +3324,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     window.addEventListener('valora-ui-command', handleMapCommand)
     window.addEventListener('valora-agentic-step', handleAgenticStep)
     
-    // FIX Issue 2 & 3: Listen for new query events to clear old markers and reset state
+    // Listen for new query events to clear markers and reset state
     const handleNewQuery = (e) => {
-      console.log('[Map] 🔄 New query detected - clearing old property markers and place marker')
+      console.log('[Map] 🔄 New query detected - clearing property markers and place marker')
       const viewer = viewerRef.current
       if (!viewer || viewer.isDestroyed()) return
       
@@ -3073,14 +3340,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       })
       propertyMarkersRef.current = []
       
-      // Clear place marker from previous query - BUT NOT if just placed by map click
-      // Check if marker was placed in the last 5 seconds (prevents clearing during map click flow)
+      // Clear callout on new query (unless recently clicked)
       const timeSinceClick = Date.now() - (placeMarkerClickTimeRef.current || 0)
-      if (placeMarkerRef.current && timeSinceClick > 5000) {
-        try { viewer.entities.remove(placeMarkerRef.current) } catch {}
-        placeMarkerRef.current = null
-      } else if (placeMarkerRef.current) {
-        console.log('[Map] Preserving place marker - was just placed by map click', timeSinceClick, 'ms ago')
+      if (timeSinceClick > 5000) {
+        setShowCallouts(false)
+        setCalloutsData([])
       }
       
       // DON'T abort building loads if this is a map-click triggered query
@@ -3123,6 +3387,12 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       window.removeEventListener('valora-load-buildings', handleLoadBuildings)
       if (pulseEntityRef.current) {
         try { viewerRef.current?.entities?.remove(pulseEntityRef.current) } catch (_) {}
+      }
+      // Clean up postUpdate listener for callout
+      if (viewerRef.current && !viewerRef.current.isDestroyed() && postUpdateCallbackRef.current) {
+        try {
+          viewerRef.current.scene.postUpdate.removeEventListener(postUpdateCallbackRef.current)
+        } catch (_) {}
       }
     }
   }, [])
@@ -3476,13 +3746,71 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                     mapCenter: { lat: centerLat, lng: centerLng, height },
                     viewportBounds
                   }))
-                }
+                  
+                  // Dispatch unified location change event for map navigation
+                  window.dispatchEvent(new CustomEvent('valora-location-changed', {
+                    detail: {
+                      coordinates: { lat: centerLat, lng: centerLng }
+                    }
+                  }))
+                   
+                   // Update callout position to track the ground location using terrain-aware cartesian
+                   if (showCallouts && calloutsData.length > 0 && calloutCartesianRef.current) {
+                     const newScreenCoords = viewer.scene.cartesianToCanvasCoordinates(calloutCartesianRef.current)
+                     if (newScreenCoords) {
+                       setCalloutsData(prev => prev.map(c => ({
+                         ...c,
+                         x: newScreenCoords.x,
+                         y: newScreenCoords.y
+                       })))
+                     }
+                   }
+                 }
               } catch (e) {
                 console.warn('Failed to update mapCenter:', e)
               }
             }
           }, CAMERA_MOVE_DELAY_MS)
         })
+        
+        // Use postUpdate to keep callout attached to terrain (reduced throttle for smoother tracking)
+        const CALLOUT_THROTTLE_MS = 16 // ~60fps for smooth tracking
+        
+        // Update callout position during camera movement for real-time tracking
+        postUpdateCallbackRef.current = () => {
+          const now = Date.now()
+          if (now - lastCalloutUpdateRef.current < CALLOUT_THROTTLE_MS) return
+          
+          // Use refs to get current values instead of stale closure
+          const currentCalloutsData = calloutsDataRef.current
+          const currentShowCallouts = showCalloutsRef.current
+          
+          // Allow updates during camera movement for real-time position tracking
+          if (viewer && !viewer.isDestroyed() && currentShowCallouts && currentCalloutsData.length > 0) {
+            lastCalloutUpdateRef.current = now
+            setCalloutsData(prev => {
+              let hasChanges = false
+              const updated = prev.map(c => {
+                if (!c.lat || !c.lng) return c
+                
+                // Recalculate terrain-aware position
+                const cartesian = getTerrainAwareTarget(c.lng, c.lat)
+                const newScreenCoords = viewer.scene.cartesianToCanvasCoordinates(cartesian)
+                
+                if (newScreenCoords) {
+                  // Update if position changed by more than 0.1 pixels
+                  if (Math.abs(c.x - newScreenCoords.x) > 0.1 || Math.abs(c.y - newScreenCoords.y) > 0.1) {
+                    hasChanges = true
+                    return { ...c, cartesian, x: newScreenCoords.x, y: newScreenCoords.y }
+                  }
+                }
+                return c
+              })
+              return hasChanges ? updated : prev
+            })
+          }
+        }
+        viewer.scene.postUpdate.addEventListener(postUpdateCallbackRef.current)
 
         // Function to deselect building
         const deselectBuilding = () => {
@@ -3770,34 +4098,10 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 coordinates: { lat: clickLat, lng: clickLng }
               }
               
-              // Remove existing place marker before adding new one
-              if (placeMarkerRef.current) {
-                try {
-                  viewer.entities.remove(placeMarkerRef.current)
-                } catch (e) {
-                  console.warn('[Map Click] Failed to remove existing marker:', e)
-                }
-                placeMarkerRef.current = null
-              }
-              
               // Track when user clicked to prevent other effects from overwriting
               placeMarkerClickTimeRef.current = Date.now()
               
-              // Create marker at the EXACT clicked coordinates
-              const markerPosition = Cesium.Cartesian3.fromDegrees(clickLng, clickLat)
-              placeMarkerRef.current = viewer.entities.add({
-                position: markerPosition,
-                point: {
-                  pixelSize: 12,
-                  color: Cesium.Color.fromCssColorString('#8b5cf6'),
-                  outlineColor: Cesium.Color.WHITE,
-                  outlineWidth: 2,
-                  heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                  disableDepthTestDistance: Number.POSITIVE_INFINITY
-                }
-              })
-              
-              console.log('[Map Click] Marker placed at:', clickLng, clickLat)
+              console.log('[Map Click] Location selected at:', clickLng, clickLat)
               
               // Stop any active rotation before flying
               stopRotation()
@@ -3830,6 +4134,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                     viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance))
                     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
                     console.log('[Map Click] Camera focused on target')
+                    
+                    // Update callout position after camera settles
+                    if (calloutCartesianRef.current) {
+                      const finalScreenCoords = viewer.scene.cartesianToCanvasCoordinates(calloutCartesianRef.current)
+                      if (finalScreenCoords) {
+                        setCalloutsData(prev => prev.map(c => ({
+                          ...c,
+                          x: finalScreenCoords.x,
+                          y: finalScreenCoords.y
+                        })))
+                      }
+                    }
                   }
                 }
               )
@@ -3852,6 +4168,13 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
               // Trigger location analysis
               analyzeLocationAsync(clickLat, clickLng)
               
+              // Dispatch unified location change event for map click (update all panels)
+              window.dispatchEvent(new CustomEvent('valora-location-changed', {
+                detail: {
+                  coordinates: { lat: clickLat, lng: clickLng }
+                }
+              }))
+              
               // Dispatch event for chat panel to auto-analyze the area
               window.dispatchEvent(new CustomEvent('valora-area-clicked', {
                 detail: {
@@ -3861,6 +4184,109 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                   query: `Analyze the area around coordinates ${clickLat.toFixed(5)}, ${clickLng.toFixed(5)}. Provide insights on property values, neighbourhood quality, nearby amenities, connectivity, investment potential, and growth trajectory.`
                 }
               }))
+              
+              // Calculate screen position for callout (attached to ground using terrain-aware position)
+              const screenCoords = viewer.scene.cartesianToCanvasCoordinates(cartesian)
+              const screenX = screenCoords ? screenCoords.x : window.innerWidth / 2
+              const screenY = screenCoords ? screenCoords.y : window.innerHeight / 2
+              
+              // Show premium callout marker with loading state
+              setCalloutsData([{
+                id: 'area-click',
+                lat: clickLat,
+                lng: clickLng,
+                cartesian: cartesian,
+                x: screenX,
+                y: screenY,
+                type: 'area',
+                color: '#8b5cf6',
+                locality: 'Loading...',
+                place: 'Fetching location...',
+                buildingCount: 0,
+                pricePerSqft: null,
+                investmentScore: null,
+                connectivityScore: null,
+                status: 'Analyzing',
+                isLoading: true,
+                propertyData: null,
+                buildingData: null,
+                // For locate me
+                locateInfo: {
+                  lat: clickLat,
+                  lng: clickLng,
+                  height: 1200
+                }
+              }])
+              calloutCartesianRef.current = cartesian
+              setShowCallouts(true)
+              
+              // Reverse geocode to get locality info
+              fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${clickLat}&lon=${clickLng}`)
+                .then(res => res.json())
+                .then(data => {
+                  const address = data.address || {}
+                  const locality = address.suburb || address.neighbourhood || address.village || address.town || address.city || address.county || 'Unknown Area'
+                  const place = address.city || address.town || address.village || address.county || 'Bangalore'
+                  const state = address.state || 'Karnataka'
+                  
+                  // Fetch area stats from API
+                  return fetch(`${API_URL}/db/area/stats-by-coords?lat=${clickLat}&lng=${clickLng}&radius=2000`)
+                    .then(statsRes => statsRes.json())
+                    .then(statsData => {
+                      const stats = statsData?.data || {}
+                      
+                      // Only use data from API - no fake data for production
+                      const totalProps = stats.total_properties || 0
+                      const residential = stats.residential || {}
+                      const commercial = stats.commercial || {}
+                      const buildingCount = residential.count || commercial.count || totalProps || 0
+                      
+                      // Use avg_price_per_sqft from any available category
+                      const avgPricePerSqft = residential.avg_price_per_sqft || commercial.avg_price_per_sqft || stats.avg_price_per_sqft || 0
+                      
+                      // Only show connectivity if we have actual property data
+                      const connectivityScore = totalProps > 0 
+                        ? Math.min(95, 50 + Math.floor(totalProps / 10))
+                        : null // Don't show fake data
+                      
+                      // Only show investment score if we have actual price data
+                      const investmentScore = avgPricePerSqft > 0 
+                        ? Math.min(95, Math.floor(60 + (15000 - avgPricePerSqft) / 300))
+                        : null // Don't show fake data
+                      
+                      console.log('[Callout] Area stats:', { stats, buildingCount, avgPricePerSqft, connectivityScore, investmentScore })
+                      
+                      setCalloutsData(prev => prev.map(c => ({
+                        ...c,
+                        type: 'area',
+                        color: '#8b5cf6',
+                        locality,
+                        place: `${place}, ${state}`,
+                        buildingCount,
+                        pricePerSqft: avgPricePerSqft > 0 ? Math.round(avgPricePerSqft) : null,
+                        investmentScore,
+                        connectivityScore,
+                        status: 'Live',
+                        isLoading: false
+                      })))
+                    })
+                    .catch(() => {
+                      // Fallback if API fails
+                      setCalloutsData(prev => prev.map(c => ({
+                        ...c,
+                        type: 'area',
+                        color: '#8b5cf6',
+                        locality,
+                        place: `${place}, ${state}`,
+                        buildingCount: 0,
+                        pricePerSqft: null,
+                        investmentScore: null,
+                        connectivityScore: null,
+                        status: 'Live',
+                        isLoading: false
+                      })))
+                    })
+                })
             }
           }
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
@@ -3924,17 +4350,46 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 }
               )
               
-              // Remove existing place marker - building highlight is enough
-              if (placeMarkerRef.current) {
-                try {
-                  viewer.entities.remove(placeMarkerRef.current)
-                } catch (e) {
-                  console.warn('[Right Click] Could not remove old marker:', e)
-                }
-                placeMarkerRef.current = null
-              }
-              // No marker needed - building is already highlighted with amber color
+              // Show building callout
+              const buildingCartesian = getTerrainAwareTarget(buildingLng, buildingLat)
+              const buildingScreenCoords = viewer.scene.cartesianToCanvasCoordinates(buildingCartesian)
               
+              if (buildingScreenCoords) {
+                setCalloutsData([{
+                  id: 'building',
+                  lat: buildingLat,
+                  lng: buildingLng,
+                  cartesian: buildingCartesian,
+                  x: buildingScreenCoords.x,
+                  y: buildingScreenCoords.y,
+                  type: 'building',
+                  color: '#f43f5e',
+                  locality: buildingData.name || 'Selected Building',
+                  place: 'Bangalore, Karnataka',
+                  buildingCount: 0,
+                  pricePerSqft: null,
+                  investmentScore: null,
+                  connectivityScore: null,
+                  status: 'Live',
+                  isLoading: false,
+                  propertyData: null,
+                  buildingData: {
+                    name: buildingData.name || 'Building',
+                    levels: buildingData.levels,
+                    height: buildingData.height,
+                    area: buildingData.area
+                  },
+                  // For locate me
+                  locateInfo: {
+                    lat: buildingLat,
+                    lng: buildingLng,
+                    height: 500
+                  }
+                }])
+                calloutCartesianRef.current = buildingCartesian
+                setShowCallouts(true)
+              }
+               
               // Visual feedback
               if (click?.position) {
                 setClickRipple({
@@ -4025,6 +4480,15 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 }))
               }
               console.log('📍 Location analysis complete:', analysis)
+              
+              // Dispatch unified location change event
+              window.dispatchEvent(new CustomEvent('valora-location-changed', {
+                detail: {
+                  coordinates: { lat, lng },
+                  locality: analysis?.area_name || analysis?.locality?.name,
+                  place: analysis?.area_name || analysis?.display_name
+                }
+              }))
             } else {
               console.warn('Location analysis failed:', response.status)
               if (setAgentData) {
@@ -4463,18 +4927,19 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       {/* Top Bar - Search + Basemap + Navigation + Layers */}
       <div className="absolute top-0 left-0 right-0 z-50">
         <div className="bg-slate-900 border-b border-slate-700 px-2 py-1 flex items-center gap-2">
-          {/* Search Bar with Auto-Results */}
-          <div className="relative flex items-center bg-slate-800/80 border border-slate-700 px-2 py-0.5 w-48">
-            <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Type to search..."
-              className="flex-1 bg-transparent border-none text-white text-xs placeholder-slate-400 focus:outline-none ml-1"
-            />
+                     {/* Search Bar with Auto-Results */}
+           <div className="relative flex items-center bg-slate-800/80 border border-slate-700 px-2 py-0.5 w-48 hover:bg-slate-800/90 transition-colors">
+             <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+             </svg>
+             <input
+               type="text"
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               placeholder="Search for Bangalore localities..."
+               className="flex-1 bg-transparent border-none text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-0 ml-2"
+             />
+
             {isSearching && (
               <svg className="animate-spin h-3 w-3 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -4797,39 +5262,50 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           </div>
         </div>
         
-        {/* Search Results Dropdown */}
-        {showSearchResults && searchResults.length > 0 && (
-          <div className="absolute top-full left-2 mt-0 w-80 bg-slate-900 border border-slate-700 shadow-2xl max-h-48 overflow-y-auto z-[60] rounded-sm">
-            {searchResults.map((result, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  const viewer = viewerRef.current
-                  if (viewer && !viewer.isDestroyed()) {
-                    const lon = parseFloat(result.lon)
-                    const lat = parseFloat(result.lat)
-                    const terrainHeight = getTerrainHeight(lon, lat)
-                    const adjustedHeight = 800 + terrainHeight
-                    
-                    viewer.camera.flyTo({
-                      destination: Cesium.Cartesian3.fromDegrees(lon, lat, adjustedHeight),
-                      orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45), roll: 0 },
-                      duration: 2
-                    })
-                    // DISABLED: Building load on search result click - only query-based loading from chat
-                    // setTimeout(() => loadBuildingsAtPoint(lat, lon, BUILDING_LOAD_RADIUS_KM), 2500)
-                  }
-                  setShowSearchResults(false)
-                  setSearchQuery(result.display_name.split(',')[0])
-                }}
-                className="w-full px-3 py-1.5 text-left hover:bg-slate-800 transition border-b border-slate-800 last:border-b-0"
-              >
-                <div className="text-xs text-white truncate">{result.display_name.split(',')[0]}</div>
-                <div className="text-[10px] text-slate-400 truncate">{result.display_name}</div>
-              </button>
-            ))}
-          </div>
-        )}
+         {/* Search Results Dropdown */}
+         {showSearchResults && searchResults.length > 0 && (
+           <div className="absolute top-full left-2 mt-0 w-80 bg-slate-900 border border-slate-700 shadow-2xl max-h-48 overflow-y-auto z-[60] rounded-sm">
+             {searchResults.map((result, idx) => (
+               <button
+                 key={idx}
+                  onClick={() => {
+                    // Mark that we are setting the search query programmatically to avoid triggering the search effect
+                    isSettingSearchQueryRef.current = true
+                    const viewer = viewerRef.current
+                    if (viewer && !viewer.isDestroyed()) {
+                      const lon = parseFloat(result.lon)
+                      const lat = parseFloat(result.lat)
+                      const terrainHeight = getTerrainHeight(lon, lat)
+                      const adjustedHeight = 800 + terrainHeight
+                      
+                      viewer.camera.flyTo({
+                        destination: Cesium.Cartesian3.fromDegrees(lon, lat, adjustedHeight),
+                        orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45), roll: 0 },
+                        duration: 2
+                      })
+                      // DISABLED: Building load on search result click - only query-based loading from chat
+                      // setTimeout(() => loadBuildingsAtPoint(lat, lon, BUILDING_LOAD_RADIUS_KM), 2500)
+                    }
+                    setShowSearchResults(false)
+                    setSearchQuery(result.display_name.split(',')[0])
+                  }}
+                 className="w-full px-3 py-1.5 text-left hover:bg-slate-800/70 transition-colors border-b border-slate-800/20 last:border-b-0"
+               >
+                 <div className="flex items-start gap-3">
+                   <div className="flex-shrink-0">
+                     <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                     </svg>
+                   </div>
+                   <div className="flex-1">
+                     <div className="text-xs font-medium text-white truncate">{result.display_name.split(',')[0]}</div>
+                     <div className="text-[9px] text-slate-400 truncate">{result.display_name}</div>
+                   </div>
+                 </div>
+               </button>
+             ))}
+           </div>
+         )}
       </div>
 
       {/* Bottom Bar - Drawing Tools + Time + Status + Fullscreen */}
@@ -5187,6 +5663,103 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           </div>
         </div>
       )}
+
+      {/* Premium Callout Markers */}
+      {showCallouts && calloutsData.map((callout, index) => (
+        <MapCallout
+          key={callout.id || index}
+          visible={true}
+          lat={callout.lat}
+          lng={callout.lng}
+          x={callout.x}
+          y={callout.y}
+          type={callout.type}
+          color={callout.color}
+          locality={callout.locality}
+          place={callout.place}
+          buildingCount={callout.buildingCount}
+          pricePerSqft={callout.pricePerSqft}
+          investmentScore={callout.investmentScore}
+          connectivityScore={callout.connectivityScore}
+          status={callout.status}
+          isLoading={callout.isLoading}
+          propertyData={callout.propertyData}
+          buildingData={callout.buildingData}
+          hasMultipleProperties={callout.hasMultipleProperties}
+          tabs={callout.tabs}
+          activeTabIndex={callout.activeTabIndex || 0}
+          allProperties={callout.allProperties}
+          onTabChange={(tabIndex) => {
+            setCalloutsData(prev => prev.map((c, i) => 
+              i === index ? { ...c, activeTabIndex: tabIndex } : c
+            ))
+          }}
+          onLocateMe={() => {
+            const viewer = viewerRef.current
+            if (!viewer) return
+            
+            // Use stored cartesian if available, otherwise compute from lat/lng
+            let target = callout.cartesian
+            let lat = callout.lat
+            let lng = callout.lng
+            
+            if (!target && lat && lng) {
+              target = getTerrainAwareTarget(lng, lat)
+            }
+            
+            if (!target) return
+            
+            const orbitDistance = DEFAULT_ORBIT_DISTANCE
+            const orbitPitch = Cesium.Math.toRadians(DEFAULT_ORBIT_PITCH_DEG)
+            
+            // For properties with multiple, use bounding sphere from all positions
+            if (callout.hasMultipleProperties && callout.allProperties && callout.allProperties.length > 1) {
+              const positions = []
+              callout.allProperties.forEach(p => {
+                const pLat = p.lat || p.latitude
+                const pLng = p.lng || p.longitude
+                if (pLat && pLng) {
+                  positions.push(getTerrainAwareTarget(pLng, pLat))
+                }
+              })
+              
+              if (positions.length > 0) {
+                const boundingSphere = Cesium.BoundingSphere.fromPoints(positions)
+                
+                viewer.camera.flyToBoundingSphere(
+                  boundingSphere,
+                  {
+                    duration: 1.0,
+                    offset: new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance),
+                    complete: () => {
+                      viewer.camera.lookAt(boundingSphere.center, new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance))
+                      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+                    }
+                  }
+                )
+              }
+              return
+            }
+            
+            // Single location - use exact stored cartesian position
+            viewer.camera.flyToBoundingSphere(
+              new Cesium.BoundingSphere(target, orbitDistance / 2),
+              {
+                duration: 1.0,
+                offset: new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance),
+                complete: () => {
+                  viewer.camera.lookAt(target, new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance))
+                  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+                }
+              }
+            )
+          }}
+          onClose={() => {
+            setShowCallouts(false)
+            setCalloutsData([])
+          }}
+        />
+      ))}
 
     </div>
   )

@@ -1266,8 +1266,8 @@ def _build_llm_messages(user_query: str, request: ChatRequest, facts, intent, co
 
     # Analysis panel context
     analysis_ctx = ""
-    current_analysis = context.get("currentAnalysis", {})
-    viewport_analysis = context.get("viewportAnalysis", {})
+    current_analysis = context.get("currentAnalysis") or {}
+    viewport_analysis = context.get("viewportAnalysis") or {}
     if current_analysis or viewport_analysis:
         parts = []
         area_name = current_analysis.get("areaName") or viewport_analysis.get("area_name")
@@ -1306,6 +1306,8 @@ def _build_llm_messages(user_query: str, request: ChatRequest, facts, intent, co
 
 def _build_facts_data(facts) -> Dict:
     """Build the facts dict for the response."""
+    evidence_sources = getattr(facts, "evidence_sources", None) or ["properties_table", "gis_agents"]
+    risk_flags = getattr(facts, "risk_flags", None) or []
     return {
         "location_name": facts.location_name,
         "lat": facts.lat,
@@ -1321,10 +1323,24 @@ def _build_facts_data(facts) -> Dict:
         "demand_level": facts.demand_level,
         "elevation_m": facts.elevation_m,
         "flood_risk": facts.flood_risk,
+        "slope_deg": facts.slope_deg,
+        "terrain_suitability": facts.terrain_suitability,
         "sky_view_factor": facts.sky_view_factor,
+        "open_view_directions": facts.open_view_directions,
         "view_quality": facts.view_quality,
         "skyline_character": facts.skyline_character,
         "optimal_floor": facts.optimal_floor,
+        "shadow_analysis": facts.shadow_analysis,
+        "spatial_3d_analysis": facts.spatial_3d_analysis,
+        "building_3d_analysis": facts.building_3d_analysis,
+        "shadow_impact": facts.shadow_impact,
+        "view_directions": facts.view_directions,
+        "taller_neighbors": facts.taller_neighbors,
+        "shorter_neighbors": facts.shorter_neighbors,
+        "sunlight_analysis": facts.sunlight_analysis,
+        "facade_sunlight": facts.facade_sunlight,
+        "visibility_360": facts.visibility_360,
+        "view_blockers": facts.view_blockers,
         "locality_archetype": facts.locality_archetype,
         "locality_growth_stage": facts.locality_growth_stage,
         "locality_tagline": facts.locality_tagline,
@@ -1339,6 +1355,9 @@ def _build_facts_data(facts) -> Dict:
         "location_strengths": facts.location_strengths,
         "location_weaknesses": facts.location_weaknesses,
         "investment_outlook": facts.investment_outlook,
+        "evidence_sources": evidence_sources,
+        "freshness_ts": getattr(facts, "freshness_ts", None),
+        "risk_flags": risk_flags,
     }
 
 
@@ -1593,6 +1612,8 @@ async def chat(request: ChatRequest):
     t0 = time.time()
     facts, intent, ui_actions, digital_twin_state, reasoning_trace = _gather_facts(user_query, context, intent)
     logger.info(f"[Chat] UI actions for query '{user_query[:50]}...': {ui_actions}")
+    if ui_actions:
+        logger.info(f"[Chat] UI actions detail: {[a.get('action') for a in ui_actions]}")
     fact_time = time.time() - t0
 
     # 2b. Handle special intents (REPORT, CREDITS, DOWNLOAD, MAP_CONTROL, UI_ACTION)
@@ -1622,7 +1643,7 @@ async def chat(request: ChatRequest):
         if not _ollama_breaker.can_execute():
             raise CircuitBreakerOpen("Ollama circuit is OPEN — skipping LLM call")
         client = _get_ollama_client_for_model(user_model) if user_model else _get_ollama_client()
-        raw = await client.chat(messages=messages, temperature=0.5, max_tokens=800)
+        raw = await client.chat(messages=messages, temperature=0.5, max_tokens=4096)
         ai_message, chain_of_thought = _strip_thinking_tags(raw or "")
         _ollama_breaker.record_success()
     except CircuitBreakerOpen:
@@ -1832,7 +1853,15 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                     yield _sse({"type": "intent_detected", "intent": intent.value, "confidence": 0.92, "task_graph": None, "semantic_cache": True})
                     yield _sse({"type": "content", "content": semantic_cache_hit.get("message", ""), "thinking_time": time.time() - start_time})
                     if semantic_cache_hit.get("dashboard"):
-                        yield _sse({"type": "metadata", "ui_actions": semantic_cache_hit.get("ui_actions", []), "intent": intent.value, "dashboard": semantic_cache_hit["dashboard"], "facts": semantic_cache_hit.get("facts")})
+                        yield _sse({
+                            "type": "metadata",
+                            "ui_actions": semantic_cache_hit.get("ui_actions", []),
+                            "intent": intent.value,
+                            "dashboard": semantic_cache_hit["dashboard"],
+                            "facts": semantic_cache_hit.get("facts"),
+                            "simulation": semantic_cache_hit.get("simulation"),
+                            "digital_twin_state": semantic_cache_hit.get("digital_twin_state"),
+                        })
                     yield _sse({"type": "done", "thinking_time": time.time() - start_time, "cached": True, "semantic_cache": True})
                     return
             except Exception as e:
@@ -1849,7 +1878,15 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             yield _sse({"type": "intent_detected", "intent": intent.value, "confidence": 0.85, "task_graph": None})
             yield _sse({"type": "content", "content": cached_resp["message"], "thinking_time": time.time() - start_time})
             if cached_resp.get("dashboard"):
-                yield _sse({"type": "metadata", "ui_actions": cached_resp.get("ui_actions", []), "intent": intent.value, "dashboard": cached_resp["dashboard"], "facts": cached_resp.get("facts")})
+                yield _sse({
+                    "type": "metadata",
+                    "ui_actions": cached_resp.get("ui_actions", []),
+                    "intent": intent.value,
+                    "dashboard": cached_resp["dashboard"],
+                    "facts": cached_resp.get("facts"),
+                    "simulation": cached_resp.get("simulation"),
+                    "digital_twin_state": cached_resp.get("digital_twin_state"),
+                })
             yield _sse({"type": "done", "thinking_time": time.time() - start_time, "cached": True})
             return
 
@@ -1991,6 +2028,113 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             return
         metrics["facts_ms"] = int((time.time() - t_facts) * 1000)
 
+        # Handle special intents in streaming path (parity with non-stream endpoint)
+        special_response = _handle_special_intents(intent, effective_query, facts, user_id, thread_id, request)
+        if special_response:
+            special_ui_actions = special_response.get("ui_actions", []) or []
+            if special_ui_actions:
+                yield _sse({
+                    "type": "ui_actions_early",
+                    "ui_actions": special_ui_actions,
+                    "intent": special_response.get("intent", intent.value),
+                    "thinking_time": time.time() - start_time,
+                })
+
+            for idx, task in enumerate(tasks):
+                if task.get("status") != "complete":
+                    task["status"] = "complete"
+                    yield _sse({
+                        "type": "task_completed",
+                        "task_id": task["id"],
+                        "task_name": task["label"],
+                        "summary": f"Completed: {task['label']}",
+                        "duration_ms": int((time.time() - start_time) * 1000),
+                        "progress": f"{idx + 1}/{total_tasks}",
+                    })
+
+            yield _sse({"type": "thinking_end", "thinking_time": time.time() - start_time})
+            yield _sse({
+                "type": "content",
+                "content": special_response.get("message", ""),
+                "thinking_time": time.time() - start_time,
+            })
+            yield _sse({
+                "type": "metadata",
+                "ui_actions": special_ui_actions,
+                "intent": special_response.get("intent", intent.value),
+                "dashboard": special_response.get("dashboard"),
+                "facts": special_response.get("facts") or _build_facts_data(facts),
+                "simulation": special_response.get("simulation") or facts.simulation_results,
+                "digital_twin_state": special_response.get("digital_twin_state") or digital_twin_state,
+            })
+
+            total_time = time.time() - start_time
+            metrics["total_ms"] = int(total_time * 1000)
+            metrics["model"] = "special_intent_handler"
+            metrics["provider"] = "internal"
+            metrics["escalated"] = False
+            yield _sse({"type": "pipeline_metrics", "metrics": metrics})
+            yield _sse({
+                "type": "done",
+                "thinking_time": total_time,
+                "full_response": special_response.get("message", ""),
+            })
+            return
+
+        # Keep tiered options behavior aligned between stream and non-stream routes.
+        tiered_response = _generate_tiered_options_response(effective_query, facts, user_id, intent, context)
+        if tiered_response:
+            _store_conversation_turn(thread_id, request.messages[-1].content, tiered_response["message"], intent="analysis_options")
+            tiered_ui_actions = tiered_response.get("ui_actions", []) or []
+            if tiered_ui_actions:
+                yield _sse({
+                    "type": "ui_actions_early",
+                    "ui_actions": tiered_ui_actions,
+                    "intent": tiered_response.get("intent", "analysis_options"),
+                    "thinking_time": time.time() - start_time,
+                })
+
+            for idx, task in enumerate(tasks):
+                if task.get("status") != "complete":
+                    task["status"] = "complete"
+                    yield _sse({
+                        "type": "task_completed",
+                        "task_id": task["id"],
+                        "task_name": task["label"],
+                        "summary": f"Completed: {task['label']}",
+                        "duration_ms": int((time.time() - start_time) * 1000),
+                        "progress": f"{idx + 1}/{total_tasks}",
+                    })
+
+            yield _sse({"type": "thinking_end", "thinking_time": time.time() - start_time})
+            yield _sse({
+                "type": "content",
+                "content": tiered_response.get("message", ""),
+                "thinking_time": time.time() - start_time,
+            })
+            yield _sse({
+                "type": "metadata",
+                "ui_actions": tiered_ui_actions,
+                "intent": tiered_response.get("intent", "analysis_options"),
+                "dashboard": tiered_response.get("dashboard"),
+                "facts": tiered_response.get("facts") or _build_facts_data(facts),
+                "simulation": tiered_response.get("simulation") or facts.simulation_results,
+                "digital_twin_state": tiered_response.get("digital_twin_state") or digital_twin_state,
+            })
+
+            total_time = time.time() - start_time
+            metrics["total_ms"] = int(total_time * 1000)
+            metrics["model"] = "tiered_options_handler"
+            metrics["provider"] = "internal"
+            metrics["escalated"] = False
+            yield _sse({"type": "pipeline_metrics", "metrics": metrics})
+            yield _sse({
+                "type": "done",
+                "thinking_time": total_time,
+                "full_response": tiered_response.get("message", ""),
+            })
+            return
+
         # IMMEDIATELY emit UI actions (flyTo, load_buildings) so map moves BEFORE LLM processing
         # This ensures user sees the location first, then the response streams in
         if ui_actions:
@@ -2048,9 +2192,13 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         llm_cfg = context.get("llm_config", {})
         cloud_enabled = llm_cfg.get("cloud_enabled", False)
         user_selected_model = llm_cfg.get("local_model")  # User's dropdown choice
+        
+        # DEBUG: Log user's model selection
+        logger.info(f"[ChatStream] User selected model: {user_selected_model}, cloud_enabled: {cloud_enabled}")
 
         # When cloud is OFF, only offer local models to the router
         all_models = await _fetch_available_models()
+        logger.info(f"[ChatStream] Available models: {all_models[:5]}... (total: {len(all_models)})")
         if cloud_enabled:
             available_models = all_models
         else:
@@ -2374,6 +2522,8 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             "intent": intent.value,
             "dashboard": resp_dashboard,
             "facts": facts_data,
+            "simulation": facts.simulation_results,
+            "digital_twin_state": digital_twin_state,
             "verification": verification,
         })
 
@@ -2387,6 +2537,8 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                     "dashboard": resp_dashboard,
                     "ui_actions": ui_actions or [],
                     "facts": facts_data,
+                    "simulation": facts.simulation_results,
+                    "digital_twin_state": digital_twin_state,
                     "verification": verification,
                 }
                 _chat_cache.set(effective_query, cache_response, namespace=f"intent={intent.value}")

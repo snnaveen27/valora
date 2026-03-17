@@ -37,6 +37,7 @@ import {
 } from './ChatSessionManager'
 import { getDefaultWelcomeMessage, getDynamicWelcomeTitle, getDynamicWelcomeSubtitle, getClosingMessage } from './ChatConfig'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useLocation } from '../../contexts/LocationContext'
 
 import { API_URL } from '../../apiConfig'
 
@@ -178,6 +179,9 @@ export default function EnhancedChatPanel({
   // Get translation function and language setter
   const { t, language, setLanguage } = useLanguage()
   
+  // Get unified location from context
+  const { location: contextLocation, coordinates, locality, place } = useLocation()
+  
   // AI Thinking state - query-driven intelligent tasks
   const [currentQuery, setCurrentQuery] = useState('')
   const [streamingData, setStreamingData] = useState(null)
@@ -201,10 +205,10 @@ export default function EnhancedChatPanel({
   // LLM config — model selection is now automated based on query complexity
   const [llmConfig, setLlmConfig] = useState({
     provider: 'ollama',
-    local_model: 'valora-2025v1', // Use available model
+    local_model: 'valora-ai-mini', // Use available model
     cloud_enabled: true, // Always enabled - router decides based on complexity
   })
-  
+
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const userScrolledRef = useRef(false)
@@ -389,13 +393,14 @@ export default function EnhancedChatPanel({
           setLlmConfig(prev => ({
             ...prev,
             provider: 'ollama',
-            local_model: savedModel || data.local_model || 'valora-2025v1',
+            local_model: savedModel || data.local_model || 'valora-ai-mini',
           }))
         }
       } catch {}
     }
     loadConfig()
   }, [])
+
   
   // Smart auto-scroll with throttling to prevent flickering
   useEffect(() => {
@@ -911,23 +916,35 @@ export default function EnhancedChatPanel({
       : null
     const skipFlyTo = clickedCoordinates ? true : false
     
+    // Use unified location from context as primary source, fallback to agentData
+    const unifiedLocation = contextLocation || {}
+    const unifiedCoords = coordinates || {}
+    
     return {
       user_id: userId,
       thread_id: currentSession?.id || null,
       selectedBuilding: agentData?.selectedBuilding || null,
       selectedLocation: clickedCoordinates || agentData?.selectedLocation || null,
       selectedPlace: agentData?.selectedPlace || null,
-      mapCenter: agentData?.mapCenter || null,
+      mapCenter: unifiedCoords || agentData?.mapCenter || null,
       viewportBounds: agentData?.viewportBounds || null,
       viewportAnalysis: agentData?.viewportAnalysis || null,
       currentAnalysis: {
-        areaName: agentData?.viewportAnalysis?.area_name,
+        areaName: locality || agentData?.viewportAnalysis?.area_name || agentData?.explainability?.locality?.name,
         market: agentData?.viewportAnalysis?.market,
         spatial: agentData?.viewportAnalysis?.spatial,
       },
       explainability: agentData?.explainability || null,
       simulation: agentData?.simulation || null,
-      userLocation: userLocation ? { lat: userLocation.lat, lng: userLocation.lng, label: locationLabel } : null,
+      // Use unified location for user location
+      userLocation: (unifiedCoords?.lat && unifiedCoords?.lng) 
+        ? { lat: unifiedCoords.lat, lng: unifiedCoords.lng, label: place || locality } 
+        : (userLocation ? { lat: userLocation.lat, lng: userLocation.lng, label: locationLabel } : null),
+      unifiedLocation: {
+        coordinates: unifiedCoords,
+        locality,
+        place
+      },
       image: attachedImages?.length > 0 ? attachedImages : null,
       llm_config: {
         provider: llmConfig.provider || 'ollama',
@@ -942,7 +959,7 @@ export default function EnhancedChatPanel({
       // Add user preferences for personalized responses
       user_preferences: userPreferences
     }
-  }, [userId, currentSession?.id, agentData, userLocation, locationLabel, attachedImages, llmConfig, language, userPreferences])
+  }, [userId, currentSession?.id, agentData, userLocation, locationLabel, attachedImages, llmConfig, language, userPreferences, contextLocation, coordinates, locality, place])
   
   // Streaming chat with abort support
   const callAIStreaming = useCallback(async (userMessage, onThinking, onContent, onComplete, signal) => {
@@ -1205,7 +1222,6 @@ export default function EnhancedChatPanel({
             case 'ui_actions_early':
               // EARLY UI actions - dispatch immediately so map moves BEFORE LLM response
               // This is the ONLY place UI actions are processed during streaming
-              console.log('[ChatPanel] 🚀 Received EARLY UI actions:', data.ui_actions)
               if (data.ui_actions && setAgentData) {
                 capturedUIActions = data.ui_actions
                 uiActionsProcessed = true // Mark as processed to avoid duplicate handling
@@ -1214,10 +1230,8 @@ export default function EnhancedChatPanel({
                     // Check if we should skip flyTo (user clicked on map, camera already there)
                     const skipInfo = window._valoraSkipFlyTo
                     if (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) {
-                      console.log('[ChatPanel] 🚫 Skipping flyTo entirely - user clicked on map, camera already at location')
                       // Don't set flyTo at all - the map click handler already moved the camera
                     } else {
-                      console.log('[ChatPanel]  EARLY flyTo:', { lat: action.lat, lng: action.lng, zoom: action.zoom })
                       setAgentData(prev => ({ ...prev, flyTo: { lat: action.lat, lng: action.lng, zoom: action.zoom || 18 } }))
                     }
                   }
@@ -1225,16 +1239,14 @@ export default function EnhancedChatPanel({
                     // Only load buildings for query-based flow (not when user clicked on map)
                     // Map click handler already loads buildings at clicked coordinates
                     const skipInfo = window._valoraSkipFlyTo
-                    if (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) {
-                      console.log('[ChatPanel] 🚫 Skipping load_buildings - user clicked on map, buildings already loaded by click handler')
-                    } else {
-                      console.log('[ChatPanel] 📤 EARLY load_buildings (query-based):', { lat: action.lat, lng: action.lng, radius_km: action.radius_km || 2 })
+                    if (!(skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000)) {
                       window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
                         detail: { lat: action.lat, lng: action.lng, radius_km: action.radius_km || 2 }
                       }))
                     }
                   }
                   if (['switchTab', 'openPanel', 'closePanel', 'highlightProperties'].includes(action.action)) {
+                    console.log('[ChatPanel] Dispatching:', action.action, action.properties?.length)
                     window.dispatchEvent(new CustomEvent('valora-ui-command', { detail: action }))
                   }
                   // Handle tiered_options UI action - display analysis options
@@ -1253,11 +1265,9 @@ export default function EnhancedChatPanel({
               break
             case 'metadata':
               // Capture ui_actions, intent, dashboard, and facts for map/panel integration
-              console.log('[ChatPanel] 📨 Received metadata:', { ui_actions_count: data.ui_actions?.length, intent: data.intent })
               // Only capture ui_actions if not already processed (fallback for non-early flow)
               if (data.ui_actions && !uiActionsProcessed) {
                 capturedUIActions = data.ui_actions
-                console.log('[ChatPanel] 📋 capturedUIActions (fallback):', capturedUIActions)
               }
               if (data.intent) capturedIntent = data.intent
               
@@ -1304,10 +1314,8 @@ export default function EnhancedChatPanel({
               // Note: load_buildings is only handled in early handler for query-based loading
               // Map click handler handles click-based building loading
               if (!uiActionsProcessed && setAgentData && capturedUIActions.length > 0) {
-                console.log('[ChatPanel] 📋 Processing UI actions (fallback in done handler):', capturedUIActions)
                 for (const action of capturedUIActions) {
                   if (action.action === 'flyTo' && action.lat != null && action.lng != null) {
-                    console.log('[ChatPanel] 📤 Dispatching flyTo:', { lat: action.lat, lng: action.lng, zoom: action.zoom })
                     setAgentData(prev => ({ ...prev, flyTo: { lat: action.lat, lng: action.lng, zoom: action.zoom || 18 } }))
                   }
                   // load_buildings removed from fallback - only early handler processes it for query-based loading
@@ -1406,20 +1414,15 @@ export default function EnhancedChatPanel({
         
         // Dispatch UI commands
         if (Array.isArray(data?.ui_actions)) {
-          console.log('[ChatPanel] 📋 Processing UI actions (non-streaming):', data.ui_actions)
           for (const a of data.ui_actions) {
             if (a.action === 'flyTo' && a.lat != null && a.lng != null) {
-              console.log('[ChatPanel] 📤 Dispatching flyTo (non-streaming):', { lat: a.lat, lng: a.lng, zoom: a.zoom })
               setAgentData(prev => ({ ...prev, flyTo: { lat: a.lat, lng: a.lng, zoom: a.zoom || 18 } }))
             }
             if (a.action === 'load_buildings' && a.lat != null && a.lng != null) {
               // Only load buildings for query-based flow (not when user clicked on map)
               // Map click handler already loads buildings at clicked coordinates
               const skipInfo = window._valoraSkipFlyTo
-              if (skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000) {
-                console.log('[ChatPanel] 🚫 Skipping load_buildings (non-streaming) - user clicked on map, buildings already loaded by click handler')
-              } else {
-                console.log('[ChatPanel] 📤 NON-STREAMING load_buildings (query-based):', { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 2 })
+              if (!(skipInfo?.skip && (Date.now() - skipInfo.timestamp) < 30000)) {
                 window.dispatchEvent(new CustomEvent('valora-load-buildings', { 
                   detail: { lat: a.lat, lng: a.lng, radius_km: a.radius_km || 2 }
                 }))
@@ -1484,7 +1487,8 @@ export default function EnhancedChatPanel({
     if (!userMessage || isLoading) return
 
     // Fast-path for explicit automation commands routed to Digital Employee APIs.
-    const isAutomationCommand = /^(alert|alert me|schedule|weekly report|add lead|new lead|add a lead)/i.test(userMessage.trim())
+    const automationCommandPattern = /^(?:alert|alert me|set up alert|set up a property alert|setup alert|create alert|notify me|track price changes|track this property|track new launches|schedule|weekly report|daily market summary|monthly investment report|remind me|monitor price trends|track inventory levels|monitor rental yields|add lead|new lead|add a lead|create lead|show my active alerts|show my alerts|delete alert|pause all my alerts|show my leads|update lead status|add notes? to this lead|convert lead to deal|show my scheduled tasks|what tasks do i have today|show (?:my )?pending follow-ups|show recent activity|send weekly market report|schedule email)/i
+    const isAutomationCommand = automationCommandPattern.test(userMessage.trim())
     if (isAutomationCommand) {
       try {
         if (!authToken) {
@@ -1504,18 +1508,31 @@ export default function EnhancedChatPanel({
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`
           },
-          body: JSON.stringify({ command: userMessage })
+          body: JSON.stringify({
+            command: userMessage
+          })
         })
 
         const cmdData = await cmdResp.json().catch(() => ({}))
         if (cmdResp.ok && cmdData?.handled) {
+          const runtime = cmdData?.runtime || {}
+          const latencyMs = cmdData?.latency_ms || 0
+          const latencyTag = latencyMs > 0 ? ` • ${latencyMs}ms` : ''
+          const runtimeNote = `\n\n🔧 Runtime: Native${latencyTag}`
           if (!skipUserMessage) addMessage({ role: 'user', content: userMessage })
           addMessage({
             role: 'assistant',
             content: cmdData.executed
-              ? `✅ ${cmdData.summary || 'Automation command executed.'}`
-              : `⚠️ ${cmdData.reason || 'Command recognized but could not be executed.'}`,
-            intent: 'digital_employee_command'
+              ? `✅ ${cmdData.summary || 'Automation command executed.'}${runtimeNote}`
+              : `⚠️ ${cmdData.reason || 'Command recognized but could not be executed.'}${runtimeNote}`,
+            intent: 'digital_employee_command',
+            runtimeMeta: {
+              requested: runtime.requested,
+              selected: runtime.selected,
+              fallback_used: runtime.fallback_used,
+              reason: runtime.reason,
+              latency_ms: latencyMs,
+            }
           })
           window.dispatchEvent(new CustomEvent('valora-ui-command', {
             detail: { action: 'switchTab', value: 'agent_control' }
@@ -2070,7 +2087,21 @@ export default function EnhancedChatPanel({
     })
     setActiveTabId(newSession.id)
     setCurrentSession(newSession)
-  }, [])
+    
+    // Clear analysis data for new chat
+    if (setAgentData) {
+      setAgentData(prev => ({
+        ...prev,
+        buildingAnalysis: null,
+        locationAnalysis: null,
+        viewportAnalysis: null,
+        polygonAnalysis: null,
+        bufferAnalysis: null,
+        explainability: null,
+        simulation: null
+      }))
+    }
+  }, [createNewSession, setAgentData])
   
   // Open session in tab
   const handleOpenInTab = useCallback((sessionId) => {
@@ -2135,7 +2166,21 @@ export default function EnhancedChatPanel({
     setCurrentSession(clearedSession)
     saveSession(clearedSession)
     setSessions(prev => prev.map(s => s.id === clearedSession.id ? clearedSession : s))
-  }, [currentSession, t])
+    
+    // Clear analysis data
+    if (setAgentData) {
+      setAgentData(prev => ({
+        ...prev,
+        buildingAnalysis: null,
+        locationAnalysis: null,
+        viewportAnalysis: null,
+        polygonAnalysis: null,
+        bufferAnalysis: null,
+        explainability: null,
+        simulation: null
+      }))
+    }
+  }, [currentSession, t, setAgentData])
   
   const handleSelectSession = useCallback((sessionId) => {
     // Open in tab instead of just selecting
@@ -2153,8 +2198,22 @@ export default function EnhancedChatPanel({
       } else {
         handleNewChat()
       }
+      
+      // Clear analysis data when deleting the current session
+      if (setAgentData) {
+        setAgentData(prev => ({
+          ...prev,
+          buildingAnalysis: null,
+          locationAnalysis: null,
+          viewportAnalysis: null,
+          polygonAnalysis: null,
+          bufferAnalysis: null,
+          explainability: null,
+          simulation: null
+        }))
+      }
     }
-  }, [currentSession, handleNewChat])
+  }, [currentSession, handleNewChat, setAgentData])
   
   const handleDeleteAllSessions = useCallback(() => {
     // Clear all sessions from localStorage
@@ -2173,7 +2232,20 @@ export default function EnhancedChatPanel({
     setOpenTabs([newSession.id])
     setActiveTabId(newSession.id)
     saveSession(newSession)
-  }, [])
+    
+    // Clear all analysis data
+    if (setAgentData) {
+      setAgentData({
+        buildingAnalysis: null,
+        locationAnalysis: null,
+        viewportAnalysis: null,
+        polygonAnalysis: null,
+        bufferAnalysis: null,
+        explainability: null,
+        simulation: null
+      })
+    }
+  }, [createNewSession, setAgentData])
   
   const handleRenameSession = useCallback((sessionId, newTitle) => {
     setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, title: newTitle } : s))

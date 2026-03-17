@@ -36,33 +36,36 @@ const TaskIcon = ({ taskType, status }) => {
 
 // Convert technical task to user-friendly description
 const getUserFriendlyLabel = (task, t) => {
+  // Guard: ensure t is a function
+  const translate = typeof t === 'function' ? t : ((key) => key);
+  
   const label = task.label || task.description || ''
   const action = task.action?.toLowerCase() || ''
   const entity = task.entity?.toLowerCase() || ''
   
   // User-friendly action mappings (with translations)
   const actionLabels = {
-    'geocode': t('locating'),
-    'flyto': t('navigatingTo'),
-    'orbit': t('exploring'),
-    'spatialquery': t('searching'),
-    'areametrics': t('analyzing'),
-    'routeanalysis': t('calculatingRoute'),
-    'terrainanalysis': t('analyzingTerrain'),
-    'skyviewanalysis': t('analyzingViews'),
-    'parse': t('understanding'),
-    'compare': t('comparing'),
-    'analyze': t('analyzing'),
-    'summarize': t('summarizing'),
-    'explain': t('explaining'),
-    'simulate': t('simulating'),
-    'getpropertydetails': t('fetchingProperty'),
-    'getmarketdata': t('gettingMarketData'),
-    'gethistoricaldata': t('fetchingHistory'),
-    'getpoidata': t('findingAmenities'),
-    'markproperties': t('displayingResults'),
-    'drawroute': t('drawingRoute'),
-    'drawcircle': t('drawingArea')
+    'geocode': translate('locating'),
+    'flyto': translate('navigatingTo'),
+    'orbit': translate('exploring'),
+    'spatialquery': translate('searching'),
+    'areametrics': translate('analyzing'),
+    'routeanalysis': translate('calculatingRoute'),
+    'terrainanalysis': translate('analyzingTerrain'),
+    'skyviewanalysis': translate('analyzingViews'),
+    'parse': translate('understanding'),
+    'compare': translate('comparing'),
+    'analyze': translate('analyzing'),
+    'summarize': translate('summarizing'),
+    'explain': translate('explaining'),
+    'simulate': translate('simulating'),
+    'getpropertydetails': translate('fetchingProperty'),
+    'getmarketdata': translate('gettingMarketData'),
+    'gethistoricaldata': translate('fetchingHistory'),
+    'getpoidata': translate('findingAmenities'),
+    'markproperties': translate('displayingResults'),
+    'drawroute': translate('drawingRoute'),
+    'drawcircle': translate('drawingArea')
   }
   
   // If we have a good label, use it
@@ -79,14 +82,17 @@ const getUserFriendlyLabel = (task, t) => {
 
 // Get phase description for user
 const getPhaseDescription = (phase, task, t) => {
+  // Guard: ensure t is a function
+  const translate = typeof t === 'function' ? t : ((key) => key);
+  
   const phases = {
-    'understanding': t('understandingYourRequest'),
-    'planning': t('planningTheAnalysis'),
-    'executing': task ? `${t('processing')}: ${task}` : t('processing'),
-    'finalizing': t('finalizingResults'),
-    'complete': t('done')
+    'understanding': translate('understandingYourRequest'),
+    'planning': translate('planningTheAnalysis'),
+    'executing': task ? `${translate('processing')}: ${task}` : translate('processing'),
+    'finalizing': translate('finalizingResults'),
+    'complete': translate('done')
   }
-  return phases[phase] || t('processing')
+  return phases[phase] || translate('processing')
 }
 
 export default function TopTaskBanner({
@@ -110,6 +116,9 @@ export default function TopTaskBanner({
 
   useEffect(() => {
     if (!streamingData) return
+    
+    // Guard: ensure t is a function
+    if (typeof t !== 'function') return
     
     const type = streamingData.type
     

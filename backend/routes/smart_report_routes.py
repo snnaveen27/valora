@@ -618,7 +618,7 @@ async def generate_comparables(
 ) -> Dict[str, Any]:
     """Generate comparable properties analysis"""
     
-    properties = await db_service.get_nearby_properties(lat, lng, radius=3000, limit=10) if db_service else []
+    properties = db_service.get_nearby_properties(lat, lng, radius=3000, limit=10) if db_service else []
     
     if properties:
         comparables = []
@@ -1590,7 +1590,7 @@ Format the report professionally with clear sections and actionable insights.
         response = await model_router.generate(
             prompt=prompt,
             model_type='reasoning',
-            max_tokens=2000
+            max_tokens=4096
         )
         
         report_text = response.get('text', str(report_data))

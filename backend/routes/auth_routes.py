@@ -284,6 +284,8 @@ async def update_me(
         updates["company"] = request.company
     if request.phone is not None:
         updates["phone"] = request.phone
+    if request.job_role is not None:
+        updates["job_role"] = request.job_role
     
     if updates:
         db.update_user(user.id, **updates)

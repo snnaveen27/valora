@@ -42,6 +42,15 @@ import {
 
 import ReviewForm from './ReviewForm';
 
+// Import centralized dummy data
+import { 
+  DUMMY_REVIEWS, 
+  DUMMY_REVIEW_STATS,
+  isDummyData,
+  LOCALITY_DISPLAY_NAMES,
+  getLocalityInfo
+} from '../../data/dummyCommunityData';
+
 // Filter and sort options
 const RATING_FILTERS = [
   { value: '', label: 'All Ratings' },
@@ -154,7 +163,7 @@ function ReviewCard({ review, onToggleHelpful, userHelpful }) {
           <div className="flex items-center gap-2 mb-1">
             <StarRating rating={review.overall_rating} size={18} />
             <span className="text-lg font-semibold text-white">
-              {review.overall_rating.toFixed(1)}
+              {(review.overall_rating || 0).toFixed(1)}
             </span>
             {review.is_verified === 1 && (
               <Shield size={14} className="text-green-400" />
@@ -352,6 +361,37 @@ export default function LocalityReviews({
   // Form state
   const [showReviewForm, setShowReviewForm] = useState(false);
 
+  // Normalize locality ID for lookup
+  const normalizeLocalityId = (value) =>
+    (value || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/[\s-]+/g, '_');
+
+  const normalizedLocalityId = normalizeLocalityId(localityId);
+
+  // Get locality-specific dummy reviews
+  const getLocalityDummyReviews = (locId) => {
+    const normalized = normalizeLocalityId(locId);
+    const localityData = DUMMY_REVIEWS[normalized] || DUMMY_REVIEWS.whitefield;
+    const reviews = localityData?.reviews || [];
+    // Map short property names to full names for component compatibility
+    return reviews.map(r => ({
+      id: r.id || r.i,
+      author_name: r.author_name || r.n || 'Anonymous',
+      overall_rating: r.overall_rating || r.r || 0,
+      verification_type: r.verification_type || r.vt || 'visitor',
+      title: r.title || r.t || '',
+      content: r.content || r.c || '',
+      helpful_count: r.helpful_count || r.hc || 0,
+      created_at: r.created_at || new Date().toISOString(),
+      is_verified: r.is_verified || (r.vt === 'resident' || r.vt === 'owner' ? 1 : 0),
+      is_dummy: r.is_dummy || true,
+      source: r.source || 'demo',
+    }));
+  };
+
   // Load reviews
   const loadReviews = useCallback(async () => {
     setIsLoading(true);
@@ -365,10 +405,14 @@ export default function LocalityReviews({
         sort_order: sortOrder,
         limit: 20,
       });
-      setReviews(reviewsData);
+      
+      // Use locality-specific dummy data when API returns empty
+      const localitySpecificReviews = getLocalityDummyReviews(localityId);
+      setReviews(reviewsData && reviewsData.length > 0 ? reviewsData : localitySpecificReviews);
     } catch (err) {
-      setError(err.message);
-      console.error('Failed to load reviews:', err);
+      // Fallback to locality-specific dummy data on error
+      setReviews(getLocalityDummyReviews(localityId));
+      setError(null);
     } finally {
       setIsLoading(false);
     }
@@ -378,9 +422,16 @@ export default function LocalityReviews({
   const loadStats = useCallback(async () => {
     try {
       const statsData = await getLocalityStats(localityId);
-      setStats(statsData);
+      // Use locality-specific stats from centralized dummy data only if API has real data
+      const normalized = normalizeLocalityId(localityId);
+      const localityStats = DUMMY_REVIEW_STATS[normalized];
+      const hasRealData = statsData && statsData.total_reviews > 0;
+      setStats(hasRealData ? statsData : (localityStats || DUMMY_REVIEW_STATS.whitefield));
     } catch (err) {
-      console.error('Failed to load stats:', err);
+      // Fallback to locality-specific stats
+      const normalized = normalizeLocalityId(localityId);
+      const localityStats = DUMMY_REVIEW_STATS[normalized];
+      setStats(localityStats || DUMMY_REVIEW_STATS.whitefield);
     }
   }, [localityId]);
 

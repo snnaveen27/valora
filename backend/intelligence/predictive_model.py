@@ -101,8 +101,8 @@ class PredictiveModel:
         """Initialize database connection."""
         try:
             from database.db_service import DatabaseService
-            db_path = Path(__file__).parent / 'database' / '..' / '..' / 'storage' / 'valora.db'
-            self.db_service = DatabaseService(str(db_path.resolve()))
+            from backend.config import config
+            self.db_service = DatabaseService(str(config.DB_PATH))
         except Exception as e:
             print(f"[PredictiveModel] Database init error: {e}")
     

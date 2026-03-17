@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Bot, Bell, CalendarClock, Users, Activity, Plus, Trash2, RefreshCw } from 'lucide-react'
+import { Bot, Bell, CalendarClock, Users, Activity, Plus, Trash2, RefreshCw, Send, Check, X, Zap, ChevronRight } from 'lucide-react'
 import { API_URL } from '../apiConfig'
 
 const DAY_OPTIONS = [
@@ -48,6 +48,7 @@ export default function AgentControlPanel({ userTier = 'free', authToken = null 
   const [tasks, setTasks] = useState([])
   const [leads, setLeads] = useState([])
   const [activity, setActivity] = useState([])
+  const [socialDrafts, setSocialDrafts] = useState([])
 
   const [alertForm, setAlertForm] = useState({
     name: '',
@@ -90,18 +91,20 @@ export default function AgentControlPanel({ userTier = 'free', authToken = null 
     setLoading(true)
     setError('')
     try {
-      const [summaryRes, alertsRes, tasksRes, leadsRes, activityRes] = await Promise.all([
+      const [summaryRes, alertsRes, tasksRes, leadsRes, activityRes, draftsRes] = await Promise.all([
         fetchJson('/api/digital-employee/summary'),
         fetchJson('/api/digital-employee/alerts'),
         fetchJson('/api/digital-employee/scheduled-tasks'),
         fetchJson('/api/digital-employee/leads?limit=50'),
-        fetchJson('/api/digital-employee/activity?limit=40')
+        fetchJson('/api/digital-employee/activity?limit=40'),
+        fetchJson('/api/digital-employee/social-messages/drafts')
       ])
       setSummary(summaryRes.summary || null)
       setAlerts(alertsRes.alerts || [])
       setTasks(tasksRes.tasks || [])
       setLeads(leadsRes.leads || [])
       setActivity(activityRes.activity || [])
+      setSocialDrafts(draftsRes.drafts || [])
     } catch (err) {
       setError(err.message || 'Failed to load digital employee data')
     } finally {
@@ -247,6 +250,28 @@ export default function AgentControlPanel({ userTier = 'free', authToken = null 
     }
   }
 
+  const handleConfirmDraft = async (draftId) => {
+    try {
+      await fetchJson(`/api/digital-employee/social-messages/drafts/${draftId}/confirm`, {
+        method: 'POST'
+      })
+      await loadAll()
+    } catch (err) {
+      setError(err.message || 'Failed to confirm draft')
+    }
+  }
+
+  const handleCancelDraft = async (draftId) => {
+    try {
+      await fetchJson(`/api/digital-employee/social-messages/drafts/${draftId}/cancel`, {
+        method: 'POST'
+      })
+      await loadAll()
+    } catch (err) {
+      setError(err.message || 'Failed to cancel draft')
+    }
+  }
+
   if (!authToken) {
     return (
       <div className="p-4 text-slate-300">
@@ -261,12 +286,21 @@ export default function AgentControlPanel({ userTier = 'free', authToken = null 
   return (
     <div className="p-3 space-y-3 text-xs text-slate-200">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bot className="w-4 h-4 text-cyan-400" />
-          <span className="font-semibold">Digital Employee</span>
-          <span className={`px-2 py-0.5 rounded-full ${isPro ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-600/30 text-slate-300'}`}>
-            {isPro ? 'PRO' : 'FREE'}
-          </span>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Bot className="w-4 h-4 text-cyan-400" />
+            <span className="font-semibold">Digital Employee</span>
+            <span className={`px-2 py-0.5 rounded-full ${isPro ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-600/30 text-slate-300'}`}>
+              {isPro ? 'PRO' : 'FREE'}
+            </span>
+          </div>
+          {summary?.runtime && (
+            <div className="flex items-center gap-2 text-[10px] font-medium mt-1">
+              <span className="px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400 border border-slate-600/30">
+                🔧 Native Runtime
+              </span>
+            </div>
+          )}
         </div>
         <button
           onClick={loadAll}
@@ -299,12 +333,61 @@ export default function AgentControlPanel({ userTier = 'free', authToken = null 
               Auto-run: {summary.policy?.auto_execute_tasks ? 'Yes' : 'Manual confirm'}
             </div>
           </div>
+          <div className="rounded bg-slate-800/60 border border-slate-700 p-2 border-amber-500/30 bg-amber-500/10">
+            <div className="flex items-center gap-1 text-amber-500"><Bell className="w-3 h-3" /> Actions</div>
+            <div className="text-sm font-semibold text-amber-200">{summary.counts?.pending_confirmations ?? 0}</div>
+            <div className="text-[10px] text-amber-400/70">Pending confirmations</div>
+          </div>
           <div className="rounded bg-slate-800/60 border border-slate-700 p-2">
             <div className="flex items-center gap-1 text-slate-400"><Users className="w-3 h-3" /> Leads</div>
             <div className="text-sm font-semibold">{summary.counts?.active_leads ?? 0}</div>
             <div className="text-[10px] text-slate-500">CRM pipeline</div>
           </div>
         </div>
+      )}
+
+      {/* Social Drafts Section (Needs Approval) */}
+      {socialDrafts.length > 0 && (
+        <section className="mb-4 rounded border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-transparent p-3 shadow-lg flex-none mt-2">
+          <h3 className="text-xs font-semibold text-amber-400 flex items-center gap-1.5 mb-2">
+            <Check className="w-3.5 h-3.5" /> Action Required: Social Media Drafts
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {socialDrafts.map(draft => (
+              <div key={draft.id} className="rounded bg-slate-900/80 border border-amber-500/20 p-2.5 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                    draft.platform === 'twitter' ? 'bg-sky-500/20 text-sky-400' :
+                    draft.platform === 'linkedin' ? 'bg-blue-600/20 text-blue-400' :
+                    'bg-slate-700 text-slate-300'
+                  }`}>
+                    {draft.platform}
+                  </span>
+                  <span className="text-[9px] text-slate-500">{formatTimestamp(draft.created_at)}</span>
+                </div>
+                
+                <div className="bg-slate-800/50 rounded p-2 text-xs text-slate-300 whitespace-pre-wrap border border-slate-700/50 max-h-32 overflow-y-auto">
+                  {draft.content}
+                </div>
+                
+                <div className="flex gap-1.5 mt-1">
+                  <button
+                    onClick={() => handleConfirmDraft(draft.id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded font-medium text-[10px] transition-colors"
+                  >
+                    <Send className="w-3 h-3" /> Approve & Post
+                  </button>
+                  <button
+                    onClick={() => handleCancelDraft(draft.id)}
+                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-red-400 hover:text-red-300 rounded font-medium text-[10px] transition-colors border border-slate-700"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">

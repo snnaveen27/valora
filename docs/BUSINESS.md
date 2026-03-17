@@ -1,190 +1,322 @@
-# Valora AI - Business & GTM
+# Valora AI - Bengaluru-First Business and Product Plan (Source of Truth)
 
-## Executive Summary
-
-**Valora AI** is an offline-first 3D GIS + AI reasoning platform for real estate intelligence.
-
-### Core Value Proposition
-- **Truth Firewall**: AI only narrates verified facts, never invents data
-- **Offline-First**: Runs locally with no internet dependency for core intelligence
-- **3D-Native**: Models view quality, shadows, skyline—not just 2D maps
-- **Explainable**: Every insight grounded in deterministic data
-
-### Market Opportunity
-- **Bengaluru**: 14.7M sq ft office absorption (2024), 47K housing sales
-- **Target**: 5% of 100K+ brokers, 20 top developers before Mumbai/NCR expansion
-- **Market**: $1 Trillion Indian real estate by 2030
+Updated: March 2026
+Audience: Operating team, seed investors, implementation planning
+Scope: Bengaluru-first execution with broker-led wedge and multi-segment expansion over 24 months
 
 ---
 
-## Customer Segments
+## 1. Executive Summary
 
-### Brokers & Agencies (B2B SaaS)
-**Package**: Valora Pro — Seat-based license
-- Shortlist areas and properties quickly
-- Explain "why this locality" with objective metrics
-- Standardized reports and WhatsApp-shareable summaries
+Valora is a self-learning GIS AI decision agent for real estate, starting in Bengaluru.
 
-### Developers & Builders (B2B Project-based)
-**Package**: Valora Developer Studio — Per project + quarterly retainer
-- Identify high-potential micro-markets
-- Run scenario-based impact narratives
-- 3D storytelling for sales & marketing
+Execution strategy:
+1. Win with broker productivity and explainable decision intelligence.
+2. Expand revenue with usage depth and digital workflows.
+3. Layer in developer pilots and institutional packaging after workflow traction.
 
-### Banks & Lenders (Enterprise)
-**Package**: Valora Enterprise — Annual license + SLA
-- Automated valuation support
-- Risk flags & locality intelligence
-- On-prem deployment option
+Commercial model:
+- Subscription + usage units + B2B pilots/retainers.
 
-### NRI / Remote Investors (Premium)
-**Package**: Valora Premium Reports — Per report / concierge
-- Remotely evaluate areas with confidence
-- Explainable shortlists + risk summaries
+Primary operating metric:
+- Weekly Active Workflow Users (WAWU).
 
 ---
 
-## Pricing Model
+## 2. Bengaluru Market Staging (Locked)
 
-### Usage-Based Units
+### 2.1 Phase-1 Coverage (Top 12 Micro-Markets)
+1. Whitefield
+2. Sarjapur Road
+3. Electronic City
+4. HSR Layout
+5. Koramangala
+6. Indiranagar
+7. Bellandur
+8. Marathahalli
+9. Hebbal
+10. Yelahanka
+11. JP Nagar
+12. Kanakapura Road
 
-| Action | Units | Regular Price | Launch Price (80% off) |
-|--------|-------|---------------|------------------------|
-| Chat Query | 1 | ₹10 | ₹2 |
-| Property Search | 2 | ₹20 | ₹4 |
-| Area Analysis | 3 | ₹30 | ₹6 |
-| Valuation | 10 | ₹100 | ₹20 |
-| Storyboard | 15 | ₹150 | ₹30 |
-| Report Export | 20 | ₹200 | ₹40 |
-| What-If Simulation | 25 | ₹250 | ₹50 |
-
-### Subscription Tiers
-
-| Tier | Units/Month | Regular Price | Launch Price |
-|------|---------------|---------------|--------------|
-| **Free** | 50 | ₹0 | ₹0 |
-| **Pro** | 1,000 | ₹2,999 | ₹599 |
-| **Team** | 3,000/seat | ₹4,999/seat | ₹999/seat |
-| **Enterprise** | Unlimited | Custom | Custom |
-
-### Top-Up Packs
-| Pack | Units | Launch Price |
-|------|-------|--------------|
-| Starter | 100 | ₹59 |
-| Standard | 300 | ₹139 |
-| Bulk | 1,000 | ₹399 |
-
-**Promo Code**: LAUNCH80 (valid until March 31, 2026)
+### 2.2 Expansion Rule
+- Months 0-6: serve only the top 12 with deep data QA and repeatable playbooks.
+- Months 6+: expand to broader Bengaluru corridors using two gates:
+  1. demand density,
+  2. data freshness and confidence score.
 
 ---
 
-## Digital Employee Monetization (Implemented)
+## 3. Product Thesis: All-Rounder GIS AI Agent
 
-Valora now includes a native digital employee layer (alerts + automations + lead CRM) inside the core product, not as a separate product line.
+### 3.1 Positioning
+- Valora is a self-learning GIS AI decision agent for high-stakes real-estate decisions.
+- It is not a listing portal and not a generic chatbot.
+- It combines grounded evidence, explainable reasoning, and recurring workflows.
 
-### Free vs Pro Packaging
+### 3.2 Core User Jobs
+1. Find and compare properties with verifiable locality context.
+2. Generate client-ready intelligence outputs (shortlist, report, simulation).
+3. Automate recurring work (alerts, reminders, lead follow-up).
+4. Learn preferences and improve recommendations over time.
 
-| Capability | Free | Pro |
-|------------|------|-----|
-| Active property alerts | Up to 3 | Unlimited |
-| Scheduled automations | Up to 5 | Unlimited |
-| Email automation | No | Yes |
-| Auto-execution | Manual confirmation default | Auto-execution allowed |
-| Lead manager | Basic | Full workflow |
-
-### Revenue Impact Thesis
-
-- Improves **Free → Pro conversion** by gating high-frequency automation and email delivery.
-- Improves **retention** because users rely on always-on workflows, not just ad hoc chats.
-- Increases **ARPU** by combining subscription value (automation) with usage-based analytics/reporting.
-
-### Build-vs-Buy Decision (OpenClaw)
-
-Current direction is to **extend Valora’s own architecture** rather than replacing the stack with OpenClaw:
-
-- Existing auth, tiering, credits, and GIS data pipelines are already productionized.
-- A separate agent runtime would duplicate orchestration, state, and observability.
-- In-product integration keeps lower operational complexity and better control over policy/security.
+### 3.3 Functional Modules (MVP to Scale)
+1. Search + Locality Intelligence
+2. Explainable Comparison + Risk
+3. Reports and Exports
+4. Digital Employee (alerts, tasks, leads)
+5. Learning Loop (feedback, pattern reinforcement)
+6. Monetization Layer (plans, usage, top-ups, B2B tracking)
 
 ---
 
-## Technology Differentiation
+## 4. Current Product and Data Reality (March 2026)
 
-| Feature | Generic PropTech | Valora AI |
-|--------|------------------|-----------|
-| Data Source | Scraped listings | Listings + 455K+ Gov/GIS datasets |
-| AI Reliability | Hallucinates numbers | Truth Firewall verified |
-| 3D Context | None or static | Volumetric 3D (shadows, views) |
-| Privacy | Cloud-only | Offline-First / On-Prem |
-| Logic | Text matching | Causal Reasoning (simulations) |
+### 4.1 Product Status
+- Grounded chat and report flows: active.
+- Spatial analysis stack (terrain, 3D, visibility, sunlight heuristics): active.
+- Digital employee workflows: active.
+- Credits/pricing system: active.
+- Payments: partially productionized (Stripe route exists; some demo/stub paths remain to harden).
 
----
-
-## Go-To-Market Strategy
-
-### Phase 1 (Months 1-6): Bengaluru Beachhead
-- Pilot 50 top brokers (East/South Bengaluru IT corridors)
-- Channel: Direct sales + Broker associations (BRAI)
-- Goal: 90%+ query success rate on core intents
-
-### Phase 2 (Months 7-12): Developer Partnerships
-- Deploy "Sales Office Twin" for 5 major launches
-- Prove simulation value prop
-- Quarterly retainer model validation
-
-### Phase 3 (Year 2): Pan-India Expansion
-- Replicate data pipeline for Mumbai and NCR
-- Multi-city schema already active
+### 4.2 Data Footprint (Local Snapshot)
+- Properties: 42,452
+- Buildings: 686,370
+- POIs: 26,961
+- Roads: 334,784
+- Transport stops: 5,384
+- Open datasets catalog: 455,066
 
 ---
 
-## Revenue Model Mechanics
+## 5. Planned Public Interfaces (App Design Spec)
 
-### Data Flywheel
-- Users pay for intelligence with compute units
-- Every query improves AI (anonymized data collection)
-- Training data exported in JSONL for ML improvement
+These are planned interfaces for implementation sequencing. They are not yet declared as production-stable APIs.
 
-### Security & Pricing Database
-- Pricing stored in SQLite (not JSON) with full audit trail
-- Admin authentication required for changes
-- Database ACLs, input validation, transaction logging
+### 5.1 API Additions
+1. `POST /api/agent/preferences/upsert`
+- Input: user preference profile (`budget`, `typology`, `commute`, `risk_tolerance`, `intent_horizon`)
+- Output: normalized preference state + `profile_version`
 
-### Integration
-- **Stripe**: For AI usage tracking, metered billing, LLM proxy
-- **Razorpay**: For subscriptions, UPI AutoPay, quantity billing
+2. `GET /api/agent/recommendations`
+- Input: `profile_version` + locality/property filters
+- Output: ranked explainable recommendations
 
----
+3. `POST /api/agent/feedback`
+- Input: `recommendation_id` + action (`save`, `reject`, `contacted`, `closed`) + optional reason
+- Output: `learning_event_id` + updated confidence metadata
 
-## Metrics & KPIs
+4. `GET /api/market/coverage`
+- Output: Bengaluru micro-market coverage status, freshness, and confidence band
 
-### North Star
-- Weekly Active Decision Sessions (WADS)
-- Shortlist-to-action conversion rate
+### 5.2 Planned Type Contracts
+1. `PreferenceProfile`
+- Fields: budget range, property type, commute preference, risk tolerance, time horizon, must-have filters
 
-### Product KPIs
-- Intent accuracy, tool success rate, median latency
-- % responses with grounded numeric facts
-- % users with active digital employee automations
-- Alert trigger-to-user-action conversion
-- Lead follow-up completion rate
+2. `RecommendationResult`
+- Fields: rank score, rationale, comparable localities/properties, projected fit
 
-### Business KPIs
-- Trial → paid conversion
-- Net Revenue Retention (NRR)
-- CAC, LTV/CAC ratio, payback period
+3. `LearningEvent`
+- Fields: event type, trigger action, model confidence delta, timestamp
 
----
+4. `CoverageStatus`
+- Fields: locality id/name, freshness timestamp, source count, confidence band
 
-## The Ask: $2M Seed
-
-**Allocation**:
-- 45% Engineering (Truth Firewall, Simulation Engine)
-- 30% Data Ops (Historical price data, GIS layers)
-- 25% GTM (1,000 paying brokers in Bengaluru)
-
-**Vision**: Become the City Operating System—starting with real estate intelligence, expanding to urban planning.
+### 5.3 Standard Metadata Fields
+- `confidence_score`
+- `evidence_sources`
+- `freshness_ts`
+- `risk_flags`
 
 ---
 
-*Unified: February 2026 (includes digital employee packaging and automation GTM)*
+## 6. ICP and Segment Sequence
+
+### 6.1 Primary ICP (Months 0-12)
+Brokers and small-to-mid agencies in Bengaluru top 12 micro-markets.
+
+Why primary:
+- Fastest cycle for activation and conversion.
+- Strong fit with digital employee workflows.
+- Higher repetition supports learning-loop quality.
+
+### 6.2 Secondary Segments
+1. Developers and builder sales teams (pilot to retainer motion)
+2. NRI and remote investors (report-led trust workflows)
+3. Institutional teams (later-stage explainability and deployment requirements)
+
+---
+
+## 7. Monetization Model and Packaging
+
+Monetization remains hybrid and phase-aware:
+1. Subscription MRR
+2. Usage monetization (units)
+3. B2B pilots and retainers
+
+### 7.1 Usage Unit Costs (Current Configuration)
+
+| Action | Units |
+|---|---:|
+| Chat Query | 1 |
+| Property Search | 2 |
+| Area Analysis | 3 |
+| Valuation | 10 |
+| Storyboard | 15 |
+| Report Export / PDF | 20 |
+| Simulation | 25 |
+
+### 7.2 Tier Packaging (Customer-Facing Baseline)
+
+| Tier | Units/Month | Launch Price | Regular Price |
+|---|---:|---:|---:|
+| Free | 50 | Rs 0 | Rs 0 |
+| Pro | 1,000 | Rs 599 | Rs 2,999 |
+
+Configured, rollout in progress:
+
+| Tier | Units/Month | Launch Price | Regular Price | Status |
+|---|---:|---:|---:|---|
+| Team | 3,000 | Rs 999 | Rs 4,999 | Configured, partial rollout |
+| Enterprise | Unlimited | Custom | Custom | Contract-led |
+
+### 7.3 Top-up Packs
+
+| Pack | Units | Launch Price | Regular Price |
+|---|---:|---:|---:|
+| Starter | 100 | Rs 59 | Rs 299 |
+| Standard | 300 | Rs 139 | Rs 699 |
+| Bulk | 1,000 | Rs 399 | Rs 1,999 |
+
+### 7.4 Phase-Specific Monetization Focus
+- Months 0-6: Free to Pro conversion + top-up behavior.
+- Months 6-12: Team adoption + workflow-linked upsell.
+- Months 12-18: developer pilot ACV expansion.
+- Months 18-24: institutional packaging and annual contracts.
+
+---
+
+## 8. KPI Framework and Operating Dashboard
+
+### 8.1 North-Star Metric
+- Weekly Active Workflow Users (WAWU)
+
+Definition:
+- Unique users who trigger at least one recurring workflow action in a week (alert create/update, scheduled task activity, lead workflow action, automation command execution).
+
+### 8.2 Supporting Metrics
+1. Free to Pro conversion rate
+2. Workflow activation rate (alerts/tasks/leads created)
+3. 4-week cohort retention
+4. Top-up attach rate
+5. Broker team expansion rate
+6. B2B pilot to retainer conversion
+
+### 8.3 Dashboard Views
+1. Acquisition and activation funnel
+2. WAWU trend by segment and micro-market
+3. Revenue mix (subscription vs usage vs B2B)
+4. Churn and retention by cohort
+5. Coverage confidence and data freshness view for top 12 micro-markets
+
+---
+
+## 9. 24-Month Product and GTM Roadmap (Locked)
+
+| Phase | Timeline | Product Priorities | GTM Priorities | Primary KPI | Key Risk |
+|---|---|---|---|---|---|
+| Phase 1 | Months 0-6 | Stabilize broker workflows, onboarding templates, top-12 data QA | Broker-first penetration in Bengaluru | WAWU growth in broker cohort | Data freshness drift |
+| Phase 2 | Months 6-12 | Learning-loop improvements, recommendation confidence, conversion hooks | Start developer paid pilots | Free to Pro + pilot count | Billing/tier inconsistency |
+| Phase 3 | Months 12-18 | Deeper automation, report quality, team controls | Scale broker teams and B2B repeatability | Team expansion + retention | Trust and explainability gaps |
+| Phase 4 | Months 18-24 | Institutional-ready packaging, advanced intelligence modules | Institutional design partners + early city replication prep | B2B renewals + ARR quality | GTM concentration risk |
+
+---
+
+## 10. Risk Register and Mitigation Playbooks
+
+### 10.1 Data Freshness Drift
+Risk:
+- Locality or listing intelligence becomes stale, reducing trust.
+
+Mitigation:
+1. Freshness SLAs by data source.
+2. Coverage confidence scoring by micro-market.
+3. UI-level freshness disclosure with timestamp.
+4. Escalation workflow when confidence drops below threshold.
+
+### 10.2 Billing and Plans Inconsistency
+Risk:
+- Misalignment across auth, credits, pricing, and checkout surfaces.
+
+Mitigation:
+1. Single pricing config registry.
+2. Contract tests across billing-related APIs.
+3. Remove demo-only billing paths from production runtime.
+4. Monthly reconciliation report (plan, credits, payment state).
+
+### 10.3 Model Trust and Explainability Gaps
+Risk:
+- Users cannot defend recommendations to clients.
+
+Mitigation:
+1. Evidence-first outputs with explicit source references.
+2. Confidence and risk flags in recommendation payloads.
+3. Post-response verification checks for numeric claims.
+4. Feedback loop for rejected recommendations.
+
+### 10.4 GTM Concentration Risk
+Risk:
+- Over-dependence on one acquisition channel or one micro-market.
+
+Mitigation:
+1. Multi-channel broker acquisition (direct, partner, referral).
+2. Market-by-market pipeline target balancing.
+3. Quarterly segment mix review.
+4. Expand to developer pilots by month 12 to diversify revenue base.
+
+---
+
+## 11. Revenue Trajectory Framing
+
+### 11.1 Base-Case Logic
+Revenue quality depends on:
+1. Workflow activation (drives retention)
+2. Free to Pro conversion (drives predictable MRR)
+3. Usage depth (drives top-up expansion)
+4. B2B renewals (drives ARR quality)
+
+### 11.2 Example Operating Targets (Illustrative, execution-dependent)
+- Month 12: repeatable broker conversion engine + first paying developer pilots.
+- Month 24: diversified mix across Pro, Team, usage top-ups, and retained B2B accounts.
+
+Note:
+- Forecast values should be maintained in a separate financial model sheet to avoid stale hardcoded figures in this document.
+
+---
+
+## 12. Implementation Handoff Notes
+
+### 12.1 What This Document Locks
+1. Bengaluru-first market sequence and top-12 launch scope.
+2. Broker-first wedge with multi-segment expansion.
+3. 24-month roadmap and KPI priorities.
+4. Planned API/type additions for the learning agent loop.
+5. Hybrid monetization framing by phase.
+
+### 12.2 What Remains for Execution Pass
+1. Endpoint implementation and schema validation.
+2. Database migrations for preference and learning-event persistence.
+3. Billing hardening and rollout cleanup.
+4. Dashboard instrumentation and alerting thresholds.
+
+---
+
+## 13. Assumptions and Defaults
+
+1. Immediate narrative audience: seed investors.
+2. Primary wedge: brokers in Bengaluru.
+3. Product direction: all-rounder self-learning GIS AI agent.
+4. Planning horizon: 24 months.
+5. This pass updates only `docs/BUSINESS.md` and `docs/pitch.md`.
+6. Monetization model remains subscription + usage + B2B pilots.
+7. Existing architecture remains valid and is not rewritten here.

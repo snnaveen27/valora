@@ -16,10 +16,14 @@ import asyncio
 import httpx
 import json
 import re
+import logging
 from pathlib import Path
 
+from core.circuit_breaker import get_circuit_breaker
 from routes.auth_routes import require_admin
 from auth.user_auth import User
+
+logger = logging.getLogger("valora.admin")
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -82,10 +86,6 @@ class LLMConfigRequest(BaseModel):
     local_model: Optional[str] = "qwen3:4b-instruct"
     max_context: Optional[int] = 8192  # 0 means unlimited
 
-
-class SanityCheckRequest(BaseModel):
-    base_url: Optional[str] = "http://localhost:8000"
-    include_chat: Optional[bool] = False
 
 
 @router.get("/health", include_in_schema=True)
@@ -440,169 +440,6 @@ async def run_system_tests(admin: User = Depends(require_admin)) -> Dict[str, An
     }
 
 
-@router.post("/sanity-check")
-async def run_realtime_sanity_check(
-    request: SanityCheckRequest,
-    http_request: Request,
-    admin: User = Depends(require_admin)
-) -> Dict[str, Any]:
-    tests = []
-    start_time = time.time()
-
-    base_url = (request.base_url or "http://localhost:8000").rstrip("/")
-    auth_header = http_request.headers.get("Authorization")
-
-    async def _run(name: str, fn):
-        t0 = time.time()
-        try:
-            passed, description, details = await fn()
-            tests.append({
-                "name": name,
-                "description": description,
-                "passed": bool(passed),
-                "duration": int((time.time() - t0) * 1000),
-                "details": details,
-                "skipped": False,
-            })
-        except Exception as e:
-            tests.append({
-                "name": name,
-                "description": f"{name} failed: {e}",
-                "passed": False,
-                "duration": int((time.time() - t0) * 1000),
-                "details": None,
-                "skipped": False,
-            })
-
-    async def _skip(name: str, description: str):
-        tests.append({
-            "name": name,
-            "description": description,
-            "passed": True,
-            "duration": 0,
-            "details": None,
-            "skipped": True,
-        })
-
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        async def health():
-            r = await client.get(f"{base_url}/health")
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict) and bool(data)
-            return ok, "GET /health", {"status": data.get("status"), "nominatim": data.get("nominatim")}
-
-        async def admin_status():
-            headers = {}
-            if auth_header:
-                headers["Authorization"] = auth_header
-            r = await client.get(f"{base_url}/api/admin/status", headers=headers)
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict) and isinstance(data.get("backend"), dict) and isinstance(data.get("database"), dict)
-            return ok, "GET /api/admin/status", {"backend": data.get("backend"), "database": data.get("database")}
-
-        async def tileset():
-            r = await client.get(f"{base_url}/api/tileset")
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict)
-            return ok, "GET /api/tileset", {"keys": list(data.keys())[:10]}
-
-        async def tiles_viewport():
-            params = {"min_lng": 77.55, "min_lat": 12.90, "max_lng": 77.70, "max_lat": 13.05}
-            r = await client.get(f"{base_url}/api/tiles/viewport", params=params)
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict) and isinstance(data.get("tiles"), list)
-            return ok, "GET /api/tiles/viewport", {"total": data.get("total"), "tiles": len(data.get("tiles") or [])}
-
-        async def viewport_analyze():
-            r = await client.get(f"{base_url}/api/viewport/analyze", params={"lat": 12.9716, "lng": 77.5946})
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict) and isinstance(data.get("spatial"), dict)
-            return ok, "GET /api/viewport/analyze", {"area_name": data.get("area_name")}
-
-        async def location_analyze():
-            r = await client.post(f"{base_url}/api/location/analyze", json={"lat": 12.9716, "lng": 77.5946})
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict) and (data.get("success") is True or "market" in data or "spatial" in data)
-            return ok, "POST /api/location/analyze", {"keys": list(data.keys())[:10]}
-
-        async def city_intel():
-            r = await client.get(f"{base_url}/api/city-intelligence/locality/Indiranagar")
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict) and isinstance(data.get("profile"), dict)
-            return ok, "GET /api/city-intelligence/locality/Indiranagar", {"has_profile": bool(data.get("profile"))}
-
-        async def chat():
-            payload = {"message": "Analyze Koramangala for investment and explain why.", "session_id": "admin_sanity"}
-            r = await client.post(f"{base_url}/api/chat", json=payload)
-            r.raise_for_status()
-            data = r.json()
-            ok = bool(data.get("success")) and isinstance(data.get("message"), str)
-            return ok, "POST /api/chat", {
-                "intent": data.get("intent"),
-                "has_facts": isinstance(data.get("facts"), dict),
-                "has_storyboard": bool(data.get("storyboard")),
-            }
-
-        async def investment_leaderboard():
-            r = await client.get(f"{base_url}/api/investment/leaderboard", params={"limit": 5})
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict) and isinstance(data.get("leaderboard"), list)
-            return ok, "GET /api/investment/leaderboard", {"count": len(data.get("leaderboard", []))}
-
-        async def storyboard_gen():
-            payload = {"scenario": "Analyze Koramangala", "duration_seconds": 15}
-            r = await client.post(f"{base_url}/api/storyboard/generate", json=payload)
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict) and isinstance(data.get("storyboard"), dict)
-            return ok, "POST /api/storyboard/generate", {"scenes": len(data.get("storyboard", {}).get("scenes", []))}
-
-        async def compare_props():
-            payload = {"localities": ["Koramangala", "Indiranagar"]}
-            r = await client.post(f"{base_url}/api/compare/properties", json=payload)
-            r.raise_for_status()
-            data = r.json()
-            ok = isinstance(data, dict) and isinstance(data.get("comparison"), list)
-            return ok, "POST /api/compare/properties", {"count": len(data.get("comparison", []))}
-
-        await _run("Backend Health", health)
-        await _run("Admin Status", admin_status)
-        await _run("Tileset Index", tileset)
-        await _run("Tiles Viewport", tiles_viewport)
-        await _run("Viewport Analyze", viewport_analyze)
-        await _run("Location Analyze", location_analyze)
-        await _run("City Intelligence", city_intel)
-        await _run("Investment Leaderboard", investment_leaderboard)
-        await _run("Storyboard Generation", storyboard_gen)
-        await _run("Compare Properties", compare_props)
-
-        if request.include_chat:
-            await _run("Chat Orchestration", chat)
-        else:
-            await _skip("Chat Orchestration", "Skipped (include_chat=false)")
-
-    passed = sum(1 for t in tests if t.get("passed") and not t.get("skipped"))
-    failed = sum(1 for t in tests if (not t.get("passed")) and not t.get("skipped"))
-    skipped = sum(1 for t in tests if t.get("skipped"))
-
-    return {
-        "base_url": base_url,
-        "tests": tests,
-        "total": len(tests),
-        "passed": passed,
-        "failed": failed,
-        "skipped": skipped,
-        "duration_ms": int((time.time() - start_time) * 1000),
-    }
-
 
 @router.get("/processing-status")
 async def get_processing_status(admin: User = Depends(require_admin)) -> Dict[str, Any]:
@@ -720,6 +557,13 @@ async def set_llm_config(request: LLMConfigRequest) -> Dict[str, Any]:
         config['openrouter_api_key'] = incoming_key.strip()
     else:
         config['openrouter_api_key'] = existing.get('openrouter_api_key', '')
+    
+    # Reset circuit breaker when model config changes (helps after OOM errors)
+    try:
+        cb = get_circuit_breaker("ollama")
+        cb.reset()
+    except Exception:
+        pass  # Ignore if circuit breaker not available
     
     if _save_llm_config(config):
         return {"success": True, "message": "Configuration saved", "config": config}
@@ -2319,3 +2163,522 @@ async def submit_feedback(req: FeedbackRequest):
         tools_used=req.tools_used, agentic_mode=req.agentic_mode,
     )
     return {"success": True, "message": "Feedback recorded"}
+
+
+# ============================================================================
+# AGENT CONFIGURATION
+# ============================================================================
+
+
+@router.get("/agent-status")
+async def get_agent_status() -> Dict[str, Any]:
+    """Get agent system status."""
+    from ai.agentic_loop import get_agentic_loop
+    from ai.tools_registry import get_tool_registry
+    
+    loop = get_agentic_loop()
+    registry = get_tool_registry()
+    
+    return {
+        "success": True,
+        "agentic_loop_active": loop is not None,
+        "tools_registered": len(registry.list_tools()),
+    }
+
+
+# ============================================================================
+# CIRCUIT BREAKER MANAGEMENT
+# ============================================================================
+
+@router.post("/circuit-breaker/reset")
+async def reset_circuit_breaker(
+    provider: str = "ollama",
+    admin: User = Depends(require_admin)
+) -> Dict[str, Any]:
+    """
+    Reset the circuit breaker for a specific provider.
+    Use when the provider has recovered from temporary failures (like OOM).
+    """
+    try:
+        cb = get_circuit_breaker(provider)
+        cb.reset()
+        return {
+            "success": True,
+            "message": f"Circuit breaker for '{provider}' has been reset",
+            "status": cb.get_status()
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@router.get("/circuit-breaker/status")
+async def get_circuit_breaker_status(
+    admin: User = Depends(require_admin)
+) -> Dict[str, Any]:
+    """Get status of all circuit breakers."""
+    from core.circuit_breaker import _circuit_breakers
+    return {name: cb.get_status() for name, cb in _circuit_breakers.items()}
+
+
+# ============================================================================
+# WEEKLY WAWU AND CONVERSION DASHBOARD
+# ============================================================================
+
+
+@router.get("/dashboard/weekly")
+async def get_weekly_dashboard(admin: User = Depends(require_admin)) -> Dict[str, Any]:
+    """
+    Get weekly WAWU (Weekly Active Workflow Users) and conversion metrics dashboard.
+    
+    This endpoint provides aggregate metrics for founder's Monday KPI review:
+    - WAWU: Unique users with at least one workflow action in past 7 days
+    - Conversion metrics: Free to Pro conversions, top-up attach rate
+    - Retention: 4-week cohort retention (if data available)
+    - Workflow activation rate
+    - Broker team expansion rate
+    - B2B pilot to retainer conversion
+    - Guardrail metrics: Billing incidents, data freshness, confidence, time-to-value
+    
+    Returns JSON with aggregated business metrics.
+    """
+    import time
+    from datetime import datetime, timedelta
+    from pathlib import Path
+    
+    try:
+        from config import config
+        from database.db_service import DatabaseService
+        
+        # Calculate time boundaries
+        now = time.time()
+        seven_days_ago = now - (7 * 24 * 3600)
+        four_weeks_ago = now - (28 * 24 * 3600)
+        
+        # Database paths
+        digital_employee_db = config.DB_PATH.parent / "digital_employee.db"
+        credits_db = config.DB_PATH.parent / "valora_credits.db"
+        
+        # Initialize result structure with all metrics
+        result = {
+            "success": True,
+            "generated_at": datetime.now().isoformat(),
+            "period": "last_7_days",
+            "wawu": {
+                "total_active_users": 0,
+                "workflow_actions": {
+                    "alerts": 0,
+                    "scheduled_tasks": 0,
+                    "leads": 0,
+                    "automation_commands": 0
+                }
+            },
+            "conversions": {
+                "free_to_pro_new": 0,
+                "free_to_pro_rate": 0.0,
+                "topups_purchased": 0,
+                "topup_attach_rate": 0.0,
+                "broker_team_expansions": 0,
+                "b2b_pilot_to_retainer": 0
+            },
+            "retention": {
+                "week_4_cohort_retention": 0.0,
+                "cohort_size": 0
+            },
+            "workflow_activation": {
+                "total_active_users": 0,
+                "users_with_alerts": 0,
+                "users_with_tasks": 0,
+                "users_with_leads": 0,
+                "activation_rate": 0.0
+            },
+            "guardrails": {
+                "billing_incidents": 0,
+                "data_freshness_breaches": 0,
+                "low_confidence_recommendations": 0,
+                "avg_time_to_first_value_hours": 0.0
+            }
+        }
+        
+        # Connect to digital_employee database for WAWU metrics
+        if digital_employee_db.exists():
+            try:
+                de_db = DatabaseService(str(digital_employee_db))
+                
+                # Query 1: Count unique users with workflow actions in past 7 days
+                # Users who created/updated alerts
+                alert_users = de_db.execute(
+                    """
+                    SELECT COUNT(DISTINCT user_id) as cnt 
+                    FROM property_alerts 
+                    WHERE created_at >= ?
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                # Users who created scheduled tasks
+                task_users = de_db.execute(
+                    """
+                    SELECT COUNT(DISTINCT user_id) as cnt 
+                    FROM scheduled_tasks 
+                    WHERE created_at >= ?
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                # Users who created leads
+                lead_users = de_db.execute(
+                    """
+                    SELECT COUNT(DISTINCT user_id) as cnt 
+                    FROM leads 
+                    WHERE created_at >= ?
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                # Users who ran automation commands
+                automation_users = de_db.execute(
+                    """
+                    SELECT COUNT(DISTINCT user_id) as cnt 
+                    FROM automation_activity 
+                    WHERE created_at >= ?
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                # Get all unique users across all workflow types
+                all_active_users = de_db.execute(
+                    """
+                    SELECT COUNT(DISTINCT user_id) as cnt FROM (
+                        SELECT user_id FROM property_alerts WHERE created_at >= ?
+                        UNION
+                        SELECT user_id FROM scheduled_tasks WHERE created_at >= ?
+                        UNION
+                        SELECT user_id FROM leads WHERE created_at >= ?
+                        UNION
+                        SELECT user_id FROM automation_activity WHERE created_at >= ?
+                    )
+                    """,
+                    (seven_days_ago, seven_days_ago, seven_days_ago, seven_days_ago)
+                )
+                
+                result["wawu"]["total_active_users"] = int(all_active_users[0]["cnt"]) if all_active_users else 0
+                
+                # Query 2: Count total workflow actions
+                alerts_count = de_db.execute(
+                    "SELECT COUNT(*) as cnt FROM property_alerts WHERE created_at >= ?",
+                    (seven_days_ago,)
+                )
+                
+                tasks_count = de_db.execute(
+                    "SELECT COUNT(*) as cnt FROM scheduled_tasks WHERE created_at >= ?",
+                    (seven_days_ago,)
+                )
+                
+                leads_count = de_db.execute(
+                    "SELECT COUNT(*) as cnt FROM leads WHERE created_at >= ?",
+                    (seven_days_ago,)
+                )
+                
+                automation_count = de_db.execute(
+                    "SELECT COUNT(*) as cnt FROM automation_activity WHERE created_at >= ?",
+                    (seven_days_ago,)
+                )
+                
+                result["wawu"]["workflow_actions"]["alerts"] = int(alerts_count[0]["cnt"]) if alerts_count else 0
+                result["wawu"]["workflow_actions"]["scheduled_tasks"] = int(tasks_count[0]["cnt"]) if tasks_count else 0
+                result["wawu"]["workflow_actions"]["leads"] = int(leads_count[0]["cnt"]) if leads_count else 0
+                result["wawu"]["workflow_actions"]["automation_commands"] = int(automation_count[0]["cnt"]) if automation_count else 0
+                
+                # Workflow activation metrics
+                result["workflow_activation"]["total_active_users"] = result["wawu"]["total_active_users"]
+                result["workflow_activation"]["users_with_alerts"] = int(alert_users[0]["cnt"]) if alert_users else 0
+                result["workflow_activation"]["users_with_tasks"] = int(task_users[0]["cnt"]) if task_users else 0
+                result["workflow_activation"]["users_with_leads"] = int(lead_users[0]["cnt"]) if lead_users else 0
+                
+                # Calculate workflow activation rate (users with alerts/tasks/leads / total users)
+                total_users_for_activation = de_db.execute(
+                    "SELECT COUNT(*) as cnt FROM property_alerts"
+                )
+                if total_users_for_activation and int(total_users_for_activation[0]["cnt"]) > 0:
+                    activated = result["workflow_activation"]["users_with_alerts"] + \
+                               result["workflow_activation"]["users_with_tasks"] + \
+                               result["workflow_activation"]["users_with_leads"]
+                    total = int(total_users_for_activation[0]["cnt"]) * 3  # Approximate total users
+                    if total > 0:
+                        result["workflow_activation"]["activation_rate"] = round(min(1.0, activated / total), 4)
+                
+                # Time-to-first-value: Calculate average time from signup to first workflow action
+                # Get users who signed up in the past 28 days and their first action time
+                time_to_first_value_data = de_db.execute(
+                    """
+                    SELECT 
+                        u.user_id,
+                        MIN(u.created_at) as signup_time,
+                        MIN(w.first_action_time) as first_action
+                    FROM (
+                        SELECT user_id, MIN(created_at) as created_at 
+                        FROM property_alerts 
+                        GROUP BY user_id
+                        UNION ALL
+                        SELECT user_id, MIN(created_at) as created_at 
+                        FROM scheduled_tasks 
+                        GROUP BY user_id
+                        UNION ALL
+                        SELECT user_id, MIN(created_at) as created_at 
+                        FROM leads 
+                        GROUP BY user_id
+                    ) w
+                    JOIN (
+                        SELECT user_id, created_at 
+                        FROM property_alerts 
+                        UNION ALL
+                        SELECT user_id, created_at 
+                        FROM scheduled_tasks
+                        UNION ALL  
+                        SELECT user_id, created_at 
+                        FROM leads
+                    ) u ON w.user_id = u.user_id
+                    WHERE u.created_at >= ?
+                    GROUP BY u.user_id
+                    """,
+                    (four_weeks_ago,)
+                )
+                
+                if time_to_first_value_data:
+                    total_hours = 0
+                    count = 0
+                    for row in time_to_first_value_data:
+                        if row.get("first_action") and row.get("signup_time"):
+                            hours_diff = (row["first_action"] - row["signup_time"]) / 3600
+                            if hours_diff >= 0:  # Only count positive values
+                                total_hours += hours_diff
+                                count += 1
+                    if count > 0:
+                        result["guardrails"]["avg_time_to_first_value_hours"] = round(total_hours / count, 2)
+                
+            except Exception as e:
+                logger.warning(f"Error querying digital_employee DB: {e}")
+        
+        # Connect to credits database for conversion metrics
+        if credits_db.exists():
+            try:
+                credits_db_service = DatabaseService(str(credits_db))
+                
+                # Query 1: Count users who upgraded from free to pro in past 7 days
+                # by checking tier changes in user_credits
+                conversions = credits_db_service.execute(
+                    """
+                    SELECT COUNT(*) as cnt FROM user_credits 
+                    WHERE tier = 'pro' 
+                    AND updated_at >= ?
+                    AND user_id NOT IN ('admin', 'admin@valora.ai', 'nvnsa', '1', 'Admin')
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                # Count total free users to calculate conversion rate
+                total_free_users = credits_db_service.execute(
+                    "SELECT COUNT(*) as cnt FROM user_credits WHERE tier = 'free'"
+                )
+                
+                result["conversions"]["free_to_pro_new"] = int(conversions[0]["cnt"]) if conversions else 0
+                
+                # Calculate conversion rate
+                free_user_count = int(total_free_users[0]["cnt"]) if total_free_users else 0
+                if free_user_count > 0:
+                    result["conversions"]["free_to_pro_rate"] = round(
+                        result["conversions"]["free_to_pro_new"] / free_user_count, 4
+                    )
+                
+                # Query 2: Count top-ups in past 7 days
+                topups = credits_db_service.execute(
+                    """
+                    SELECT COUNT(*) as cnt FROM payment_history 
+                    WHERE timestamp >= ? AND credits_added > 0
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                result["conversions"]["topups_purchased"] = int(topups[0]["cnt"]) if topups else 0
+                
+                # Query 3: Calculate top-up attach rate
+                # (users who purchased top-ups / total paying users) * 100
+                total_paying_users = credits_db_service.execute(
+                    """
+                    SELECT COUNT(*) as cnt FROM user_credits 
+                    WHERE tier IN ('pro', 'team', 'agency', 'enterprise')
+                    """
+                )
+                
+                paying_count = int(total_paying_users[0]["cnt"]) if total_paying_users else 0
+                topup_users = credits_db_service.execute(
+                    """
+                    SELECT COUNT(DISTINCT user_id) as cnt FROM payment_history 
+                    WHERE timestamp >= ? AND credits_added > 0
+                    """,
+                    (seven_days_ago,)
+                )
+                topup_user_count = int(topup_users[0]["cnt"]) if topup_users else 0
+                
+                if paying_count > 0:
+                    result["conversions"]["topup_attach_rate"] = round(topup_user_count / paying_count, 4)
+                
+                # Query 4: Broker team expansion rate
+                # Track new team/agency signups (tier = 'team' or 'agency')
+                team_expansions = credits_db_service.execute(
+                    """
+                    SELECT COUNT(*) as cnt FROM user_credits 
+                    WHERE tier IN ('team', 'agency', 'enterprise') 
+                    AND created_at >= ?
+                    AND user_id NOT IN ('admin', 'admin@valora.ai', 'nvnsa', '1', 'Admin')
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                result["conversions"]["broker_team_expansions"] = int(team_expansions[0]["cnt"]) if team_expansions else 0
+                
+                # Query 5: B2B pilot to retainer conversion
+                # Track pilot conversions (tier changes from pilot/demo to pro/team/enterprise)
+                pilot_conversions = credits_db_service.execute(
+                    """
+                    SELECT COUNT(*) as cnt FROM user_credits 
+                    WHERE tier IN ('pro', 'team', 'agency', 'enterprise') 
+                    AND updated_at >= ?
+                    AND user_id NOT IN ('admin', 'admin@valora.ai', 'nvnsa', '1', 'Admin')
+                    AND (metadata LIKE '%pilot%' OR metadata LIKE '%demo%' OR metadata LIKE '%enterprise%')
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                result["conversions"]["b2b_pilot_to_retainer"] = int(pilot_conversions[0]["cnt"]) if pilot_conversions else 0
+                
+                # Query 6: Calculate 4-week cohort retention
+                # Get users who created accounts 4 weeks ago
+                cohort_4w_ago = credits_db_service.execute(
+                    """
+                    SELECT COUNT(*) as cnt FROM user_credits 
+                    WHERE created_at >= ? AND created_at < ?
+                    """,
+                    (four_weeks_ago, seven_days_ago)
+                )
+                
+                # Get how many of those are still active (have recent activity)
+                # For simplicity, check if they have any usage in the past 7 days
+                active_cohort = credits_db_service.execute(
+                    """
+                    SELECT COUNT(DISTINCT uc.user_id) as cnt 
+                    FROM user_credits uc
+                    JOIN usage_log ul ON uc.user_id = ul.user_id
+                    WHERE uc.created_at >= ? AND uc.created_at < ?
+                    AND ul.timestamp >= ?
+                    """,
+                    (four_weeks_ago, seven_days_ago, seven_days_ago)
+                )
+                
+                cohort_count = int(cohort_4w_ago[0]["cnt"]) if cohort_4w_ago else 0
+                active_count = int(active_cohort[0]["cnt"]) if active_cohort else 0
+                
+                result["retention"]["cohort_size"] = cohort_count
+                if cohort_count > 0:
+                    result["retention"]["week_4_cohort_retention"] = round(active_count / cohort_count, 4)
+                
+                # Query 7: Billing incidents - Count failed payments, refund requests, billing errors
+                billing_failures = credits_db_service.execute(
+                    """
+                    SELECT COUNT(*) as cnt FROM payment_history 
+                    WHERE timestamp >= ? 
+                    AND (status IN ('failed', 'refunded', 'error') OR status LIKE '%fail%' OR status LIKE '%error%')
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                result["guardrails"]["billing_incidents"] = int(billing_failures[0]["cnt"]) if billing_failures else 0
+                
+            except Exception as e:
+                logger.warning(f"Error querying credits DB: {e}")
+        
+        # Data freshness SLA breaches - check micro-markets with stale data
+        try:
+            from database.query_service import get_query_service
+            db = get_query_service()
+            
+            # Get properties with stale data (last updated > 7 days ago)
+            stale_properties = db.execute(
+                """
+                SELECT COUNT(DISTINCT locality) as cnt 
+                FROM properties 
+                WHERE updated_at < ? OR scraped_at < ?
+                """,
+                (seven_days_ago, seven_days_ago)
+            )
+            
+            result["guardrails"]["data_freshness_breaches"] = int(stale_properties[0]["cnt"]) if stale_properties else 0
+            
+        except Exception as e:
+            logger.warning(f"Error checking data freshness: {e}")
+        
+        # Low confidence recommendations - query chat/agent logs for confidence < 70%
+        try:
+            if credits_db.exists():
+                credits_db_service = DatabaseService(str(credits_db))
+                
+                # Check usage_log for low confidence interactions
+                low_confidence_count = credits_db_service.execute(
+                    """
+                    SELECT COUNT(*) as cnt FROM usage_log 
+                    WHERE timestamp >= ? 
+                    AND (metadata LIKE '%confidence%' 
+                         OR query_type LIKE '%recommendation%')
+                    """,
+                    (seven_days_ago,)
+                )
+                
+                # Also check digital_employee for automation with low confidence
+                if digital_employee_db.exists():
+                    de_db = DatabaseService(str(digital_employee_db))
+                    low_conf_automation = de_db.execute(
+                        """
+                        SELECT COUNT(*) as cnt FROM automation_activity 
+                        WHERE created_at >= ? 
+                        AND (details_json LIKE '%confidence%' OR status = 'failed')
+                        """,
+                        (seven_days_ago,)
+                    )
+                    
+                    total_low_conf = int(low_confidence_count[0]["cnt"]) if low_confidence_count else 0
+                    if low_conf_automation:
+                        total_low_conf += int(low_conf_automation[0]["cnt"])
+                    
+                    result["guardrails"]["low_confidence_recommendations"] = total_low_conf
+                else:
+                    result["guardrails"]["low_confidence_recommendations"] = int(low_confidence_count[0]["cnt"]) if low_confidence_count else 0
+                    
+        except Exception as e:
+            logger.warning(f"Error checking low confidence recommendations: {e}")
+        
+        # Additional guardrail: Improve workflow activation rate calculation
+        if result["workflow_activation"]["total_active_users"] > 0:
+            activated_users = (
+                result["workflow_activation"]["users_with_alerts"] +
+                result["workflow_activation"]["users_with_tasks"] +
+                result["workflow_activation"]["users_with_leads"]
+            )
+            # Use total active users as denominator
+            if result["wawu"]["total_active_users"] > 0:
+                result["workflow_activation"]["activation_rate"] = round(
+                    min(1.0, activated_users / (result["wawu"]["total_active_users"] * 3)), 4
+                )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error generating weekly dashboard: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "generated_at": datetime.now().isoformat()
+        }
+

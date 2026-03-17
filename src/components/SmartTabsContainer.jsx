@@ -9,6 +9,7 @@ import SmartTab from './SmartTab';
 import AgentControlPanel from './AgentControlPanel';
 import { API_URL } from '../apiConfig';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useLocation } from '../contexts/LocationContext';
 import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
   Compass, Database, Presentation, Lock, Sparkles,
@@ -16,12 +17,7 @@ import {
   Eye, Sun, Trophy, CheckCircle, Star, Bot, Users, MessageSquare, Activity
 } from 'lucide-react';
 
-// Import Community Pulse components
-import {
-  FamilyHub,
-  LocalityReviews,
-  SentimentDashboard
-} from './community';
+import CommunityPulseWorkspace from './community/CommunityPulseWorkspace';
 
 // Function to generate translated tab metadata
 const getTranslatedTabMetadata = (t) => {
@@ -138,7 +134,7 @@ const getTranslatedTabMetadata = (t) => {
       title: safeT('communityPulse'),
       icon: '👥',
       lucideIcon: Users,
-      description: safeT('familyReviewsSentiment'),
+      description: safeT('decisionRoomLocalityReviews'),
       shortLabel: safeT('community'),
       priority: 11,
       answerQuestion: 'What does the community say?'
@@ -196,6 +192,8 @@ export default function SmartTabsContainer({
   lat,
   lng,
   locality,
+  place,
+  location,
   buildingAnalysis,
   selectedBuilding,
   activeTab: externalActiveTab,
@@ -205,6 +203,12 @@ export default function SmartTabsContainer({
   authUser = null
 }) {
   const { t } = useLanguage();
+  const { location: contextLocation, coordinates: contextCoords } = useLocation();
+  
+  // Use unified location from props or context
+  const effectiveLat = lat || contextCoords?.lat;
+  const effectiveLng = lng || contextCoords?.lng;
+  const effectiveLocality = locality || place || contextLocation?.locality || contextLocation?.place;
   
   // Generate translated tab metadata dynamically
   const TAB_METADATA = useMemo(() => getTranslatedTabMetadata(t || ((key) => key)), [t]);
@@ -230,7 +234,7 @@ export default function SmartTabsContainer({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           report_data: reportData,
-          locality: locality || 'Unknown Location',
+          locality: effectiveLocality || 'Unknown Location',
           include_sections: ['verdict', 'market', 'spatial', 'risk', 'roi']
         })
       });
@@ -240,7 +244,7 @@ export default function SmartTabsContainer({
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Valora_Smart_Report_${locality || 'Property'}_${new Date().toISOString().split('T')[0]}.pdf`;
+        a.download = `Valora_Smart_Report_${effectiveLocality || 'Property'}_${new Date().toISOString().split('T')[0]}.pdf`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -271,7 +275,7 @@ export default function SmartTabsContainer({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           report_data: reportData,
-          locality: locality || 'Unknown Location'
+          locality: effectiveLocality || 'Unknown Location'
         })
       });
       
@@ -315,7 +319,7 @@ export default function SmartTabsContainer({
         body: JSON.stringify({
           section: type,
           report_data: reportData,
-          locality: locality || 'Unknown Location'
+          locality: effectiveLocality || 'Unknown Location'
         })
       });
       
@@ -356,12 +360,12 @@ export default function SmartTabsContainer({
   // Fetch smart report data from backend
   useEffect(() => {
     const fetchReportData = async () => {
-      if (!lat || !lng) return;
+      if (!effectiveLat || !effectiveLng) return;
       
       setLoading(true);
       try {
         const response = await fetch(
-          `${API_URL}/api/smart-report/generate?lat=${lat}&lng=${lng}&locality=${encodeURIComponent(locality || '')}`
+          `${API_URL}/api/smart-report/generate?lat=${effectiveLat}&lng=${effectiveLng}&locality=${encodeURIComponent(effectiveLocality || '')}`
         );
         if (response.ok) {
           const data = await response.json();
@@ -375,7 +379,7 @@ export default function SmartTabsContainer({
     };
 
     fetchReportData();
-  }, [lat, lng, locality]);
+  }, [effectiveLat, effectiveLng, effectiveLocality]);
 
   const generateTabs = () => {
     const tierConfig = TIER_CONFIG[userTier] || TIER_CONFIG['free'];
@@ -421,7 +425,7 @@ export default function SmartTabsContainer({
     switch (tabId) {
       case 'free_analysis':
         return {
-          area_name: viewport.area_name || locality || 'Selected Area',
+          area_name: viewport.area_name || effectiveLocality || 'Selected Area',
           overview: viewport.overview || data.summary || 'Basic area analysis based on publicly available data.',
           price_range: viewport.price_range || data.price_range || '₹8,000 - ₹12,000 per sq ft',
           connectivity_score: viewport.connectivity_score || data.connectivity_score || 7,
@@ -768,13 +772,9 @@ export default function SmartTabsContainer({
       case 'community_pulse':
         return {
           mode: 'community_pulse',
-          component: 'community_pulse',
-          FamilyHub,
-          LocalityReviews,
-          SentimentDashboard,
-          locality,
-          lat,
-          lng
+          locality: effectiveLocality,
+          lat: effectiveLat,
+          lng: effectiveLng
         };
 
       default:
@@ -803,7 +803,7 @@ export default function SmartTabsContainer({
           ) : (
             <span className="text-[10px] text-blue-400 flex items-center gap-1">
               <MapPin className="w-3 h-3" />
-              {locality || 'Area'}
+              {effectiveLocality || 'Area'}
             </span>
           )}
           <span className={`text-[10px] px-2 py-0.5 rounded-full ${
@@ -840,41 +840,16 @@ export default function SmartTabsContainer({
             authUser={authUser}
           />
         ) : activeTabData?.id === 'community_pulse' ? (
-          <div className="p-4">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-white mb-3">Family Hub</h3>
-              <FamilyHub
-                locality={locality}
-                lat={lat}
-                lng={lng}
-                userTier={userTier}
-                authToken={authToken}
-                authUser={authUser}
-              />
-            </div>
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-white mb-3">Locality Reviews</h3>
-              <LocalityReviews
-                locality={locality}
-                lat={lat}
-                lng={lng}
-                userTier={userTier}
-                authToken={authToken}
-                authUser={authUser}
-              />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-3">Market Sentiment</h3>
-              <SentimentDashboard
-                locality={locality}
-                lat={lat}
-                lng={lng}
-                userTier={userTier}
-                authToken={authToken}
-                authUser={authUser}
-              />
-            </div>
-          </div>
+          <CommunityPulseWorkspace
+            agentData={agentData}
+            viewportAnalysis={viewportAnalysis}
+            locality={effectiveLocality}
+            lat={effectiveLat}
+            lng={effectiveLng}
+            userTier={userTier}
+            authToken={authToken}
+            authUser={authUser}
+          />
         ) : (
           activeTabData && (
           <SmartTab

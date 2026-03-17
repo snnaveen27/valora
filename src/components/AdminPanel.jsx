@@ -3,7 +3,8 @@ import {
   X, Settings, Database, Server, Cpu, CheckCircle, XCircle, 
   RefreshCw, Play, Zap, HardDrive, Cloud, AlertTriangle,
   Activity, BarChart3, TestTube, FileText, Loader2, Bot, Globe, Save, Brain,
-  Users, MapPin, Clock, Download, Trash2, Eye, UserPlus, Edit, Crown, Shield
+  Users, MapPin, Clock, Download, Trash2, Eye, UserPlus, Edit, Crown, Shield,
+  TrendingUp, TrendingDown, Target, Gauge, PlayCircle
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import PricingManager from './PricingManager'
@@ -18,9 +19,8 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [vectorBackend, setVectorBackend] = useState('pinecone') // pinecone or faiss
   const [testResults, setTestResults] = useState(null)
   const [runningTest, setRunningTest] = useState(false)
-  const [sanityResults, setSanityResults] = useState(null)
-  const [runningSanity, setRunningSanity] = useState(false)
-  const [sanityIncludeChat, setSanityIncludeChat] = useState(false)
+  const [selectedTier, setSelectedTier] = useState(null) // null = all tiers
+
   const [processingStatus, setProcessingStatus] = useState(null)
   const [llmConfig, setLlmConfig] = useState({
     provider: 'ollama',
@@ -49,11 +49,59 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [newUser, setNewUser] = useState({ email: '', password: '', name: '', tier: 'free', role: 'user' })
   const [formErrors, setFormErrors] = useState({})
 
+  // Weekly Metrics Dashboard State
+  const [weeklyMetrics, setWeeklyMetrics] = useState(null)
+  const [loadingMetrics, setLoadingMetrics] = useState(false)
+  const [demoMode, setDemoMode] = useState(false)
+
+  // Demo data for the metrics dashboard
+  const DEMO_WEEKLY_METRICS = {
+    success: true,
+    generated_at: new Date().toISOString(),
+    period: "demo_7_days",
+    is_demo: true,
+    wawu: {
+      total_active_users: 247,
+      workflow_actions: {
+        alerts: 892,
+        scheduled_tasks: 1456,
+        leads: 423,
+        automation_commands: 2187
+      }
+    },
+    conversions: {
+      free_to_pro_new: 34,
+      free_to_pro_rate: 0.18,
+      topups_purchased: 67,
+      topup_attach_rate: 0.42,
+      broker_team_expansions: 12,
+      b2b_pilot_to_retainer: 5
+    },
+    retention: {
+      week_4_cohort_retention: 0.72,
+      cohort_size: 189
+    },
+    workflow_activation: {
+      total_active_users: 247,
+      users_with_alerts: 156,
+      users_with_tasks: 198,
+      users_with_leads: 89,
+      activation_rate: 0.81
+    },
+    guardrails: {
+      billing_incidents: 3,
+      data_freshness_breaches: 2,
+      low_confidence_recommendations: 124,
+      avg_time_to_first_value_hours: 14.5
+    }
+  }
+
   useEffect(() => {
     if (isOpen) {
       fetchSystemStatus()
       fetchVectorBackend()
       fetchLlmConfig()
+      fetchRuntimeConfig()
       fetchBrainStatus()
       setLastRefresh(new Date())
     }
@@ -104,6 +152,32 @@ export default function AdminPanel({ isOpen, onClose }) {
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
+
+  // Fetch Weekly Metrics Dashboard
+  const fetchWeeklyMetrics = useCallback(async () => {
+    if (!token) return
+    setLoadingMetrics(true)
+    
+    // If demo mode is on, use demo data
+    if (demoMode) {
+      setWeeklyMetrics(DEMO_WEEKLY_METRICS)
+      setLoadingMetrics(false)
+      return
+    }
+    
+    try {
+      const resp = await fetch(`${API_URL}/api/admin/dashboard/weekly`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        setWeeklyMetrics(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch weekly metrics:', err)
+    }
+    setLoadingMetrics(false)
+  }, [token, demoMode])
 
   const createUserAccount = useCallback(async () => {
     if (!token) return
@@ -298,14 +372,17 @@ export default function AdminPanel({ isOpen, onClose }) {
     }
   }, [vectorBackend, token])
 
-  const runTests = useCallback(async () => {
+  const runTests = useCallback(async (tier = null) => {
     if (!token) return
     setRunningTest(true)
     setTestResults(null)
     try {
-      const resp = await fetch(`${API_URL}/api/admin/run-tests`, {
+      // Use the new test suite API
+      const body = tier ? { tier } : {}
+      const resp = await fetch(`${API_URL}/api/test-suite/run`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(body)
       })
       if (resp.ok) {
         const data = await resp.json()
@@ -320,29 +397,7 @@ export default function AdminPanel({ isOpen, onClose }) {
     setRunningTest(false)
   }, [token])
 
-  const runSanityCheck = useCallback(async () => {
-    if (!token) return
-    setRunningSanity(true)
-    setSanityResults(null)
-    try {
-      const resp = await fetch(`${API_URL}/api/admin/sanity-check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ base_url: API_URL, include_chat: sanityIncludeChat })
-      })
-      if (resp.ok) {
-        const data = await resp.json()
-        setSanityResults(data)
-      } else {
-        const err = await resp.json().catch(() => null)
-        setSanityResults({ error: err?.detail || 'Failed to run sanity check' })
-      }
-    } catch (err) {
-      console.error('Failed to run sanity check:', err)
-      setSanityResults({ error: 'Failed to run sanity check' })
-    }
-    setRunningSanity(false)
-  }, [sanityIncludeChat, token])
+
 
   const fetchProcessingStatus = useCallback(async () => {
     if (!token) return
@@ -376,6 +431,21 @@ export default function AdminPanel({ isOpen, onClose }) {
       alert('Network error while triggering indexing')
     }
   }, [fetchProcessingStatus, token])
+
+  const fetchRuntimeConfig = useCallback(async () => {
+    if (!token) return
+    try {
+      const resp = await fetch(`${API_URL}/api/admin/agent-runtime-config`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (resp.ok) {
+        const data = await resp.json()
+        setRuntimeConfig(prev => ({ ...prev, ...data }))
+      }
+    } catch (err) {
+      console.error('Failed to fetch Runtime config:', err)
+    }
+  }, [token])
 
   const fetchLlmConfig = useCallback(async () => {
     if (!token) return
@@ -437,6 +507,7 @@ export default function AdminPanel({ isOpen, onClose }) {
   const tabs = [
     { id: 'status', label: 'System Status', icon: Activity },
     { id: 'accounts', label: 'User Accounts', icon: Shield },
+    { id: 'metrics', label: 'Metrics', icon: TrendingUp },
     { id: 'pricing', label: 'Pricing Config', icon: BarChart3 },
     { id: 'data', label: 'Data', icon: Database },
     { id: 'processing', label: 'Processing', icon: Cpu },
@@ -446,8 +517,8 @@ export default function AdminPanel({ isOpen, onClose }) {
   ]
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col">
+    <div className="absolute top-12 left-0 right-0 bottom-0 bg-slate-900 z-40 flex">
+      <div className="w-full h-full flex flex-col bg-slate-800">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-700">
           <div className="flex items-center gap-3">
@@ -479,6 +550,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                 if (tab.id === 'processing') fetchProcessingStatus()
                 if (tab.id === 'users') fetchUserPreferences()
                 if (tab.id === 'accounts') fetchUserAccounts()
+                if (tab.id === 'metrics') fetchWeeklyMetrics()
               }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.id
@@ -726,6 +798,199 @@ export default function AdminPanel({ isOpen, onClose }) {
                 <div className="text-center py-10 text-slate-400">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p>No users found. Click "Add User" to create one.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Metrics Dashboard Tab */}
+          {activeTab === 'metrics' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-semibold">Founder Metrics Dashboard</h3>
+                <div className="flex items-center gap-3">
+                  {/* Demo Mode Toggle */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <span className={`text-xs ${demoMode ? 'text-yellow-400' : 'text-slate-400'}`}>Demo</span>
+                    <div 
+                      className={`relative w-10 h-5 rounded-full transition-colors ${demoMode ? 'bg-yellow-500' : 'bg-slate-600'}`}
+                      onClick={() => {
+                        setDemoMode(!demoMode)
+                        // Trigger fetch with new mode after state update
+                        setTimeout(() => fetchWeeklyMetrics(), 0)
+                      }}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${demoMode ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </div>
+                  </label>
+                  <button
+                    onClick={fetchWeeklyMetrics}
+                    disabled={loadingMetrics}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loadingMetrics ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              {weeklyMetrics?.success ? (
+                <>
+                  {/* Demo Mode Banner */}
+                  {weeklyMetrics.is_demo && (
+                    <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3 mb-4">
+                      <p className="text-yellow-400 text-sm flex items-center gap-2">
+                        <PlayCircle className="w-4 h-4" />
+                        Demo Mode: Showing sample data to visualize the dashboard layout
+                      </p>
+                    </div>
+                  )}
+
+                  {/* WAWU Section */}
+                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600">
+                    <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                      <Target className="w-4 h-4 text-purple-400" />
+                      WAWU (Weekly Active Workflow Users)
+                    </h4>
+                    <div className="grid grid-cols-5 gap-3">
+                      <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/30">
+                        <p className="text-purple-400 text-xs">Total Active Users</p>
+                        <p className="text-2xl font-bold text-white">{weeklyMetrics.wawu?.total_active_users || 0}</p>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
+                        <p className="text-slate-400 text-xs">Alerts Created</p>
+                        <p className="text-xl font-bold text-white">{weeklyMetrics.wawu?.workflow_actions?.alerts || 0}</p>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
+                        <p className="text-slate-400 text-xs">Tasks Scheduled</p>
+                        <p className="text-xl font-bold text-white">{weeklyMetrics.wawu?.workflow_actions?.scheduled_tasks || 0}</p>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
+                        <p className="text-slate-400 text-xs">Leads Created</p>
+                        <p className="text-xl font-bold text-white">{weeklyMetrics.wawu?.workflow_actions?.leads || 0}</p>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
+                        <p className="text-slate-400 text-xs">Automation Commands</p>
+                        <p className="text-xl font-bold text-white">{weeklyMetrics.wawu?.workflow_actions?.automation_commands || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Conversions Section */}
+                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600">
+                    <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-green-400" />
+                      Conversion Metrics
+                    </h4>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-green-500/10 rounded-lg p-3 border border-green-500/30">
+                        <p className="text-green-400 text-xs">Free to Pro (New)</p>
+                        <p className="text-2xl font-bold text-white">{weeklyMetrics.conversions?.free_to_pro_new || 0}</p>
+                        <p className="text-green-300 text-xs">Rate: {((weeklyMetrics.conversions?.free_to_pro_rate || 0) * 100).toFixed(1)}%</p>
+                      </div>
+                      <div className="bg-blue-500/10 rounded-lg p-3 border border-blue-500/30">
+                        <p className="text-blue-400 text-xs">Top-ups Purchased</p>
+                        <p className="text-2xl font-bold text-white">{weeklyMetrics.conversions?.topups_purchased || 0}</p>
+                        <p className="text-blue-300 text-xs">Attach Rate: {((weeklyMetrics.conversions?.topup_attach_rate || 0) * 100).toFixed(1)}%</p>
+                      </div>
+                      <div className="bg-orange-500/10 rounded-lg p-3 border border-orange-500/30">
+                        <p className="text-orange-400 text-xs">Team/Agency Expansions</p>
+                        <p className="text-2xl font-bold text-white">{weeklyMetrics.conversions?.broker_team_expansions || 0}</p>
+                        <p className="text-orange-300 text-xs">B2B Pilot → Retainer: {weeklyMetrics.conversions?.b2b_pilot_to_retainer || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Retention Section */}
+                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600">
+                    <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-cyan-400" />
+                      Retention (4-Week Cohort)
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-cyan-500/10 rounded-lg p-3 border border-cyan-500/30">
+                        <p className="text-cyan-400 text-xs">Cohort Size</p>
+                        <p className="text-2xl font-bold text-white">{weeklyMetrics.retention?.cohort_size || 0}</p>
+                      </div>
+                      <div className="bg-cyan-500/10 rounded-lg p-3 border border-cyan-500/30">
+                        <p className="text-cyan-400 text-xs">Retention Rate</p>
+                        <p className="text-2xl font-bold text-white">{((weeklyMetrics.retention?.week_4_cohort_retention || 0) * 100).toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Workflow Activation Section */}
+                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600">
+                    <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                      <Gauge className="w-4 h-4 text-yellow-400" />
+                      Workflow Activation
+                    </h4>
+                    <div className="grid grid-cols-5 gap-3">
+                      <div className="bg-yellow-500/10 rounded-lg p-3 border border-yellow-500/30">
+                        <p className="text-yellow-400 text-xs">Activation Rate</p>
+                        <p className="text-2xl font-bold text-white">{((weeklyMetrics.workflow_activation?.activation_rate || 0) * 100).toFixed(1)}%</p>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
+                        <p className="text-slate-400 text-xs">Users with Alerts</p>
+                        <p className="text-xl font-bold text-white">{weeklyMetrics.workflow_activation?.users_with_alerts || 0}</p>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
+                        <p className="text-slate-400 text-xs">Users with Tasks</p>
+                        <p className="text-xl font-bold text-white">{weeklyMetrics.workflow_activation?.users_with_tasks || 0}</p>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
+                        <p className="text-slate-400 text-xs">Users with Leads</p>
+                        <p className="text-xl font-bold text-white">{weeklyMetrics.workflow_activation?.users_with_leads || 0}</p>
+                      </div>
+                      <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600">
+                        <p className="text-slate-400 text-xs">Total Active</p>
+                        <p className="text-xl font-bold text-white">{weeklyMetrics.workflow_activation?.total_active_users || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Guardrails Section */}
+                  <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600">
+                    <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-400" />
+                      Guardrail Metrics
+                    </h4>
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className={`rounded-lg p-3 border ${weeklyMetrics.guardrails?.billing_incidents > 5 ? 'bg-red-500/20 border-red-500/50' : 'bg-slate-700/50 border-slate-600'}`}>
+                        <p className="text-slate-400 text-xs">Billing Incidents</p>
+                        <p className={`text-2xl font-bold ${weeklyMetrics.guardrails?.billing_incidents > 5 ? 'text-red-400' : 'text-white'}`}>
+                          {weeklyMetrics.guardrails?.billing_incidents || 0}
+                        </p>
+                      </div>
+                      <div className={`rounded-lg p-3 border ${weeklyMetrics.guardrails?.data_freshness_breaches > 10 ? 'bg-red-500/20 border-red-500/50' : 'bg-slate-700/50 border-slate-600'}`}>
+                        <p className="text-slate-400 text-xs">Data Freshness Breaches</p>
+                        <p className={`text-2xl font-bold ${weeklyMetrics.guardrails?.data_freshness_breaches > 10 ? 'text-red-400' : 'text-white'}`}>
+                          {weeklyMetrics.guardrails?.data_freshness_breaches || 0}
+                        </p>
+                      </div>
+                      <div className={`rounded-lg p-3 border ${weeklyMetrics.guardrails?.low_confidence_recommendations > 100 ? 'bg-red-500/20 border-red-500/50' : 'bg-slate-700/50 border-slate-600'}`}>
+                        <p className="text-slate-400 text-xs">Low Confidence Recs</p>
+                        <p className={`text-2xl font-bold ${weeklyMetrics.guardrails?.low_confidence_recommendations > 100 ? 'text-red-400' : 'text-white'}`}>
+                          {weeklyMetrics.guardrails?.low_confidence_recommendations || 0}
+                        </p>
+                      </div>
+                      <div className={`rounded-lg p-3 border ${weeklyMetrics.guardrails?.avg_time_to_first_value_hours > 48 ? 'bg-red-500/20 border-red-500/50' : 'bg-slate-700/50 border-slate-600'}`}>
+                        <p className="text-slate-400 text-xs">Avg Time to First Value</p>
+                        <p className={`text-2xl font-bold ${weeklyMetrics.guardrails?.avg_time_to_first_value_hours > 48 ? 'text-red-400' : 'text-white'}`}>
+                          {weeklyMetrics.guardrails?.avg_time_to_first_value_hours || 0}h
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-slate-500 text-xs text-center">
+                    Generated at: {weeklyMetrics.generated_at ? new Date(weeklyMetrics.generated_at).toLocaleString() : 'N/A'} • Period: {weeklyMetrics.period}
+                  </p>
+                </>
+              ) : (
+                <div className="text-center py-10 text-slate-400">
+                  <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p>No metrics data available. Click "Refresh" to load.</p>
                 </div>
               )}
             </div>
@@ -1126,163 +1391,251 @@ export default function AdminPanel({ isOpen, onClose }) {
           {/* Tests Tab */}
           {activeTab === 'tests' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-white font-semibold">System Tests</h3>
-                <button
-                  onClick={runTests}
-                  disabled={runningTest}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition disabled:opacity-50"
-                >
-                  {runningTest ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Running...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4" />
-                      Run All Tests
-                    </>
+              {/* Header with tier filters and actions */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-white font-semibold text-lg">Unified Test Suite</h3>
+                  <p className="text-slate-400 text-xs mt-0.5">33 tests across Infrastructure, Core AI, APIs, Business Logic, Quality & Debug</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => { setSelectedTier(null); runTests(null) }}
+                    disabled={runningTest}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-50 ${selectedTier === null ? 'bg-purple-600 text-white ring-2 ring-purple-400' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                  >
+                    All Tests
+                  </button>
+                  <button
+                    onClick={() => { setSelectedTier(1); runTests(1) }}
+                    disabled={runningTest}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-50 ${selectedTier === 1 ? 'bg-red-600 text-white ring-2 ring-red-400' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                  >
+                    🔴 Critical
+                  </button>
+                  <button
+                    onClick={() => { setSelectedTier(2); runTests(2) }}
+                    disabled={runningTest}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-50 ${selectedTier === 2 ? 'bg-yellow-600 text-white ring-2 ring-yellow-400' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                  >
+                    🟡 Functional
+                  </button>
+                  <button
+                    onClick={() => { setSelectedTier(3); runTests(3) }}
+                    disabled={runningTest}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition disabled:opacity-50 ${selectedTier === 3 ? 'bg-green-600 text-white ring-2 ring-green-400' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                  >
+                    🟢 Quality
+                  </button>
+                  {testResults && !testResults.error && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const resp = await fetch(`${API_URL}/api/test-suite/report`, { headers: { 'Authorization': `Bearer ${token}` } })
+                          if (resp.ok) {
+                            const data = await resp.json()
+                            const blob = new Blob([data.report], { type: 'text/markdown' })
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url; a.download = `valora_test_report_${new Date().toISOString().split('T')[0]}.md`
+                            a.click(); URL.revokeObjectURL(url)
+                          }
+                        } catch (e) { console.error('Download failed:', e) }
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-xs transition"
+                    >
+                      <Download className="w-3 h-3" />
+                      Report
+                    </button>
                   )}
-                </button>
+                </div>
               </div>
+
+              {/* Running indicator */}
+              {runningTest && (
+                <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 flex items-center gap-3">
+                  <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+                  <div>
+                    <p className="text-purple-300 font-medium text-sm">Running tests...</p>
+                    <p className="text-purple-400/70 text-xs">Testing local LLM, database, APIs, business logic, and quality checks</p>
+                  </div>
+                </div>
+              )}
 
               {testResults?.error ? (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400">
-                  {testResults.error}
+                  <p className="font-medium mb-1">Test Suite Error</p>
+                  <pre className="text-xs whitespace-pre-wrap opacity-80">{testResults.error}</pre>
                 </div>
               ) : testResults ? (
-                <div className="space-y-3">
-                  {testResults.tests?.map((test, i) => (
-                    <div key={i} className="bg-slate-700/50 rounded-lg p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {test.passed ? (
-                          <CheckCircle className="w-5 h-5 text-green-400" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-400" />
-                        )}
-                        <div>
-                          <p className="text-white text-sm font-medium">{test.name}</p>
-                          <p className="text-slate-400 text-xs">{test.description}</p>
-                        </div>
+                <div className="space-y-4">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-5 gap-3">
+                    <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600 text-center">
+                      <p className="text-2xl font-bold text-white">{testResults.total}</p>
+                      <p className="text-slate-400 text-xs">Total</p>
+                    </div>
+                    <div className="bg-green-500/10 rounded-lg p-3 border border-green-500/30 text-center">
+                      <p className="text-2xl font-bold text-green-400">{testResults.passed}</p>
+                      <p className="text-green-400/70 text-xs">Passed</p>
+                    </div>
+                    <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/30 text-center">
+                      <p className="text-2xl font-bold text-red-400">{testResults.failed}</p>
+                      <p className="text-red-400/70 text-xs">Failed</p>
+                    </div>
+                    <div className={`rounded-lg p-3 border text-center ${testResults.pass_rate >= 80 ? 'bg-green-500/10 border-green-500/30' : testResults.pass_rate >= 50 ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                      <p className={`text-2xl font-bold ${testResults.pass_rate >= 80 ? 'text-green-400' : testResults.pass_rate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>{testResults.pass_rate}%</p>
+                      <p className="text-slate-400 text-xs">Pass Rate</p>
+                    </div>
+                    <div className="bg-slate-700/50 rounded-lg p-3 border border-slate-600 text-center">
+                      <p className="text-2xl font-bold text-blue-400">{(testResults.duration_ms / 1000).toFixed(1)}s</p>
+                      <p className="text-slate-400 text-xs">Duration</p>
+                    </div>
+                  </div>
+
+                  {/* Tier Breakdown */}
+                  {testResults.tier_results && (
+                    <div className="grid grid-cols-3 gap-3">
+                      {Object.entries(testResults.tier_results).map(([tier, data]) => {
+                        const pct = data.total > 0 ? Math.round(data.passed / data.total * 100) : 0
+                        return (
+                          <div key={tier} className={`rounded-lg p-3 border ${
+                            tier === 'Critical' ? 'bg-red-500/10 border-red-500/30' :
+                            tier === 'Functional' ? 'bg-yellow-500/10 border-yellow-500/30' :
+                            'bg-green-500/10 border-green-500/30'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <p className="text-slate-300 text-xs font-medium">{tier}</p>
+                              <span className={`text-xs font-bold ${pct === 100 ? 'text-green-400' : 'text-red-400'}`}>{pct}%</span>
+                            </div>
+                            <div className="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <p className="text-slate-400 text-xs mt-1">{data.passed}/{data.total} passed</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Category Breakdown */}
+                  {testResults.category_results && (
+                    <div className="bg-slate-700/30 rounded-lg p-3 border border-slate-600">
+                      <p className="text-slate-300 text-xs font-medium mb-2">By Category</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {Object.entries(testResults.category_results).map(([cat, data]) => (
+                          <div key={cat} className="flex items-center justify-between bg-slate-800/50 rounded px-2 py-1.5">
+                            <span className="text-slate-300 text-xs">{cat}</span>
+                            <span className={`text-xs font-medium ${data.failed === 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {data.passed}/{data.total}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                      <span className={`text-xs ${test.passed ? 'text-green-400' : 'text-red-400'}`}>
-                        {test.duration}ms
-                      </span>
                     </div>
-                  ))}
+                  )}
                   
-                  <div className="bg-slate-700/30 rounded-lg p-4 mt-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-300">Total Tests</span>
-                      <span className="text-white font-medium">{testResults.total}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm mt-2">
-                      <span className="text-slate-300">Passed</span>
-                      <span className="text-green-400 font-medium">{testResults.passed}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm mt-2">
-                      <span className="text-slate-300">Failed</span>
-                      <span className="text-red-400 font-medium">{testResults.failed}</span>
-                    </div>
+                  {/* Grouped Test Results */}
+                  {(() => {
+                    const tests = testResults.results || testResults.tests || []
+                    const groups = {}
+                    tests.forEach(t => {
+                      const cat = t.category || 'Other'
+                      if (!groups[cat]) groups[cat] = []
+                      groups[cat].push(t)
+                    })
+                    return Object.entries(groups).map(([category, catTests]) => (
+                      <div key={category} className="space-y-1">
+                        <div className="flex items-center gap-2 mt-3 mb-1">
+                          <span className="text-slate-300 text-xs font-semibold uppercase tracking-wider">{category}</span>
+                          <span className="text-slate-500 text-xs">({catTests.filter(t => t.passed).length}/{catTests.length})</span>
+                        </div>
+                        {catTests.map((test, i) => (
+                          <div key={i} className={`rounded-lg p-3 border transition ${test.passed ? 'bg-slate-700/30 border-slate-700 hover:border-slate-600' : 'bg-red-500/5 border-red-500/20 hover:border-red-500/40'}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 min-w-0">
+                                {test.passed ? (
+                                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                                ) : (
+                                  <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-white text-sm font-medium">{test.test_name || test.name}</p>
+                                  {test.details && <p className="text-slate-400 text-xs mt-0.5">{test.details}</p>}
+                                  {test.error && (
+                                    <p className="text-red-400 text-xs mt-0.5 break-words" title={test.error}>
+                                      ⚠ {test.error}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                {test.severity === 'critical' && (
+                                  <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] rounded font-medium">CRITICAL</span>
+                                )}
+                                {test.severity === 'warning' && (
+                                  <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 text-[10px] rounded font-medium">WARN</span>
+                                )}
+                                <span className={`text-xs font-mono ${test.passed ? 'text-green-400/70' : 'text-red-400/70'}`}>
+                                  {test.duration_ms || 0}ms
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  })()}
+
+                  {/* Run metadata */}
+                  <div className="bg-slate-700/20 rounded-lg p-3 text-center">
+                    <p className="text-slate-500 text-xs">
+                      Run: {testResults.run_id} • {testResults.started_at ? new Date(testResults.started_at).toLocaleString() : ''}
+                    </p>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-12 text-slate-400">
                   <TestTube className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Click "Run All Tests" to check system health</p>
+                  <p className="font-medium">Click a tier button or "All Tests" to run the unified test suite</p>
+                  <p className="text-xs mt-2 text-slate-500">Tests include: LLM health, database, APIs, business logic, intent classification, quality & debug checks</p>
                 </div>
               )}
 
+
+              {/* Production Debug Recommendations */}
               <div className="border-t border-slate-700 pt-4"></div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-white font-semibold">Real-time Sanity Check</h3>
-                  <p className="text-slate-400 text-xs mt-1">Calls live endpoints to validate end-to-end behavior</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2 text-xs text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={sanityIncludeChat}
-                      onChange={(e) => setSanityIncludeChat(e.target.checked)}
-                      className="rounded border-slate-600 bg-slate-800"
-                    />
-                    Include /api/chat
-                  </label>
-                  <button
-                    onClick={runSanityCheck}
-                    disabled={runningSanity}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition disabled:opacity-50"
-                  >
-                    {runningSanity ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Running...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="w-4 h-4" />
-                        Run Sanity
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {sanityResults?.error ? (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400">
-                  {sanityResults.error}
-                </div>
-              ) : sanityResults ? (
-                <div className="space-y-3">
-                  {sanityResults.tests?.map((test, i) => (
-                    <div key={i} className="bg-slate-700/50 rounded-lg p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {test.skipped ? (
-                          <AlertTriangle className="w-5 h-5 text-yellow-400" />
-                        ) : test.passed ? (
-                          <CheckCircle className="w-5 h-5 text-green-400" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-400" />
-                        )}
-                        <div>
-                          <p className="text-white text-sm font-medium">{test.name}</p>
-                          <p className="text-slate-400 text-xs">{test.description}</p>
-                        </div>
-                      </div>
-                      <span className={`text-xs ${test.skipped ? 'text-yellow-400' : test.passed ? 'text-green-400' : 'text-red-400'}`}>
-                        {test.duration_ms ?? test.duration}ms
-                      </span>
-                    </div>
-                  ))}
-
-                  <div className="bg-slate-700/30 rounded-lg p-4 mt-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-300">Total Checks</span>
-                      <span className="text-white font-medium">{sanityResults.total}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm mt-2">
-                      <span className="text-slate-300">Passed</span>
-                      <span className="text-green-400 font-medium">{sanityResults.passed}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm mt-2">
-                      <span className="text-slate-300">Failed</span>
-                      <span className="text-red-400 font-medium">{sanityResults.failed}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm mt-2">
-                      <span className="text-slate-300">Skipped</span>
-                      <span className="text-yellow-400 font-medium">{sanityResults.skipped}</span>
-                    </div>
+              <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-4">
+                <h4 className="text-white font-medium text-sm flex items-center gap-2 mb-3">
+                  <FileText className="w-4 h-4 text-blue-400" />
+                  Production Debug Recommendations
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-slate-800/50 rounded p-2">
+                    <span className="text-blue-400 font-medium">💡 LLM Latency Monitor</span>
+                    <p className="text-slate-400 mt-1">Track p50/p95/p99 response times for chat endpoint</p>
+                  </div>
+                  <div className="bg-slate-800/50 rounded p-2">
+                    <span className="text-blue-400 font-medium">💡 Error Rate Dashboard</span>
+                    <p className="text-slate-400 mt-1">Alert when 5xx rate exceeds 1% in 5-min window</p>
+                  </div>
+                  <div className="bg-slate-800/50 rounded p-2">
+                    <span className="text-blue-400 font-medium">💡 Credit Burn Auditing</span>
+                    <p className="text-slate-400 mt-1">Verify no double-charges or credit leaks per session</p>
+                  </div>
+                  <div className="bg-slate-800/50 rounded p-2">
+                    <span className="text-blue-400 font-medium">💡 DB Query Performance</span>
+                    <p className="text-slate-400 mt-1">Track slow queries (&gt;500ms) and missing indexes</p>
+                  </div>
+                  <div className="bg-slate-800/50 rounded p-2">
+                    <span className="text-blue-400 font-medium">💡 Cache Hit/Miss Ratio</span>
+                    <p className="text-slate-400 mt-1">Monitor RAG and query cache efficiency over time</p>
+                  </div>
+                  <div className="bg-slate-800/50 rounded p-2">
+                    <span className="text-blue-400 font-medium">💡 Hallucination Detection</span>
+                    <p className="text-slate-400 mt-1">Flag responses with unverifiable claims or wrong data</p>
                   </div>
                 </div>
-              ) : (
-                <div className="text-center py-10 text-slate-400">
-                  <Activity className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                  <p>Run sanity check to validate live APIs</p>
-                </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -1459,7 +1812,7 @@ export default function AdminPanel({ isOpen, onClose }) {
           {activeTab === 'config' && (
             <div className="space-y-4">
               <h3 className="text-white font-semibold">Configuration</h3>
-              
+
               {/* Local LLM Settings Only */}
               <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-4">

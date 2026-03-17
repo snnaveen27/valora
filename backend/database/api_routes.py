@@ -188,6 +188,107 @@ async def get_nearby_properties(
             "count": len(results),
             "properties": results
         }
+    except Exception as e:
+        logger.error(f"Error fetching nearby properties: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/area/stats/{area_name}")
+async def get_area_stats(area_name: str):
+    """
+    Get statistics for a specific area/locality by name.
+    Returns building count, price per sqft, investment score, and connectivity score.
+    """
+    try:
+        db = get_db_service()
+        
+        stats = db.get_area_stats(area_name)
+        
+        if stats:
+            return {
+                "success": True,
+                "area": area_name,
+                "buildingCount": stats['buildingCount'],
+                "pricePerSqft": stats['pricePerSqft'],
+                "investmentScore": stats['investmentScore'],
+                "connectivityScore": stats['connectivityScore'],
+                "avgLat": stats.get('avgLat'),
+                "avgLng": stats.get('avgLng')
+            }
+        else:
+            return {
+                "success": False,
+                "area": area_name,
+                "message": "No data found for this area"
+            }
+    except Exception as e:
+        logger.error(f"Error fetching area stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/area/stats-by-coords")
+async def get_area_stats_by_coords(lat: float, lng: float, radius: int = 2000):
+    """
+    Get statistics for an area by coordinates.
+    Returns building count, price per sqft, investment score, and connectivity score.
+    """
+    try:
+        db = get_db_service()
+        
+        # Get properties within radius
+        properties = db.search_properties(lat=lat, lng=lng, radius_meters=radius, limit=1000)
+        
+        if properties:
+            # Calculate stats from properties
+            total = len(properties)
+            prices = [p.get('price_per_sqft', 0) for p in properties if p.get('price_per_sqft')]
+            avg_price_per_sqft = sum(prices) / len(prices) if prices else 0
+            
+            # Calculate investment score (lower price = higher potential)
+            investment_score = 90 if avg_price_per_sqft < 6000 else (80 if avg_price_per_sqft < 8000 else (70 if avg_price_per_sqft < 10000 else (60 if avg_price_per_sqft < 13000 else 50)))
+            
+            # Connectivity based on property density
+            connectivity_score = min(95, 50 + total // 10)
+            
+            return {
+                "success": True,
+                "area": "Selected Area",
+                "buildingCount": total,
+                "pricePerSqft": int(avg_price_per_sqft) if avg_price_per_sqft else 0,
+                "investmentScore": investment_score,
+                "connectivityScore": connectivity_score,
+                "avgLat": lat,
+                "avgLng": lng
+            }
+        else:
+            return {
+                "success": False,
+                "area": "Selected Area",
+                "message": "No properties found in this area"
+            }
+    except Exception as e:
+        logger.error(f"Error fetching area stats by coords: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/areas")
+async def get_all_areas():
+    """
+    Get all available areas/localities from the database.
+    """
+    try:
+        db = get_db_service()
+        
+        areas = db.get_all_localities()
+        
+        return {
+            "success": True,
+            "count": len(areas),
+            "areas": areas
+        }
+    except Exception as e:
+        logger.error(f"Error fetching areas: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
         
     except Exception as e:
         logger.error(f"Error finding nearby properties: {e}")

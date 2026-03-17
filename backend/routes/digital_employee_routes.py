@@ -7,10 +7,17 @@ Primary prefix:
 Compatibility prefixes:
 - /api/automations
 - /api/leads
+
+Production-grade routes for digital employee automation:
+- Alert and scheduling management
+- Lead management
+- Command parsing and execution
 """
 
 from __future__ import annotations
 
+import logging
+import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -21,12 +28,16 @@ from routes.auth_routes import require_auth
 from services.digital_employee_service import get_digital_employee_service
 from services.scheduler_service import get_digital_scheduler
 
+logger = logging.getLogger("valora.digital_employee_routes")
 
 router = APIRouter(prefix="/api/digital-employee", tags=["digital-employee"])
 automations_router = APIRouter(prefix="/api/automations", tags=["digital-employee"])
 leads_router = APIRouter(prefix="/api/leads", tags=["digital-employee"])
 
 
+# -------------------------------------------------------------------------
+# Request models
+# -------------------------------------------------------------------------
 class AlertCreateRequest(BaseModel):
     name: Optional[str] = Field(default=None, max_length=120)
     criteria: Dict[str, Any]
@@ -80,6 +91,7 @@ class LeadUpdateRequest(BaseModel):
 
 class CommandRequest(BaseModel):
     command: str = Field(min_length=1, max_length=500)
+    runtime_preference: Optional[str] = Field(default="native", max_length=20)
 
 
 class AutomationEmailRequest(BaseModel):
@@ -90,6 +102,9 @@ class AutomationEmailRequest(BaseModel):
     requires_confirmation: bool = False
 
 
+# -------------------------------------------------------------------------
+# Helpers
+# -------------------------------------------------------------------------
 def _get_service_and_tier(user: User):
     service = get_digital_employee_service()
     tier = service.resolve_tier(user.tier.value if user and user.tier else "free", user.email)
@@ -106,15 +121,22 @@ def _translate_exception(exc: Exception) -> HTTPException:
     return HTTPException(status_code=500, detail=str(exc))
 
 
+# =========================================================================
+# Summary + Runtime metadata (§7.4)
+# =========================================================================
 @router.get("/summary")
 async def get_digital_employee_summary(user: User = Depends(require_auth)):
     service, tier = _get_service_and_tier(user)
+    snapshot = service.get_dashboard_snapshot(user_id=user.email, tier=tier)
     return {
         "success": True,
-        "summary": service.get_dashboard_snapshot(user_id=user.email, tier=tier),
+        "summary": snapshot,
     }
 
 
+# =========================================================================
+# Alerts CRUD
+# =========================================================================
 @router.get("/alerts")
 async def list_alerts(
     include_inactive: bool = Query(False),
@@ -159,6 +181,9 @@ async def delete_alert(alert_id: int, user: User = Depends(require_auth)):
         raise _translate_exception(exc)
 
 
+# =========================================================================
+# Scheduled Tasks CRUD
+# =========================================================================
 @router.get("/scheduled-tasks")
 async def list_scheduled_tasks(
     include_inactive: bool = Query(False),
@@ -204,6 +229,9 @@ async def delete_scheduled_task(task_id: int, user: User = Depends(require_auth)
         raise _translate_exception(exc)
 
 
+# =========================================================================
+# Leads CRUD
+# =========================================================================
 @router.get("/leads")
 async def list_leads(
     status: Optional[str] = Query(default=None),
@@ -244,6 +272,9 @@ async def delete_lead(lead_id: int, user: User = Depends(require_auth)):
         raise _translate_exception(exc)
 
 
+# =========================================================================
+# Activity
+# =========================================================================
 @router.get("/activity")
 async def list_activity(
     limit: int = Query(default=100, ge=1, le=500),
@@ -255,6 +286,9 @@ async def list_activity(
     return {"success": True, "activity": activity}
 
 
+# =========================================================================
+# Command parse and parse-and-execute with runtime selector (§6, §7.1)
+# =========================================================================
 @router.post("/commands/parse")
 async def parse_command(request: CommandRequest, user: User = Depends(require_auth)):
     service, _ = _get_service_and_tier(user)
@@ -265,10 +299,70 @@ async def parse_command(request: CommandRequest, user: User = Depends(require_au
 @router.post("/commands/parse-and-execute")
 async def parse_and_execute_command(request: CommandRequest, user: User = Depends(require_auth)):
     service, tier = _get_service_and_tier(user)
-    result = service.parse_and_execute_command(user_id=user.email, tier=tier, command=request.command)
-    return {"success": True, **result}
+    
+    start_time = time.time()
+    
+    # Execute command using native service
+    result: Dict[str, Any] = {}
+    exec_status = "success"
+    exec_error = None
+    
+    try:
+        result = service.parse_and_execute_command(
+            user_id=user.email, tier=tier, command=request.command
+        )
+    except Exception as e:
+        exec_status = "error"
+        exec_error = str(e)
+        logger.error("[DigitalEmployee] Command execution error: %s", e)
+        result = {
+            "handled": True,
+            "executed": False,
+            "reason": f"Execution error: {str(e)[:200]}",
+        }
+    
+    return {
+        "success": True,
+        "result": result,
+        "execution": {
+            "status": exec_status,
+            "latency_ms": int((time.time() - start_time) * 1000),
+        },
+    }
+
+    latency_ms = int((time.time() - start_time) * 1000)
+
+    # 3. Log execution
+    try:
+        runtime_svc.log_execution(
+            user_id=user.email,
+            command_text=request.command,
+            intent=result.get("intent"),
+            runtime=runtime_sel,
+            status=exec_status,
+            error_message=exec_error,
+            latency_ms=latency_ms,
+        )
+    except Exception as log_err:
+        logger.warning("[DigitalEmployee] Execution log failed: %s", log_err)
+
+    return {
+        "success": exec_status == "success",
+        **result,
+        "runtime": {
+            "requested": runtime_sel.requested,
+            "selected": runtime_sel.selected,
+            "fallback_used": runtime_sel.fallback_used,
+            "reason": runtime_sel.reason,
+        },
+        "latency_ms": latency_ms,
+    }
 
 
+# =========================================================================
+# =========================================================================
+# Scheduler
+# =========================================================================
 @router.get("/scheduler/status")
 async def scheduler_status(user: User = Depends(require_auth)):
     scheduler = get_digital_scheduler()
@@ -282,9 +376,9 @@ async def scheduler_run_once(user: User = Depends(require_auth)):
     return {"success": True, "metrics": metrics}
 
 
-# -------------------------------------------------------------------------
-# Compatibility endpoints
-# -------------------------------------------------------------------------
+# =========================================================================
+# Compatibility endpoints (unchanged)
+# =========================================================================
 @automations_router.get("/alerts")
 async def list_automation_alerts(
     include_inactive: bool = Query(False),

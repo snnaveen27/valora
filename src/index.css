@@ -6,7 +6,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-}
+}le
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -58,6 +58,16 @@ body {
 
 ::-webkit-scrollbar-track {
   background: rgba(139, 92, 246, 0.1);
+}
+
+/* Glow pulse for Agent and Community icons */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 6px 1px rgba(34, 211, 238, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 12px 3px rgba(34, 211, 238, 0.8);
+  }
 }
 
 ::-webkit-scrollbar-thumb {

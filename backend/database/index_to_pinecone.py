@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database.db_service import DatabaseService
 from ai.rag_service import RAGService
+from backend.config import config
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -291,7 +292,7 @@ def main():
     """Main indexing function."""
     
     # Initialize services
-    db_path = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
+    db_path = config.DB_PATH
     data_dir = Path(__file__).parent.parent.parent / 'storage'
     
     print("\n" + "="*70)

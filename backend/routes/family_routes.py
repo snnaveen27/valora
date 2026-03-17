@@ -1,40 +1,44 @@
 """
-Valora AI - Family Hub API Routes (Community Pulse Phase 1)
-Collaborative property decision-making for joint families.
+Valora AI - Decision-Room API Routes (Family Hub)
 
-Endpoints:
-  Session Management:
-    POST   /api/family/session                    - Create a new family session
-    GET    /api/family/sessions                   - Get all sessions for current user
-    GET    /api/family/session/{session_id}       - Get specific session details
-    PUT    /api/family/session/{session_id}       - Update session settings
-    DELETE /api/family/session/{session_id}       - Archive/delete session
+FOCUSED: Multi-stakeholder buying workflow for broker productivity.
+
+This is NOT social or decorative - this is a real workflow for buyer committees.
+Primary KPI is WAWU (Weekly Active Workflow Users), driven by recurring workflow actions.
+
+Core Endpoints:
+  Session Management (Decision-Room):
+    POST   /api/family/session                    - Create decision-room for property search
+    GET    /api/family/sessions                   - Get all decision-rooms for user
+    GET    /api/family/session/{session_id}       - Get specific decision-room details
+    PUT    /api/family/session/{session_id}       - Update decision-room settings
+    DELETE /api/family/session/{session_id}       - Archive/delete decision-room
   
-  Member Management:
-    POST   /api/family/session/{session_id}/invite      - Invite a family member
-    GET    /api/family/session/{session_id}/members     - Get all members
+  Committee Member Management:
+    POST   /api/family/session/{session_id}/invite      - Invite stakeholder
+    GET    /api/family/session/{session_id}/members     - Get all stakeholders
     PUT    /api/family/session/{session_id}/member/{member_id} - Update member role
     DELETE /api/family/session/{session_id}/member/{member_id} - Remove member
     POST   /api/family/session/{session_id}/join        - Accept invitation
   
-  Watchlist Management:
-    POST   /api/family/session/{session_id}/watchlist   - Add property to watchlist
-    GET    /api/family/session/{session_id}/watchlist   - Get watchlist
-    PUT    /api/family/session/{session_id}/watchlist/{item_id} - Update watchlist item
-    DELETE /api/family/session/{session_id}/watchlist/{item_id} - Remove from watchlist
+  Property Shortlist (Client-Ready):
+    POST   /api/family/session/{session_id}/watchlist   - Add property to shortlist
+    GET    /api/family/session/{session_id}/watchlist   - Get shortlist
+    PUT    /api/family/session/{session_id}/watchlist/{item_id} - Update item status
+    DELETE /api/family/session/{session_id}/watchlist/{item_id} - Remove from shortlist
   
-  Voting System:
+  Voting & Decision Support:
     POST   /api/family/session/{session_id}/vote        - Cast vote on property
     GET    /api/family/session/{session_id}/votes       - Get all votes
     GET    /api/family/session/{session_id}/votes/{property_id} - Get votes for property
-    GET    /api/family/session/{session_id}/vote-summary - Get vote summary
+    GET    /api/family/session/{session_id}/vote-summary - Get decision summary (CLIENT-READY)
   
-  Timeline & Statistics:
-    GET    /api/family/session/{session_id}/timeline    - Get timeline events
+  Activity Feed:
+    GET    /api/family/session/{session_id}/timeline    - Get decision activity
     GET    /api/family/session/{session_id}/statistics  - Get session statistics
   
   Sharing:
-    POST   /api/family/session/{session_id}/share       - Generate share link/token
+    POST   /api/family/session/{session_id}/share       - Generate share link
 """
 
 import logging
@@ -73,7 +77,7 @@ from database.community_pulse_schema import (
 
 logger = logging.getLogger("valora.family_routes")
 
-router = APIRouter(prefix="/api/family", tags=["Family Hub"])
+router = APIRouter(prefix="/api/family", tags=["Decision-Room (Multi-stakeholder)"])
 
 
 # ============================================================================
@@ -471,7 +475,7 @@ async def create_session(
     
     session_id = create_family_session(
         db=db,
-        owner_user_id=user.user_id,
+        owner_user_id=user.id,
         family_name=request.family_name,
         description=request.description,
         target_locality=request.target_locality,
@@ -490,17 +494,17 @@ async def create_session(
         session_id=session_id,
         event_type="session_created",
         event_data={"family_name": request.family_name},
-        user_id=user.user_id
+        user_id=user.id
     )
     
     # Award credits for creating a family session
-    await award_credits(user.user_id, 5, "creating family session")
+    await award_credits(user.id, 5, "creating family session")
     
     # Get the created session
     session = get_family_session(db, session_id)
     session['is_owner'] = True
     
-    logger.info(f"[FamilyHub] Created session {session_id} for user {user.user_id}")
+    logger.info(f"[FamilyHub] Created session {session_id} for user {user.id}")
     
     return SessionResponse(**session)
 
@@ -515,13 +519,13 @@ async def list_sessions(
     
     sessions = get_user_family_sessions(
         db=db,
-        user_id=user.user_id,
+        user_id=user.id,
         status=status.value if status else None
     )
     
     # Add is_owner flag
     for session in sessions:
-        session['is_owner'] = session['owner_user_id'] == user.user_id
+        session['is_owner'] = session['owner_user_id'] == user.id
     
     return [SessionResponse(**s) for s in sessions]
 
@@ -534,8 +538,8 @@ async def get_session(
     """Get details of a specific family session."""
     db = get_db()
     
-    session = await check_session_access(db, session_id, user.user_id)
-    session['is_owner'] = session['owner_user_id'] == user.user_id
+    session = await check_session_access(db, session_id, user.id)
+    session['is_owner'] = session['owner_user_id'] == user.id
     
     return SessionResponse(**session)
 
@@ -554,7 +558,7 @@ async def update_session(
     db = get_db()
     
     # Only owner can update session
-    session = await check_session_access(db, session_id, user.user_id, require_owner=True)
+    session = await check_session_access(db, session_id, user.id, require_owner=True)
     
     # Build update dict (only non-None values)
     updates = request.dict(exclude_unset=True)
@@ -571,7 +575,7 @@ async def update_session(
             session_id=session_id,
             event_type="session_updated",
             event_data={"updates": list(updates.keys())},
-            user_id=user.user_id
+            user_id=user.id
         )
     
     # Get updated session
@@ -595,7 +599,7 @@ async def archive_session(
     db = get_db()
     
     # Only owner can archive session
-    await check_session_access(db, session_id, user.user_id, require_owner=True)
+    await check_session_access(db, session_id, user.id, require_owner=True)
     
     # Archive instead of delete
     success = update_family_session(db, session_id, status='archived')
@@ -609,7 +613,7 @@ async def archive_session(
         session_id=session_id,
         event_type="session_archived",
         event_data={},
-        user_id=user.user_id
+        user_id=user.id
     )
     
     logger.info(f"[FamilyHub] Archived session {session_id}")
@@ -637,7 +641,7 @@ async def invite_member(
     
     # Check permission (owner or admin can invite)
     perm = await check_member_permission(
-        db, session_id, user.user_id,
+        db, session_id, user.id,
         allowed_roles=['owner', 'admin', 'member']
     )
     
@@ -668,11 +672,11 @@ async def invite_member(
             "member_email": request.email,
             "role": request.role.value
         },
-        user_id=user.user_id
+        user_id=user.id
     )
     
     # Award credits for inviting a family member
-    await award_credits(user.user_id, 3, "inviting family member")
+    await award_credits(user.id, 3, "inviting family member")
     
     # Get the created member
     members = get_family_members(db, session_id)
@@ -692,7 +696,7 @@ async def list_members(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     members = get_family_members(db, session_id)
     
@@ -715,7 +719,7 @@ async def update_member(
     
     # Check permission
     perm = await check_member_permission(
-        db, session_id, user.user_id,
+        db, session_id, user.id,
         allowed_roles=['owner', 'admin']
     )
     
@@ -749,7 +753,7 @@ async def update_member(
             session_id=session_id,
             event_type="member_updated",
             event_data={"member_id": member_id, "updates": list(updates.keys())},
-            user_id=user.user_id
+            user_id=user.id
         )
     
     # Get updated member
@@ -774,7 +778,7 @@ async def remove_member(
     
     # Check permission
     perm = await check_member_permission(
-        db, session_id, user.user_id,
+        db, session_id, user.id,
         allowed_roles=['owner', 'admin']
     )
     
@@ -800,7 +804,7 @@ async def remove_member(
         session_id=session_id,
         event_type="member_removed",
         event_data={"member_name": member['name']},
-        user_id=user.user_id
+        user_id=user.id
     )
     
     logger.info(f"[FamilyHub] Removed member {member_id} from session {session_id}")
@@ -832,7 +836,7 @@ async def join_session(
     # Try to find by user_id or email
     member = next(
         (m for m in members if (
-            m['user_id'] == user.user_id or 
+            m['user_id'] == user.id or 
             (m['email'] and m['email'].lower() == user.email.lower())
         ) and m['invite_status'] == 'pending'),
         None
@@ -845,7 +849,7 @@ async def join_session(
     update_data = {
         'invite_status': 'accepted',
         'joined_at': datetime.now().isoformat(),
-        'user_id': user.user_id  # Link to actual user account
+        'user_id': user.id  # Link to actual user account
     }
     
     if request.name:
@@ -862,14 +866,14 @@ async def join_session(
         session_id=session_id,
         event_type="member_joined",
         event_data={"member_name": request.name or member['name']},
-        user_id=user.user_id
+        user_id=user.id
     )
     
     # Get updated member
     members = get_family_members(db, session_id)
     member = next((m for m in members if m['id'] == member['id']), None)
     
-    logger.info(f"[FamilyHub] User {user.user_id} joined session {session_id}")
+    logger.info(f"[FamilyHub] User {user.id} joined session {session_id}")
     
     return MemberResponse(**member)
 
@@ -888,13 +892,13 @@ async def add_property_to_watchlist(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     # Add to watchlist
     entry_id = add_to_watchlist(
         db=db,
         session_id=session_id,
-        added_by=user.user_id,
+        added_by=user.id,
         property_id=request.property_id,
         property_title=request.property_title,
         locality=request.locality,
@@ -918,7 +922,7 @@ async def add_property_to_watchlist(
             "property_title": request.property_title,
             "priority": request.priority.value
         },
-        user_id=user.user_id
+        user_id=user.id
     )
     
     # Get the created entry
@@ -940,7 +944,7 @@ async def get_session_watchlist(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     watchlist = get_watchlist(
         db=db,
@@ -962,7 +966,7 @@ async def update_watchlist_item(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     # Build update dict
     updates = request.dict(exclude_unset=True)
@@ -985,7 +989,7 @@ async def update_watchlist_item(
             session_id=session_id,
             event_type="watchlist_updated",
             event_data={"item_id": item_id, "updates": list(updates.keys())},
-            user_id=user.user_id
+            user_id=user.id
         )
     
     # Get updated entry
@@ -1008,7 +1012,7 @@ async def remove_from_watchlist_endpoint(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     success = remove_from_watchlist(db, item_id)
     
@@ -1021,7 +1025,7 @@ async def remove_from_watchlist_endpoint(
         session_id=session_id,
         event_type="property_removed",
         event_data={"item_id": item_id},
-        user_id=user.user_id
+        user_id=user.id
     )
     
     logger.info(f"[FamilyHub] Removed item {item_id} from watchlist")
@@ -1047,14 +1051,14 @@ async def cast_vote_endpoint(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     # Cast vote
     vote_id = cast_vote(
         db=db,
         session_id=session_id,
         property_id=request.property_id,
-        user_id=user.user_id,
+        user_id=user.id,
         vote=request.vote.value,
         aspects=request.aspects,
         comment=request.comment
@@ -1072,7 +1076,7 @@ async def cast_vote_endpoint(
             "property_id": request.property_id,
             "vote": request.vote.value
         },
-        user_id=user.user_id
+        user_id=user.id
     )
     
     # Check if all members have voted (consensus)
@@ -1105,7 +1109,7 @@ async def cast_vote_endpoint(
             session_id=session_id,
             event_type="consensus_reached",
             event_data={"property_id": request.property_id},
-            user_id=user.user_id
+            user_id=user.id
         )
         
         logger.info(f"[FamilyHub] Consensus reached on property {request.property_id}")
@@ -1128,7 +1132,7 @@ async def get_all_votes(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     # Get all votes for session (need to query all properties in watchlist)
     watchlist = get_watchlist(db, session_id)
@@ -1152,7 +1156,7 @@ async def get_property_votes(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     votes = get_votes_for_property(db, session_id, property_id)
     
@@ -1168,7 +1172,7 @@ async def get_vote_summaries(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     watchlist = get_watchlist(db, session_id)
     summaries = {}
@@ -1200,7 +1204,7 @@ async def get_session_timeline(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     events = get_timeline_events(
         db=db,
@@ -1222,7 +1226,7 @@ async def get_session_stats(
     db = get_db()
     
     # Check access
-    await check_session_access(db, session_id, user.user_id)
+    await check_session_access(db, session_id, user.id)
     
     stats = get_session_statistics(db, session_id)
     
@@ -1255,7 +1259,7 @@ async def generate_share_link(
     
     # Check permission
     perm = await check_member_permission(
-        db, session_id, user.user_id,
+        db, session_id, user.id,
         allowed_roles=['owner', 'admin']
     )
     
@@ -1268,7 +1272,7 @@ async def generate_share_link(
     # Store token
     _share_tokens[share_token] = {
         "session_id": session_id,
-        "created_by": user.user_id,
+        "created_by": user.id,
         "expires_at": expires_at,
         "max_uses": request.max_uses,
         "uses": 0
@@ -1280,7 +1284,7 @@ async def generate_share_link(
         session_id=session_id,
         event_type="share_link_created",
         event_data={"expiry_hours": request.expiry_hours},
-        user_id=user.user_id
+        user_id=user.id
     )
     
     # Generate share URL (frontend will handle the route)

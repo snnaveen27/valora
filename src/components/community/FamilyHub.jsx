@@ -11,6 +11,7 @@
  * @param {boolean} isOpen - Whether the hub modal/panel is open
  * @param {function} onClose - Callback to close the hub
  * @param {string} [initialTab] - Initial tab to display (sessions, watchlist, voting, timeline)
+ * @param {string} [defaultLocality] - Locality prefill for new sessions
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -63,7 +64,12 @@ const STATUS_COLORS = {
   completed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
 };
 
-export default function FamilyHub({ isOpen, onClose, initialTab = 'sessions' }) {
+export default function FamilyHub({
+  isOpen,
+  onClose,
+  initialTab = 'sessions',
+  defaultLocality = '',
+}) {
   // State management
   const [activeTab, setActiveTab] = useState(initialTab);
   const [sessions, setSessions] = useState([]);
@@ -439,6 +445,7 @@ export default function FamilyHub({ isOpen, onClose, initialTab = 'sessions' }) 
           isOpen={showCreateSession}
           onClose={() => setShowCreateSession(false)}
           onCreated={handleSessionCreated}
+          defaultLocality={defaultLocality}
         />
       )}
 

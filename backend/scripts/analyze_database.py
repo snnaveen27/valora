@@ -6,9 +6,13 @@ Analyzes existing data to identify opportunities for feature improvements.
 import sqlite3
 import json
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from backend.config import config
 
 def analyze_database():
-    db_path = Path(__file__).parent.parent / 'storage' / 'valora.db'
+    db_path = config.DB_PATH
     
     if not db_path.exists():
         print(f"Database not found at {db_path}")

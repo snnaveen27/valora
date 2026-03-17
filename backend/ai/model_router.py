@@ -9,6 +9,9 @@ Auto-selects the optimal model (local Ollama, Ollama Cloud, or OpenRouter) based
   5. Available models (dynamically discovered from Ollama + OpenRouter)
   6. Historical performance (SQLite-tracked latency, success rate, quality)
 
+IMPORTANT: When user provides explicit model selection via dropdown, 
+that selection is ALWAYS respected and complexity-based routing is BYPASSED.
+
 Cloud provider priority: OpenRouter -> Ollama Cloud (fallback)
 Default local: qwen3:4b-instruct
 """
@@ -336,7 +339,7 @@ class ModelSelection:
     is_vision: bool = False
     reasoning: str = ""
     complexity_score: float = 0.0
-    max_tokens: int = 800
+    max_tokens: int = 2000
     temperature: float = 0.5
     escalated: bool = False
 
@@ -396,7 +399,7 @@ def select_model(
         return ModelSelection(
             model=best.id, provider=best.provider, is_cloud=best.is_cloud,
             is_vision=True, reasoning=" | ".join([query_analysis.reasoning] + reasons),
-            complexity_score=score, max_tokens=4096, temperature=0.6,
+            complexity_score=score, max_tokens=8192, temperature=0.6,
             escalated=best.is_cloud,
         )
 
@@ -407,7 +410,7 @@ def select_model(
         return ModelSelection(
             model=best.id, provider=best.provider, is_cloud=True,
             reasoning=" | ".join([query_analysis.reasoning] + reasons),
-            complexity_score=score, max_tokens=4096, temperature=0.6,
+            complexity_score=score, max_tokens=8192, temperature=0.6,
             escalated=True,
         )
 
@@ -419,7 +422,7 @@ def select_model(
         return ModelSelection(
             model=best.id, provider=best.provider, is_cloud=True,
             reasoning=" | ".join([query_analysis.reasoning] + reasons),
-            complexity_score=score, max_tokens=2048, temperature=0.5,
+            complexity_score=score, max_tokens=4096, temperature=0.5,
             escalated=True,
         )
 
@@ -428,12 +431,12 @@ def select_model(
     if local_models:
         default_local = local_models[0].id
 
-    max_tokens = 800
+    max_tokens = 4096
     if intent in {Intent.SIMULATE, Intent.COMPARISON, Intent.INVESTMENT,
                   Intent.ANALYZE_AREA, Intent.PROPERTY_SEARCH}:
-        max_tokens = 2048
+        max_tokens = 8192
     elif intent in {Intent.ANALYZE_BUILDING, Intent.VALUATION, Intent.MARKET_TREND}:
-        max_tokens = 1024
+        max_tokens = 4096
 
     reasons.append(f"local ({score:.2f}) -> {default_local}")
     return ModelSelection(
@@ -457,8 +460,9 @@ def route_model(
 ) -> ModelSelection:
     """Analyze query + select model. Adds OpenRouter models when available.
 
-    user_override = user's preferred local model (from frontend config).
-    This sets the LOCAL fallback but does NOT block cloud escalation.
+    user_override = user's preferred model (from frontend dropdown).
+    When provided, this model is ALWAYS used regardless of query complexity.
+    The automated complexity-based escalation is BYPASSED when user has made a selection.
     user_tier = user's subscription tier (free/pro/team/enterprise).
     Free-tier users have higher escalation thresholds to conserve cloud credits.
     """
@@ -472,12 +476,35 @@ def route_model(
     analysis = analyze_query(user_query, intent, context, history_length)
     selection = select_model(analysis, enriched, intent, user_tier=user_tier)
 
-    # If router picked a local model, swap in the user's preferred local model
-    if user_override and not selection.is_cloud and not selection.is_vision:
-        if selection.model != user_override:
-            logger.info(f"[ModelRouter] Swapping local {selection.model} -> {user_override} (user preference)")
-            selection.model = user_override
-            selection.reasoning += f" | user prefers {user_override}"
+    # If user has explicitly selected a model, ALWAYS respect that choice
+    # Skip complexity-based escalation entirely when user has made a selection
+    logger.info(f"[ModelRouter] user_override received: {user_override}, enriched models: {enriched[:5]}...")
+    if user_override:
+        # Check if user's selection is available (handle suffixes like :latest)
+        user_model_base = user_override.split(':')[0] if ':' in user_override else user_override
+        matched_model = None
+        for m in enriched:
+            m_base = m.split(':')[0] if ':' in m else m
+            if m == user_override or m_base == user_model_base:
+                matched_model = m
+                break
+        
+        if matched_model:
+            cap = get_model_capability(matched_model)
+            logger.info(f"[ModelRouter] Using user's selected model: {matched_model} (bypassing complexity routing)")
+            return ModelSelection(
+                model=matched_model,
+                provider=cap.provider,
+                is_cloud=cap.is_cloud,
+                is_vision=cap.is_vision,
+                reasoning=f"user selected {matched_model} | bypassing auto-routing",
+                complexity_score=analysis.complexity_score,
+                max_tokens=8192 if cap.is_cloud else 4096,
+                temperature=0.6 if cap.is_cloud else 0.5,
+                escalated=False,  # Not escalated - user chose this
+            )
+        else:
+            logger.warning(f"[ModelRouter] User selected model {user_override} not in available models, falling back to routing")
 
     logger.info(
         f"[ModelRouter] score={analysis.complexity_score:.2f} "

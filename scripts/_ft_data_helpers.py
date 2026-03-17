@@ -267,8 +267,8 @@ INTENT_INSTRUCTIONS = {
     "market_trend": "TASK: Market trend analysis. Include: current snapshot, price trajectory, supply-demand dynamics, 6-12 month outlook.",
     "simulate": "TASK: What-if simulation. Structure: scenario summary, impact analysis (value/timeline/radius), causal chain, risk factors, recommendation.",
     "general": "TASK: General query. Be helpful, explain capabilities, redirect out-of-scope to Bangalore real estate.",
-    "conversational": "TASK: Conversational response. Be brief and friendly. No analysis needed.",
-}
+    "conversational": "TASK: Conversational response. Be brief and friendly. No analysis needed."
+  }
 
 
 def build_system_message(intent, facts_string):
@@ -362,10 +362,10 @@ QUERY_TEMPLATES = {
         "Tell me about yourself", "What areas do you cover?",
     ],
     "conversational": [
-        "Hi", "Hello", "Thanks!", "That was helpful",
+        "Hi", "Hello", "Thanks!",        "That was helpful",
         "Good morning", "Bye", "Thank you for the analysis",
         "Great, what else can you show me?",
-    ],
+    ]
 }
 
 

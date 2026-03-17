@@ -283,7 +283,7 @@ What if land prices double in Yelahanka?
 
 ---
 
-## � 3D Spatial Reasoning Queries
+## 🧱 3D Spatial Reasoning Queries
 
 ### Sky View & Openness Analysis
 ```
@@ -547,7 +547,7 @@ Long-term appreciation forecast for Whitefield
 
 ---
 
-## �🏗️ Building Analysis Queries
+## 🏗️ Building Analysis Queries
 
 ### Click-Based Analysis
 1. Click on any building on the map
@@ -1182,7 +1182,7 @@ After running queries, verify:
 
 ---
 
-## � RAG & Semantic Search Queries
+## 🔍 RAG & Semantic Search Queries
 
 ### Semantic Property Search
 ```
@@ -1254,7 +1254,7 @@ Complete valuation analysis for 2BHK
 
 ---
 
-## �📊 Performance Benchmarks
+## 📊 Performance Benchmarks
 
 | Query Type | Expected Response Time |
 |------------|------------------------|
@@ -1313,7 +1313,7 @@ Complete valuation analysis for 2BHK
 
 ---
 
-## 🧭 Intent Coverage Matrix (16 Types)
+## 🧭 Intent Coverage Matrix (22 Types)
 
 | Intent | Minimal Test Queries |
 |--------|-----------------------|
@@ -1321,6 +1321,7 @@ Complete valuation analysis for 2BHK
 | `help` | "What can you do?" |
 | `thanks` | "Thanks" |
 | `farewell` | "Bye" |
+| `smalltalk` | "How are you?" |
 | `navigate` | "Go to Indiranagar" |
 | `property_search` | "2BHK in Whitefield under 80 lakhs" |
 | `recommendation` | "Recommend 3 areas for a family under 1 crore" |
@@ -1332,6 +1333,11 @@ Complete valuation analysis for 2BHK
 | `comparison` | "Compare Whitefield vs Electronic City" |
 | `simulate` | "What if a metro opens near Sarjapur Road?" |
 | `terrain` | "Flood risk in Bellandur" |
+| `report` | "Generate report for Whitefield" |
+| `download` | "Download PDF report" |
+| `map_control` | "Toggle terrain layer" |
+| `ui_action` | "Open smart report panel" |
+| `credits` | "How many credits do I have?" |
 | `general` | "Explain FAR/FSI" |
 
 ---
@@ -1710,7 +1716,7 @@ Compare floor <FLOOR_A> vs <FLOOR_B> for view and sunlight
 
 ---
 
-## 👁️ Visibility / Viewshed / Occlusion Queries
+## 👁️ Visibility / Viewshed / Occlusion Queries (Implemented - Viewshed + 3D Heuristics)
 
 ```
 Can I see Cubbon Park from floor 15 in Indiranagar?
@@ -1730,7 +1736,7 @@ Find homes overlooking metro line in <LOCALITY>
 
 ---
 
-## ☀️ Sunlight / Shadow / Time-of-Day Queries
+## ☀️ Sunlight / Shadow / Time-of-Day Queries (Implemented - 3D Shadow + Viewshed Heuristics)
 
 ```
 Will this apartment get morning sun?
@@ -2089,7 +2095,9 @@ Will ORR traffic improve with metro?
 
 ---
 
-## 👥 Community Pulse Queries
+## 👥 Community Pulse Queries (API/UI-first, Chat Partial)
+
+> Note: Most Community Pulse flows are implemented via dedicated `/api/family`, `/api/reviews`, `/api/rera`, and `/api/sentiment` endpoints and UI modules. Direct chat intent coverage is partial.
 
 ### Family Hub - Collaborative Decisions
 ```
@@ -2183,7 +2191,9 @@ Show my credit history
 
 ---
 
-## 🤖 Digital Employee / Agent Queries
+## 🤖 Digital Employee / Agent Queries (Core Commands Implemented, Advanced Flows Planned)
+
+> Note: Direct command execution currently supports property alerts, lead CRUD/status updates, scheduled reminders/reports, activity, and dashboard summary. Advanced brokerage workflows below are roadmap/partial.
 
 ### Property Alerts
 ```
@@ -2269,7 +2279,7 @@ Show recent activity
 - Lead statistics shown
 - Performance metrics calculated
 
-### Broker Tools
+### Broker Tools (Planned / Partial)
 ```
 Generate a client pitch for this property
 Create a presentation for this area
@@ -2286,7 +2296,7 @@ Email this report to my client
 - Export file downloaded
 - Checklist displayed
 
-### Email Automation
+### Email Automation (Partial)
 ```
 Send weekly market report to client@example.com
 Email this property to my lead
@@ -2315,7 +2325,7 @@ Notify when rental yield exceeds 4% in this area
 - Complex filters applied
 - Alert triggered on match
 
-### Lead Qualification
+### Lead Qualification (Planned / Partial)
 ```
 Qualify this lead for 2BHK in Whitefield
 What properties match this lead's criteria?
@@ -2332,7 +2342,7 @@ Set lead to cold status
 - Lead scoring
 - Assignment and transfer
 
-### Follow-up Automation
+### Follow-up Automation (Planned / Partial)
 ```
 Auto-follow up with leads after 48 hours
 Send reminder to client about site visit
@@ -2346,7 +2356,7 @@ Set recurring follow-up every Monday
 - Reminder notifications
 - Recurring tasks created
 
-### Market Intelligence Automation
+### Market Intelligence Automation (Planned / Partial)
 ```
 Monitor price trends in Whitefield weekly
 Track new launches in Koramangala
@@ -2360,7 +2370,7 @@ Track inventory levels in Sarjapur
 - Trend alerts sent
 - Competitor tracking enabled
 
-### Client Communication
+### Client Communication (Planned / Partial)
 ```
 Send property brochure to client
 Share this analysis via WhatsApp
@@ -2374,7 +2384,7 @@ Send birthday greeting to client
 - Delivery confirmed
 - Activity logged
 
-### Calendar & Scheduling
+### Calendar & Scheduling (Planned / Partial)
 ```
 Schedule site visit for tomorrow 3pm
 Block time for client meeting on Friday
@@ -2389,7 +2399,7 @@ Show today's schedule
 - Schedule displayed
 - Rescheduling handled
 
-### Performance Tracking
+### Performance Tracking (Planned / Partial)
 ```
 Show my conversion rate this month
 How many leads converted to deals?
@@ -2404,7 +2414,7 @@ Properties sold this year
 - Conversion statistics
 - Leaderboard rankings
 
-### Bulk Operations
+### Bulk Operations (Planned / Partial)
 ```
 Send market update to all leads
 Export all my leads to CSV
@@ -2418,7 +2428,7 @@ Delete inactive leads
 - Export/import completed
 - Status updates applied
 
-### Notification Preferences
+### Notification Preferences (Planned / Partial)
 ```
 Set alert notifications to email only
 Enable push notifications for price drops
@@ -2431,7 +2441,7 @@ Notification frequency to daily digest
 - Preferences saved
 - Notification behavior updated
 
-### Workflow Templates
+### Workflow Templates (Planned / Partial)
 ```
 Create workflow for new lead
 Set up buyer journey automation
@@ -2445,92 +2455,6 @@ Save this as a template
 - Automation sequence saved
 - Reusable templates available
 - Report generated
-
-### Broker Tools
-```
-Generate a client pitch for this property
-Create a presentation for this area
-Share this analysis with my client
-Export property comparison
-Prepare a site visit checklist
-Email this report to my client
-```
-
-**Expected:**
-- Pitch deck generated
-- Presentation created
-- Share link provided
-- Export file downloaded
-- Checklist displayed
-
-### Email Automation
-```
-Send weekly market report to client@example.com
-Email this property to my lead
-Send follow-up email to Sharma family
-Schedule email for tomorrow morning
-```
-
-**Expected:**
-- Email sent via configured SMTP
-- Delivery tracked
-- Email logged in activity
-
----
-
-## 👥 Community Pulse Queries
-- Reminder set with notification
-- Property added to watchlist
-
-### Lead Management
-```
-Show my leads
-Follow up with the Sharma family
-Update lead status to hot
-Add notes to this lead
-Convert lead to deal
-```
-
-**Expected:**
-- Lead list displayed
-- Lead details editable
-- Status updates saved
-- Notes attached to lead
-- Conversion workflow initiated
-
-### Agent Dashboard
-```
-What tasks do I have today?
-Show my pending follow-ups
-How many leads this week?
-My performance summary
-Agent productivity report
-```
-
-**Expected:**
-- Task list for the day
-- Follow-up queue displayed
-- Lead statistics shown
-- Performance metrics calculated
-- Report generated
-
-### Broker Tools
-```
-Generate a client pitch for this property
-Create a presentation for this area
-Share this analysis with my client
-Export property comparison
-Prepare a site visit checklist
-```
-
-**Expected:**
-- Pitch deck generated
-- Presentation created
-- Share link provided
-- Export file downloaded
-- Checklist displayed
-
----
 
  *Generated: January 2026*
  *Platform: Valora AI v2.0 - City Intelligence Platform*

@@ -6,7 +6,7 @@
  */
 
 import { useRef, useEffect, useState } from 'react'
-import { Send, Image, HardDrive, StopCircle, X, Zap, ChevronDown, Languages } from 'lucide-react'
+import { Send, Image, HardDrive, StopCircle, X, ChevronDown, Languages } from 'lucide-react'
 import { API_URL } from '../../apiConfig'
 import { t, LANGUAGES } from '../../i18n/translations'
 
@@ -39,8 +39,6 @@ export default function ChatInputBar({
   const [showModelDropdown, setShowModelDropdown] = useState(false)
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
   const [loadingModels, setLoadingModels] = useState(false)
-
-  const cloudEnabled = llmConfig.cloud_enabled ?? false
 
   // Focus input on mount
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -125,10 +123,6 @@ export default function ChatInputBar({
     e.target.value = ''
   }
 
-  const toggleCloud = () => {
-    onConfigChange?.({ ...llmConfig, cloud_enabled: !cloudEnabled })
-  }
-
   const handleModelSelect = (modelId) => {
     onConfigChange?.({ ...llmConfig, local_model: modelId })
     setShowModelDropdown(false)
@@ -136,7 +130,7 @@ export default function ChatInputBar({
     localStorage.setItem('valora_selected_model', modelId)
   }
 
-  const currentModel = llmConfig.local_model || 'valora-2025v1'
+  const currentModel = llmConfig.local_model || 'valora-ai-mini'
   const currentModelDisplay = availableModels.find(m => m.id === currentModel)?.name || currentModel
   const currentLanguage = LANGUAGE_OPTIONS.find(l => l.id === selectedLanguage) || LANGUAGE_OPTIONS[0]
   

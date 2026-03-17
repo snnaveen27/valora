@@ -1,25 +1,29 @@
 """
-Valora AI - Sentiment Dashboard API Routes (Community Pulse Phase 3)
+Valora AI - Market Sentiment API Routes (SUPPORTING INTELLIGENCE)
 
-Market sentiment analysis, price trends, and investment intelligence endpoints.
+IMPORTANT: This is SECONDARY to broker workflow features.
+Market sentiment should support shortlisted decisions, NOT dominate the tab.
+
+Valora wins on broker workflow + explainable reasoning, not consumer-style 
+sentiment dashboard.
 
 Signal Recording (No credit required):
     POST   /api/sentiment/signal                    - Record user interaction signal
 
-Market Sentiment (5 credits):
+Market Sentiment (5 credits) - SUPPORTS decisions, not primary:
     GET    /api/sentiment/locality/{locality_id}    - Get sentiment for locality
     GET    /api/sentiment/city/{city}              - Get sentiment for city
     GET    /api/sentiment/investment-score/{locality_id} - Get investment score
 
-Price Analysis:
+Price Analysis - Decision Support:
     GET    /api/sentiment/price-momentum/{locality_id}   - Get price momentum
     GET    /api/sentiment/price-history/{locality_id}     - Get price history
 
-Market Metrics:
+Market Metrics - Decision Support:
     GET    /api/sentiment/rental-yield/{locality_id}     - Get rental yield
     GET    /api/sentiment/days-on-market/{locality_id}   - Get average days on market
 
-Trends:
+Trends - Secondary:
     GET    /api/sentiment/trending               - Get trending localities
     GET    /api/sentiment/trends/{locality_id}   - Get historical trends (10 credits)
 """
@@ -42,7 +46,7 @@ from ai.credits_rate_limiter import get_rate_limiter
 
 logger = logging.getLogger("valora.sentiment_routes")
 
-router = APIRouter(prefix="/api/sentiment", tags=["Sentiment Dashboard"])
+router = APIRouter(prefix="/api/sentiment", tags=["Market Sentiment (Supporting)"])
 
 
 # ============================================================================
@@ -213,7 +217,7 @@ async def _check_credits(user: User, action: str) -> tuple[bool, int, int]:
     
     # Get user's current balance
     rl = get_rate_limiter()
-    user_data = rl.get_or_create_user(user.user_id)
+    user_data = rl.get_or_create_user(user.id)
     credits_available = user_data.get('total_available', 0)
     
     if credits_required == 0:
@@ -244,8 +248,8 @@ async def _deduct_credits(user: User, action: str) -> bool:
     
     try:
         rl = get_rate_limiter()
-        rl.deduct_credits(user.user_id, credits_required, action)
-        logger.info(f"[Sentiment] Deducted {credits_required} credits from {user.user_id} for {action}")
+        rl.deduct_credits(user.id, credits_required, action)
+        logger.info(f"[Sentiment] Deducted {credits_required} credits from {user.id} for {action}")
         return True
     except Exception as e:
         logger.error(f"[Sentiment] Failed to deduct credits: {e}")
@@ -747,7 +751,7 @@ async def check_credits(
     credits_required = engine.get_credit_cost(action)
     
     rl = get_rate_limiter()
-    user_data = rl.get_or_create_user(user.user_id)
+    user_data = rl.get_or_create_user(user.id)
     credits_available = user_data.get('total_available', 0)
     
     allowed = credits_available >= credits_required

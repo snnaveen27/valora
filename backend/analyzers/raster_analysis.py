@@ -16,6 +16,10 @@ import sqlite3
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from backend.config import config
 
 try:
     import numpy as np
@@ -165,7 +169,7 @@ class RasterAnalysis:
     
     def __init__(self, db_path: str = None):
         if db_path is None:
-            db_path = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
+            db_path = config.DB_PATH
         self.db_path = str(db_path)
     
     def _get_terrain_grid(self, lat: float, lng: float, radius_deg: float = 0.02) -> Tuple[Optional[Any], Dict]:

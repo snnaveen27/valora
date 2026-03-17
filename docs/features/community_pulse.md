@@ -1,111 +1,120 @@
-# Community Pulse Feature
+# Community Pulse Feature - FOCUSED VERSION
 
-> **Collaborative Real Estate Intelligence Platform — February 2026**
+> **Decision-Room & Locality Intelligence — March 2026**
 
 ## Overview
 
-Community Pulse is a comprehensive feature that enables collaborative property decision-making, community-driven reviews, and market sentiment analysis for the Valora real estate platform.
+Community Pulse is a **focused** feature aligned with Valora's product thesis:
+- Broker productivity and explainable decision intelligence
+- Client-ready intelligence outputs
+- Multi-stakeholder buying workflows
 
-## Feature Components
+## FOCUSED Feature Components
 
-### Phase 1: Family Hub
-Collaborative property decision platform for families.
+### 1. Decision-Room (Family Hub) - Multi-stakeholder Workflow
+**NOT social or decorative** - This is a real workflow for buyer committees to support WAWU.
 
 **Key Features:**
-- Create family sessions with unique shareable links
-- Invite family members via WhatsApp, email, or direct link
-- Shared watchlist with property voting system
-- Family timeline with decision tracking
-- Credit-based reward system for participation
+- Create decision-rooms with unique shareable links
+- Invite stakeholders (family, business partners) via WhatsApp or email
+- Shared property shortlist with voting system
+- Decision timeline with activity tracking
+- Vote summaries for client-ready outputs
 
 **API Endpoints:**
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/family/sessions` | POST | Create new family session |
-| `/api/family/sessions/{id}` | GET | Get session details |
-| `/api/family/sessions/{id}/members` | POST | Add member to session |
-| `/api/family/sessions/{id}/watchlist` | POST | Add property to watchlist |
+| `/api/family/sessions` | POST | Create new decision-room |
+| `/api/family/sessions/{id}` | GET | Get decision-room details |
+| `/api/family/sessions/{id}/members` | POST | Add stakeholder |
+| `/api/family/sessions/{id}/watchlist` | POST | Add property to shortlist |
 | `/api/family/sessions/{id}/vote` | POST | Vote on property |
-| `/api/family/sessions/{id}/timeline` | GET | Get session timeline |
+| `/api/family/sessions/{id}/vote-summary` | GET | Get decision summary (CLIENT-READY) |
 
 **Frontend Components:**
 - `FamilyHub.jsx` - Main container
-- `FamilySessionCreate.jsx` - Session creation form
-- `FamilyInviteModal.jsx` - Member invitation
-- `FamilyWatchlist.jsx` - Shared property list
-- `FamilyVotingPanel.jsx` - Property voting interface
-- `FamilyTimeline.jsx` - Decision timeline
-- `WhatsAppShare.jsx` - WhatsApp integration
+- `FamilySessionCreate.jsx` - Session creation
+- `FamilyInviteModal.jsx` - Stakeholder invitation
+- `FamilyWatchlist.jsx` - Property shortlist
+- `FamilyVotingPanel.jsx` - Voting interface
+- `FamilyTimeline.jsx` - Decision activity
+- `WhatsAppShare.jsx` - Share functionality
 
-### Phase 2: Locality Reviews
-Community-driven locality and builder reviews with India-specific categories.
+### 2. Locality Reviews with Verified Resident Proof
+**Defensible locality context** that brokers need.
 
 **Key Features:**
-- Locality reviews with ratings
-- India-specific categories (Vastu, Water, Power, Safety, Connectivity)
-- Builder profiles with project history
-- RERA verification integration
-- Review helpfulness voting
+- Locality reviews with verified resident badges
+- India-specific categories: Vastu, Schools, Transport, Safety
+- Community validation (helpful votes)
+- Focus on verifiable, defensible context
 
 **API Endpoints:**
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/reviews/locality/{id}` | GET | Get locality reviews |
 | `/api/reviews/locality` | POST | Submit locality review |
-| `/api/reviews/builder/{id}` | GET | Get builder profile |
-| `/api/reviews/builder` | POST | Submit builder review |
-| `/api/reviews/helpful` | POST | Mark review helpful |
-| `/api/reviews/rera/verify` | GET | Verify RERA status |
+| `/api/reviews/{type}/{id}/helpful` | POST | Mark review helpful |
 
 **Frontend Components:**
 - `LocalityReviews.jsx` - Reviews container
-- `ReviewForm.jsx` - Review submission form
+- `ReviewForm.jsx` - Review submission
 - `VastuRating.jsx` - Vastu compliance rating
-- `BuilderProfile.jsx` - Builder information
-- `RERAVerification.jsx` - RERA verification
 
-### Phase 3: Sentiment Dashboard
-Market intelligence and sentiment analysis.
+### 3. Market Sentiment - Supporting Intelligence (SECONDARY)
+**NOT a consumer-style dashboard** - Supports shortlisted decisions, not passive browsing.
 
 **Key Features:**
-- Real-time market sentiment gauge
-- Activity feed with market signals
-- Investment score calculator
-- Price trend charts
-- Trending localities
+- Market sentiment gauge for locality
+- Price momentum and trends
+- Investment score for decisions
+- Rental yield metrics
 
 **API Endpoints:**
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/sentiment/overview` | GET | Get sentiment overview |
 | `/api/sentiment/locality/{id}` | GET | Get locality sentiment |
-| `/api/sentiment/activity` | GET | Get activity feed |
-| `/api/sentiment/trends` | GET | Get price trends |
-| `/api/sentiment/check-credits` | GET | Check user credits |
+| `/api/sentiment/price-momentum/{id}` | GET | Price momentum |
+| `/api/sentiment/investment-score/{id}` | GET | Investment score |
+| `/api/sentiment/rental-yield/{id}` | GET | Rental yield |
 
 **Frontend Components:**
 - `SentimentDashboard.jsx` - Main dashboard
 - `SentimentGauge.jsx` - Sentiment visualization
-- `ActivityFeed.jsx` - Market activity feed
 - `InvestmentScore.jsx` - Investment scoring
-- `PriceTrendChart.jsx` - Price trend visualization
+- `PriceTrendChart.jsx` - Price trends
 
-## Database Schema
+---
 
-### Tables
+## REMOVED Features (Not Aligned with Product Thesis)
+
+The following were removed to keep Valora **niche and focused**:
+
+| Feature | Reason |
+|---------|--------|
+| Builder Profiles | Generic directory, not broker-focused |
+| Builder Reviews | Not locality-focused |
+| RERA Verification | Not core to broker workflow |
+| Raw Sentiment Signals | Too complex, not client-ready |
+| Historical Sentiment Trends | Supporting, not primary |
+
+---
+
+## Database Schema (FOCUSED)
 
 ```sql
--- Family Hub Tables
+-- Decision-Room Tables
 CREATE TABLE family_sessions (
     id TEXT PRIMARY KEY,
-    creator_id TEXT NOT NULL,
-    name TEXT,
-    description TEXT,
-    invite_code TEXT UNIQUE,
-    max_members INTEGER DEFAULT 10,
+    owner_user_id TEXT NOT NULL,
+    family_name TEXT NOT NULL,
+    target_locality TEXT,
+    budget_min REAL,
+    budget_max REAL,
+    property_types TEXT,
     status TEXT DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP
+    created_at TEXT,
+    updated_at TEXT
 );
 
 CREATE TABLE family_members (
@@ -114,8 +123,7 @@ CREATE TABLE family_members (
     user_id TEXT,
     name TEXT NOT NULL,
     role TEXT DEFAULT 'member',
-    invited_by TEXT,
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    invite_status TEXT DEFAULT 'pending'
 );
 
 CREATE TABLE family_watchlist (
@@ -124,163 +132,86 @@ CREATE TABLE family_watchlist (
     property_id TEXT,
     added_by TEXT,
     notes TEXT,
-    priority INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    priority TEXT DEFAULT 'medium',
+    status TEXT DEFAULT 'considering'
 );
 
 CREATE TABLE family_votes (
     id TEXT PRIMARY KEY,
-    watchlist_id TEXT REFERENCES family_watchlist(id),
-    member_id TEXT,
-    vote TEXT CHECK(vote IN ('yes', 'no', 'maybe')),
-    reason TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    session_id TEXT REFERENCES family_sessions(id),
+    property_id TEXT,
+    user_id TEXT,
+    vote TEXT CHECK(vote IN ('up', 'down', 'maybe')),
+    aspects TEXT,
+    comment TEXT
 );
 
--- Review Tables
+-- Locality Reviews Table
 CREATE TABLE locality_reviews (
     id TEXT PRIMARY KEY,
     locality_id TEXT NOT NULL,
-    user_id TEXT,
-    rating INTEGER CHECK(rating >= 1 AND rating <= 5),
-    title TEXT,
-    content TEXT,
-    categories JSON,
-    vastu_score INTEGER,
-    is_verified BOOLEAN DEFAULT FALSE,
+    locality_name TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    overall_rating REAL NOT NULL,
+    vastu_rating REAL,
+    school_rating REAL,
+    transport_rating REAL,
+    safety_rating REAL,
+    is_verified INTEGER DEFAULT 0,
+    verification_type TEXT,
     helpful_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    status TEXT DEFAULT 'active'
 );
 
-CREATE TABLE builder_profiles (
+CREATE TABLE review_helpful (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    rera_id TEXT,
-    description TEXT,
-    established_year INTEGER,
-    total_projects INTEGER,
-    rating REAL,
-    verified BOOLEAN DEFAULT FALSE
+    review_id TEXT NOT NULL,
+    review_type TEXT NOT NULL,
+    user_id TEXT NOT NULL
 );
 
--- Sentiment Tables
+-- Market Sentiment Table (Supporting Intelligence)
 CREATE TABLE market_sentiment (
     id TEXT PRIMARY KEY,
-    locality_id TEXT,
-    overall_score REAL,
+    locality_id TEXT NOT NULL,
+    sentiment_score REAL,
     demand_score REAL,
     supply_score REAL,
-    price_trend TEXT,
     investment_score REAL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE sentiment_signals (
-    id TEXT PRIMARY KEY,
-    locality_id TEXT,
-    signal_type TEXT,
-    signal_value REAL,
-    source TEXT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    price_change_pct REAL,
+    price_momentum TEXT,
+    rental_yield_avg REAL,
+    last_updated TEXT
 );
 ```
 
-## Credit System
-
-### Earning Credits
-| Action | Credits |
-|--------|---------|
-| Create family session | +5 |
-| Invite family member | +3 |
-| Submit locality review | +10 |
-| Verify RERA | +15 |
-| Mark review helpful | +2 |
-
-### Spending Credits
-| Feature | Credits |
-|---------|---------|
-| View sentiment dashboard | 5 |
-| Historical trends | 10 |
-| Investment score | 15 |
-| Premium locality report | 25 |
+---
 
 ## Integration Points
 
 ### SmartPanel Integration
-The Community Pulse tab is integrated into the SmartPanel sidebar:
 - Tab ID: `community_pulse`
 - Icon: `Users` (Lucide)
-- Position: Last tab in sidebar
-
-### API Service Layer
-Located in `src/services/`:
-- `familyApi.js` - Family Hub API calls
-- `reviewApi.js` - Reviews API calls
-- `sentimentApi.js` - Sentiment API calls
+- Description: "Decision-Room, Locality Reviews & Market Sentiment"
 
 ### Backend Routes
-Located in `backend/routes/`:
-- `family_routes.py` - Family Hub endpoints
-- `review_routes.py` - Review endpoints
-- `sentiment_routes.py` - Sentiment endpoints
+- `backend/routes/family_routes.py` - Decision-Room endpoints
+- `backend/routes/review_routes.py` - Locality review endpoints
+- `backend/routes/sentiment_routes.py` - Market sentiment endpoints
 
-## Configuration
+---
 
-### Environment Variables
-```env
-# Community Pulse Settings
-COMMUNITY_PULSE_ENABLED=true
-FAMILY_SESSION_EXPIRY_DAYS=30
-MAX_FAMILY_MEMBERS=10
-REVIEW_MODERATION_ENABLED=true
-```
+## Product Alignment
 
-### Feature Flags
-```json
-{
-  "community_pulse": {
-    "family_hub": true,
-    "locality_reviews": true,
-    "sentiment_dashboard": true,
-    "whatsapp_sharing": true,
-    "rera_verification": true
-  }
-}
-```
+This feature directly supports Valora's product thesis:
 
-## Testing
+| Product Thesis | Community Feature |
+|----------------|-------------------|
+| Broker productivity | Decision-Room workflow for multi-stakeholder buying |
+| Explainable decision intelligence | Locality reviews with verified resident proof |
+| Client-ready intelligence outputs | Vote summaries, decision reports |
+| WAWU (Weekly Active Workflow Users) | Real workflow for buyer committees |
 
-### Unit Tests
-```bash
-# Run Community Pulse tests
-pytest backend/tests/test_family_routes.py
-pytest backend/tests/test_review_routes.py
-pytest backend/tests/test_sentiment_routes.py
-```
+---
 
-### Integration Tests
-```bash
-# Run full integration suite
-pytest backend/tests/integration/test_community_pulse.py
-```
-
-## Future Enhancements
-
-1. **AI-Powered Insights**
-   - Sentiment prediction based on market trends
-   - Automated locality recommendations
-   - Price forecasting
-
-2. **Enhanced Collaboration**
-   - Real-time collaboration with WebSockets
-   - Video call integration
-   - Document sharing
-
-3. **Gamification**
-   - Leaderboards for top reviewers
-   - Badges and achievements
-   - Community rewards
-
-## Support
-
-For issues or feature requests, contact the Valora development team or create an issue in the project repository.
+*Last Updated: March 2026*

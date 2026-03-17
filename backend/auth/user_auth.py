@@ -10,7 +10,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
@@ -102,14 +102,14 @@ class User:
             "tier_limits": TIER_LIMITS[self.tier],
         }
         
-        # Add balance info if usage tracker available
+        # Add balance info from unified credits manager
         try:
-            from usage_tracker import get_usage_tracker
-            tracker = get_usage_tracker()
-            balance = tracker.get_user_balance(self.id)
-            data["units_available"] = balance.get("units_available", 0)
-            data["units_used_lifetime"] = balance.get("units_used_lifetime", 0)
-        except:
+            from ai.unified_credits import get_credits_manager
+            manager = get_credits_manager()
+            balance = manager.get_balance(str(self.id))
+            data["units_available"] = balance.get("total_available", 0)
+            data["units_used_lifetime"] = balance.get("used_credits", 0)
+        except Exception:
             data["units_available"] = 0
             data["units_used_lifetime"] = 0
         
@@ -197,6 +197,7 @@ class UserDatabase:
                 locked_until TEXT
             )
         """)
+        self._ensure_users_schema(cursor)
         
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS usage_logs (
@@ -235,6 +236,36 @@ class UserDatabase:
             conn.commit()
         
         conn.close()
+
+    def _ensure_users_schema(self, cursor: sqlite3.Cursor) -> None:
+        """
+        Backfill missing users table columns for older deployments.
+
+        Prevents runtime failures when code writes newer fields (e.g. job_role)
+        against a legacy DB created before those columns existed.
+        """
+        cursor.execute("PRAGMA table_info(users)")
+        existing_cols = {row["name"] for row in cursor.fetchall()}
+        expected_cols = {
+            "company": "TEXT",
+            "phone": "TEXT",
+            "job_role": "TEXT",
+            "queries_today": "INTEGER DEFAULT 0",
+            "reports_this_month": "INTEGER DEFAULT 0",
+            "last_query_date": "TEXT",
+            "last_report_date": "TEXT",
+            "last_login": "TEXT",
+            "is_active": "INTEGER DEFAULT 1",
+            "login_attempts_today": "INTEGER DEFAULT 0",
+            "last_login_attempt_date": "TEXT",
+            "locked_until": "TEXT",
+        }
+
+        for column_name, column_def in expected_cols.items():
+            if column_name in existing_cols:
+                continue
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {column_name} {column_def}")
+            print(f"[MIGRATION] Added missing users.{column_name} column")
     
     def _seed_pro_user(self, cursor):
         """Seed pro user with PRO plan and 2000 credits."""
@@ -272,9 +303,6 @@ class UserDatabase:
             1
         ))
         print("[OK] Admin user seeded: admin@valora.ai (PRO plan, 20k credits)")
-        
-        # Grant 20k credits to admin via usage tracker (after it's initialized)
-        # This is done in _grant_admin_credits after usage_tracker is ready
         
         # Seed demo user
         demo_hash, demo_salt = hash_password("demouser")
@@ -460,7 +488,7 @@ class UserDatabase:
     
     def update_user(self, user_id: int, **kwargs) -> bool:
         """Update user fields."""
-        allowed_fields = ["name", "tier", "role", "company", "phone", "is_active"]
+        allowed_fields = ["name", "tier", "role", "company", "phone", "job_role", "is_active"]
         updates = {k: v for k, v in kwargs.items() if k in allowed_fields}
         
         if not updates:

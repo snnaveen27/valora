@@ -11,6 +11,7 @@
  * @param {boolean} isOpen - Whether the modal is open
  * @param {function} onClose - Callback to close the modal
  * @param {function} onCreated - Callback when session is created successfully
+ * @param {string} [defaultLocality] - Locality prefill for session targeting
  */
 
 import { useState, useEffect } from 'react';
@@ -67,7 +68,7 @@ const INITIAL_FORM = {
   property_types: [],
 };
 
-export default function FamilySessionCreate({ isOpen, onClose, onCreated }) {
+export default function FamilySessionCreate({ isOpen, onClose, onCreated, defaultLocality = '' }) {
   // Form state
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
@@ -83,13 +84,16 @@ export default function FamilySessionCreate({ isOpen, onClose, onCreated }) {
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      setForm(INITIAL_FORM);
+      setForm({
+        ...INITIAL_FORM,
+        target_locality: defaultLocality || '',
+      });
       setErrors({});
       setSubmitError(null);
       setSelectedBudgetPreset(null);
-      setLocalitySearch('');
+      setLocalitySearch(defaultLocality || '');
     }
-  }, [isOpen]);
+  }, [isOpen, defaultLocality]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {

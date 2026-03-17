@@ -1,18 +1,20 @@
 # Digital Employee Features for Valora
 
-> **Note:** This document now tracks both digital employee vision and actual implementation status in Valora.
+Last verified: March 5, 2026
+
+> **Note:** This document tracks digital employee vision and implementation status in Valora.
 
 ---
 
 ## Overview
 
-OpenClaw-style autonomous workflows represent a shift from passive AI responses to action-oriented digital employees. Valora now implements these capabilities natively within the existing stack to keep security, tiering, and observability unified.
+Autonomous workflows represent a shift from passive AI responses to action-oriented digital employees. Valora implements these capabilities natively within the existing stack to keep security, tiering, and observability unified.
 
 This document outlines implemented and planned digital employee features within Valora's Free + Pro structure.
 
-### Build Decision (OpenClaw vs Native Extension)
+### Architecture Decision
 
-Current choice: **extend Valora's current architecture** instead of replacing orchestration with OpenClaw.
+**Native implementation** - extending Valora's current architecture:
 
 - Reuses existing auth, credit/tier controls, and grounded GIS data pipeline.
 - Avoids duplicated state and operational complexity from a second agent runtime.
@@ -47,7 +49,7 @@ A digital employee (autonomous AI agent) is an AI that:
 
 **Example:**
 - *Passive AI:* "What's the weather?"
-- *Digital Employee:* "Alert me when a 2BHK in Andheri under 70L is listed, email it to my client, and schedule a viewing."
+- *Digital Employee:* "Alert me when a 2BHK in Whitefield under 80L is listed, email it to my client, and schedule a viewing."
 
 ---
 
@@ -75,7 +77,7 @@ Valora currently has a **2-tier subscription model**:
 | Tier | Target Users | Monthly Credits |
 |------|--------------|-----------------|
 | **Free** | Home buyers, passive investors | 50 |
-| **Pro** | Real estate agents, active investors | 500+ |
+| **Pro** | Real estate agents, active investors | 1,000 |
 
 Digital employee features are distributed across these tiers to drive conversions.
 
@@ -94,8 +96,8 @@ Digital employee features are distributed across these tiers to drive conversion
 | Chat Commands | Included | `alert me...`, `schedule...`, `add lead...` routed to automation APIs |
 
 **Example Commands:**
-- "Alert me when 2BHK in Andheri under 70L is listed"
-- "Schedule a weekly report for Andheri every Monday at 9am"
+- "Alert me when 2BHK in Whitefield under 80L is listed"
+- "Schedule a weekly report for Whitefield every Monday at 9am"
 - "Add lead Rahul mehta@example.com +91 98765 43210"
 
 ### Pro Tier Features
@@ -110,7 +112,7 @@ Digital employee features are distributed across these tiers to drive conversion
 
 **Example Commands:**
 - "Send weekly market report to lead@example.com every Monday 9am"
-- "Alert me when 3BHK in Powai under 2.5cr is listed"
+- "Alert me when 3BHK in Koramangala under 2.5cr is listed"
 - "Add lead Priya priya@example.com +91 99887 66554"
 
 ---
@@ -303,6 +305,7 @@ CREATE TABLE automation_runs (
 | `/api/digital-employee/scheduled-tasks/{id}` | PUT/DELETE | Update/deactivate tasks |
 | `/api/digital-employee/leads` | GET/POST | Lead management |
 | `/api/digital-employee/activity` | GET | Automation audit feed |
+| `/api/digital-employee/commands/parse` | POST | Parse command intent and payload without executing |
 | `/api/digital-employee/commands/parse-and-execute` | POST | Execute explicit automation commands from chat |
 | `/api/automations/*` | GET/POST | Compatibility aliases for automation flows |
 | `/api/leads/*` | GET/POST/PUT/DELETE | Compatibility lead CRUD aliases |
@@ -340,8 +343,8 @@ Implemented in `src/components/chat/EnhancedChatPanel.jsx` with fast-path API ro
 ```javascript
 // Explicit automation commands routed before normal AI streaming
 const commands = [
-  "Alert me when 2BHK in Andheri under 70L is listed",
-  "Schedule weekly report for Powai Monday 09:00",
+  "Alert me when 2BHK in Whitefield under 80L is listed",
+  "Schedule weekly report for Koramangala Monday 09:00",
   "Add lead Rahul rahul@example.com +91 98765 43210"
 ];
 ```
@@ -426,7 +429,7 @@ Current + recommended controls:
 - [ ] Viewing scheduling (manual confirmation)
 - [x] Chat commands for automation
 
-**Estimated Time:** 2-3 weeks
+**Estimated Time:** historical estimate (already implemented in core)
 
 ### Phase 2: Automation
 
@@ -435,7 +438,7 @@ Current + recommended controls:
 - [x] Scheduled reports
 - [x] Lead management
 
-**Estimated Time:** 3-4 weeks
+**Estimated Time:** historical estimate (partially implemented)
 
 ### Phase 3: Advanced Features
 
@@ -444,7 +447,7 @@ Current + recommended controls:
 - [ ] Advanced CRM features
 - [ ] Bulk operations (Pro only)
 
-**Estimated Time:** 4-6 weeks
+**Estimated Time:** roadmap estimate
 
 ### Phase 4: Intelligence
 
@@ -453,7 +456,35 @@ Current + recommended controls:
 - [ ] Market trend analysis
 - [ ] Automated follow-ups
 
-**Estimated Time:** 6-8 weeks
+**Estimated Time:** roadmap estimate
+
+---
+
+## Validation Snapshot (March 5, 2026)
+
+### Automated Tests
+
+- `pytest backend/tests/test_digital_employee_service.py` -> 4 passed
+- `pytest backend/tests/test_user_auth_schema_migration.py` -> 1 passed
+
+### API Smoke Coverage
+
+Authenticated end-to-end checks passed for:
+
+- `/api/digital-employee/summary`
+- `/api/digital-employee/alerts` (GET/POST/PUT/DELETE)
+- `/api/digital-employee/scheduled-tasks` (GET/POST/PUT/DELETE)
+- `/api/digital-employee/leads` (GET/POST/PUT/DELETE)
+- `/api/digital-employee/activity`
+- `/api/digital-employee/commands/parse-and-execute`
+- `/api/digital-employee/scheduler/status`
+- `/api/digital-employee/scheduler/run-once`
+- Compatibility aliases: `/api/automations/alerts`, `/api/leads`
+
+### Reliability Fixes Applied
+
+- Legacy `users.db` instances now auto-migrate missing `users.job_role` column during auth DB initialization.
+- Profile update API now persists `job_role` updates via `/api/auth/me`.
 
 ---
 
@@ -483,4 +514,4 @@ Next milestones are calendar/WhatsApp integrations, advanced CRM workflows, and 
 
 ---
 
-*Last Updated: 2026-02-24 (implementation status synced with codebase)*
+*Last Updated: 2026-03-05 (aligned with Bengaluru-first architecture and current tiering)*

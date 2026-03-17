@@ -1,34 +1,23 @@
 /**
- * Review API Service
- * Handles all API calls for the Community Pulse Phase 2: Locality Reviews feature.
+ * Review API Service - FOCUSED VERSION
  * 
- * Endpoints:
+ * KEPT (Aligned with Product Thesis):
+ * ================================
  *   Locality Reviews:
- *     POST   /api/reviews/locality                    - Submit locality review
+ *     POST   /api/reviews/locality                    - Submit locality review (with verification)
  *     GET    /api/reviews/locality/{locality_id}    - Get reviews for locality
  *     GET    /api/reviews/locality/{locality_id}/stats - Get review statistics
  *     PUT    /api/reviews/locality/{review_id}      - Update review
  *     DELETE /api/reviews/locality/{review_id}      - Delete review
  * 
- *   Builder Profiles:
- *     POST   /api/reviews/builder                   - Create builder profile (admin)
- *     GET    /api/reviews/builder/{builder_id}      - Get builder profile
- *     GET    /api/reviews/builders                  - Search builders
- *     PUT    /api/reviews/builder/{builder_id}     - Update builder profile
- * 
- *   Builder Reviews:
- *     POST   /api/reviews/builder/{builder_id}/review - Submit builder review
- *     GET    /api/reviews/builder/{builder_id}/reviews - Get builder reviews
- *     PUT    /api/reviews/builder/review/{review_id} - Update review
- *     DELETE /api/reviews/builder/review/{review_id} - Delete review
- * 
  *   Helpful System:
  *     POST   /api/reviews/{review_type}/{review_id}/helpful - Mark helpful
  *     DELETE /api/reviews/{review_type}/{review_id}/helpful - Remove helpful
  * 
- *   RERA Verification:
- *     GET    /api/rera/verify/{rera_id}             - Verify RERA ID
- *     POST   /api/rera/refresh/{rera_id}            - Force refresh RERA data
+ * REMOVED (Not aligned with product thesis):
+ * ==========================================
+ *   Builder Profiles & Reviews - Generic directory, not broker-focused
+ *   RERA Verification - Not core to broker workflow
  */
 
 import { API_URL } from '../apiConfig';

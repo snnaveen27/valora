@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useLocation } from '../contexts/LocationContext'
 import { Sparkles, Maximize2, Minimize2, X, ChevronRight, ChevronLeft, ChevronDown, TrendingUp, FileText, StickyNote, Settings, Brain, Expand, Shrink, LogOut, User, Crown, Zap, MapPin, LocateFixed, Cloud, Loader2, Activity, CheckCircle2, Circle, AlertTriangle, Percent, Building, Compass, Database, Presentation, Eye, Download, Users } from 'lucide-react'
 
 import { API_URL } from '../apiConfig'
@@ -28,6 +29,7 @@ const ComponentLoader = () => (
 export default function MainApp() {
   const { user, token, logout, isAdmin, loading: authLoading } = useAuth()
   const { t } = useLanguage()
+  const { location, coordinates, locality, place, updateLocationFromCoordinates, setExplicitLocation } = useLocation()
   const [agentData, setAgentData] = useState({})
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(true)
   const [isChatOpen, setIsChatOpen] = useState(true)
@@ -621,6 +623,38 @@ export default function MainApp() {
   
   // App is ready when auth is loaded and tier is fetched
   const appReady = !authLoading && tierLoaded
+  
+  // Sync location from agentData (viewportAnalysis) to LocationContext
+  useEffect(() => {
+    const viewportAnalysis = agentData?.viewportAnalysis
+    const mapCenter = agentData?.mapCenter
+    
+    // If we have viewportAnalysis with coordinates, update the location context
+    if (viewportAnalysis?.coordinates?.lat && viewportAnalysis?.coordinates?.lng) {
+      setExplicitLocation({
+        coordinates: viewportAnalysis.coordinates,
+        locality: viewportAnalysis.area_name,
+        place: viewportAnalysis.area_name
+      })
+    } else if (mapCenter?.lat && mapCenter?.lng) {
+      // Fallback to mapCenter coordinates
+      setExplicitLocation({
+        coordinates: mapCenter,
+        locality: viewportAnalysis?.area_name || locality,
+        place: viewportAnalysis?.area_name || place
+      })
+    }
+  }, [agentData?.viewportAnalysis, agentData?.mapCenter, setExplicitLocation, locality, place])
+  
+  // Update agentData.mapCenter when location changes
+  useEffect(() => {
+    if (coordinates?.lat && coordinates?.lng) {
+      setAgentData(prev => ({
+        ...prev,
+        mapCenter: coordinates
+      }))
+    }
+  }, [coordinates])
   
   // Switch to verdict tab when analysis is performed
   useEffect(() => {
@@ -1291,17 +1325,20 @@ export default function MainApp() {
                 { id: 'strategy', icon: Compass, label: 'Strategy' },
                 { id: 'data_transparency', icon: Database, label: 'Data' },
                 { id: 'client_pitch', icon: Presentation, label: 'Pitch' },
-                { id: 'agent_control', icon: Brain, label: 'Agent' },
-                { id: 'community_pulse', icon: Users, label: 'Comm' }
+                { id: 'agent_control', icon: Brain, label: 'Agent', shine: true },
+                { id: 'community_pulse', icon: Users, label: 'Comm', shine: true }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => { setSmartPanelActiveTab(tab.id); setIsAnalysisOpen(true); }}
-                  className="relative flex flex-col items-center justify-center py-2 px-1 text-slate-500 hover:text-slate-300 hover:bg-slate-700/30 transition-all duration-200 group"
+                  className="relative flex flex-col items-center justify-center py-2 px-1 text-slate-500 hover:text-slate-300 hover:bg-slate-700/30 transition-all duration-200 group overflow-hidden"
                   title={tab.label}
+                  style={tab.shine ? {
+                     boxShadow: '0 0 8px 2px rgba(34, 211, 238, 0.5)'
+                   } : undefined}
                 >
-                  <tab.icon className="w-4 h-4" />
-                  <span className="text-[8px] mt-0.5 font-medium">{tab.label}</span>
+                  <tab.icon className={`w-4 h-4 z-10 ${tab.shine ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.9)]' : ''}`} />
+                  <span className={`text-[8px] mt-0.5 font-medium z-10 ${tab.shine ? 'text-cyan-300' : ''}`}>{tab.label}</span>
                   
                   {/* Tooltip */}
                   <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-[10px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">

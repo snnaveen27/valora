@@ -6,10 +6,14 @@ import json
 import sqlite3
 from pathlib import Path
 from typing import List, Dict
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from backend.config import config
 
 # Paths
 TILES_DIR = Path(__file__).parent.parent.parent / 'storage' / '3dtiles' / 'tiles'
-DB_PATH = Path(__file__).parent.parent.parent / 'storage' / 'valora.db'
+DB_PATH = config.DB_PATH
 
 def add_polygon_column():
     """Add polygon_coords column to buildings table if it doesn't exist"""
