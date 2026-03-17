@@ -310,28 +310,36 @@ export default function MapCallout({
             </div>
 
             <div style={styles.metricsGrid}>
-              <div style={styles.metricBox}>
-                <div style={styles.metricValue}>{isLoading ? '...' : buildingCount.toLocaleString()}</div>
-                <div style={styles.metricLabel}>Bldgs</div>
-              </div>
-              <div style={styles.metricBox}>
-                <div style={styles.metricValue}>
-                  {isLoading ? '...' : pricePerSqft ? `₹${pricePerSqft >= 10000 ? (pricePerSqft / 1000).toFixed(0) + 'k' : pricePerSqft}` : '--'}
+              {buildingCount > 0 && (
+                <div style={styles.metricBox}>
+                  <div style={styles.metricValue}>{isLoading ? '...' : buildingCount.toLocaleString()}</div>
+                  <div style={styles.metricLabel}>Bldgs</div>
                 </div>
-                <div style={styles.metricLabel}>sqft</div>
-              </div>
-              <div style={{ ...styles.metricBox }}>
-                <div style={{ ...styles.metricValue, color: getScoreColor(investmentScore) }}>
-                  {isLoading ? '...' : formatScore(investmentScore)}
+              )}
+              {pricePerSqft && (
+                <div style={styles.metricBox}>
+                  <div style={styles.metricValue}>
+                    {isLoading ? '...' : `₹${pricePerSqft >= 10000 ? (pricePerSqft / 1000).toFixed(0) + 'k' : pricePerSqft}`}
+                  </div>
+                  <div style={styles.metricLabel}>sqft</div>
                 </div>
-                <div style={styles.metricLabel}>Inv</div>
-              </div>
-              <div style={{ ...styles.metricBox }}>
-                <div style={{ ...styles.metricValue, color: getScoreColor(connectivityScore) }}>
-                  {isLoading ? '...' : formatScore(connectivityScore)}
+              )}
+              {investmentScore != null && (
+                <div style={{ ...styles.metricBox }}>
+                  <div style={{ ...styles.metricValue, color: getScoreColor(investmentScore) }}>
+                    {isLoading ? '...' : formatScore(investmentScore)}
+                  </div>
+                  <div style={styles.metricLabel}>Inv</div>
                 </div>
-                <div style={styles.metricLabel}>Conn</div>
-              </div>
+              )}
+              {connectivityScore != null && (
+                <div style={{ ...styles.metricBox }}>
+                  <div style={{ ...styles.metricValue, color: getScoreColor(connectivityScore) }}>
+                    {isLoading ? '...' : formatScore(connectivityScore)}
+                  </div>
+                  <div style={styles.metricLabel}>Conn</div>
+                </div>
+              )}
             </div>
           </>
         )
