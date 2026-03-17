@@ -74,7 +74,7 @@ cleanup_*.py
 final_cleanup.py
 
 # Exclude entire data folder (keep only data_registry.json if needed)
-src/data/
+# src/data/  # Now tracked for dummyCommunityData.js
 !src/data/.gitkeep
 !src/data/data_registry.json
 
