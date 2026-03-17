@@ -4230,29 +4230,22 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                   const state = address.state || 'Karnataka'
                   
                   // Fetch area stats from API
-                  return fetch(`${API_URL}/db/area/stats-by-coords?lat=${clickLat}&lng=${clickLng}&radius=2000`)
+                  return fetch(`${API_URL}/db/area/stats-by-coords?lat=${clickLat}&lng=${clickLng}&radius=2000`, { signal: AbortSignal.timeout(5000) })
                     .then(statsRes => statsRes.json())
                     .then(statsData => {
-                      const stats = statsData?.data || {}
+                      // API returns data at root level, not in .data
+                      const stats = statsData || {}
                       
-                      // Only use data from API - no fake data for production
-                      const totalProps = stats.total_properties || 0
-                      const residential = stats.residential || {}
-                      const commercial = stats.commercial || {}
-                      const buildingCount = residential.count || commercial.count || totalProps || 0
+                      // Only use data from API if success
+                      if (!stats.success) {
+                        console.log('[Callout] Area stats API returned no data')
+                        return
+                      }
                       
-                      // Use avg_price_per_sqft from any available category
-                      const avgPricePerSqft = residential.avg_price_per_sqft || commercial.avg_price_per_sqft || stats.avg_price_per_sqft || 0
-                      
-                      // Only show connectivity if we have actual property data
-                      const connectivityScore = totalProps > 0 
-                        ? Math.min(95, 50 + Math.floor(totalProps / 10))
-                        : null // Don't show fake data
-                      
-                      // Only show investment score if we have actual price data
-                      const investmentScore = avgPricePerSqft > 0 
-                        ? Math.min(95, Math.floor(60 + (15000 - avgPricePerSqft) / 300))
-                        : null // Don't show fake data
+                      const buildingCount = stats.buildingCount || 0
+                      const avgPricePerSqft = stats.pricePerSqft || 0
+                      const connectivityScore = stats.connectivityScore || null
+                      const investmentScore = stats.investmentScore || null
                       
                       console.log('[Callout] Area stats:', { stats, buildingCount, avgPricePerSqft, connectivityScore, investmentScore })
                       
@@ -4270,7 +4263,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                         isLoading: false
                       })))
                     })
-                    .catch(() => {
+                    .catch((err) => {
+                      console.log('[Callout] Area stats API failed:', err.message)
                       // Fallback if API fails
                       setCalloutsData(prev => prev.map(c => ({
                         ...c,
