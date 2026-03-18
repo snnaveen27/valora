@@ -3164,8 +3164,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             isLoading: false,
             propertyData: null,
             buildingData: null,
-            // New: tabs for grouped properties
-            hasMultipleProperties: propsInGroup.length > 1,
+            // Use tabs for ALL properties (even single) - this ensures proper rendering
+            hasMultipleProperties: true, // Always use tabs for property callouts
             tabs: tabs,
             activeTabIndex: 0,
             totalProperties: properties.length,
