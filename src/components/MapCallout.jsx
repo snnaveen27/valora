@@ -3,14 +3,12 @@ import { useEffect, useState } from 'react'
 const TYPE_COLORS = {
   area: '#8b5cf6',
   property: '#10b981',
-  location: '#f59e0b',
   building: '#f43f5e'
 }
 
 const TYPE_LABELS = {
   area: 'Area',
   property: 'Property',
-  location: 'Location',
   building: 'Building'
 }
 
@@ -24,10 +22,18 @@ export default function MapCallout({
   color = null,
   locality = 'Unknown Area',
   place = 'Unknown Location',
-  buildingCount = 0,
   pricePerSqft = null,
   investmentScore = null,
   connectivityScore = null,
+  sentimentScore = null,
+  rentalYieldAvg = null,
+  priceMomentum = null,
+  overallRating = null,
+  vastuScore = null,
+  schoolScore = null,
+  transportScore = null,
+  safetyScore = null,
+  verifiedReviews = null,
   status = 'Live',
   isLoading = false,
   propertyData = null,
@@ -35,13 +41,15 @@ export default function MapCallout({
   onClose,
   onPropertyClick,
   onBuildingClick,
-  // New props for grouped properties
   hasMultipleProperties = false,
   tabs = [],
   activeTabIndex = 0,
   onTabChange,
   allProperties = [],
-  onLocateMe
+  onLocateMe,
+  cartesian = null,
+  zIndex = 50,
+  onFocus
 }) {
   const [isVisible, setIsVisible] = useState(false)
   const [showLabel, setShowLabel] = useState(false)
@@ -88,8 +96,6 @@ export default function MapCallout({
     }
   }
 
-  const activeProperty = hasMultipleProperties && tabs.length > 0 ? tabs[currentTab] : null
-
   if (!isVisible) return null
   if (!x || !y || x <= 0 || y <= 0) return null
 
@@ -103,12 +109,32 @@ export default function MapCallout({
 
   const formatSqft = (sqft) => {
     if (!sqft) return '--'
-    return `${Number(sqft).toLocaleString()} sqft`
+    return `${Number(sqft).toLocaleString()} ft²`
   }
 
   const formatScore = (score) => {
     if (score === null || score === undefined) return '--'
     return `${score}%`
+  }
+
+  const formatRating = (rating) => {
+    if (rating === null || rating === undefined) return '--'
+    return rating.toFixed(1)
+  }
+
+  const formatRentalYield = (yieldVal) => {
+    if (yieldVal === null || yieldVal === undefined) return '--'
+    return `${yieldVal.toFixed(1)}%`
+  }
+
+  const getMomentumIcon = (momentum) => {
+    if (!momentum) return null
+    switch (momentum) {
+      case 'rising': return <span style={styles.momentumIconRising}>↗</span>
+      case 'falling': return <span style={styles.momentumIconFalling}>↘</span>
+      case 'stable': return <span style={styles.momentumIconStable}>➡</span>
+      default: return null
+    }
   }
 
   const getScoreColor = (score) => {
@@ -118,236 +144,156 @@ export default function MapCallout({
     return '#f87171'
   }
 
-  const getStatusBadge = () => {
-    if (isLoading) {
-      return (
-        <span style={styles.statusBadge}>
-          <span style={styles.statusDotLoading} />
-          Analyzing
-        </span>
-      )
-    }
-    if (status === 'Live') {
-      return (
-        <span style={styles.statusBadgeLive}>
-          <span style={{ ...styles.statusDot, backgroundColor: themeColor }} />
-          Live
-        </span>
-      )
-    }
-    return null
+  const getRatingColor = (rating) => {
+    if (rating === null || rating === undefined) return '#64748b'
+    if (rating >= 4.0) return '#34d399'
+    if (rating >= 3.0) return '#fbbf24'
+    return '#f87171'
   }
 
-  const handlePropertyClick = () => {
-    if (onPropertyClick && propertyData) {
-      onPropertyClick(propertyData)
-    }
+  const renderAreaContent = () => (
+    <>
+      <div style={styles.areaHeader}>
+        <span style={styles.areaName}>{locality}</span>
+        <span style={styles.areaPlace}>{place}</span>
+      </div>
+      
+      {/* Ratings Row - Only show if we have review data */}
+      {(overallRating || vastuScore || schoolScore || transportScore || safetyScore) && (
+        <div style={styles.ratingsRow}>
+          {overallRating && (
+            <div style={styles.ratingBadge} title="Overall Rating">
+              <span style={{ ...styles.ratingVal, color: getRatingColor(overallRating) }}>★ {formatRating(overallRating)}</span>
+            </div>
+          )}
+          {verifiedReviews && verifiedReviews > 0 && (
+            <span style={styles.reviewCount}>{verifiedReviews} reviews</span>
+          )}
+        </div>
+      )}
+
+      {/* Category Ratings */}
+      {(vastuScore || schoolScore || transportScore || safetyScore) && (
+        <div style={styles.categoryRatings}>
+          {vastuScore && <span style={styles.categoryPill} title="Vastu">🧭 {formatRating(vastuScore)}</span>}
+          {schoolScore && <span style={styles.categoryPill} title="Schools">🏫 {formatRating(schoolScore)}</span>}
+          {transportScore && <span style={styles.categoryPill} title="Transport">🚌 {formatRating(transportScore)}</span>}
+          {safetyScore && <span style={styles.categoryPill} title="Safety">🛡️ {formatRating(safetyScore)}</span>}
+        </div>
+      )}
+      
+      {/* Metrics Row */}
+      <div style={styles.metricsRow}>
+        {pricePerSqft && (
+          <div style={styles.metric}>
+            <span style={styles.metricVal}>
+              {isLoading ? '...' : `₹${pricePerSqft >= 10000 ? (pricePerSqft / 1000).toFixed(0) + 'k' : pricePerSqft}`}
+            </span>
+            <span style={styles.metricLbl}>ft²</span>
+          </div>
+        )}
+        {sentimentScore != null && (
+          <div style={styles.metric}>
+            <span style={{ ...styles.metricVal, color: getScoreColor(sentimentScore) }}>
+              {isLoading ? '...' : formatScore(sentimentScore)}
+            </span>
+            <span style={styles.metricLbl}>Sentiment</span>
+          </div>
+        )}
+        {investmentScore != null && (
+          <div style={styles.metric}>
+            <span style={{ ...styles.metricVal, color: getScoreColor(investmentScore) }}>
+              {isLoading ? '...' : formatScore(investmentScore)}
+            </span>
+            <span style={styles.metricLbl}>Inv</span>
+          </div>
+        )}
+      </div>
+
+      {/* Secondary Metrics Row */}
+      <div style={styles.metricsRow}>
+        {rentalYieldAvg && (
+          <div style={styles.metric}>
+            <span style={{ ...styles.metricVal, color: '#10b981' }}>
+              {isLoading ? '...' : formatRentalYield(rentalYieldAvg)}
+            </span>
+            <span style={styles.metricLbl}>Yield</span>
+          </div>
+        )}
+        {connectivityScore != null && (
+          <div style={styles.metric}>
+            <span style={{ ...styles.metricVal, color: getScoreColor(connectivityScore) }}>
+              {isLoading ? '...' : formatScore(connectivityScore)}
+            </span>
+            <span style={styles.metricLbl}>Conn</span>
+          </div>
+        )}
+        {priceMomentum && (
+          <div style={styles.metric}>
+            <span style={{ ...styles.metricVal, display: 'flex', alignItems: 'center', gap: '2px' }}>
+              {isLoading ? '...' : getMomentumIcon(priceMomentum)}
+              {!isLoading && <span style={{ fontSize: '10px', textTransform: 'capitalize' }}>{priceMomentum}</span>}
+            </span>
+            <span style={styles.metricLbl}>Trend</span>
+          </div>
+        )}
+      </div>
+    </>
+  )
+
+  const renderPropertyContent = () => {
+    const prop = hasMultipleProperties && tabs.length > 0 ? tabs[currentTab] : propertyData
+    
+    if (!prop) return null
+
+    return (
+      <>
+        {prop.name && !/^Property\s*\d+$/i.test(prop.name) && (
+          <div style={styles.propName}>{prop.name}</div>
+        )}
+        <div style={styles.propRow}>
+          {prop.bhk && <span style={styles.propTag}>{prop.bhk}BHK</span>}
+          <span style={styles.propPrice}>{formatPrice(prop.price)}</span>
+        </div>
+        <div style={styles.propTags}>
+          {prop.propertyType && <span style={styles.propTag}>{prop.propertyType}</span>}
+          {prop.sqft && <span style={styles.propTag}>{formatSqft(prop.sqft)}</span>}
+          {prop.furnishing && <span style={styles.propTag}>{prop.furnishing}</span>}
+        </div>
+      </>
+    )
   }
 
-  const handleBuildingClick = () => {
-    if (onBuildingClick && buildingData) {
-      onBuildingClick(buildingData)
-    }
+  const renderBuildingContent = () => {
+    if (!buildingData) return null
+
+    return (
+      <>
+        <span style={{ ...styles.typeBadge, backgroundColor: themeColor + '20', color: themeColor }}>
+          Building
+        </span>
+        <div style={styles.buildingName}>{buildingData.name || 'Building'}</div>
+        <div style={styles.buildingMeta}>
+          {[buildingData.levels && `${buildingData.levels} floors`, buildingData.height && `${buildingData.height}m`, buildingData.area && formatSqft(buildingData.area)].filter(Boolean).join(' · ')}
+        </div>
+      </>
+    )
   }
 
   const renderContent = () => {
-    // For properties with tabs (multiple properties at same location)
-    if (hasMultipleProperties && tabs.length > 0) {
-      const currentProp = tabs[currentTab]
-      return (
-        <div style={styles.contentSection}>
-          {/* Tabs for multiple properties */}
-          <div style={styles.tabsContainer}>
-            {tabs.map((tab, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleTabClick(idx)}
-                style={{
-                  ...styles.tab,
-                  ...(idx === currentTab ? styles.tabActive : {}),
-                  ...(idx === currentTab ? { borderBottomColor: themeColor } : {})
-                }}
-              >
-                {idx + 1}
-              </button>
-            ))}
-            {allProperties.length > 1 && (
-              <button onClick={handleLocateMe} style={styles.locateBtn} title="Fit all properties in view">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                </svg>
-              </button>
-            )}
-          </div>
-          
-          <div style={styles.header}>
-            <div style={styles.headerText}>
-              <div style={styles.locality}>{currentProp?.name || 'Property'}</div>
-              <div style={styles.place}>{currentProp?.locality || locality || 'Bangalore'}</div>
-            </div>
-            <span style={styles.statusBadgeLive}>
-              <span style={{ ...styles.statusDot, backgroundColor: '#10b981' }} />
-              {tabs.length} {tabs.length === 1 ? 'property' : 'properties'} here
-            </span>
-          </div>
-          
-          <div style={styles.propertyMainInfo}>
-            <div style={styles.propertyPriceRow}>
-              <span style={styles.propertyPrice}>{formatPrice(currentProp?.price)}</span>
-              {currentProp?.pricePerSqft && (
-                <span style={styles.propertyPriceSqft}>₹{currentProp.pricePerSqft}/sqft</span>
-              )}
-            </div>
-          </div>
-          
-          <div style={styles.propertyDetails}>
-            {currentProp?.bhk && <span style={styles.propertyTag}>{currentProp.bhk}BHK</span>}
-            {currentProp?.propertyType && <span style={styles.propertyTag}>{currentProp.propertyType}</span>}
-            {currentProp?.sqft && <span style={styles.propertyTag}>{formatSqft(currentProp.sqft)}</span>}
-            {currentProp?.furnishing && <span style={styles.propertyTag}>{currentProp.furnishing}</span>}
-            {currentProp?.propertyAge && <span style={styles.propertyTag}>{currentProp.propertyAge}</span>}
-            {currentProp?.parking && <span style={styles.propertyTag}>Parking</span>}
-          </div>
-        </div>
-      )
-    }
-    
-    // Original single property rendering
     switch (type) {
-      case 'property':
-        return propertyData ? (
-          <div style={styles.contentSection}>
-            <div style={styles.header}>
-              <div style={styles.headerText}>
-                <div style={styles.locality}>{propertyData.name || 'Property'}</div>
-                <div style={styles.place}>{propertyData.locality || 'Bangalore'}</div>
-              </div>
-              <span style={styles.statusBadgeLive}>
-                <span style={{ ...styles.statusDot, backgroundColor: '#10b981' }} />
-                {propertyData.totalProperties ? `${propertyData.totalProperties} found` : 'Available'}
-              </span>
-            </div>
-            
-            <div style={styles.propertyMainInfo}>
-              <div style={styles.propertyPriceRow}>
-                <span style={styles.propertyPrice}>{formatPrice(propertyData.price)}</span>
-                {propertyData.pricePerSqft && (
-                  <span style={styles.propertyPriceSqft}>₹{propertyData.pricePerSqft}/sqft</span>
-                )}
-              </div>
-            </div>
-            
-            <div style={styles.propertyDetails}>
-              {propertyData.bhk && <span style={styles.propertyTag}>{propertyData.bhk}BHK</span>}
-              {propertyData.propertyType && <span style={styles.propertyTag}>{propertyData.propertyType}</span>}
-              {propertyData.sqft && <span style={styles.propertyTag}>{formatSqft(propertyData.sqft)}</span>}
-              {propertyData.furnishing && <span style={styles.propertyTag}>{propertyData.furnishing}</span>}
-              {propertyData.propertyAge && <span style={styles.propertyTag}>{propertyData.propertyAge}</span>}
-              {propertyData.parking && <span style={styles.propertyTag}>Parking</span>}
-            </div>
-          </div>
-        ) : null
-
-      case 'building':
-        return buildingData ? (
-          <div style={styles.contentSection}>
-            <div style={styles.buildingHeader}>
-              <span style={{ ...styles.typeBadge, backgroundColor: themeColor }}>
-                Building
-              </span>
-              {onLocateMe && (
-                <button onClick={handleLocateMe} style={styles.locateBtnSmall} title="Center on map">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                  </svg>
-                </button>
-              )}
-            </div>
-            <div style={styles.buildingName}>{buildingData.name || 'Building'}</div>
-            <div style={styles.buildingDetails}>
-              {buildingData.levels && <span>{buildingData.levels} floors</span>}
-              {buildingData.height && <span>· {buildingData.height}m</span>}
-              {buildingData.area && <span>· {formatSqft(buildingData.area)}</span>}
-            </div>
-          </div>
-        ) : null
-
-      case 'location':
-        return (
-          <div style={styles.contentSection}>
-            <div style={styles.locationHeader}>
-              <span style={{ ...styles.typeBadge, backgroundColor: themeColor }}>
-                {TYPE_LABELS[type]}
-              </span>
-            </div>
-            <div style={styles.localityName}>{locality}</div>
-            <div style={styles.placeName}>{place}</div>
-          </div>
-        )
-
+      case 'property': return renderPropertyContent()
+      case 'building': return renderBuildingContent()
       case 'area':
-      default:
-        return (
-          <>
-            <div style={styles.header}>
-              <div style={styles.headerText}>
-                <div style={styles.locality}>{locality}</div>
-                <div style={styles.place}>{place}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {getStatusBadge()}
-                {onLocateMe && (
-                  <button onClick={handleLocateMe} style={styles.locateBtnSmall} title="Center on map">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div style={styles.metricsGrid}>
-              {buildingCount > 0 && (
-                <div style={styles.metricBox}>
-                  <div style={styles.metricValue}>{isLoading ? '...' : buildingCount.toLocaleString()}</div>
-                  <div style={styles.metricLabel}>Bldgs</div>
-                </div>
-              )}
-              {pricePerSqft && (
-                <div style={styles.metricBox}>
-                  <div style={styles.metricValue}>
-                    {isLoading ? '...' : `₹${pricePerSqft >= 10000 ? (pricePerSqft / 1000).toFixed(0) + 'k' : pricePerSqft}`}
-                  </div>
-                  <div style={styles.metricLabel}>sqft</div>
-                </div>
-              )}
-              {investmentScore != null && (
-                <div style={{ ...styles.metricBox }}>
-                  <div style={{ ...styles.metricValue, color: getScoreColor(investmentScore) }}>
-                    {isLoading ? '...' : formatScore(investmentScore)}
-                  </div>
-                  <div style={styles.metricLabel}>Inv</div>
-                </div>
-              )}
-              {connectivityScore != null && (
-                <div style={{ ...styles.metricBox }}>
-                  <div style={{ ...styles.metricValue, color: getScoreColor(connectivityScore) }}>
-                    {isLoading ? '...' : formatScore(connectivityScore)}
-                  </div>
-                  <div style={styles.metricLabel}>Conn</div>
-                </div>
-              )}
-            </div>
-          </>
-        )
+      default: return renderAreaContent()
     }
   }
 
   return (
-    <div style={{ ...styles.container, left: x, top: y }}>
+    <div 
+      style={{ ...styles.container, left: x, top: y, zIndex }}
+      onClick={onFocus}
+    >
       <div style={styles.wrapper}>
         <div style={styles.anchorContainer}>
           {isLoading ? (
@@ -378,21 +324,38 @@ export default function MapCallout({
           transform: showLabel ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(10px)'
         }}>
           <div style={{ ...styles.labelCard, borderTopColor: themeColor }}>
-            <div style={{ ...styles.cardGlow, backgroundColor: themeColor }} />
-            {renderContent()}
-
-            <div style={styles.footer}>
-              <div style={styles.coords}>{lat?.toFixed(4)}°N, {lng?.toFixed(4)}°E</div>
-              {onClose && (
-                <button onClick={onClose} style={styles.closeBtn} title="Close">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+            <div style={styles.cardHeader}>
+              <div style={styles.cardHeaderLeft}>
+                {onLocateMe && (
+                  <button onClick={handleLocateMe} style={styles.headerBtn} title="Center">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <div style={styles.cardHeaderRight}>
+                {onClose && (
+                  <button onClick={onClose} style={styles.headerBtn} title="Close">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
+            {isLoading ? (
+              <div style={styles.loadingRow}>
+                <span style={styles.loadingDot} />
+                <span style={styles.loadingText}>Analyzing...</span>
+              </div>
+            ) : (
+              <div style={styles.content}>
+                {renderContent()}
+              </div>
+            )}
           </div>
-
           <div style={{ ...styles.pointer, borderTopColor: themeColor }} />
         </div>
       </div>
@@ -429,7 +392,6 @@ const styles = {
   container: {
     position: 'absolute',
     transform: 'translate(-50%, 0%)',
-    transition: 'left 0.05s linear, top 0.05s linear',
     zIndex: 50,
     pointerEvents: 'auto'
   },
@@ -484,7 +446,6 @@ const styles = {
     left: '-4px',
     width: '10px',
     height: '100%',
-    backgroundColor: '#8b5cf6',
     opacity: 0.3,
     filter: 'blur(8px)'
   },
@@ -513,9 +474,6 @@ const styles = {
     borderRadius: '50%',
     animation: 'particleFloat 2s ease-out infinite'
   },
-  orbContainer: {
-    display: 'none'
-  },
   labelContainer: {
     position: 'absolute',
     left: '50%',
@@ -527,253 +485,33 @@ const styles = {
   },
   labelCard: {
     position: 'relative',
-    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-    backdropFilter: 'blur(12px)',
-    borderRadius: '12px',
-    borderTop: '3px solid #8b5cf6',
-    padding: '14px 16px',
-    minWidth: '200px',
-    maxWidth: '280px',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+    backdropFilter: 'blur(16px)',
+    borderRadius: '8px',
+    borderTop: '2px solid #8b5cf6',
+    minWidth: '180px',
+    maxWidth: '220px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+    overflow: 'hidden'
   },
-  cardGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '80px',
-    backgroundColor: '#8b5cf6',
-    opacity: 0.05,
-    borderRadius: '12px 12px 0 0',
-    pointerEvents: 'none'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '12px'
-  },
-  headerText: {
-    flex: 1
-  },
-  locality: {
-    fontSize: '15px',
-    fontWeight: '700',
-    color: '#f1f5f9',
-    marginBottom: '2px'
-  },
-  place: {
-    fontSize: '12px',
-    color: '#94a3b8'
-  },
-  statusBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '4px',
-    padding: '3px 8px',
-    borderRadius: '4px',
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    fontSize: '10px',
-    fontWeight: '600',
-    color: '#fbbf24',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
-  statusBadgeLive: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '4px',
-    padding: '3px 8px',
-    borderRadius: '4px',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    fontSize: '10px',
-    fontWeight: '600',
-    color: '#34d399',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
-  statusDot: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-    backgroundColor: '#34d399'
-  },
-  statusDotLoading: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-    backgroundColor: '#fbbf24',
-    animation: 'pulse 1s infinite'
-  },
-  metricsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: '8px',
-    marginBottom: '10px'
-  },
-  metricBox: {
-    textAlign: 'center',
-    padding: '6px 4px',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: '6px'
-  },
-  metricValue: {
-    fontSize: '13px',
-    fontWeight: '700',
-    color: '#e2e8f0'
-  },
-  metricLabel: {
-    fontSize: '9px',
-    color: '#64748b',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    marginTop: '2px'
-  },
-  tabsContainer: {
-    display: 'flex',
-    gap: '4px',
-    marginBottom: '10px',
-    alignItems: 'center'
-  },
-  tab: {
-    padding: '4px 10px',
-    borderRadius: '4px 4px 0 0',
-    border: 'none',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    color: '#94a3b8',
-    fontSize: '11px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    borderBottom: '2px solid transparent'
-  },
-  tabActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    color: '#fff'
-  },
-  locateBtn: {
-    marginLeft: 'auto',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    border: 'none',
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    color: '#10b981',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s ease'
-  },
-  locateBtnSmall: {
-    padding: '4px',
-    borderRadius: '4px',
-    border: 'none',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    color: '#94a3b8',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s ease'
-  },
-  contentSection: {
-    marginBottom: '8px'
-  },
-  propertyHeader: {
-    marginBottom: '6px'
-  },
-  typeBadge: {
-    display: 'inline-block',
-    padding: '3px 8px',
-    borderRadius: '4px',
-    fontSize: '11px',
-    fontWeight: '600',
-    color: '#fff',
-    textTransform: 'uppercase',
-    letterSpacing: '0.3px'
-  },
-  propertyPrice: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#10b981'
-  },
-  propertyPriceRow: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '10px'
-  },
-  propertyPriceSqft: {
-    fontSize: '12px',
-    color: '#94a3b8'
-  },
-  propertyMainInfo: {
-    marginBottom: '10px'
-  },
-  propertyDetails: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '6px'
-  },
-  propertyTag: {
-    display: 'inline-block',
-    padding: '3px 8px',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: '4px',
-    fontSize: '11px',
-    fontWeight: '500',
-    color: '#e2e8f0'
-  },
-  locationHeader: {
-    marginBottom: '8px'
-  },
-  localityName: {
-    fontSize: '15px',
-    fontWeight: '700',
-    color: '#f1f5f9',
-    marginBottom: '2px'
-  },
-  placeName: {
-    fontSize: '12px',
-    color: '#94a3b8'
-  },
-  buildingHeader: {
-    marginBottom: '6px'
-  },
-  buildingName: {
-    fontSize: '14px',
-    fontWeight: '700',
-    color: '#f1f5f9',
-    marginBottom: '4px'
-  },
-  buildingDetails: {
-    fontSize: '12px',
-    color: '#94a3b8'
-  },
-  actionBtn: {
-    marginTop: '10px',
-    padding: '6px 12px',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: '600',
-    color: '#fff',
-    cursor: 'pointer',
-    width: '100%',
-    pointerEvents: 'auto'
-  },
-  footer: {
+  cardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: '10px',
-    borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+    padding: '6px 8px',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
   },
-  coords: {
-    fontSize: '10px',
-    color: '#64748b',
-    fontFamily: 'monospace'
+  cardHeaderLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
   },
-  closeBtn: {
+  cardHeaderRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  },
+  headerBtn: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -782,9 +520,190 @@ const styles = {
     padding: 0,
     border: 'none',
     borderRadius: '4px',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    cursor: 'pointer',
-    pointerEvents: 'auto'
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    color: '#94a3b8',
+    cursor: 'pointer'
+  },
+  content: {
+    padding: '6px 8px'
+  },
+  areaHeader: {
+    marginBottom: '8px'
+  },
+  areaName: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#f1f5f9',
+    display: 'block',
+    marginBottom: '3px'
+  },
+  areaPlace: {
+    fontSize: '11px',
+    color: '#64748b'
+  },
+  ratingsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '6px',
+    paddingBottom: '6px',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+  },
+  ratingBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  },
+  ratingVal: {
+    fontSize: '12px',
+    fontWeight: '700'
+  },
+  reviewCount: {
+    fontSize: '9px',
+    color: '#64748b'
+  },
+  categoryRatings: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '4px',
+    marginBottom: '8px'
+  },
+  categoryPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '2px',
+    padding: '2px 6px',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: '10px',
+    fontSize: '9px',
+    color: '#94a3b8'
+  },
+  momentumIconRising: {
+    color: '#34d399',
+    fontSize: '12px',
+    fontWeight: '700'
+  },
+  momentumIconFalling: {
+    color: '#f87171',
+    fontSize: '12px',
+    fontWeight: '700'
+  },
+  momentumIconStable: {
+    color: '#fbbf24',
+    fontSize: '12px',
+    fontWeight: '700'
+  },
+  metricsRow: {
+    display: 'flex',
+    gap: '8px',
+    paddingTop: '8px',
+    borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+  },
+  metric: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    flex: 1
+  },
+  metricVal: {
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#e2e8f0'
+  },
+  metricLbl: {
+    fontSize: '9px',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: '0.3px',
+    marginTop: '2px'
+  },
+  tabsRow: {
+    display: 'flex',
+    gap: '6px',
+    marginBottom: '10px',
+    alignItems: 'center'
+  },
+  tab: {
+    padding: '4px 10px',
+    borderRadius: '4px',
+    border: 'none',
+    fontSize: '11px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  propRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '8px'
+  },
+  propName: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#f1f5f9',
+    marginBottom: '8px',
+    wordBreak: 'break-word'
+  },
+  propTags: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+    flex: 1
+  },
+  propPrice: {
+    fontSize: '16px',
+    fontWeight: '700',
+    color: '#10b981',
+    whiteSpace: 'nowrap'
+  },
+  propMetaRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '6px'
+  },
+  propTag: {
+    display: 'inline-block',
+    padding: '3px 8px',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: '4px',
+    fontSize: '9px',
+    color: '#94a3b8'
+  },
+  propPriceSub: {
+    fontSize: '9px',
+    color: '#64748b',
+    marginTop: '4px'
+  },
+  typeBadge: {
+    display: 'inline-block',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontSize: '9px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.3px',
+    marginBottom: '4px'
+  },
+  buildingName: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#f1f5f9',
+    marginBottom: '2px'
+  },
+  buildingMeta: {
+    fontSize: '10px',
+    color: '#64748b'
+  },
+  locationName: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#f1f5f9',
+    marginBottom: '2px'
+  },
+  locationPlace: {
+    fontSize: '10px',
+    color: '#64748b'
   },
   pointer: {
     position: 'absolute',
@@ -796,5 +715,22 @@ const styles = {
     borderLeft: '6px solid transparent',
     borderRight: '6px solid transparent',
     borderTop: '6px solid #8b5cf6'
+  },
+  loadingRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 0'
+  },
+  loadingDot: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    backgroundColor: '#f59e0b',
+    animation: 'pulse 1s infinite'
+  },
+  loadingText: {
+    fontSize: '11px',
+    color: '#94a3b8'
   }
 }

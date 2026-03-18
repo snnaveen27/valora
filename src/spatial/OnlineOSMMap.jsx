@@ -1634,10 +1634,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       color: '#8b5cf6',
       locality: area.name,
       place: 'Bangalore, Karnataka',
-      buildingCount: precomputedData.buildingCount || 0,
       pricePerSqft: precomputedData.pricePerSqft || null,
       investmentScore: precomputedData.investmentScore || null,
       connectivityScore: precomputedData.connectivityScore || null,
+      sentimentScore: precomputedData.sentimentScore || null,
+      rentalYieldAvg: precomputedData.rentalYieldAvg || null,
+      priceMomentum: precomputedData.priceMomentum || null,
+      overallRating: precomputedData.overallRating || null,
+      vastuScore: precomputedData.vastuScore || null,
+      schoolScore: precomputedData.schoolScore || null,
+      transportScore: precomputedData.transportScore || null,
+      safetyScore: precomputedData.safetyScore || null,
+      verifiedReviews: precomputedData.verifiedReviews || null,
       status: 'Live',
       isLoading: false,
       propertyData: null,
@@ -2952,9 +2960,9 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       setLoadingBuildings(false)
       loadingBuildingsRef.current = false
       
-      // Update callout with actual building count if callout is visible
+      // Update callout loading state if visible
       if (showCallouts && calloutsData.length > 0) {
-        setCalloutsData(prev => prev.map(c => ({ ...c, buildingCount: finalTotal, isLoading: false, status: 'Live' })))
+        setCalloutsData(prev => prev.map(c => ({ ...c, isLoading: false, status: 'Live' })))
       }
       
       if (setAgentData) {
@@ -3081,11 +3089,14 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
   // Listen for map commands
   useEffect(() => {
+    console.log('[Map] Setting up command listeners')
     const handleMapCommand = async (e) => {
       const viewer = viewerRef.current
       if (!viewer || viewer.isDestroyed()) return
       
       const { action, coordinates, zoom, properties } = e.detail || {}
+      
+      console.log('[Map] Received command:', action, { hasProperties: !!properties, propCount: properties?.length })
       
       // Handle highlightProperties action for map sync
       if (action === 'highlightProperties' && properties && Array.isArray(properties)) {
@@ -3156,10 +3167,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             color: '#10b981',
             locality: propsInGroup[0].name || `Properties in area`,
             place: propsInGroup[0].locality || propsInGroup[0].area_name || 'Bangalore',
-            buildingCount: 0,
             pricePerSqft: propsInGroup[0].price && propsInGroup[0].area ? Math.round(propsInGroup[0].price / propsInGroup[0].area) : null,
             investmentScore: null,
             connectivityScore: null,
+            sentimentScore: null,
+            rentalYieldAvg: null,
+            priceMomentum: null,
+            overallRating: null,
+            vastuScore: null,
+            schoolScore: null,
+            transportScore: null,
+            safetyScore: null,
+            verifiedReviews: null,
             status: 'Live',
             isLoading: false,
             propertyData: null,
@@ -3323,6 +3342,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
     window.addEventListener('valora-map-command', handleMapCommand)
     window.addEventListener('valora-ui-command', handleMapCommand)
     window.addEventListener('valora-agentic-step', handleAgenticStep)
+    
+    console.log('[Map] Command listeners registered')
     
     // Listen for new query events to clear markers and reset state
     const handleNewQuery = (e) => {
@@ -4069,6 +4090,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
         // Click handler - handle entity clicks (any clickable location on map)
         viewer.screenSpaceEventHandler.setInputAction((click) => {
+          console.log('[Map] LEFT CLICK at position:', click?.position)
+          
           // Visual ripple feedback at cursor (game-like)
           if (click?.position) {
             setClickRipple({
@@ -4084,6 +4107,8 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           
           // Get the clicked position on the globe
           const cartesian = getGroundPositionFromScreen(click.position)
+          console.log('[Map] Ground position:', cartesian)
+          
           if (cartesian) {
             const cartographic = Cesium.Cartographic.fromCartesian(cartesian)
             const clickLat = Cesium.Math.toDegrees(cartographic.latitude)
@@ -4202,10 +4227,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                 color: '#8b5cf6',
                 locality: 'Loading...',
                 place: 'Fetching location...',
-                buildingCount: 0,
                 pricePerSqft: null,
                 investmentScore: null,
                 connectivityScore: null,
+                sentimentScore: null,
+                rentalYieldAvg: null,
+                priceMomentum: null,
+                overallRating: null,
+                vastuScore: null,
+                schoolScore: null,
+                transportScore: null,
+                safetyScore: null,
+                verifiedReviews: null,
                 status: 'Analyzing',
                 isLoading: true,
                 propertyData: null,
@@ -4242,12 +4275,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                         return
                       }
                       
-                      const buildingCount = stats.buildingCount || 0
                       const avgPricePerSqft = stats.pricePerSqft || 0
                       const connectivityScore = stats.connectivityScore || null
                       const investmentScore = stats.investmentScore || null
                       
-                      console.log('[Callout] Area stats:', { stats, buildingCount, avgPricePerSqft, connectivityScore, investmentScore })
+                      console.log('[Callout] Area stats:', { stats, avgPricePerSqft, connectivityScore, investmentScore })
                       
                       setCalloutsData(prev => prev.map(c => ({
                         ...c,
@@ -4255,10 +4287,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                         color: '#8b5cf6',
                         locality,
                         place: `${place}, ${state}`,
-                        buildingCount,
                         pricePerSqft: avgPricePerSqft > 0 ? Math.round(avgPricePerSqft) : null,
                         investmentScore,
                         connectivityScore,
+                        sentimentScore: stats.sentimentScore || null,
+                        rentalYieldAvg: stats.rentalYieldAvg || null,
+                        priceMomentum: stats.priceMomentum || null,
+                        overallRating: stats.overallRating || null,
+                        vastuScore: stats.vastuScore || null,
+                        schoolScore: stats.schoolScore || null,
+                        transportScore: stats.transportScore || null,
+                        safetyScore: stats.safetyScore || null,
+                        verifiedReviews: stats.verifiedReviews || null,
                         status: 'Live',
                         isLoading: false
                       })))
@@ -4272,10 +4312,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                         color: '#8b5cf6',
                         locality,
                         place: `${place}, ${state}`,
-                        buildingCount: 0,
                         pricePerSqft: null,
                         investmentScore: null,
                         connectivityScore: null,
+                        sentimentScore: null,
+                        rentalYieldAvg: null,
+                        priceMomentum: null,
+                        overallRating: null,
+                        vastuScore: null,
+                        schoolScore: null,
+                        transportScore: null,
+                        safetyScore: null,
+                        verifiedReviews: null,
                         status: 'Live',
                         isLoading: false
                       })))
@@ -4360,10 +4408,18 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                   color: '#f43f5e',
                   locality: buildingData.name || 'Selected Building',
                   place: 'Bangalore, Karnataka',
-                  buildingCount: 0,
                   pricePerSqft: null,
                   investmentScore: null,
                   connectivityScore: null,
+                  sentimentScore: null,
+                  rentalYieldAvg: null,
+                  priceMomentum: null,
+                  overallRating: null,
+                  vastuScore: null,
+                  schoolScore: null,
+                  transportScore: null,
+                  safetyScore: null,
+                  verifiedReviews: null,
                   status: 'Live',
                   isLoading: false,
                   propertyData: null,
@@ -5303,7 +5359,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
       </div>
 
       {/* Bottom Bar - Drawing Tools + Time + Status + Fullscreen */}
-      <div className="absolute bottom-0 left-0 right-0 z-40">
+      <div className="absolute bottom-0 left-0 right-0 z-50">
         <div className="bg-slate-900 border-t border-slate-700 px-2 py-0.5 flex items-center justify-between">
           {/* Drawing Tools */}
           <div>
@@ -5439,7 +5495,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
 
       {/* Time Simulation Controls - Bottom Center */}
       {showTimeControls && (
-        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-40 w-96">
+        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-50 w-96">
           <div className="bg-slate-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -5663,6 +5719,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
         <MapCallout
           key={callout.id || index}
           visible={true}
+          cartesian={callout.cartesian}
           lat={callout.lat}
           lng={callout.lng}
           x={callout.x}
@@ -5671,10 +5728,20 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
           color={callout.color}
           locality={callout.locality}
           place={callout.place}
-          buildingCount={callout.buildingCount}
           pricePerSqft={callout.pricePerSqft}
           investmentScore={callout.investmentScore}
           connectivityScore={callout.connectivityScore}
+          sentimentScore={callout.sentimentScore}
+          rentalYieldAvg={callout.rentalYieldAvg}
+          priceMomentum={callout.priceMomentum}
+          overallRating={callout.overallRating}
+          vastuScore={callout.vastuScore}
+          schoolScore={callout.schoolScore}
+          transportScore={callout.transportScore}
+          safetyScore={callout.safetyScore}
+          verifiedReviews={callout.verifiedReviews}
+          zIndex={index === activeCalloutIndex ? 60 : 50}
+          onFocus={() => setActiveCalloutIndex(index)}
           status={callout.status}
           isLoading={callout.isLoading}
           propertyData={callout.propertyData}
@@ -5692,7 +5759,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             const viewer = viewerRef.current
             if (!viewer) return
             
-            // Use stored cartesian if available, otherwise compute from lat/lng
             let target = callout.cartesian
             let lat = callout.lat
             let lng = callout.lng
@@ -5706,36 +5772,6 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             const orbitDistance = DEFAULT_ORBIT_DISTANCE
             const orbitPitch = Cesium.Math.toRadians(DEFAULT_ORBIT_PITCH_DEG)
             
-            // For properties with multiple, use bounding sphere from all positions
-            if (callout.hasMultipleProperties && callout.allProperties && callout.allProperties.length > 1) {
-              const positions = []
-              callout.allProperties.forEach(p => {
-                const pLat = p.lat || p.latitude
-                const pLng = p.lng || p.longitude
-                if (pLat && pLng) {
-                  positions.push(getTerrainAwareTarget(pLng, pLat))
-                }
-              })
-              
-              if (positions.length > 0) {
-                const boundingSphere = Cesium.BoundingSphere.fromPoints(positions)
-                
-                viewer.camera.flyToBoundingSphere(
-                  boundingSphere,
-                  {
-                    duration: 1.0,
-                    offset: new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance),
-                    complete: () => {
-                      viewer.camera.lookAt(boundingSphere.center, new Cesium.HeadingPitchRange(0, orbitPitch, orbitDistance))
-                      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
-                    }
-                  }
-                )
-              }
-              return
-            }
-            
-            // Single location - use exact stored cartesian position
             viewer.camera.flyToBoundingSphere(
               new Cesium.BoundingSphere(target, orbitDistance / 2),
               {
@@ -5749,8 +5785,11 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
             )
           }}
           onClose={() => {
-            setShowCallouts(false)
-            setCalloutsData([])
+            const newCallouts = calloutsData.filter((_, i) => i !== index)
+            setCalloutsData(newCallouts)
+            if (newCallouts.length === 0) {
+              setShowCallouts(false)
+            }
           }}
         />
       ))}
