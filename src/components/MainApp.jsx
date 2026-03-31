@@ -1043,7 +1043,7 @@ export default function MainApp() {
         <div className="flex items-center gap-2 shrink-0">
           {/* Credit Balance Widget */}
           <CreditBalance 
-            userId={user?.email || user?.id || 'anonymous'}
+            userId={user?.id || user?.email || 'anonymous'}
             onUpgrade={() => setShowUpgradeModal(true)}
           />
 

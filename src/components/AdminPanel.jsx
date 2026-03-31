@@ -55,12 +55,6 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [grantAmount, setGrantAmount] = useState(100)
   const [grantLoading, setGrantLoading] = useState(false)
   const [grantMessage, setGrantMessage] = useState(null)
-  const [showGrantCredits, setShowGrantCredits] = useState(false)
-  const [grantUserId, setGrantUserId] = useState(null)
-  const [grantUserName, setGrantUserName] = useState('')
-  const [grantAmount, setGrantAmount] = useState(100)
-  const [grantLoading, setGrantLoading] = useState(false)
-  const [grantMessage, setGrantMessage] = useState(null)
 
   // Weekly Metrics Dashboard State
   const [weeklyMetrics, setWeeklyMetrics] = useState(null)

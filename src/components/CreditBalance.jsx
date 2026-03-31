@@ -16,6 +16,10 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
 
   // Fetch credit balance
   useEffect(() => {
+    if (!userId || userId === 'anonymous') {
+      setLoading(false);
+      return;
+    }
     fetchBalance();
     
     // Listen for credit deduction events
@@ -27,8 +31,8 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
     
     window.addEventListener('valora-credits-deducted', handleCreditDeduction);
     
-    // Refresh balance every 60 seconds
-    const interval = setInterval(fetchBalance, 60000);
+    // Refresh balance every 30 seconds
+    const interval = setInterval(fetchBalance, 30000);
     
     return () => {
       window.removeEventListener('valora-credits-deducted', handleCreditDeduction);
