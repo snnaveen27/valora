@@ -3,7 +3,7 @@
  * Displays circular progress, current tab, completed tabs, and download buttons
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../apiConfig';
 import {
   Loader2, CheckCircle, XCircle, Download, FileText,

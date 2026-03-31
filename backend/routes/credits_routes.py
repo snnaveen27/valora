@@ -45,12 +45,21 @@ PLANS = {
         "cloud_daily": 100,
         "features": ["full_search", "area_analysis", "valuation", "report_export", "explainability"],
     },
+    "team_monthly": {
+        "name": "Team Monthly",
+        "price_inr": 999,
+        "original_price_inr": 4999,
+        "monthly_credits": 3000,
+        "local_daily": 1500,
+        "cloud_daily": 300,
+        "features": ["full_search", "area_analysis", "valuation", "report_export", "explainability", "team_management", "bulk_export"],
+    },
 }
 
 TOPUP_PACKS = {
     "starter": {"name": "Starter", "units": 100, "price_inr": 59, "original_price_inr": 299},
     "standard": {"name": "Standard", "units": 300, "price_inr": 139, "original_price_inr": 699},
-    "bulk": {"name": "Bulk", "units": 1000, "price_inr": 399, "original_price_inr": 1999},
+    "power": {"name": "Power", "units": 1000, "price_inr": 399, "original_price_inr": 1999},
 }
 
 
@@ -205,9 +214,10 @@ async def upgrade_tier(request: UpgradeRequest):
 
     rl = get_rate_limiter()
 
-    # Map plan to tier - only free and pro
+    # Map plan to tier
     tier_map = {
         "pro_monthly": "pro",
+        "team_monthly": "team",
     }
     new_tier = tier_map.get(request.plan_id, "pro")
 

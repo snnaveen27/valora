@@ -1,6 +1,6 @@
 # Valora Docs Index
 
-Updated: March 2026
+Updated: March 30, 2026
 
 This folder contains the current source-of-truth docs for product, architecture, and operations.
 
@@ -10,13 +10,13 @@ This folder contains the current source-of-truth docs for product, architecture,
 - Production architecture, live vs planned APIs, ingestion model, and 24-month technical roadmap.
 
 2. `BUSINESS.md`
-- Bengaluru-first business model, pricing, GTM, KPIs, and execution assumptions.
+- Bengaluru-first business model, pricing, GTM, KPIs, execution assumptions, and **4-Layer Identity Architecture**.
 
 3. `pitch.md`
 - Investor deck content (10-slide narrative and notes).
 
 4. `digital_employee_features.md`
-- Digital employee capability matrix, runtime implementation details, integration roadmap, and latest validation snapshot.
+- Digital employee capability matrix, runtime implementation details, integration roadmap, and tier structure.
 
 5. `reports_information.md`
 - Smart report generation implementation and data-quality notes.

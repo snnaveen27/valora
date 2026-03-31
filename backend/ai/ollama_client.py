@@ -6,6 +6,7 @@ Provides async interface to local Ollama models.
 import asyncio
 import aiohttp
 import json
+import os
 import re
 from typing import Optional, Dict, Any, AsyncGenerator
 
@@ -26,6 +27,22 @@ class OllamaClient:
         self.timeout = timeout  # 120s for local 8B model inference
         self.max_context = max_context  # Context window size, 0 means unlimited
         self.api_url = f"{self.base_url}/api/generate"
+
+    def _create_session(self, timeout: aiohttp.ClientTimeout) -> aiohttp.ClientSession:
+        connector = None
+        if os.name == "nt":
+            connector = aiohttp.TCPConnector(resolver=aiohttp.ThreadedResolver())
+        return aiohttp.ClientSession(timeout=timeout, connector=connector)
+
+    @staticmethod
+    def _clean_text(text: Optional[str]) -> str:
+        """Strip reasoning tags and partial thinking output from model text."""
+        if not text:
+            return ""
+        cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE).strip()
+        if "<think>" in cleaned.lower():
+            cleaned = re.split(r"<think>", cleaned, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+        return cleaned
     
     async def generate(self, 
                       prompt: str,
@@ -45,10 +62,12 @@ class OllamaClient:
         Returns:
             Generated text
         """
+        think = kwargs.pop("think", False)
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
+            "think": think,
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
@@ -65,7 +84,7 @@ class OllamaClient:
                 payload["options"][key] = value
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._create_session(aiohttp.ClientTimeout(total=self.timeout)) as session:
                 async with session.post(
                     self.api_url,
                     json=payload,
@@ -76,10 +95,21 @@ class OllamaClient:
                         raise Exception(f"Ollama error {response.status}: {error_text}")
                     
                     result = await response.json()
-                    text = result.get("response", "").strip()
-                    # Strip Qwen3 thinking tags if present
-                    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
-                    return text
+                    text = self._clean_text(result.get("response", ""))
+                    if text:
+                        return text
+
+                    # Some Ollama-hosted cloud models return empty /api/generate content
+                    # while /api/chat succeeds with the same prompt.
+                    chat_messages = [{"role": "user", "content": prompt}]
+                    if system:
+                        chat_messages.insert(0, {"role": "system", "content": system})
+                    return await self.chat(
+                        messages=chat_messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        **kwargs,
+                    )
                     
         except aiohttp.ClientError as e:
             raise Exception(f"Failed to connect to Ollama at {self.base_url}: {e}")
@@ -108,10 +138,12 @@ class OllamaClient:
         Yields:
             Chunks of generated text
         """
+        think = kwargs.pop("think", False)
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": True,
+            "think": think,
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
@@ -127,7 +159,7 @@ class OllamaClient:
                 payload["options"][key] = value
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._create_session(aiohttp.ClientTimeout(total=self.timeout, sock_read=self.timeout)) as session:
                 async with session.post(
                     self.api_url,
                     json=payload,
@@ -173,10 +205,12 @@ class OllamaClient:
         Returns:
             Generated text
         """
+        think = kwargs.pop("think", False)
         payload = {
             "model": self.model,
             "messages": messages,
             "stream": False,
+            "think": think,
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
@@ -191,7 +225,7 @@ class OllamaClient:
         chat_url = f"{self.base_url}/api/chat"
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._create_session(aiohttp.ClientTimeout(total=self.timeout)) as session:
                 async with session.post(
                     chat_url,
                     json=payload,
@@ -202,7 +236,7 @@ class OllamaClient:
                         raise Exception(f"Ollama chat error {response.status}: {error_text}")
                     
                     result = await response.json()
-                    text = result.get("message", {}).get("content", "").strip()
+                    text = self._clean_text(result.get("message", {}).get("content", ""))
                     return text
                     
         except aiohttp.ClientError as e:
@@ -231,10 +265,12 @@ class OllamaClient:
         Yields:
             Chunks of generated text
         """
+        think = kwargs.pop("think", False)
         payload = {
             "model": self.model,
             "messages": messages,
             "stream": True,
+            "think": think,
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
@@ -249,7 +285,7 @@ class OllamaClient:
         chat_url = f"{self.base_url}/api/chat"
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._create_session(aiohttp.ClientTimeout(total=self.timeout, sock_read=self.timeout)) as session:
                 async with session.post(
                     chat_url,
                     json=payload,
@@ -350,7 +386,7 @@ Respond with JSON: {{"intent": "...", "confidence": 0.0-1.0}}"""
     async def health_check(self) -> bool:
         """Check if Ollama server is running and model is available."""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._create_session(aiohttp.ClientTimeout(total=5)) as session:
                 async with session.get(
                     f"{self.base_url}/api/tags",
                     timeout=aiohttp.ClientTimeout(total=5)
@@ -366,7 +402,7 @@ Respond with JSON: {{"intent": "...", "confidence": 0.0-1.0}}"""
     async def list_models(self) -> list:
         """List available models on Ollama server."""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._create_session(aiohttp.ClientTimeout(total=5)) as session:
                 async with session.get(
                     f"{self.base_url}/api/tags",
                     timeout=aiohttp.ClientTimeout(total=5)

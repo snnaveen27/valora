@@ -219,7 +219,9 @@ class ViewshedAnalyzer:
         for building in buildings:
             b_lat = building.get('latitude')
             b_lng = building.get('longitude')
-            b_height = building.get('height') or (building.get('levels', 1) * self.FLOOR_HEIGHT_M) or 10
+            levels = building.get('levels')
+            fallback_height = (float(levels) * self.FLOOR_HEIGHT_M) if levels not in (None, "") else 10.0
+            b_height = float(building.get('height') or fallback_height)
             
             if not b_lat or not b_lng:
                 continue

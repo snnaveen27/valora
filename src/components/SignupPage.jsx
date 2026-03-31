@@ -1,19 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
 
 // Job role options for targeting users
 const JOB_ROLES = [
   { value: '', label: 'Select your role (Optional)' },
-  { value: 'real_estate_agent', label: '🏠 Real Estate Agent/Broker' },
-  { value: 'property_developer', label: '🏗️ Property Developer' },
-  { value: 'real_estate_investor', label: '💰 Real Estate Investor' },
-  { value: 'home_buyer', label: '🔑 Home Buyer/Searcher' },
-  { value: 'property_consultant', label: '📊 Property Consultant' },
-  { value: 'architect_planner', label: '📐 Architect/Urban Planner' },
-  { value: 'property_manager', label: '🏢 Property Manager' },
-  { value: 'legal_professional', label: '⚖️ Legal/Finance Professional' },
-  { value: 'other', label: '📋 Other' },
+  { value: 'broker', label: '🏠 Broker' },
+  { value: 'developer', label: '🏗️ Developer' },
+  { value: 'buyer', label: '🏠 Buyer' },
 ];
 
 // Feature data for the right side
@@ -57,7 +50,6 @@ const FEATURES = [
 ];
 
 export default function SignupPage({ onSwitchToLogin }) {
-  const { t } = useLanguage()
   const { signup, loading, error } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
@@ -107,13 +99,20 @@ export default function SignupPage({ onSwitchToLogin }) {
       return;
     }
     
+    // Read workspace preferences from localStorage (set during onboarding)
+    const savedPrefs = JSON.parse(localStorage.getItem('valora_preferences') || '{}');
+    const workspaceType = savedPrefs.workspaceType || 'individual';
+    const workspaceRole = savedPrefs.workspaceRole || 'manager';
+    
     const result = await signup(
       formData.email,
       formData.password,
       formData.name,
       formData.company,
       formData.phone,
-      formData.job_role
+      formData.job_role,
+      workspaceType,
+      workspaceRole
     );
     
     if (!result.success) {

@@ -20,6 +20,7 @@ import math
 try:
     import numpy as np
     import pandas as pd
+    import sklearn
     from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
     from sklearn.preprocessing import StandardScaler
     from sklearn.model_selection import train_test_split
@@ -329,7 +330,7 @@ class PropertyValuationModel:
         if not ML_AVAILABLE:
             return False
         
-        print("🔧 Training valuation model...")
+        print("[INFO] Training valuation model...")
         
         X, y, feature_names = self._prepare_features(df)
         self.feature_names = feature_names
@@ -373,33 +374,67 @@ class PropertyValuationModel:
         model_path = self.model_dir / 'valuation_model.pkl'
         scaler_path = self.model_dir / 'valuation_scaler.pkl'
         features_path = self.model_dir / 'valuation_features.json'
+        metadata_path = self.model_dir / 'valuation_metadata.json'
         
         joblib.dump(self.model, model_path)
         joblib.dump(self.scaler, scaler_path)
         with open(features_path, 'w') as f:
             json.dump(self.feature_names, f)
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                'sklearn_version': sklearn.__version__,
+                'feature_count': len(self.feature_names),
+            }, f)
         
         print(f"[OK] Model saved to {self.model_dir}")
     
-    def _load_model(self) -> bool:
-        """Load model from disk."""
+    def _load_model(self) -> str:
+        """Load model from disk.
+
+        Returns one of: loaded, missing, incompatible, error.
+        """
         model_path = self.model_dir / 'valuation_model.pkl'
         scaler_path = self.model_dir / 'valuation_scaler.pkl'
         features_path = self.model_dir / 'valuation_features.json'
+        metadata_path = self.model_dir / 'valuation_metadata.json'
         
         if not all(p.exists() for p in [model_path, scaler_path, features_path]):
-            return False
+            return 'missing'
         
         try:
             self.model = joblib.load(model_path)
             self.scaler = joblib.load(scaler_path)
-            with open(features_path, 'r') as f:
+            with open(features_path, 'r', encoding='utf-8') as f:
                 self.feature_names = json.load(f)
+            if metadata_path.exists():
+                with open(metadata_path, 'r', encoding='utf-8') as f:
+                    metadata = json.load(f)
+                trained_sklearn_version = metadata.get('sklearn_version')
+                if trained_sklearn_version and trained_sklearn_version != sklearn.__version__:
+                    print(
+                        "[WARNING]  Valuation model was trained with sklearn "
+                        f"{trained_sklearn_version}, current environment is {sklearn.__version__}. "
+                        "Retraining is recommended."
+                    )
             print("[OK] Loaded valuation model from disk")
-            return True
+            return 'loaded'
         except Exception as e:
-            print(f"[WARNING]  Error loading model: {e}")
-            return False
+            self.model = None
+            self.scaler = None
+            self.feature_names = []
+            error_text = str(e)
+            if (
+                '__pyx_unpickle_' in error_text
+                or 'sklearn._loss._loss' in error_text
+                or 'module' in error_text and 'sklearn' in error_text
+            ):
+                print(
+                    "[WARNING]  Stored valuation model is incompatible with the installed sklearn build. "
+                    f"Load failed with: {e}"
+                )
+                return 'incompatible'
+            print(f"[WARNING]  Error loading valuation model: {e}")
+            return 'error'
     
     def _load_model_if_exists(self):
         """Load existing model if available, otherwise use heuristics."""
@@ -407,10 +442,16 @@ class PropertyValuationModel:
             print("[WARNING]  ML not available. Valuation will use heuristics.")
             return
         
-        if self._load_model():
+        load_status = self._load_model()
+        if load_status == 'loaded':
             return
-        
-        print("ℹ️  No trained model found. Using heuristics. Call /api/valuation/train to train model.")
+        if load_status == 'incompatible':
+            print("[INFO] Falling back to heuristics until /api/valuation/train is run again in this environment.")
+            return
+        if load_status == 'missing':
+            print("[INFO] No trained model found. Using heuristics. Call /api/valuation/train to train model.")
+            return
+        print("[INFO] Valuation model unavailable. Using heuristics. Call /api/valuation/train to rebuild it.")
     
     def train_model_async(self) -> Dict[str, Any]:
         """Train the model (can be called via API)."""
@@ -431,7 +472,7 @@ class PropertyValuationModel:
             print("[WARNING]  ML not available. Valuation will use heuristics.")
             return
         
-        if self._load_model():
+        if self._load_model() == 'loaded':
             return
         
         df = self._load_properties_data()

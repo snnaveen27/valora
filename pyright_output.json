@@ -1,0 +1,718 @@
+{
+    "version": "1.1.408",
+    "time": "1774771986659",
+    "generalDiagnostics": [
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"get_http_session\" is possibly unbound",
+            "range": {
+                "start": {
+                    "line": 245,
+                    "character": 28
+                },
+                "end": {
+                    "line": 245,
+                    "character": 44
+                }
+            },
+            "rule": "reportPossiblyUnboundVariable"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Expression of type \"None\" cannot be assigned to parameter of type \"str\"\n┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 358,
+                    "character": 18
+                },
+                "end": {
+                    "line": 358,
+                    "character": 22
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Expression of type \"None\" cannot be assigned to parameter of type \"str\"\n┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 359,
+                    "character": 24
+                },
+                "end": {
+                    "line": 359,
+                    "character": 28
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Expression of type \"None\" cannot be assigned to parameter of type \"str\"\n┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 435,
+                    "character": 104
+                },
+                "end": {
+                    "line": 435,
+                    "character": 108
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Expression of type \"None\" cannot be assigned to parameter of type \"str\"\n┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 675,
+                    "character": 67
+                },
+                "end": {
+                    "line": 675,
+                    "character": 71
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Object of type \"None\" cannot be called",
+            "range": {
+                "start": {
+                    "line": 747,
+                    "character": 21
+                },
+                "end": {
+                    "line": 747,
+                    "character": 53
+                }
+            },
+            "rule": "reportOptionalCall"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"Dict[str, Any]\" cannot be assigned to parameter \"value\" of type \"str\" in function \"__setitem__\"\n┬á┬á\"Dict[str, Any]\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 748,
+                    "character": 12
+                },
+                "end": {
+                    "line": 748,
+                    "character": 43
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"str | None\" cannot be assigned to parameter \"value\" of type \"str\" in function \"__setitem__\"\n┬á┬áType \"str | None\" is not assignable to type \"str\"\n┬á┬á┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 749,
+                    "character": 12
+                },
+                "end": {
+                    "line": 749,
+                    "character": 36
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"Dict[str, float] | None\" cannot be assigned to parameter \"value\" of type \"str\" in function \"__setitem__\"\n┬á┬áType \"Dict[str, float] | None\" is not assignable to type \"str\"\n┬á┬á┬á┬á\"Dict[str, float]\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 750,
+                    "character": 12
+                },
+                "end": {
+                    "line": 750,
+                    "character": 43
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"Dict[str, Any]\" cannot be assigned to parameter \"value\" of type \"str\" in function \"__setitem__\"\n┬á┬á\"Dict[str, Any]\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 758,
+                    "character": 12
+                },
+                "end": {
+                    "line": 758,
+                    "character": 39
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"Dict[str, Any]\" cannot be assigned to parameter \"value\" of type \"str\" in function \"__setitem__\"\n┬á┬á\"Dict[str, Any]\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 765,
+                    "character": 8
+                },
+                "end": {
+                    "line": 765,
+                    "character": 35
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Expression of type \"None\" cannot be assigned to parameter of type \"str\"\n┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 776,
+                    "character": 20
+                },
+                "end": {
+                    "line": 776,
+                    "character": 24
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Expression of type \"None\" cannot be assigned to parameter of type \"Dict[Unknown, Unknown]\"\n┬á┬á\"None\" is not assignable to \"Dict[Unknown, Unknown]\"",
+            "range": {
+                "start": {
+                    "line": 777,
+                    "character": 28
+                },
+                "end": {
+                    "line": 777,
+                    "character": 32
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Expression of type \"None\" cannot be assigned to parameter of type \"str\"\n┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 778,
+                    "character": 25
+                },
+                "end": {
+                    "line": 778,
+                    "character": 29
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Object of type \"None\" cannot be called",
+            "range": {
+                "start": {
+                    "line": 785,
+                    "character": 21
+                },
+                "end": {
+                    "line": 785,
+                    "character": 53
+                }
+            },
+            "rule": "reportOptionalCall"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Object of type \"None\" cannot be called",
+            "range": {
+                "start": {
+                    "line": 852,
+                    "character": 26
+                },
+                "end": {
+                    "line": 852,
+                    "character": 53
+                }
+            },
+            "rule": "reportOptionalCall"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Object of type \"None\" cannot be called",
+            "range": {
+                "start": {
+                    "line": 855,
+                    "character": 35
+                },
+                "end": {
+                    "line": 855,
+                    "character": 62
+                }
+            },
+            "rule": "reportOptionalCall"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Object of type \"None\" cannot be called",
+            "range": {
+                "start": {
+                    "line": 935,
+                    "character": 23
+                },
+                "end": {
+                    "line": 935,
+                    "character": 58
+                }
+            },
+            "rule": "reportOptionalCall"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Object of type \"None\" cannot be called",
+            "range": {
+                "start": {
+                    "line": 953,
+                    "character": 50
+                },
+                "end": {
+                    "line": 960,
+                    "character": 25
+                }
+            },
+            "rule": "reportOptionalCall"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"UserSegment | None\" cannot be assigned to parameter \"user_segment\" of type \"UserSegment\" in function \"get_prompt_variant\"\n┬á┬áType \"UserSegment | None\" is not assignable to type \"UserSegment\"\n┬á┬á┬á┬á\"None\" is not assignable to \"UserSegment\"",
+            "range": {
+                "start": {
+                    "line": 956,
+                    "character": 28
+                },
+                "end": {
+                    "line": 959,
+                    "character": 65
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Object of type \"None\" cannot be called",
+            "range": {
+                "start": {
+                    "line": 1466,
+                    "character": 19
+                },
+                "end": {
+                    "line": 1466,
+                    "character": 54
+                }
+            },
+            "rule": "reportOptionalCall"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"dict[str, Unknown] | None\" cannot be assigned to parameter \"location\" of type \"Dict[str, float]\" in function \"extract_claims_from_text\"\n┬á┬áType \"dict[str, Unknown] | None\" is not assignable to type \"Dict[str, float]\"\n┬á┬á┬á┬á\"None\" is not assignable to \"Dict[str, float]\"",
+            "range": {
+                "start": {
+                    "line": 1546,
+                    "character": 70
+                },
+                "end": {
+                    "line": 1546,
+                    "character": 78
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"reason\" is not a known attribute of \"None\"",
+            "range": {
+                "start": {
+                    "line": 1600,
+                    "character": 39
+                },
+                "end": {
+                    "line": 1600,
+                    "character": 45
+                }
+            },
+            "rule": "reportOptionalMemberAccess"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"remaining_credits\" is not a known attribute of \"None\"",
+            "range": {
+                "start": {
+                    "line": 1603,
+                    "character": 45
+                },
+                "end": {
+                    "line": 1603,
+                    "character": 62
+                }
+            },
+            "rule": "reportOptionalMemberAccess"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"total_credits\" is not a known attribute of \"None\"",
+            "range": {
+                "start": {
+                    "line": 1604,
+                    "character": 41
+                },
+                "end": {
+                    "line": 1604,
+                    "character": 54
+                }
+            },
+            "rule": "reportOptionalMemberAccess"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"tier\" is not a known attribute of \"None\"",
+            "range": {
+                "start": {
+                    "line": 1605,
+                    "character": 40
+                },
+                "end": {
+                    "line": 1605,
+                    "character": 44
+                }
+            },
+            "rule": "reportOptionalMemberAccess"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"Any | None\" cannot be assigned to parameter \"thread_id\" of type \"str\" in function \"_handle_special_intents\"\n┬á┬áType \"Any | None\" is not assignable to type \"str\"\n┬á┬á┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 1643,
+                    "character": 83
+                },
+                "end": {
+                    "line": 1643,
+                    "character": 92
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"CancellationToken\" is possibly unbound",
+            "range": {
+                "start": {
+                    "line": 1769,
+                    "character": 19
+                },
+                "end": {
+                    "line": 1769,
+                    "character": 36
+                }
+            },
+            "rule": "reportPossiblyUnboundVariable"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"reason\" is not a known attribute of \"None\"",
+            "range": {
+                "start": {
+                    "line": 1799,
+                    "character": 43
+                },
+                "end": {
+                    "line": 1799,
+                    "character": 49
+                }
+            },
+            "rule": "reportOptionalMemberAccess"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"remaining_credits\" is not a known attribute of \"None\"",
+            "range": {
+                "start": {
+                    "line": 1801,
+                    "character": 49
+                },
+                "end": {
+                    "line": 1801,
+                    "character": 66
+                }
+            },
+            "rule": "reportOptionalMemberAccess"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"total_credits\" is not a known attribute of \"None\"",
+            "range": {
+                "start": {
+                    "line": 1802,
+                    "character": 45
+                },
+                "end": {
+                    "line": 1802,
+                    "character": 58
+                }
+            },
+            "rule": "reportOptionalMemberAccess"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"tier\" is not a known attribute of \"None\"",
+            "range": {
+                "start": {
+                    "line": 1803,
+                    "character": 44
+                },
+                "end": {
+                    "line": 1803,
+                    "character": 48
+                }
+            },
+            "rule": "reportOptionalMemberAccess"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"TraceContext\" is possibly unbound",
+            "range": {
+                "start": {
+                    "line": 1823,
+                    "character": 20
+                },
+                "end": {
+                    "line": 1823,
+                    "character": 32
+                }
+            },
+            "rule": "reportPossiblyUnboundVariable"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"get_semantic_cache\" is possibly unbound",
+            "range": {
+                "start": {
+                    "line": 1881,
+                    "character": 33
+                },
+                "end": {
+                    "line": 1881,
+                    "character": 51
+                }
+            },
+            "rule": "reportPossiblyUnboundVariable"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"Any | None\" cannot be assigned to parameter \"thread_id\" of type \"str\" in function \"_handle_special_intents\"\n┬á┬áType \"Any | None\" is not assignable to type \"str\"\n┬á┬á┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 2067,
+                    "character": 92
+                },
+                "end": {
+                    "line": 2067,
+                    "character": 101
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Cannot access attribute \"get\" for class \"str\"\n┬á┬áAttribute \"get\" is unknown",
+            "range": {
+                "start": {
+                    "line": 2310,
+                    "character": 73
+                },
+                "end": {
+                    "line": 2310,
+                    "character": 76
+                }
+            },
+            "rule": "reportAttributeAccessIssue"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Cannot access attribute \"get\" for class \"str\"\n┬á┬áAttribute \"get\" is unknown",
+            "range": {
+                "start": {
+                    "line": 2311,
+                    "character": 50
+                },
+                "end": {
+                    "line": 2311,
+                    "character": 53
+                }
+            },
+            "rule": "reportAttributeAccessIssue"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Cannot access attribute \"get\" for class \"str\"\n┬á┬áAttribute \"get\" is unknown",
+            "range": {
+                "start": {
+                    "line": 2312,
+                    "character": 51
+                },
+                "end": {
+                    "line": 2312,
+                    "character": 54
+                }
+            },
+            "rule": "reportAttributeAccessIssue"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Cannot access attribute \"get\" for class \"str\"\n┬á┬áAttribute \"get\" is unknown",
+            "range": {
+                "start": {
+                    "line": 2313,
+                    "character": 56
+                },
+                "end": {
+                    "line": 2313,
+                    "character": 59
+                }
+            },
+            "rule": "reportAttributeAccessIssue"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"stream\" is possibly unbound",
+            "range": {
+                "start": {
+                    "line": 2357,
+                    "character": 31
+                },
+                "end": {
+                    "line": 2357,
+                    "character": 37
+                }
+            },
+            "rule": "reportPossiblyUnboundVariable"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"get_semantic_cache\" is possibly unbound",
+            "range": {
+                "start": {
+                    "line": 2601,
+                    "character": 41
+                },
+                "end": {
+                    "line": 2601,
+                    "character": 59
+                }
+            },
+            "rule": "reportPossiblyUnboundVariable"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"str | Unknown | None\" cannot be assigned to parameter \"location\" of type \"str\" in function \"_tool_proactive_suggestions\"\n┬á┬áType \"str | Unknown | None\" is not assignable to type \"str\"\n┬á┬á┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 2613,
+                    "character": 25
+                },
+                "end": {
+                    "line": 2613,
+                    "character": 38
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "Argument of type \"Unknown | Literal['greeting', 'help', 'thanks', 'farewell', 'smalltalk', 'navigate', 'analyze_area', 'analyze_building', 'property_search', 'valuation', 'investment', 'recommendation', 'terrain', 'comparison', 'market_trend', 'simulate', 'report', 'download', 'map_control', 'ui_action', 'credits', 'general'] | None\" cannot be assigned to parameter \"intent\" of type \"str\" in function \"_tool_proactive_suggestions\"\n┬á┬áType \"Unknown | Literal['greeting', 'help', 'thanks', 'farewell', 'smalltalk', 'navigate', 'analyze_area', 'analyze_building', 'property_search', 'valuation', 'investment', 'recommendation', 'terrain', 'comparison', 'market_trend', 'simulate', 'report', 'download', 'map_control', 'ui_action', 'credits', 'general'] | None\" is not assignable to type \"str\"\n┬á┬á┬á┬á\"None\" is not assignable to \"str\"",
+            "range": {
+                "start": {
+                    "line": 2614,
+                    "character": 23
+                },
+                "end": {
+                    "line": 2614,
+                    "character": 55
+                }
+            },
+            "rule": "reportArgumentType"
+        },
+        {
+            "file": "c:\\Users\\Nvnsa\\Downloads\\New folder\\realestate\\CascadeProjects\\valora_fresh\\backend\\routes\\chat_routes.py",
+            "severity": "error",
+            "message": "\"TraceContext\" is possibly unbound",
+            "range": {
+                "start": {
+                    "line": 2635,
+                    "character": 26
+                },
+                "end": {
+                    "line": 2635,
+                    "character": 38
+                }
+            },
+            "rule": "reportPossiblyUnboundVariable"
+        }
+    ],
+    "summary": {
+        "filesAnalyzed": 1,
+        "errorCount": 44,
+        "warningCount": 0,
+        "informationCount": 0,
+        "timeInSec": 3.001
+    }
+}
+

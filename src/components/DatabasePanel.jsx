@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Database, Table, Search, Download, RefreshCw, ChevronDown, ChevronRight, Eye } from 'lucide-react';
 
 import { API_URL } from '../apiConfig'

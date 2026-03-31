@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart3, Coins, TrendingUp, Info, AlertCircle, Download } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 

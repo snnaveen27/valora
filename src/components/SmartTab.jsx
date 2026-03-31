@@ -4,7 +4,7 @@
  * Includes cognitive workflow features and conversion optimization
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle,
   Clock, Target, DollarSign, Shield, Zap, Lock, ChevronRight,

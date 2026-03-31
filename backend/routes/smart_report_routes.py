@@ -40,6 +40,16 @@ except ImportError as e:
     logger.warning(f"Multi-domain specialists not available: {e}")
     SPECIALISTS_AVAILABLE = False
 
+# Import Consistency Validator
+try:
+    from ai.consistency_validator import validate_sections, ValidationResult
+    CONSISTENCY_VALIDATOR_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Consistency validator not available: {e}")
+    CONSISTENCY_VALIDATOR_AVAILABLE = False
+    validate_sections = None
+    ValidationResult = None
+
 router = APIRouter(prefix="/api/smart-report", tags=["smart-report"])
 
 # Initialize cognitive engine components (lazy loading)
@@ -48,6 +58,29 @@ _reasoning_layer = None
 _spatial_reasoning = None
 _micro_context = None
 _conflict_resolution = None
+
+
+def _normalize_percent_value(value: Any, default: float = 0.0) -> float:
+    """Convert values like 3.5, '3.5%', or None into a numeric percent."""
+    if value is None:
+        return default
+    try:
+        if isinstance(value, str):
+            value = value.strip().replace("%", "")
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return default
+    return numeric * 100 if 0 < numeric <= 1 else numeric
+
+
+def _coerce_number(value: Any, default: float = 0.0) -> float:
+    """Convert nullable numeric-like values into a float."""
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 def get_temporal_context():
     global _temporal_context
@@ -182,8 +215,8 @@ async def generate_decision_verdict(
     
     # Price position analysis
     if market_data:
-        avg_price = market_data.get('avg_price_per_sqft', 8500)
-        subject_price = market_data.get('subject_price', avg_price * 0.95)
+        avg_price = _coerce_number(market_data.get('avg_price_per_sqft'), 8500)
+        subject_price = _coerce_number(market_data.get('subject_price'), avg_price * 0.95)
         price_diff = (avg_price - subject_price) / avg_price if avg_price > 0 else 0
         
         if price_diff > 0.1:  # 10% below market
@@ -198,10 +231,11 @@ async def generate_decision_verdict(
             factors['price_position'] = -5
         
         # Liquidity score
-        factors['liquidity'] = min(20, market_data.get('liquidity_score', 70) // 5)
+        liquidity_score = _coerce_number(market_data.get('liquidity_score'), 70)
+        factors['liquidity'] = min(20, int(liquidity_score // 5))
         
         # Growth potential
-        growth = market_data.get('price_trend_1y', 0)
+        growth = _coerce_number(market_data.get('price_trend_1y'), 0)
         if growth > 15:
             factors['growth_potential'] = 20
         elif growth > 10:
@@ -213,8 +247,8 @@ async def generate_decision_verdict(
     
     # Infrastructure score
     if spatial_data:
-        poi_count = spatial_data.get('poi_count', 0)
-        walkability = spatial_data.get('walkability_score', 70)
+        poi_count = int(_coerce_number(spatial_data.get('poi_count'), 0))
+        walkability = int(_coerce_number(spatial_data.get('walkability_score'), 70))
         factors['infrastructure_score'] = min(20, (poi_count // 5) + (walkability // 10))
     
     # Risk score (inverse - lower risk = higher score)
@@ -325,6 +359,7 @@ async def generate_market_snapshot(
     market_data = await db_service.get_market_stats(lat, lng, radius_meters=3000) if db_service else None
     
     if market_data:
+        rental_yield = _normalize_percent_value(market_data.get('rental_yield', 3.5), default=3.5)
         return {
             'avg_price_sqft': market_data.get('avg_price_per_sqft', 8500),
             'sample_count': market_data.get('property_count', 156),
@@ -334,7 +369,7 @@ async def generate_market_snapshot(
                 '5Y': f"+{market_data.get('price_trend_5y', 62)}%"
             },
             'demand_supply': market_data.get('demand_level', 'High'),
-            'rental_yield': f"{market_data.get('rental_yield', 3.5)}%",
+            'rental_yield': f"{rental_yield:.1f}%",
             'liquidity_score': market_data.get('liquidity_score', 70),
             'advanced_indicators': {
                 'Market Momentum': market_data.get('momentum', 'Bullish'),
@@ -538,8 +573,8 @@ async def generate_roi_projection(
     
     market_data = await db_service.get_market_stats(lat, lng, radius_meters=3000) if db_service else None
     
-    base_price = market_data.get('avg_price_per_sqft', 8500) if market_data else 8500
-    growth_rate = market_data.get('price_trend_1y', 12) if market_data else 12
+    base_price = _coerce_number(market_data.get('avg_price_per_sqft'), 8500) if market_data else 8500
+    growth_rate = _coerce_number(market_data.get('price_trend_1y'), 12) if market_data else 12
     
     # Calculate projections
     best_case_growth = min(35, growth_rate + 8)
@@ -630,7 +665,8 @@ async def generate_comparables(
                 'similarity': 90 - (len(comparables) * 5)
             })
         
-        prices = [p.get('price_per_sqft', 8500) for p in properties]
+        prices = [_coerce_number(p.get('price_per_sqft'), 0) for p in properties]
+        prices = [price for price in prices if price > 0]
         avg_price = sum(prices) / len(prices) if prices else 8500
         
         return {
@@ -697,7 +733,7 @@ async def generate_client_pitch(
     # Calculate key metrics for pitch
     avg_price = market.get('avg_price_per_sqft', 8500)
     growth_rate = market.get('price_trend_1y', 12)
-    rental_yield = market.get('rental_yield', 3.5)
+    rental_yield = _normalize_percent_value(market.get('rental_yield', 3.5), default=3.5)
     
     # Build lifestyle narrative based on location features
     nearby_amenities = []
@@ -725,10 +761,10 @@ async def generate_client_pitch(
             'profile': 'Working Professionals',
             'reason': 'Short commute to major employment hubs'
         })
-    if rental_yield and float(rental_yield) >= 3.5:
+    if rental_yield >= 3.5:
         target_profiles.append({
             'profile': 'Investors',
-            'reason': f'Strong rental yield of {rental_yield}%'
+            'reason': f'Strong rental yield of {rental_yield:.1f}%'
         })
     if pois.get('malls', 0) >= 2 or pois.get('restaurants', 0) >= 10:
         target_profiles.append({
@@ -752,10 +788,10 @@ async def generate_client_pitch(
             'title': 'Strong Appreciation',
             'detail': f'Property values have grown {growth_rate}% in the last year'
         })
-    if rental_yield and float(rental_yield) >= 3.5:
+    if rental_yield >= 3.5:
         highlights.append({
             'title': 'Rental Income Potential',
-            'detail': f'Expected rental yield of {rental_yield}% annually'
+            'detail': f'Expected rental yield of {rental_yield:.1f}% annually'
         })
     if investment_score >= 7.0:
         highlights.append({
@@ -860,6 +896,7 @@ async def generate_smart_report(
     
     try:
         # Import services (lazy loading to avoid circular imports)
+        from ai.section_pipeline_v2 import run_section_analysis
         from database.db_service import DatabaseService
         from spatial.spatial_reasoning import SpatialReasoningService
         from spatial.terrain_service import TerrainService
@@ -873,6 +910,16 @@ async def generate_smart_report(
         # MULTI-DOMAIN SPECIALIST INTEGRATION
         # ============================================
         specialist_results = {}
+        section_analysis_v2 = None
+
+        try:
+            section_analysis_v2 = run_section_analysis(query, lat, lng)
+            logger.info(
+                "[SmartReport] Section Analysis V2 complete: "
+                f"sections={section_analysis_v2.get('metadata', {}).get('sections', [])}"
+            )
+        except Exception as e:
+            logger.warning(f"Section Analysis V2 failed: {e}")
         
         if SPECIALISTS_AVAILABLE:
             try:
@@ -921,6 +968,25 @@ async def generate_smart_report(
             lat, lng, locality, db_service, spatial_service,
             market_data=market, roi_data=roi
         )
+        strategy_base_price = _coerce_number(market.get('avg_price_sqft'), 8500)
+        
+        # Run consistency validation across all sections
+        consistency_validation = None
+        if section_analysis_v2 and section_analysis_v2.get("validation"):
+            consistency_validation = section_analysis_v2["validation"]
+        elif CONSISTENCY_VALIDATOR_AVAILABLE and validate_sections:
+            try:
+                section_results = {
+                    "terrain": spatial.get("terrain_analysis") if spatial else None,
+                    "infrastructure": spatial.get("infrastructure") if spatial else None,
+                    "market": market if market else None,
+                    "risk": risk if risk else None,
+                    "urban_form": spatial.get("urban_form") if spatial else None
+                }
+                consistency_validation = validate_sections(section_results).to_dict()
+                logger.info(f"Consistency validation: {consistency_validation.get('has_contradictions', False)}")
+            except Exception as e:
+                logger.warning(f"Consistency validation failed: {e}")
         
         return {
             'status': 'success',
@@ -942,7 +1008,7 @@ async def generate_smart_report(
             'strategy': {
                 'investment_strategy': {
                     'entry_timing': 'NOW - prices stable',
-                    'negotiation_range': f"₹{int(market.get('avg_price_sqft', 8500) * 0.95):,}-{int(market.get('avg_price_sqft', 8500) * 1.05):,}/sqft",
+                    'negotiation_range': f"₹{int(strategy_base_price * 0.95):,}-{int(strategy_base_price * 1.05):,}/sqft",
                     'portfolio_fit': 'Good for long-term growth'
                 },
                 'action_items': [
@@ -957,7 +1023,7 @@ async def generate_smart_report(
                 }
             },
             'data_transparency': {
-                'verification_status': 'VERIFIED',
+                'verification_status': 'VERIFIED' if consistency_validation and not consistency_validation.get('has_contradictions') else 'REVIEW',
                 'data_sources': [
                     {'source': 'Property Registry', 'records': 42500, 'freshness': '2 days ago'},
                     {'source': 'POI Database', 'records': 26961, 'freshness': '5 days ago'},
@@ -967,9 +1033,12 @@ async def generate_smart_report(
                     'Property Data': 85,
                     'Market Data': 78,
                     'Spatial Data': 92
-                }
+                },
+                'section_analysis_v2': section_analysis_v2.get('metadata') if section_analysis_v2 else None,
             },
-            'client_pitch': client_pitch
+            'client_pitch': client_pitch,
+            'consistency_validation': consistency_validation,
+            'section_analysis_v2': section_analysis_v2
         }
         
     except Exception as e:

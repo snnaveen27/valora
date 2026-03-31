@@ -146,7 +146,7 @@ class Sanitizer:
 # Pydantic models for validation
 class ChatMessageValidator(BaseModel):
     """Validate chat messages"""
-    role: str = Field(..., regex='^(user|assistant|system)$')
+    role: str = Field(..., pattern='^(user|assistant|system)$')
     content: str = Field(..., max_length=5000)
     
     @validator('content')

@@ -13,6 +13,7 @@ Enhanced query handling with:
 import asyncio
 import hashlib
 import json
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -22,7 +23,6 @@ import logging
 import aiohttp
 
 logger = logging.getLogger("valora.query_pipeline")
-
 
 # =============================================================================
 # 1. INTENT CONFIDENCE SCORING
@@ -40,7 +40,6 @@ class IntentResult:
     def needs_clarification(self) -> bool:
         """Check if confidence is too low and clarification needed."""
         return self.confidence < 0.6
-
 
 class IntentClassifierWithConfidence:
     """
@@ -177,7 +176,6 @@ class IntentClassifierWithConfidence:
         
         return scores
 
-
 # =============================================================================
 # 2. REQUEST TRACING
 # =============================================================================
@@ -222,7 +220,6 @@ class RequestTrace:
             "timestamp": self.timestamp,
         }
 
-
 class TraceContext:
     """Context manager for request tracing."""
     
@@ -254,7 +251,6 @@ class TraceContext:
             cls._current_trace = None
         return trace
 
-
 def trace_stage(stage_name: str):
     """Decorator to trace a pipeline stage."""
     def decorator(func):
@@ -272,7 +268,6 @@ def trace_stage(stage_name: str):
                 raise
         return wrapper
     return decorator
-
 
 # =============================================================================
 # 3. CANCELLATION TOKEN
@@ -307,7 +302,6 @@ class CancellationToken:
         """Add a callback to be called on cancellation."""
         self._callbacks.append(callback)
 
-
 class CancellableOperation:
     """Base class for cancellable operations."""
     
@@ -318,7 +312,6 @@ class CancellableOperation:
         """Check if operation should be cancelled."""
         if self.token and self.token.is_cancelled:
             raise asyncio.CancelledError("Operation cancelled by token")
-
 
 # =============================================================================
 # 4. CONNECTION POOL
@@ -349,11 +342,15 @@ class ConnectionPool:
         """Get or create the shared session."""
         async with cls._lock:
             if cls._session is None or cls._session.closed:
+                connector_kwargs = {}
+                if os.name == "nt":
+                    connector_kwargs["resolver"] = aiohttp.ThreadedResolver()
                 connector = aiohttp.TCPConnector(
                     limit=100,  # Total connection limit
                     limit_per_host=20,  # Per-host limit
                     keepalive_timeout=30,
                     enable_cleanup_closed=True,
+                    **connector_kwargs,
                 )
                 timeout = aiohttp.ClientTimeout(total=180, connect=10)
                 cls._session = aiohttp.ClientSession(
@@ -372,11 +369,9 @@ class ConnectionPool:
                 cls._session = None
                 logger.info("[ConnectionPool] Closed shared session")
 
-
 async def get_http_session() -> aiohttp.ClientSession:
     """Get the shared HTTP session."""
     return await ConnectionPool.get_session()
-
 
 # =============================================================================
 # 5. SEMANTIC CACHE
@@ -391,7 +386,6 @@ class SemanticCacheEntry:
     intent: str
     timestamp: float
     hit_count: int = 0
-
 
 class SemanticCache:
     """
@@ -499,10 +493,8 @@ class SemanticCache:
         """Clear the cache."""
         self._entries.clear()
 
-
 # Global semantic cache instance
 _semantic_cache: Optional[SemanticCache] = None
-
 
 def get_semantic_cache() -> SemanticCache:
     """Get the global semantic cache."""
@@ -511,128 +503,11 @@ def get_semantic_cache() -> SemanticCache:
         _semantic_cache = SemanticCache()
     return _semantic_cache
 
-
 # =============================================================================
 # 6. PARALLEL FACT GATHERING
 # =============================================================================
 
 @dataclass
-class FactGatheringTask:
-    """A single fact-gathering task."""
-    name: str
-    agent_name: str
-    func: Callable[[float, float, Dict], Awaitable[Dict[str, Any]]]
-    dependencies: List[str] = field(default_factory=list)
-    timeout: float = 10.0
-
-
-class ParallelFactGatherer:
-    """
-    Gathers facts from multiple agents in parallel.
-    
-    Features:
-    - Concurrent execution of independent agents
-    - Dependency-aware scheduling
-    - Timeout handling
-    - Cancellation support
-    """
-    
-    def __init__(
-        self,
-        max_concurrent: int = 4,
-        default_timeout: float = 10.0,
-    ):
-        self.max_concurrent = max_concurrent
-        self.default_timeout = default_timeout
-        self._semaphore = asyncio.Semaphore(max_concurrent)
-    
-    async def gather(
-        self,
-        lat: float,
-        lng: float,
-        context: Dict[str, Any],
-        tasks: List[FactGatheringTask],
-        token: Optional[CancellationToken] = None,
-    ) -> Dict[str, Any]:
-        """
-        Execute fact gathering tasks in parallel.
-        
-        Returns merged facts from all tasks.
-        """
-        results = {}
-        errors = {}
-        
-        async def run_task(task: FactGatheringTask) -> Tuple[str, Dict[str, Any], Optional[str]]:
-            """Run a single task with timeout and cancellation."""
-            if token:
-                token.throw_if_cancelled()
-            
-            async with self._semaphore:
-                try:
-                    result = await asyncio.wait_for(
-                        task.func(lat, lng, context),
-                        timeout=task.timeout
-                    )
-                    return task.name, result, None
-                except asyncio.TimeoutError:
-                    return task.name, {}, f"timeout after {task.timeout}s"
-                except asyncio.CancelledError:
-                    raise
-                except Exception as e:
-                    return task.name, {}, str(e)
-        
-        # Build dependency graph
-        completed = set()
-        pending = list(tasks)
-        
-        while pending:
-            # Find tasks with satisfied dependencies
-            ready = [
-                t for t in pending 
-                if all(d in completed for d in t.dependencies)
-            ]
-            
-            if not ready:
-                # Circular dependency or all remaining tasks have unmet deps
-                logger.warning(f"[ParallelFactGatherer] {len(pending)} tasks with unmet dependencies")
-                break
-            
-            # Run ready tasks concurrently
-            coros = [run_task(task) for task in ready]
-            
-            try:
-                task_results = await asyncio.gather(*coros, return_exceptions=True)
-                
-                for i, result in enumerate(task_results):
-                    task = ready[i]
-                    if isinstance(result, Exception):
-                        errors[task.name] = str(result)
-                    else:
-                        name, data, error = result
-                        if error:
-                            errors[name] = error
-                        else:
-                            results[name] = data
-                    completed.add(task.name)
-                
-            except asyncio.CancelledError:
-                logger.info("[ParallelFactGatherer] Cancelled by token")
-                raise
-            
-            # Remove completed from pending
-            pending = [t for t in pending if t.name not in completed]
-        
-        # Merge results
-        merged = {}
-        for task_name, data in results.items():
-            merged.update(data)
-        
-        if errors:
-            merged['_errors'] = errors
-            logger.warning(f"[ParallelFactGatherer] Errors: {errors}")
-        
-        return merged
-
 
 # =============================================================================
 # 7. PRODUCTION PIPELINE
@@ -654,7 +529,6 @@ class ProductionQueryPipeline:
     def __init__(self):
         self.intent_classifier = IntentClassifierWithConfidence()
         self.semantic_cache = get_semantic_cache()
-        self.fact_gatherer = ParallelFactGatherer()
     
     async def process(
         self,
@@ -694,27 +568,77 @@ class ProductionQueryPipeline:
             if token:
                 token.throw_if_cancelled()
             
-            # 3. Gather facts in parallel (if location available)
-            facts_start = time.time()
+            # 3. Run Section Analysis V2 (Gather Facts, Validate, Prompt Generation)
+            v2_start = time.time()
             lat = context.get('selectedLocation', {}).get('lat')
             lng = context.get('selectedLocation', {}).get('lng')
             
-            facts = {}
-            if lat and lng:
-                facts = await self._gather_facts_parallel(lat, lng, context, token)
-            trace.end_stage("fact_gathering", facts_start)
+            if not lat or not lng:
+                raise ValueError("Location (lat, lng) is required for V2 pipeline.")
+                
+            from ai.section_pipeline_v2 import run_section_analysis
+            v2_result = run_section_analysis(query, lat, lng)
+            trace.end_stage("v2_section_analysis", v2_start)
             
             if token:
                 token.throw_if_cancelled()
+                
+            # 4. Implement LLM Execution Loop (execute section prompts with valora-ai-mini)
+            llm_start = time.time()
+            from ai.ollama_client import OllamaClient
+            mini_client = OllamaClient(model="valora-ai-mini", timeout=120)
             
-            # 4. Build response (LLM call would happen here)
-            # For now, return facts directly
+            async def execute_section(section_name: str, prompt: str) -> Tuple[str, Any]:
+                try:
+                    messages = [{"role": "system", "content": "You are a specialized real estate reporting agent. Output valid JSON only exactly as requested."}]
+                    messages.append({"role": "user", "content": prompt})
+                    response_text = await mini_client.chat(messages=messages, temperature=0.1, max_tokens=1500)
+                    try:
+                        return section_name, json.loads(response_text)
+                    except json.JSONDecodeError:
+                        return section_name, {"raw_output": response_text, "error": "Failed to parse JSON"}
+                except Exception as e:
+                    return section_name, {"error": str(e)}
+
+            section_tasks = [execute_section(name, prompt) for name, prompt in v2_result["prompts"].items()]
+            section_responses = dict(await asyncio.gather(*section_tasks))
+            trace.end_stage("llm_execution_loop", llm_start)
+            
+            if token:
+                token.throw_if_cancelled()
+                
+            # 5. Final Synthesis using valora-ai-pro
+            synthesis_start = time.time()
+            pro_client = OllamaClient(model="valora-ai-pro", timeout=180)
+            
+            synthesis_prompt = v2_result["synthesis_prompt"].replace(
+                "(Section LLM analyses would be inserted here after model calls)",
+                json.dumps(section_responses, indent=2)
+            )
+            
+            messages = [{"role": "system", "content": "You are Valora AI, a master synthesiser. Output valid JSON only."}]
+            messages.append({"role": "user", "content": synthesis_prompt})
+            
+            try:
+                final_report_text = await pro_client.chat(messages=messages, temperature=0.2, max_tokens=2500)
+                try:
+                    final_report = json.loads(final_report_text)
+                except json.JSONDecodeError:
+                    final_report = {"raw_output": final_report_text, "error": "Failed to parse JSON from synthesis"}
+            except Exception as e:
+                final_report = {"error": str(e)}
+                
+            # 6. Evidence Injection
+            final_report["evidence_refs"] = v2_result.get("evidence", {})
+            trace.end_stage("synthesis_and_evidence", synthesis_start)
+
             response = {
                 "success": True,
                 "intent": intent_result.primary.value,
                 "intent_confidence": intent_result.confidence,
                 "needs_clarification": intent_result.needs_clarification(),
-                "facts": facts,
+                "report": final_report,
+                "v2_metadata": v2_result.get("metadata", {}),
                 "message": f"Processed query with intent: {intent_result.primary.value}",
             }
             
@@ -742,144 +666,11 @@ class ProductionQueryPipeline:
                 "trace": trace.to_dict(),
             }
     
-    async def _gather_facts_parallel(
-        self,
-        lat: float,
-        lng: float,
-        context: Dict[str, Any],
-        token: Optional[CancellationToken] = None,
-    ) -> Dict[str, Any]:
-        """Gather facts from all agents in parallel."""
-        
-        # Define fact-gathering tasks
-        tasks = [
-            FactGatheringTask(
-                name="spatial",
-                agent_name="spatial_service",
-                func=self._gather_spatial_facts,
-                timeout=5.0,
-            ),
-            FactGatheringTask(
-                name="terrain",
-                agent_name="terrain_service",
-                func=self._gather_terrain_facts,
-                timeout=5.0,
-            ),
-            FactGatheringTask(
-                name="market",
-                agent_name="property_service",
-                func=self._gather_market_facts,
-                timeout=8.0,
-            ),
-            FactGatheringTask(
-                name="locality",
-                agent_name="locality_service",
-                func=self._gather_locality_facts,
-                timeout=3.0,
-            ),
-        ]
-        
-        return await self.fact_gatherer.gather(lat, lng, context, tasks, token)
-    
-    async def _gather_spatial_facts(
-        self, lat: float, lng: float, context: Dict
-    ) -> Dict[str, Any]:
-        """Gather spatial facts."""
-        try:
-            from spatial.spatial_service import get_spatial_service
-            service = get_spatial_service()
-            summary = service.get_summary(lat, lng, radius_m=1000)
-            
-            if isinstance(summary, dict):
-                return {
-                    "poi_count": summary.get('by_category', {}).get('poi', 0),
-                    "transport_count": summary.get('by_category', {}).get('transport', 0),
-                    "accessibility_score": summary.get('accessibility_score', 0),
-                    "walkability_score": summary.get('walkability_score', 0),
-                }
-            else:
-                return {
-                    "poi_count": getattr(summary, 'poi_count', 0),
-                    "transport_count": getattr(summary, 'transport_count', 0),
-                    "accessibility_score": getattr(summary, 'accessibility_score', 0),
-                    "walkability_score": getattr(summary, 'walkability_score', 0),
-                }
-        except Exception as e:
-            logger.warning(f"Spatial facts error: {e}")
-            return {}
-    
-    async def _gather_terrain_facts(
-        self, lat: float, lng: float, context: Dict
-    ) -> Dict[str, Any]:
-        """Gather terrain facts."""
-        try:
-            from spatial.terrain_service import get_terrain_service
-            service = get_terrain_service()
-            terrain = service.get_terrain_analysis(lat, lng)
-            
-            if terrain:
-                return {
-                    "elevation_m": terrain.get('elevation_mean'),
-                    "slope_deg": terrain.get('slope_mean'),
-                    "flood_risk": terrain.get('flood_risk', 'unknown'),
-                }
-            return {}
-        except Exception as e:
-            logger.warning(f"Terrain facts error: {e}")
-            return {}
-    
-    async def _gather_market_facts(
-        self, lat: float, lng: float, context: Dict
-    ) -> Dict[str, Any]:
-        """Gather market facts."""
-        try:
-            from services.property_service import get_property_service
-            service = get_property_service()
-            props = service.search(lat=lat, lng=lng, radius_m=1500, limit=100)
-            
-            if not props:
-                return {}
-            
-            prices = [p.get('price_per_sq_ft') for p in props if p.get('price_per_sq_ft')]
-            avg_price = sum(prices) / len(prices) if prices else None
-            
-            return {
-                "avg_price_per_sqft": avg_price,
-                "active_listings": len(props),
-                "demand_level": "High" if len(props) > 50 else "Medium" if len(props) > 20 else "Low",
-            }
-        except Exception as e:
-            logger.warning(f"Market facts error: {e}")
-            return {}
-    
-    async def _gather_locality_facts(
-        self, lat: float, lng: float, context: Dict
-    ) -> Dict[str, Any]:
-        """Gather locality facts."""
-        try:
-            from services.locality_service import get_locality_service
-            service = get_locality_service()
-            nearby = service.get_nearby_locality(lat, lng, radius_km=3.0)
-            
-            if nearby:
-                return {
-                    "locality_name": nearby.get('locality_name'),
-                    "growth_phase": nearby.get('growth_phase'),
-                    "risk_level": nearby.get('risk_level'),
-                    "hotspot_score": nearby.get('hotspot_score'),
-                }
-            return {}
-        except Exception as e:
-            logger.warning(f"Locality facts error: {e}")
-            return {}
-
-
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
 _pipeline: Optional[ProductionQueryPipeline] = None
-
 
 def get_production_pipeline() -> ProductionQueryPipeline:
     """Get the global production pipeline instance."""

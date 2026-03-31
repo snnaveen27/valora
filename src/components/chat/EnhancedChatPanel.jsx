@@ -18,6 +18,7 @@
 
 import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react'
 import { PanelLeftClose, PanelLeft, Download, Trash2, Plus, X, MessageSquare, RefreshCw, ArrowDown, Languages } from 'lucide-react'
+import ComponentErrorBoundary from '../ComponentErrorBoundary';
 import '../../styles/chat-glow.css'
 
 import ChatSidebar from './ChatSidebar'
@@ -163,7 +164,7 @@ function extractKeyDrivers(facts) {
   return drivers.sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact)).slice(0, 8)
 }
 
-export default function EnhancedChatPanel({ 
+export function EnhancedChatPanelInner({ 
   agentData, 
   setAgentData, 
   fontSize = 100, 
@@ -948,7 +949,7 @@ export default function EnhancedChatPanel({
       image: attachedImages?.length > 0 ? attachedImages : null,
       llm_config: {
         provider: llmConfig.provider || 'ollama',
-        local_model: llmConfig.local_model || 'qwen3:4b-instruct',
+        local_model: llmConfig.local_model || 'valora-ai-mini:latest',
         cloud_enabled: llmConfig.cloud_enabled ?? false,
       },
       // Pass skipFlyTo and clickedCoordinates for backend to use exact clicked location
@@ -2101,6 +2102,9 @@ export default function EnhancedChatPanel({
         simulation: null
       }))
     }
+    
+    // Clear streaming data including analysis options
+    setStreamingData(null)
   }, [createNewSession, setAgentData])
   
   // Open session in tab
@@ -2122,6 +2126,8 @@ export default function EnhancedChatPanel({
     setActiveTabId(sessionId)
     const session = sessions.find(s => s.id === sessionId)
     if (session) setCurrentSession(session)
+    // Clear streaming data when opening tab
+    setStreamingData(null)
   }, [openTabs, sessions])
   
   // Close tab
@@ -2147,12 +2153,19 @@ export default function EnhancedChatPanel({
       return remaining
     })
   }, [activeTabId, sessions])
+
+  // Clear streaming data when switching tabs/sessions
+  useEffect(() => {
+    setStreamingData(null)
+  }, [activeTabId])
   
   // Switch tab
   const handleSwitchTab = useCallback((tabId) => {
     setActiveTabId(tabId)
     const session = sessions.find(s => s.id === tabId)
     if (session) setCurrentSession(session)
+    // Clear streaming data when switching tabs
+    setStreamingData(null)
   }, [sessions])
   
   // Clear chat for current session
@@ -2180,6 +2193,9 @@ export default function EnhancedChatPanel({
         simulation: null
       }))
     }
+    
+    // Clear streaming data including analysis options
+    setStreamingData(null)
   }, [currentSession, t, setAgentData])
   
   const handleSelectSession = useCallback((sessionId) => {
@@ -2520,4 +2536,12 @@ export default function EnhancedChatPanel({
       </div>
     </div>
   )
+}
+
+export default function EnhancedChatPanel(props) {
+  return (
+    <ComponentErrorBoundary name="Chat Panel">
+      <EnhancedChatPanelInner {...props} />
+    </ComponentErrorBoundary>
+  );
 }

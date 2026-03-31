@@ -1199,47 +1199,55 @@ async def get_pricing_config(admin: User = Depends(require_admin)) -> Dict[str, 
     SECURITY: Requires admin authentication.
     """
     try:
+        config = {}
+        
         # Try dynamic credits system first
         try:
             from ai.dynamic_credits import get_credits_config
-            config = get_credits_config()
-            costs = config.get_costs()
+            dc_config = get_credits_config()
+            costs = dc_config.get_costs()
             
-            return {
-                "success": True,
-                "config": {
-                    "action_costs": costs.to_dict(),
-                    "packages": {name: pkg.to_dict() for name, pkg in config.get_packages().items()},
-                    "integrity_verified": config.verify_integrity(),
-                    "source": "dynamic_credits",
-                    "config_file": str(config.config_path),
-                }
-            }
+            config.update({
+                "action_costs": costs.to_dict(),
+                "packages": {name: pkg.to_dict() for name, pkg in dc_config.get_packages().items()},
+                "integrity_verified": dc_config.verify_integrity(),
+                "source": "dynamic_credits",
+                "config_file": str(dc_config.config_path),
+            })
         except ImportError:
             pass
         
-        # Fallback to database pricing
+        # Also load database pricing for subscription_tiers, topup_packs, etc.
         try:
             from database.pricing_db import get_pricing_db
             pricing_db = get_pricing_db()
-            config = pricing_db.get_config()
+            db_config = pricing_db.get_config()
             
-            return {
-                "success": True,
-                "config": config,
-                "source": "pricing_db"
-            }
+            config["subscription_tiers"] = db_config.get("subscription_tiers", {})
+            config["topup_packs"] = db_config.get("topup_packs", [])
+            config["tier_monthly_limits"] = db_config.get("tier_monthly_limits", {})
+            config["pricing"] = db_config.get("pricing", {})
+            config["last_updated"] = db_config.get("last_updated")
+            config["updated_by"] = db_config.get("updated_by")
         except Exception as e:
-            logger.warning(f"Pricing DB fallback failed: {e}")
-        
-        # Final fallback to usage_tracker
-        from usage_tracker import _load_pricing_config
-        config = _load_pricing_config()
+            logger.warning(f"Pricing DB load failed: {e}")
+            
+            # Fallback to usage_tracker
+            try:
+                from usage_tracker import _load_pricing_config
+                ut_config = _load_pricing_config()
+                config["subscription_tiers"] = ut_config.get("subscription_tiers", {})
+                config["topup_packs"] = ut_config.get("topup_packs", [])
+                config["tier_monthly_limits"] = ut_config.get("tier_monthly_limits", {})
+                config["pricing"] = ut_config.get("pricing", {})
+                config["last_updated"] = ut_config.get("last_updated")
+                config["updated_by"] = ut_config.get("updated_by")
+            except Exception as e2:
+                logger.warning(f"Usage tracker fallback failed: {e2}")
         
         return {
             "success": True,
             "config": config,
-            "source": "usage_tracker"
         }
     except Exception as e:
         logger.error(f"All pricing config methods failed: {e}")
@@ -1269,7 +1277,7 @@ class UpdatePricingRequest(BaseModel):
     @validator('tier_monthly_limits')
     def validate_tier_limits(cls, v):
         if v:
-            allowed_tiers = ['free', 'pro', 'admin']
+            allowed_tiers = ['free', 'pro', 'team', 'admin']
             for tier, limit in v.items():
                 if tier not in allowed_tiers:
                     raise ValueError(f'Invalid tier: {tier}')

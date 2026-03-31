@@ -75,6 +75,7 @@ TEST_DEFINITIONS = [
     {"id": "api_geocode", "name": "Geocode API", "category": "API Endpoints", "tier": 2, "desc": "Test /api/geocode?q=Koramangala"},
     {"id": "api_auth", "name": "Auth API", "category": "API Endpoints", "tier": 2, "desc": "Test /api/auth endpoints"},
     {"id": "api_agent_capabilities", "name": "Agent Capabilities", "category": "API Endpoints", "tier": 2, "desc": "Test /api/agent/capabilities"},
+    {"id": "smart_report_v2", "name": "Smart Report V2", "category": "API Endpoints", "tier": 2, "desc": "Verify smart report returns section-analysis v2 output"},
     {"id": "business_emi", "name": "EMI Calculation", "category": "Business Logic", "tier": 2, "desc": "Verify EMI formula produces correct output"},
     {"id": "business_price_sqft", "name": "Price/sqft Calculation", "category": "Business Logic", "tier": 2, "desc": "Verify price per sqft calculation"},
     {"id": "business_stamp_duty", "name": "Stamp Duty Calculation", "category": "Business Logic", "tier": 2, "desc": "Verify Karnataka stamp duty computation"},
@@ -105,57 +106,26 @@ TEST_DEFINITIONS = [
 # ============================================================================
 
 INTENT_TEST_QUERIES = [
+    ("Analyze the area around 12.8275, 77.6736", "analyze_area"),
     ("Find 3BHK apartments in Koramangala under 1.5Cr", "property_search"),
     ("Show me villas in Whitefield with pool", "property_search"),
-    ("Looking for 2BHK flat in Indiranagar below 80 lakhs", "property_search"),
-    ("Find commercial spaces in MG Road", "property_search"),
-    ("List pg accommodations near Electronic City", "property_search"),
-    ("What are the view options from 15th floor in Prestige Summit", "view_analysis"),
-    ("Does tower A have good north-facing views?", "view_analysis"),
-    ("Which floor has best skyline view?", "view_analysis"),
-    ("Show view quality analysis for floor 20", "view_analysis"),
-    ("What's the price trend for villas in Hebbal?", "price_analysis"),
-    ("Is 1.2Cr fair price for 3BHK in Jayanagar?", "price_analysis"),
-    ("Compare property prices in Sarjapur vs Whitefield", "price_analysis"),
-    ("Price per sqft in HSR Layout for apartments", "price_analysis"),
-    ("What is the personality of Banashankari?", "locality_intelligence"),
-    ("Compare Koramangala vs Indiranagar for families", "locality_intelligence"),
-    ("Best neighborhoods near Manyata Tech Park?", "locality_intelligence"),
-    ("Tell me about Electronic City evolution", "locality_intelligence"),
-    ("What if I add a rooftop terrace to my 3BHK?", "simulation"),
-    ("Simulate view if I buy floor 25 instead of floor 10", "simulation"),
-    ("Predict rental yield for 2BHK in HSR Layout", "simulation"),
-    ("What are the RERA guidelines for Bangalore?", "regulatory"),
-    ("What stamp duty applies for first-time buyers in Karnataka?", "regulatory"),
-    ("Guide me through property registration process", "regulatory"),
-    ("Compare Sobha vs Prestige builders", "comparison"),
-    ("Villa vs apartment - which is better for investment?", "comparison"),
-    ("Compare 3BHK in North Bangalore vs South Bangalore", "comparison"),
-    ("Tell me about Bangalore real estate market", "general_info"),
-    ("What are the trending localities in 2024?", "general_info"),
-    ("Explain how property valuation works", "general_info"),
-    ("What documents do I need for home loan?", "general_info"),
-    ("Can you show more properties like this?", "follow_up"),
-    ("What about properties with better connectivity?", "follow_up"),
-    ("Show options under budget with good schools", "property_search"),
-    ("Any properties with solar power?", "property_search"),
-    ("Find flat near metro", "property_search"),
-    ("Show properties under 50 lakhs", "property_search"),
-    ("2BHK in Marathahalli", "property_search"),
-    ("Penthouse in Indiranagar", "property_search"),
-    ("Furnished apartment in Whitefield", "property_search"),
-    ("Under construction property in Sarjapur", "property_search"),
-    ("How would price change if metro comes to Bellandur?", "simulation"),
-    ("EMI for 1Cr loan at 8.5% for 20 years?", "simulation"),
-    ("Expected appreciation for investment in Yelahanka", "price_analysis"),
-    ("Building norms for FAR in Bengaluru?", "regulatory"),
-    ("EMI vs rent - which is better financially?", "comparison"),
-    ("Should I buy ready-to-move or under-construction?", "comparison"),
-    ("How to calculate property tax in Bangalore?", "general_info"),
-    ("Is maintenance included in the price?", "general_info"),
-    ("What's the connectivity from Marathahalli to tech parks?", "locality_intelligence"),
+    ("Estimate property value near Indiranagar metro", "valuation"),
+    ("What is the market trend in Hebbal?", "market_trend"),
+    ("Compare Whitefield and Sarjapur for investment", "comparison"),
+    ("What if a metro station is added here?", "simulate"),
+    ("Generate report for Koramangala", "report"),
+    ("Download PDF report", "download"),
+    ("Open smart report panel", "ui_action"),
+    ("Zoom to Koramangala", "map_control"),
+    ("Navigate to HSR Layout", "navigate"),
+    ("How many credits do I have?", "credits"),
+    ("Is this area flood-prone?", "terrain"),
+    ("Recommend a good locality for families near tech parks", "recommendation"),
+    ("Tell me about Bangalore real estate market", "market_trend"),
     ("Show me 1BHK apartments near Silk Board", "property_search"),
-    ("Analyze investment potential near metro stations", "price_analysis"),
+    ("Analyze investment potential near metro stations", "investment"),
+    ("Show building details for the selected building", "analyze_building"),
+    ("Hello", "greeting"),
 ]
 
 
@@ -538,6 +508,35 @@ class UnifiedTestExecutor:
             return self._result("api_agent_capabilities", "Agent Capabilities", "API Endpoints", 2,
                                 False, int((time.time()-t)*1000), error=str(e)[:120])
 
+    async def test_smart_report_v2(self) -> TestResult:
+        t = time.time()
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(
+                    f"{self.base_url}/api/smart-report/generate",
+                    params={
+                        "lat": 12.8275,
+                        "lng": 77.6736,
+                        "locality": "Test Area",
+                        "query": "investment analysis",
+                    },
+                )
+                dur = int((time.time()-t)*1000)
+                if resp.status_code != 200:
+                    return self._result("smart_report_v2", "Smart Report V2", "API Endpoints", 2,
+                                        False, dur, error=f"Smart report returned {resp.status_code}")
+                data = resp.json()
+                has_v2 = bool((data.get("section_analysis_v2") or {}).get("metadata", {}).get("pipeline_version") == "v2")
+                has_validation = bool(data.get("consistency_validation"))
+                if has_v2 and has_validation:
+                    return self._result("smart_report_v2", "Smart Report V2", "API Endpoints", 2,
+                                        True, dur, f"Smart report OK with v2 metadata and validation ({dur}ms)")
+                return self._result("smart_report_v2", "Smart Report V2", "API Endpoints", 2,
+                                    False, dur, error="Missing section_analysis_v2 or consistency_validation")
+        except Exception as e:
+            return self._result("smart_report_v2", "Smart Report V2", "API Endpoints", 2,
+                                False, int((time.time()-t)*1000), error=str(e)[:160])
+
     # ------------------------------------------------------------------
     # TIER 2: Business Logic
     # ------------------------------------------------------------------
@@ -612,16 +611,42 @@ class UnifiedTestExecutor:
 
     async def test_response_quality_facts(self) -> TestResult:
         t = time.time()
-        # Simulate checking if responses contain data patterns
-        return self._result("response_quality_facts", "Response Has Facts", "Quality", 3,
-                            True, int((time.time()-t)*1000),
-                            "Response quality checks enabled (facts, citations)")
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(
+                    f"{self.base_url}/api/smart-report/generate",
+                    params={"lat": 12.8275, "lng": 77.6736, "locality": "Test Area", "query": "investment analysis"},
+                )
+                data = resp.json() if resp.status_code == 200 else {}
+                market = data.get("market_snapshot", {})
+                spatial = data.get("spatial_intelligence", {})
+                has_facts = bool(market.get("avg_price_sqft")) and bool(spatial.get("walkability_score") is not None)
+                return self._result("response_quality_facts", "Response Has Facts", "Quality", 3,
+                                    has_facts, int((time.time()-t)*1000),
+                                    "Smart report contains grounded market and spatial facts" if has_facts else "",
+                                    error="" if has_facts else "Smart report missing grounded facts")
+        except Exception as e:
+            return self._result("response_quality_facts", "Response Has Facts", "Quality", 3,
+                                False, int((time.time()-t)*1000), error=str(e)[:160])
 
     async def test_response_quality_relevance(self) -> TestResult:
         t = time.time()
-        return self._result("response_quality_relevance", "Response Relevance", "Quality", 3,
-                            True, int((time.time()-t)*1000),
-                            "Relevance scoring enabled for all responses")
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                resp = await client.post(f"{self.base_url}/api/chat", json={
+                    "messages": [{"role": "user", "content": "How many credits do I have?"}],
+                    "context": {"user_id": "test_admin"}
+                })
+                data = resp.json() if resp.status_code == 200 else {}
+                message = (data.get("message") or "").lower()
+                relevant = "credit" in message and data.get("intent") == "credits"
+                return self._result("response_quality_relevance", "Response Relevance", "Quality", 3,
+                                    relevant, int((time.time()-t)*1000),
+                                    "Credits response matched query intent" if relevant else "",
+                                    error="" if relevant else "Credits query did not produce a credits-focused response")
+        except Exception as e:
+            return self._result("response_quality_relevance", "Response Relevance", "Quality", 3,
+                                False, int((time.time()-t)*1000), error=str(e)[:160])
 
     async def test_response_latency(self) -> TestResult:
         t = time.time()
@@ -810,6 +835,7 @@ class UnifiedTestExecutor:
             "api_geocode": self.test_api_geocode,
             "api_auth": self.test_api_auth,
             "api_agent_capabilities": self.test_api_agent_capabilities,
+            "smart_report_v2": self.test_smart_report_v2,
             # Tier 2 Business
             "business_emi": self.test_business_emi,
             "business_price_sqft": self.test_business_price_sqft,
@@ -912,60 +938,26 @@ class UnifiedTestExecutor:
 # ============================================================================
 
 def _classify_intent(query: str) -> str:
-    q = query.lower().strip()
-    if not q:
-        return "empty_query"
-        
-    if any(w in q for w in ["simulate", "what if", "predict", "emi for", "how would"]):
-        return "simulation"
-        
-    if any(w in q for w in ["more properties", "what about", "show more"]):
-        return "follow_up"
-        
-    if any(w in q for w in ["rera", "stamp duty", "registration", "norms", "far", "regulation", "guideline"]):
-        return "regulatory"
-        
-    if "compare property prices" in q:
-        return "price_analysis"
-        
-    if "compare" in q or "vs" in q or "which is better" in q or "should i buy" in q:
-        if "family" in q or "families" in q:
-             return "locality_intelligence"
-        return "comparison"
-        
-    if any(w in q for w in ["personality", "neighborhood", "connectivity", "evolution", "best neighborhood"]):
-        return "locality_intelligence"
-        
-    if "view" in q or "floor" in q or "skyline" in q:
-        return "view_analysis"
-        
-    if any(w in q for w in ["price", "cost", "appreciation", "investment", "yield", "sqft", "budget"]):
-        if "maintenance included" in q:
-            pass
-        elif "budget" in q and ("schools" in q or "options under" in q):
-            return "property_search"
-        else:
-            return "price_analysis"
-
-    if any(w in q for w in ["tell me about", "explain", "trending", "documents", "how to calculate", "what documents", "maintenance included"]):
-        return "general_info"
-            
-    if "find" in q or "show me" in q or "looking for" in q or "list" in q or "show options" in q or "show properties" in q or "any properties" in q:
-        return "property_search"
-        
-    if any(w in q for w in ["bhk", "flat", "apartment", "villa", "pg", "penthouse", "furnished", "under construction", "commercial"]):
-        return "property_search"
-        
-    return "general_info"
+    from ai.gis_agents import IntentRouter
+    return IntentRouter.classify(query).value
 
 
 def _route_model(query: str, has_image: bool = False) -> str:
-    if has_image:
+    from ai.gis_agents import IntentRouter
+    from ai.model_router import route_model
+
+    selection = route_model(
+        user_query=query,
+        intent=IntentRouter.classify(query),
+        context={"images": [{}]} if has_image else {},
+        available_models=["valora-ai-mini:latest", "valora-ai-pro:latest", "qwen3.5:397b-cloud"],
+        history_length=0,
+        user_override=None,
+        user_tier="pro",
+    )
+    if has_image or selection.is_vision:
         return "vision"
-    q = query.lower()
-    if len(query) > 100 or "analyze" in q or "simulate" in q:
-        return "openrouter"
-    if "compare" in q and len(query) > 50:
+    if selection.provider == "openrouter" or selection.is_cloud:
         return "openrouter"
     return "ollama"
 

@@ -70,22 +70,51 @@ Digital employees excel at automating these repetitive workflows, freeing up age
 
 ---
 
-## User Tier Structure
+## Identity and Access Structure (4-Layer Model)
 
-Valora currently has a **2-tier subscription model**:
+Valora uses a **4-layer identity model**:
 
-| Tier | Target Users | Monthly Credits |
-|------|--------------|-----------------|
-| **Free** | Home buyers, passive investors | 50 |
-| **Pro** | Real estate agents, active investors | 1,000 |
+### Layer 1: Identity Role (WHO they are)
 
-Digital employee features are distributed across these tiers to drive conversions.
+| Role | Value | Target Users |
+|------|-------|-------------|
+| Broker | `broker` | Real estate agents and agencies |
+| Developer | `developer` | Real estate developers and builder sales |
+| Buyer | `buyer` | Home buyers, investors, NRI users |
+| Admin | `admin` | Internal (hidden) |
+| Valora Team | `valora-team` | Internal (hidden) |
+
+### Layer 2: Workspace Type (HOW they operate)
+
+| Workspace | Value | Description |
+|-----------|-------|-------------|
+| Individual | `individual` | Solo operator, own data |
+| Team | `team` | Shared workspace with members |
+
+### Layer 3: Workspace Role (WHO can do what)
+
+| Role | Manager | Member |
+|------|---------|--------|
+| Manage Members | Yes | No |
+| Change Plan | Yes | No |
+| View All Data | Yes | Yes |
+| Create Shared Resources | Yes | Yes |
+| Export Reports | Yes | Yes |
+| Delete Resources | Yes | Own only |
+
+### Layer 4: Subscription Plan (WHAT they can access)
+
+| Plan | Units/Month | Team Members |
+|------|-------------|-------------|
+| Free | 50 | 1 |
+| Pro | 1,000 | 1 |
+| Team | 3,000 | Up to 10 |
 
 ---
 
-## Feature Breakdown by Tier
+## Feature Breakdown by Plan
 
-### Free Tier Features
+### Free Plan Features
 
 | Feature | Limit | Description |
 |---------|-------|-------------|
@@ -94,13 +123,15 @@ Digital employee features are distributed across these tiers to drive conversion
 | Notifications | In-app only | Automation results in activity feed |
 | Lead Manager | Included | Basic lead CRUD and pipeline tracking |
 | Chat Commands | Included | `alert me...`, `schedule...`, `add lead...` routed to automation APIs |
+| PDF Export | No | Not available |
+| Team Management | No | Not available |
 
 **Example Commands:**
 - "Alert me when 2BHK in Whitefield under 80L is listed"
 - "Schedule a weekly report for Whitefield every Monday at 9am"
 - "Add lead Rahul mehta@example.com +91 98765 43210"
 
-### Pro Tier Features
+### Pro Plan Features
 
 | Feature | Description |
 |---------|-------------|
@@ -109,11 +140,23 @@ Digital employee features are distributed across these tiers to drive conversion
 | Auto-Execution | Tasks can run without manual confirmation |
 | Faster Alert Scans | 15-minute instant scan interval vs 60-minute free tier |
 | Lead Management | Full lead workflow with follow-up task support |
+| PDF Export | Yes |
+| Team Management | No |
 
 **Example Commands:**
 - "Send weekly market report to lead@example.com every Monday 9am"
 - "Alert me when 3BHK in Koramangala under 2.5cr is listed"
 - "Add lead Priya priya@example.com +91 99887 66554"
+
+### Team Plan Features
+
+| Feature | Description |
+|---------|-------------|
+| All Pro Features | Full feature access |
+| Team Management | Invite and manage team members |
+| Shared Alerts | Team-wide alert configurations |
+| Shared Reports | Team report templates |
+| Team Analytics | Aggregate team metrics |
 
 ---
 

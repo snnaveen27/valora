@@ -446,7 +446,7 @@ async def full_text_search(
 
 @router.get("/top-properties")
 async def get_top_properties(
-    sort_by: str = Query("investment_score", regex="^(investment_score|price|price_per_sqft|created_at)$"),
+    sort_by: str = Query("investment_score", pattern="^(investment_score|price|price_per_sqft|created_at)$"),
     limit: int = Query(20, ge=1, le=100)
 ):
     """Get top properties sorted by various criteria."""

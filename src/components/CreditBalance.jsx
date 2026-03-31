@@ -3,7 +3,7 @@
  * Shows current credits, tier, and top-up button
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Coins, Zap, Crown, Plus, RefreshCw, Calendar } from 'lucide-react';
 import { API_URL } from '../apiConfig';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -70,12 +70,14 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
 
   const tierColors = {
     'free': 'from-slate-500 to-slate-600',
-    'pro': 'from-blue-500 to-purple-500'
+    'pro': 'from-blue-500 to-purple-500',
+    'team': 'from-emerald-500 to-teal-500'
   };
 
   const tierIcons = {
     'free': <Coins className="w-3.5 h-3.5" />,
-    'pro': <Zap className="w-3.5 h-3.5" />
+    'pro': <Zap className="w-3.5 h-3.5" />,
+    'team': <Crown className="w-3.5 h-3.5" />
   };
 
   if (loading) {
@@ -196,12 +198,34 @@ export default function CreditBalance({ userId = 'anonymous', onUpgrade }) {
                   >
                     <div className="text-left">
                       <div className="text-white font-medium text-sm flex items-center gap-2">
-                        <Crown className="w-3.5 h-3.5 text-amber-400" />
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
                         {t('proSubscription')}
                       </div>
                       <div className="text-xs text-slate-400">{t('proSubscriptionCredits')}</div>
                     </div>
                     <div className="text-purple-400 font-bold text-sm">₹599/mo</div>
+                  </button>
+                </div>
+              )}
+
+              {/* Team Subscription - Only show for pro users */}
+              {tier === 'pro' && (
+                <div className="p-2 border-t border-slate-700">
+                  <button
+                    onClick={() => {
+                      setShowTopUp(false);
+                      onUpgrade?.();
+                    }}
+                    className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border border-emerald-500/40 rounded-lg transition"
+                  >
+                    <div className="text-left">
+                      <div className="text-white font-medium text-sm flex items-center gap-2">
+                        <Crown className="w-3.5 h-3.5 text-emerald-400" />
+                        {t('teamSubscription')}
+                      </div>
+                      <div className="text-xs text-slate-400">{t('teamSubscriptionCredits')}</div>
+                    </div>
+                    <div className="text-emerald-400 font-bold text-sm">₹999/mo</div>
                   </button>
                 </div>
               )}

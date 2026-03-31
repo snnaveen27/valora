@@ -13,7 +13,7 @@ import OnboardingModal from './OnboardingModal'
 const OnlineOSMMap = lazy(() => import('../spatial/OnlineOSMMap'))
 const SmartPanel = lazy(() => import('./SmartPanel'))
 const EnhancedChatPanel = lazy(() => import('./chat/EnhancedChatPanel'))
-const AdminPanel = lazy(() => import('./AdminPanel'))
+
 const ScrapeController = lazy(() => import('./ScrapeController'))
 const CinemaOverlay = lazy(() => import('./CinemaOverlay'))
 const PaymentCheckout = lazy(() => import('./PaymentCheckout'))
@@ -39,7 +39,6 @@ export default function MainApp() {
   const [chatWidth, setChatWidth] = useState('narrow') // narrow or wide
   const [userTier, setUserTier] = useState('free') // User's credit tier
   const [tierLoaded, setTierLoaded] = useState(false) // Track if tier has been fetched
-  const [isAdminOpen, setIsAdminOpen] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showPaymentCheckout, setShowPaymentCheckout] = useState(false)
@@ -1117,7 +1116,7 @@ export default function MainApp() {
                     <button
                       onClick={() => {
                         setShowUserMenu(false);
-                        setIsAdminOpen(true);
+                        window.open('#/admin', '_blank');
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-slate-300 hover:bg-slate-700/50 rounded-lg transition text-sm"
                     >
@@ -1163,7 +1162,7 @@ export default function MainApp() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Analysis Panel */}
         <div 
-          className={`h-full bg-slate-800 border-r border-slate-700 flex flex-col transition-all duration-300 ${isAnalysisFullscreen ? 'z-10' : ''}`}
+          className="h-full bg-slate-800 border-r border-slate-700 flex flex-col transition-all duration-300 z-50"
           style={{
             width: getAnalysisWidth(),
             minWidth: isAnalysisOpen ? (isAnalysisFullscreen ? '600px' : '280px') : '48px',
@@ -1301,10 +1300,6 @@ export default function MainApp() {
                     authToken={token}
                     authUser={user}
                     fontSize={analysisFontSize}
-                    isFullscreen={isAnalysisFullscreen}
-                    onToggleFullscreen={() => setIsAnalysisFullscreen(!isAnalysisFullscreen)}
-                    onClose={() => setIsAnalysisOpen(false)}
-                    onFontSizeChange={(delta) => setAnalysisFontSize(prev => Math.max(50, Math.min(150, prev + delta)))}
                     activeTab={smartPanelActiveTab}
                     onTabChange={setSmartPanelActiveTab}
                   />
@@ -1374,7 +1369,7 @@ export default function MainApp() {
 
         {/* Right Chat Panel */}
         <div 
-          className="h-full bg-slate-800 border-l border-slate-700 flex flex-col transition-all duration-300 relative"
+          className="h-full bg-slate-800 border-l border-slate-700 flex flex-col transition-all duration-300 relative z-50"
           style={{
             width: getChatWidth(),
             minWidth: isChatOpen && !isAnalysisFullscreen && !isMapFullscreen ? (isChatFullscreen ? '600px' : '280px') : '0px',
@@ -1460,8 +1455,7 @@ export default function MainApp() {
         </div>
       </div>
 
-      {/* Admin Panel Modal */}
-      <AdminPanel isOpen={isAdminOpen} onClose={() => setIsAdminOpen(false)} />
+
 
       {/* Upgrade/Top-up Modal */}
       {showUpgradeModal && (

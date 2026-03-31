@@ -292,6 +292,7 @@ class AgentFacts:
     # Market facts (deterministic from property data)
     avg_price_per_sqft: Optional[float] = None
     price_trend_pct: Optional[float] = None  # Annualized growth
+    rental_yield: Optional[float] = None
     active_listings: Optional[int] = None
     demand_level: Optional[str] = None  # High/Medium/Low
     price_range: Optional[Dict[str, int]] = None
@@ -762,6 +763,62 @@ def is_spatial_reasoning_task(query: str, intent: 'Intent' = None) -> bool:
 class IntentRouter:
     """Classifies user intent from query text."""
     
+    # v2 Section routing rules: ordered from most specific to broadest.
+    SECTION_RULES = [
+        (r"\b(compare|comparison|vs|versus|between)\b", ["terrain", "infrastructure", "market", "risk", "urban_form"]),
+        (r"\b(family|family-friendly|livability|lifestyle|schools?|hospitals?|daycare|parks?|playground)\b", ["walkability", "amenities", "transit", "infrastructure"]),
+        (r"\b(connectivity|connect|commute|transit|metro|bus|rail|airport|travel time)\b", ["infrastructure", "transit", "walkability"]),
+        (r"\b(invest|investment|roi|yield|returns?|appreciation)\b", ["market", "risk", "infrastructure"]),
+        (r"\b(valuation|price|pricing|worth|undervalued|overpriced)\b", ["market", "urban_form", "infrastructure"]),
+        (r"\b(property|building|tower|project)\b", ["market", "urban_form", "infrastructure"]),
+        (r"\b(terrain|slope|elevation|topography)\b", ["terrain", "risk"]),
+        (r"\b(risk|risks|flood|legal|pollution|waterlogging|hazard)\b", ["terrain", "risk"]),
+        (r"\b(market|trend|outlook|demand|supply|inventory)\b", ["market"]),
+        (r"\b(recommend|recommended|best|suggest)\b", ["market", "infrastructure", "walkability", "amenities"]),
+        (r"\b(area|analyze|analysis|report|simulate|simulation)\b", ["terrain", "infrastructure", "market", "risk", "urban_form"]),
+    ]
+    
+    # Default sections for full analysis
+    DEFAULT_SECTIONS = ["terrain", "infrastructure", "market", "risk", "urban_form"]
+    
+    @classmethod
+    def get_sections_for_intent(cls, intent: 'Intent', query: str = "") -> list:
+        """
+        Determine which analysis sections to run based on intent and query.
+        
+        Rules-based routing: <5ms latency, 0 model calls.
+        
+        Args:
+            intent: Classified Intent enum
+            query: Original query text for keyword matching
+            
+        Returns:
+            List of section names to compute features for
+        """
+        query_lower = query.lower()
+        
+        # Check ordered regex rules first so broad terms do not override specific queries.
+        for pattern, sections in cls.SECTION_RULES:
+            if re.search(pattern, query_lower):
+                return sections
+        
+        # Map Intent enum to sections
+        intent_section_map = {
+            Intent.ANALYZE_AREA: ["terrain", "infrastructure", "market", "risk", "urban_form"],
+            Intent.ANALYZE_BUILDING: ["urban_form", "infrastructure"],
+            Intent.TERRAIN: ["terrain", "risk"],
+            Intent.INVESTMENT: ["market", "risk", "infrastructure"],
+            Intent.VALUATION: ["market", "urban_form", "infrastructure"],
+            Intent.PROPERTY_SEARCH: ["market", "infrastructure"],
+            Intent.MARKET_TREND: ["market"],
+            Intent.RECOMMENDATION: ["market", "infrastructure", "walkability", "amenities"],
+            Intent.COMPARISON: ["terrain", "infrastructure", "market", "risk", "urban_form"],
+            Intent.SIMULATE: ["terrain", "infrastructure", "market", "risk", "urban_form"],
+            Intent.REPORT: ["terrain", "infrastructure", "market", "risk", "urban_form"],
+        }
+        
+        return intent_section_map.get(intent, cls.DEFAULT_SECTIONS)
+    
     # Conversational patterns (highest priority for short queries)
     GREETING_PATTERNS = [
         r'^(hi|hello|hey|hola|namaste|good\s*(morning|afternoon|evening|day))[\s!.?]*$',
@@ -840,7 +897,6 @@ class IntentRouter:
         r'\b(buy|rent|for sale|available)\b',
         r'\b(under|below|above)\s*\d+\s*(lakh|lac|cr|crore)?\b',
         r'\b(\d+\s*bhk|\d+\s*bedroom)\b',
-        r'\b(real estate|realty|homes?)\b',
         r'\b(villas?|duplex|penthouses?|studio)\b',
         r'\b(commercial|office|shop|warehouse|industrial)\s*(space|property)?\b',
         r'\b(top|best)\s*(properties|apartments?|flats?|houses?|listings?)\b',
@@ -897,7 +953,7 @@ class IntentRouter:
     ]
     
     MAP_CONTROL_PATTERNS = [
-        r'\b(zoom|pan|fly|go|move|navigate)\s+(to|in|out)\b',
+        r'\b(zoom|pan|fly|go|move)\s+(to|in|out)\b',
         r'\b(show|hide|toggle)\s+(layer|terrain|3d|buildings|heatmap)\b',
         r'\b(enable|disable)\s+(3d|terrain|satellite)\b',
         r'\breset\s+(view|map|camera)\b',
@@ -922,6 +978,8 @@ class IntentRouter:
     def classify(cls, query: str, has_building: bool = False, has_location: bool = False) -> Intent:
         """Classify user intent from query."""
         q = query.lower().strip()
+        if not q:
+            return Intent.GENERAL
         
         # Short query handling - check conversational first
         if len(q) < 20:
@@ -965,6 +1023,19 @@ class IntentRouter:
         for pattern in cls.DOWNLOAD_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.DOWNLOAD
+
+        # Explicit market-overview queries should not fall into property_search
+        if re.search(r'\b(real estate market|property market|market overview|market analysis)\b', q, re.IGNORECASE):
+            return Intent.MARKET_TREND
+
+        # Comparison queries should win over investment keywords
+        for pattern in cls.COMPARISON_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.COMPARISON
+
+        # Explicit navigation requests should not be treated as map controls
+        if re.search(r'\b(navigate to|take me to|where is|locate)\b', q, re.IGNORECASE):
+            return Intent.NAVIGATE
         
         # Map control patterns
         for pattern in cls.MAP_CONTROL_PATTERNS:
@@ -986,25 +1057,20 @@ class IntentRouter:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.INVESTMENT
         
+        # Market trend patterns
+        for pattern in cls.MARKET_TREND_PATTERNS:
+            if re.search(pattern, q, re.IGNORECASE):
+                return Intent.MARKET_TREND
+
         # Property patterns
         has_property_keyword = any(re.search(p, q, re.IGNORECASE) for p in cls.PROPERTY_PATTERNS)
         if has_property_keyword:
             return Intent.PROPERTY_SEARCH
         
-        # Market trend patterns
-        for pattern in cls.MARKET_TREND_PATTERNS:
-            if re.search(pattern, q, re.IGNORECASE):
-                return Intent.MARKET_TREND
-        
         # Check simulation patterns (high priority)
         for pattern in cls.SIMULATE_PATTERNS:
             if re.search(pattern, q, re.IGNORECASE):
                 return Intent.SIMULATE
-        
-        # Check comparison patterns
-        for pattern in cls.COMPARISON_PATTERNS:
-            if re.search(pattern, q, re.IGNORECASE):
-                return Intent.COMPARISON
         
         # Check valuation patterns
         for pattern in cls.VALUATION_PATTERNS:
@@ -1043,6 +1109,10 @@ class IntentRouter:
     def extract_place_name(cls, query: str) -> Optional[str]:
         """Extract place name from any query type."""
         q = query.strip()
+
+        # Explicit coordinates are more precise than place extraction.
+        if cls.extract_coordinates(q):
+            return None
         
         # Common patterns for different query types
         patterns = [
@@ -1070,6 +1140,18 @@ class IntentRouter:
             # Generic "in [place]" pattern (lower priority)
             r'\b(?:in|at|near|around)\s+([A-Z][a-zA-Z\s]+?)(?:\s+under|\s+below|\s+above|\s*$|\s*\?)',
         ]
+        invalid_places = {
+            'real estate',
+            'property market',
+            'realty',
+            'investment',
+            'market',
+            'area',
+            'location',
+            'place',
+            'neighborhood',
+            'locality',
+        }
         
         for pattern in patterns:
             match = re.search(pattern, q, re.IGNORECASE)
@@ -1079,7 +1161,7 @@ class IntentRouter:
                 place = re.sub(r'\s*(area|location|place|neighborhood|locality|for investment|for families|for living)$', '', place, flags=re.IGNORECASE)
                 # Clean up leading articles
                 place = re.sub(r'^(the|a|an)\s+', '', place, flags=re.IGNORECASE)
-                if place and len(place) > 2:
+                if place and len(place) > 2 and place.lower() not in invalid_places:
                     return place.strip()
         
         # Fallback: Look for capitalized words that could be place names (Bangalore localities)
@@ -1100,6 +1182,32 @@ class IntentRouter:
             if locality.lower() in q_lower:
                 return locality
         
+        return None
+
+    @classmethod
+    def extract_coordinates(cls, query: str) -> Optional[Tuple[float, float]]:
+        """Extract explicit latitude/longitude pairs from a query."""
+        if not query:
+            return None
+
+        patterns = [
+            r"\b(?:coordinates?|coords?)\s*(?:at|of|for)?\s*(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)\b",
+            r"\b(?:lat|latitude)\s*[:=]?\s*(-?\d{1,2}\.\d+)\s*[, ]+\s*(?:lng|lon|long|longitude)\s*[:=]?\s*(-?\d{1,3}\.\d+)\b",
+            r"(?<!\d)(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)(?!\d)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if not match:
+                continue
+            try:
+                lat = float(match.group(1))
+                lng = float(match.group(2))
+            except (TypeError, ValueError):
+                continue
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                return lat, lng
+
         return None
     
     @classmethod
@@ -1421,6 +1529,7 @@ class GISAgentOrchestrator:
                 market_data = current_analysis['market']
                 facts.avg_price_per_sqft = market_data.get('avg_price_per_sqft')
                 facts.price_trend_pct = market_data.get('price_trend_pct')
+                facts.rental_yield = market_data.get('rental_yield') or market_data.get('rental_yield_pct')
                 facts.demand_level = market_data.get('demand_level')
             
             if current_analysis.get('infrastructure'):
@@ -1466,10 +1575,11 @@ class GISAgentOrchestrator:
             facts.ai_capabilities_used.append("spatial_reasoning_mode")
         
         # Determine location to analyze
-        # Priority: 
-        # 1. If selectedLocation has valid coordinates (from map click), use those directly
-        # 2. If user explicitly mentions a place in query, geocode it
-        # 3. Fallback to context selection
+        # Priority:
+        # 1. Explicit coordinates in the query
+        # 2. Selected/clicked coordinates from context
+        # 3. Explicit place in query
+        # 4. Fallback to context selection
         
         # Check if selectedLocation has valid coordinates (from map click)
         has_valid_selected_location = (
@@ -1480,14 +1590,17 @@ class GISAgentOrchestrator:
             -180 <= selected_location.get('lng') <= 180
         )
         
-        # Extract place name from query (but don't use if we have valid clicked coordinates)
-        extracted_place = IntentRouter.extract_place_name(query) if not has_valid_selected_location else None
-        
+        extracted_coords = IntentRouter.extract_coordinates(query)
+        extracted_place = None if extracted_coords else IntentRouter.extract_place_name(query)
+
         lat, lng, location_name = None, None, None
-        
+
+        if extracted_coords:
+            lat, lng = extracted_coords
+            location_name = f"Area at {lat:.5f}, {lng:.5f}"
+            print(f"[GIS Agents] Using coordinates from query: lat={lat}, lng={lng}")
         # If user clicked on map (selectedLocation has valid coordinates), use those directly
-        # This takes priority over geocoding to ensure we use the exact coordinates the user clicked
-        if has_valid_selected_location:
+        elif has_valid_selected_location:
             lat = selected_location.get('lat')
             lng = selected_location.get('lng')
             location_name = f"Area at {lat:.5f}, {lng:.5f}"
@@ -2128,6 +2241,7 @@ class GISAgentOrchestrator:
                 if market:
                     facts.avg_price_per_sqft = market.get('avg_price_per_sqft')
                     facts.price_trend_pct = market.get('price_trend_pct')
+                    facts.rental_yield = market.get('rental_yield') or market.get('rental_yield_pct')
                     facts.active_listings = market.get('active_listings', 0)
                     facts.demand_level = market.get('demand_level', 'Medium')
             except Exception as e:

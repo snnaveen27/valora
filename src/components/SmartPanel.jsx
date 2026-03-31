@@ -3,14 +3,17 @@
  * Consolidated from AnalysisPanel - shows only Smart Report tabs
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import SmartTabsContainer from './SmartTabsContainer';
+import ComponentErrorBoundary from './ComponentErrorBoundary';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocation } from '../contexts/LocationContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
-  Compass, Database, Presentation, Eye, Bot, Users
+  Compass, Database, Presentation, Eye, Bot, Users, Target
 } from 'lucide-react';
+import { IDENTITY_ROLES } from '../config/roles';
 
 // Tab metadata with icons - will be populated with translations
 // Added safeT fallback to handle missing translations gracefully
@@ -121,9 +124,102 @@ const getTabMetadata = (t) => {
     description: 'Decision-Room, Locality Reviews & Market Sentiment',
     shortLabel: 'community',
     color: 'from-indigo-500 to-purple-500'
+  },
+  'broker_dashboard': {
+    title: safeT('dashboard') || 'Dashboard',
+    icon: '📊',
+    lucideIcon: Target,
+    description: 'Your personalized dashboard',
+    shortLabel: 'dashboard',
+    color: 'from-blue-500 to-indigo-500'
   }
   };
 };
+
+// Tab visibility by identity role
+// Each role sees only tabs relevant to their workflow
+const TAB_VISIBILITY = {
+  [IDENTITY_ROLES.BROKER]: [
+    'free_analysis',
+    'decision_verdict',
+    'market_snapshot',
+    'spatial_intelligence',
+    'risk_analysis',
+    'roi_projection',
+    'comparables',
+    'strategy',
+    'data_transparency',
+    'client_pitch',
+    'broker_dashboard',
+    'agent_control',
+    'community_pulse',
+  ],
+  [IDENTITY_ROLES.DEVELOPER]: [
+    'free_analysis',
+    'decision_verdict',
+    'market_snapshot',
+    'spatial_intelligence',
+    'risk_analysis',
+    'roi_projection',
+    'comparables',
+    'strategy',
+    'data_transparency',
+    'broker_dashboard',
+    'agent_control',
+    'community_pulse',
+  ],
+  [IDENTITY_ROLES.BUYER]: [
+    'free_analysis',
+    'decision_verdict',
+    'market_snapshot',
+    'spatial_intelligence',
+    'risk_analysis',
+    'roi_projection',
+    'comparables',
+    'strategy',
+    'data_transparency',
+    'broker_dashboard',
+    'agent_control',
+    'community_pulse',
+  ],
+  [IDENTITY_ROLES.ADMIN]: [
+    'free_analysis',
+    'decision_verdict',
+    'market_snapshot',
+    'spatial_intelligence',
+    'risk_analysis',
+    'roi_projection',
+    'comparables',
+    'strategy',
+    'data_transparency',
+    'client_pitch',
+    'broker_dashboard',
+    'agent_control',
+    'community_pulse',
+  ],
+  [IDENTITY_ROLES.VALORA_TEAM]: [
+    'free_analysis',
+    'decision_verdict',
+    'market_snapshot',
+    'spatial_intelligence',
+    'risk_analysis',
+    'roi_projection',
+    'comparables',
+    'strategy',
+    'data_transparency',
+    'client_pitch',
+    'broker_dashboard',
+    'agent_control',
+    'community_pulse',
+  ],
+};
+
+// Default tabs for unknown roles
+const DEFAULT_TABS = TAB_VISIBILITY[IDENTITY_ROLES.BUYER];
+
+function getTabsForRole(role) {
+  return TAB_VISIBILITY[role] || DEFAULT_TABS;
+}
 
 const TAB_ORDER = [
   'free_analysis',
@@ -136,19 +232,16 @@ const TAB_ORDER = [
   'strategy',
   'data_transparency',
   'client_pitch',
+  'broker_dashboard',
   'agent_control',
   'community_pulse'
 ];
 
-export default function SmartPanel({
+function SmartPanelInner({
   agentData,
   viewportAnalysis,
   userTier = 'free',
   fontSize = 100,
-  isFullscreen = false,
-  onToggleFullscreen,
-  onClose,
-  onFontSizeChange,
   activeTab: externalActiveTab,
   onTabChange,
   setAgentData,
@@ -157,25 +250,41 @@ export default function SmartPanel({
 }) {
   const { t } = useLanguage();
   const { location, coordinates, locality, place } = useLocation();
+  const { user } = useAuth();
   const [internalActiveTab, setInternalActiveTab] = useState('free_analysis');
   
   // Get translated tab metadata
   const TAB_METADATA = getTabMetadata(t);
   
+  // Filter tabs based on user role
+  const userRole = user?.job_role || IDENTITY_ROLES.BUYER;
+  const visibleTabs = getTabsForRole(userRole);
+  const filteredTabOrder = TAB_ORDER.filter(tab => visibleTabs.includes(tab));
+  
+  // Ensure activeTab is in filtered list, otherwise default to first visible tab
+  const effectiveTabOrder = filteredTabOrder.length > 0 ? filteredTabOrder : DEFAULT_TABS;
+  
   // Use external activeTab if provided, otherwise use internal state
   const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
   const setActiveTab = onTabChange || setInternalActiveTab;
 
+  // If current activeTab is not visible for this role, switch to first visible tab
+  useEffect(() => {
+    if (!effectiveTabOrder.includes(activeTab)) {
+      setActiveTab(effectiveTabOrder[0]);
+    }
+  }, [activeTab, effectiveTabOrder, setActiveTab]);
+
   // Listen for tab changes from SmartTabsContainer
   useEffect(() => {
     const handleTabChange = (e) => {
-      if (e.detail?.tab) {
+      if (e.detail?.tab && effectiveTabOrder.includes(e.detail.tab)) {
         setActiveTab(e.detail.tab);
       }
     };
     window.addEventListener('valora-smart-tab-change', handleTabChange);
     return () => window.removeEventListener('valora-smart-tab-change', handleTabChange);
-  }, []);
+  }, [effectiveTabOrder, setActiveTab]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-slate-900" style={{ zoom: `${fontSize}%` }}>
@@ -183,8 +292,9 @@ export default function SmartPanel({
       <div className="flex flex-1 overflow-hidden">
         {/* Vertical Tab Bar */}
         <div className="w-12 bg-slate-800/30 border-r border-slate-700 flex flex-col py-1 shrink-0 overflow-y-auto">
-          {TAB_ORDER.map(tabId => {
+          {effectiveTabOrder.map(tabId => {
             const tab = TAB_METADATA[tabId];
+            if (!tab) return null;
             const Icon = tab.lucideIcon;
             const isActive = activeTab === tabId;
             const isShineTab = tabId === 'agent_control' || tabId === 'community_pulse';
@@ -252,6 +362,7 @@ export default function SmartPanel({
             setAgentData={setAgentData}
             authToken={authToken}
             authUser={authUser}
+            userRole={userRole}
             onUpgrade={() => {
               window.dispatchEvent(new CustomEvent('valora-upgrade-request'));
             }}
@@ -259,5 +370,13 @@ export default function SmartPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SmartPanel(props) {
+  return (
+    <ComponentErrorBoundary name="Smart Report Panel">
+      <SmartPanelInner {...props} />
+    </ComponentErrorBoundary>
   );
 }

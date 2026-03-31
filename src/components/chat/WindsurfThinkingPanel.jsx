@@ -4,7 +4,7 @@
  * Matches Windsurf IDE's design language
  */
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Brain, Target, CheckCircle2, Circle, Clock,
   Loader2, ChevronDown, ChevronRight, Lightbulb,

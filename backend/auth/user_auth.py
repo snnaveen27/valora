@@ -4,7 +4,16 @@ JWT-based authentication with email/password login and subscription tiers.
 """
 
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from project root (handles both backend/ and project-root execution)
+_env_path = Path(__file__).parent.parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path, override=False)
+
 import jwt
+import bcrypt
 import sqlite3
 import hashlib
 import secrets
@@ -12,16 +21,40 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
-# Configuration
-# JWT Secret: Must be set via environment variable in production
-# Generate a secure secret: python -c "import secrets; print(secrets.token_urlsafe(64))"
-_DEFAULT_SECRET = secrets.token_urlsafe(64)  # Random secret for development only
-JWT_SECRET = os.environ.get("JWT_SECRET", _DEFAULT_SECRET)
-if JWT_SECRET == "valora-jwt-secret-change-in-production-2026":
-    # Reject known insecure secret
-    JWT_SECRET = _DEFAULT_SECRET
+def _resolve_jwt_secret() -> str:
+    """
+    Resolve JWT secret from environment variables.
+
+    Checks multiple env var names for backwards compatibility:
+      JWT_SECRET  >  JWT_SECRET_KEY  >  hard error
+
+    A persistent secret is REQUIRED so that sessions survive server restarts.
+    """
+    # Preferred name
+    secret = os.environ.get("JWT_SECRET", "").strip()
+    # Fallback for older deployments that used JWT_SECRET_KEY
+    if not secret:
+        secret = os.environ.get("JWT_SECRET_KEY", "").strip()
+
+    # Reject known placeholder / insecure defaults
+    _BLOCKED = {
+        "",
+        "your-secret-key-change-in-production",
+        "your_jwt_secret_key_here",
+        "valora-jwt-secret-change-in-production-2026",
+    }
+    if secret in _BLOCKED:
+        raise RuntimeError(
+            "JWT secret is not configured. Set a persistent secret in your .env file:\n"
+            '  JWT_SECRET=<run: python -c "import secrets; print(secrets.token_urlsafe(64))">\n'
+            "Sessions will break on every restart without a persistent secret."
+        )
+
+    return secret
+
+
+JWT_SECRET = _resolve_jwt_secret()
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24 * 7  # 7 days
 from config import config
@@ -29,9 +62,10 @@ DATABASE_PATH = config.DB_PATH.parent / "users.db"
 
 
 class SubscriptionTier(Enum):
-    """Subscription tiers - Only FREE and PRO (admin gets PRO with 20k credits)."""
+    """Subscription tiers: FREE, PRO, TEAM (admin gets PRO with 20k credits)."""
     FREE = "free"
     PRO = "pro"
+    TEAM = "team"
     ADMIN = "admin"
 
 
@@ -42,7 +76,7 @@ class UserRole(Enum):
     ADMIN = "admin"
 
 
-# Tier limits and features - Only FREE and PRO
+# Tier limits and features
 TIER_LIMITS = {
     SubscriptionTier.FREE: {
         "queries_per_day": 10,
@@ -55,6 +89,12 @@ TIER_LIMITS = {
         "reports_per_month": 50,
         "features": ["full_search", "area_analysis", "valuation", "report_export", "explainability", "unlimited_chat"],
         "price_inr": 599,
+    },
+    SubscriptionTier.TEAM: {
+        "queries_per_day": 2000,
+        "reports_per_month": 200,
+        "features": ["full_search", "area_analysis", "valuation", "report_export", "explainability", "unlimited_chat", "team_management", "bulk_export"],
+        "price_inr": 999,
     },
     SubscriptionTier.ADMIN: {
         "queries_per_day": -1,
@@ -77,6 +117,8 @@ class User:
     company: Optional[str]
     phone: Optional[str]
     job_role: Optional[str]
+    workspace_type: Optional[str]
+    workspace_role: Optional[str]
     queries_today: int
     reports_this_month: int
     created_at: str
@@ -94,6 +136,8 @@ class User:
             "company": self.company,
             "phone": self.phone,
             "job_role": self.job_role,
+            "workspace_type": self.workspace_type,
+            "workspace_role": self.workspace_role,
             "queries_today": self.queries_today,
             "reports_this_month": self.reports_this_month,
             "created_at": self.created_at,
@@ -117,17 +161,28 @@ class User:
 
 
 def hash_password(password: str, salt: str = None) -> tuple[str, str]:
-    """Hash password with salt."""
-    if salt is None:
-        salt = secrets.token_hex(16)
-    hash_obj = hashlib.pbkdf2_hmac('sha256', password.encode(), salt.encode(), 100000)
-    return hash_obj.hex(), salt
+    """Hash password using bcrypt. Salt parameter is kept for backwards compatibility but ignored."""
+    salt_b = bcrypt.gensalt(rounds=12)
+    hash_bytes = bcrypt.hashpw(password.encode("utf-8"), salt_b)
+    return hash_bytes.decode("utf-8"), salt_b.decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str, salt: str) -> bool:
-    """Verify password against hash."""
-    computed_hash, _ = hash_password(password, salt)
-    return computed_hash == password_hash
+    """Verify password against bcrypt hash. Falls back to old pbkdf2 for legacy hashes."""
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except (ValueError, AttributeError):
+        # Fallback for legacy pbkdf2 hashes (stored as hex without $ prefix)
+        computed_hash, _ = _legacy_hash_password(password, salt)
+        return computed_hash == password_hash
+
+
+def _legacy_hash_password(password: str, salt: str) -> tuple[str, str]:
+    """Legacy pbkdf2 hashing for backwards compatibility during migration."""
+    if salt is None:
+        salt = secrets.token_hex(16)
+    hash_obj = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100000)
+    return hash_obj.hex(), salt
 
 
 def create_token(user_id: int, email: str, tier: str, role: str) -> str:
@@ -250,6 +305,8 @@ class UserDatabase:
             "company": "TEXT",
             "phone": "TEXT",
             "job_role": "TEXT",
+            "workspace_type": "TEXT",
+            "workspace_role": "TEXT",
             "queries_today": "INTEGER DEFAULT 0",
             "reports_this_month": "INTEGER DEFAULT 0",
             "last_query_date": "TEXT",
@@ -331,7 +388,9 @@ class UserDatabase:
         role: UserRole = UserRole.USER,
         company: str = None,
         phone: str = None,
-        job_role: str = None
+        job_role: str = None,
+        workspace_type: str = "individual",
+        workspace_role: str = "manager"
     ) -> Optional[User]:
         """Create new user."""
         conn = self._get_conn()
@@ -347,8 +406,8 @@ class UserDatabase:
         now = datetime.now().isoformat()
         
         cursor.execute("""
-            INSERT INTO users (email, name, password_hash, password_salt, tier, role, company, phone, job_role, created_at, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (email, name, password_hash, password_salt, tier, role, company, phone, job_role, workspace_type, workspace_role, created_at, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             email.lower(),
             name,
@@ -359,6 +418,8 @@ class UserDatabase:
             company,
             phone,
             job_role,
+            workspace_type,
+            workspace_role,
             now,
             1
         ))
@@ -405,6 +466,8 @@ class UserDatabase:
             company=row.get("company"),
             phone=row.get("phone"),
             job_role=row.get("job_role"),
+            workspace_type=row.get("workspace_type") or "individual",
+            workspace_role=row.get("workspace_role") or "manager",
             queries_today=row.get("queries_today", 0),
             reports_this_month=row.get("reports_this_month", 0),
             created_at=row["created_at"],

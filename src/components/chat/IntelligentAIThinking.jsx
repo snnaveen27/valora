@@ -3,7 +3,7 @@
  * Shows actual tasks based on query analysis, not hardcoded
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { 
   Brain, Target, MapPin, Building2, TrendingUp, Sun, 
   Eye, Layers, Sparkles, CheckCircle2, Circle, Clock,

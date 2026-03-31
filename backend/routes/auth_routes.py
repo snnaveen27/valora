@@ -54,7 +54,9 @@ class SignupRequest(BaseModel):
     name: str
     company: Optional[str] = None
     phone: Optional[str] = None
-    job_role: Optional[str] = None  # New field for understanding target users
+    job_role: Optional[str] = None  # Identity: broker/developer/investor
+    workspace_type: Optional[str] = None  # Workspace: individual/team
+    workspace_role: Optional[str] = None  # Role: manager/member
     
     @validator('password')
     def password_strength(cls, v):
@@ -106,6 +108,8 @@ class UpdateUserRequest(BaseModel):
     company: Optional[str] = None
     phone: Optional[str] = None
     job_role: Optional[str] = None
+    workspace_type: Optional[str] = None
+    workspace_role: Optional[str] = None
 
 
 class ChangePasswordRequest(BaseModel):
@@ -243,7 +247,9 @@ async def signup(request: SignupRequest, http_request: Request):
         role=UserRole.USER,
         company=request.company,
         phone=request.phone,
-        job_role=request.job_role
+        job_role=request.job_role,
+        workspace_type=request.workspace_type or "individual",
+        workspace_role=request.workspace_role or "manager"
     )
     
     if not user:
@@ -286,6 +292,10 @@ async def update_me(
         updates["phone"] = request.phone
     if request.job_role is not None:
         updates["job_role"] = request.job_role
+    if request.workspace_type is not None:
+        updates["workspace_type"] = request.workspace_type
+    if request.workspace_role is not None:
+        updates["workspace_role"] = request.workspace_role
     
     if updates:
         db.update_user(user.id, **updates)

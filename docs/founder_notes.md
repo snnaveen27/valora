@@ -31,18 +31,26 @@ If a conversation drifts, reset to:
 2. Standardize broker onboarding flow and first-week activation checklist.
 3. Ensure pricing/tier language is consistent across docs, product UI, and sales artifacts.
 4. Publish weekly WAWU and conversion dashboard snapshot.
+5. **Close Broker Gap #1**: Add dedicated broker dashboard for lead pipeline/conversion metrics.
+6. **Close Broker Gap #4**: Harden email channel for alert delivery reliability.
 
 ### Next 90 Days
 1. Prove repeatable Free to Pro conversion in broker segment.
 2. Improve workflow activation rate (alerts/tasks/leads).
 3. Close first paid developer pilot.
 4. Remove or isolate demo/stub billing paths from production runtime.
+5. **Close Developer Gap #1**: Build B2B pilot/retainer billing flow.
+6. **Close NRI Gap #1**: Build dedicated NRI onboarding flow.
 
 ### Next 180 Days
 1. Scale broker cohort with predictable activation and retention.
 2. Build recommendation learning loop instrumentation (save/reject/contacted/closed).
 3. Build pilot-to-retainer playbook for developers.
 4. Publish evidence-backed case studies.
+5. **Close Developer Gap #2**: Build project-level analytics for micro-market confidence.
+6. **Close Developer Gap #3**: Build batch report generation for bulk property analysis.
+7. **Close NRI Gap #2**: Build property comparison export for offline review.
+8. **Close Broker Gap #2**: Complete team collaboration features rollout.
 
 ---
 
@@ -100,6 +108,31 @@ If a conversation drifts, reset to:
 ### Pilot Success Definition
 - Success is not sign-up volume.
 - Success is recurring workflow usage and client-facing output generation.
+
+---
+
+## 5B. Prototype Gap Tracking (Codebase-Verified)
+
+### Gap Completion Scorecard
+
+| Segment | Total Gaps | Closed | In Progress | Remaining | Workability |
+|---|---|---|---|---|---|
+| Brokers | 4 | 0 | 0 | 4 | 80-85% |
+| Developers | 5 | 0 | 0 | 5 | 55-65% |
+| NRI Investors | 5 | 0 | 0 | 5 | 60-70% |
+
+### Critical Path (Blocks Revenue)
+
+1. **B2B billing flow** (Developer Gap #1) — blocks developer pilot monetization.
+2. **Broker dashboard** (Broker Gap #1) — blocks broker productivity visibility.
+3. **NRI onboarding** (NRI Gap #1) — blocks NRI investor activation.
+
+### Gap Closure Targets
+
+- Week 1-2: Broker dashboard (lead pipeline + conversion metrics).
+- Week 3-4: Email channel hardening for alert reliability.
+- Week 5-8: B2B billing flow (pilot to retainer).
+- Week 9-12: NRI onboarding flow + comparison export.
 
 ---
 

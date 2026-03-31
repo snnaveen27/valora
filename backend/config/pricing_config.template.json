@@ -1,27 +1,27 @@
 {
   "action_costs": {
     "chat_query": 1,
-    "chat_multiagent": 1,
+    "chat_multiagent": 2,
     "chat_simulation": 25,
     "area_analysis": 3,
-    "building_analysis": 3,
-    "viewport_analysis": 3,
+    "building_analysis": 9,
+    "viewport_analysis": 1,
     "location_analysis": 3,
     "comparison": 3,
-    "valuation": 10,
+    "valuation": 5,
     "investment_analysis": 10,
-    "simulation_basic": 25,
+    "simulation_basic": 10,
     "simulation_advanced": 25,
     "storyboard_generation": 15,
     "scenario_analysis": 25,
-    "property_search": 2,
-    "poi_search": 2,
+    "property_search": 1,
+    "poi_search": 1,
     "map_navigation": 0,
     "viewport_load": 0,
     "tileset_load": 0,
-    "report_export": 20,
+    "report_export": 10,
     "dashboard_snapshot": 10,
-    "pdf_generation": 20,
+    "pdf_generation": 10,
     "infrastructure_card": 3,
     "investment_card": 10,
     "livability_card": 3,
@@ -34,13 +34,14 @@
     "risk_assessment": 10,
     "explainability": 1,
     "fact_verification": 1,
-    "causal_reasoning": 10
+    "causal_reasoning": 10,
+    "detailed_report": 200,
+    "feedback_reward": -5
   },
   "tier_monthly_limits": {
     "free": 50,
     "pro": 1000,
     "team": 3000,
-    "enterprise": -1,
     "admin": -1
   },
   "pricing": {
@@ -64,7 +65,7 @@
       "regular_price": 699
     },
     {
-      "name": "Bulk",
+      "name": "Power",
       "units": 1000,
       "price_inr": 399,
       "regular_price": 1999
@@ -85,11 +86,6 @@
       "units": 3000,
       "price_inr": 999,
       "regular_price": 4999
-    },
-    "enterprise": {
-      "units": -1,
-      "price_inr": -1,
-      "regular_price": -1
     }
   },
   "last_updated": "2026-01-30T05:37:00",

@@ -4263,7 +4263,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
                   const state = address.state || 'Karnataka'
                   
                   // Fetch area stats from API
-                  return fetch(`${API_URL}/db/area/stats-by-coords?lat=${clickLat}&lng=${clickLng}&radius=2000`, { signal: AbortSignal.timeout(5000) })
+                  return fetch(`${API_URL}/api/db/area/stats-by-coords?lat=${clickLat}&lng=${clickLng}&radius=2000`, { signal: AbortSignal.timeout(5000) })
                     .then(statsRes => statsRes.json())
                     .then(statsData => {
                       // API returns data at root level, not in .data
@@ -4956,7 +4956,7 @@ export function OnlineOSMMap({ agentData, setAgentData, onAnalysisUpdate, toggle
   }, [])
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full overflow-hidden">
       <div
         ref={cesiumContainerRef}
         className="w-full h-full"

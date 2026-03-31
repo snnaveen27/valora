@@ -3,7 +3,7 @@
  * Shows AI intents as transparent, trackable tasks with progress indicators
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { 
   Brain, 
   Target, 

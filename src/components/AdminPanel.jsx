@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { 
-  X, Settings, Database, Server, Cpu, CheckCircle, XCircle, 
-  RefreshCw, Play, Zap, HardDrive, Cloud, AlertTriangle,
-  Activity, BarChart3, TestTube, FileText, Loader2, Bot, Globe, Save, Brain,
-  Users, MapPin, Clock, Download, Trash2, Eye, UserPlus, Edit, Crown, Shield,
-  TrendingUp, TrendingDown, Target, Gauge, PlayCircle
+  X, Settings, Database, Server, CheckCircle, XCircle, 
+  RefreshCw, Zap, HardDrive, Cloud, AlertTriangle,
+  BarChart3, TestTube, FileText, Loader2, Save, Brain,
+  Users, MapPin, Clock, Download, Trash2, Eye, UserPlus, Edit, Crown,
+  TrendingUp, Target, Gauge, PlayCircle,
+  ArrowUpRight, DollarSign
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import PricingManager from './PricingManager'
@@ -25,7 +26,7 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [llmConfig, setLlmConfig] = useState({
     provider: 'ollama',
     local_url: 'http://127.0.0.1:11434/v1/chat/completions',
-    local_model: 'qwen3:4b-instruct',
+    local_model: 'valora-ai-mini:latest',
     max_context: 8192
   })
   const [llmSaving, setLlmSaving] = useState(false)
@@ -53,6 +54,11 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [weeklyMetrics, setWeeklyMetrics] = useState(null)
   const [loadingMetrics, setLoadingMetrics] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
+
+  const [revenueData, setRevenueData] = useState(null)
+  const [ingestionData, setIngestionData] = useState(null)
+  const [coverageData, setCoverageData] = useState(null)
+  const [learningData, setLearningData] = useState(null)
 
   // Demo data for the metrics dashboard
   const DEMO_WEEKLY_METRICS = {
@@ -502,22 +508,66 @@ export default function AdminPanel({ isOpen, onClose }) {
     setLlmSaving(false)
   }, [llmConfig, token])
 
+  const fetchRevenueData = async () => {
+    try {
+      const [usageRes, revenueRes, cloudRes] = await Promise.all([
+        fetch(`${API_URL}/api/admin/usage/stats`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_URL}/api/admin/usage/revenue-estimate?days=30`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_URL}/api/admin/cloud-cost/stats?days=7`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ])
+      const usage = await usageRes.json()
+      const revenue = await revenueRes.json()
+      const cloud = await cloudRes.json()
+      setRevenueData({ usage: usage.stats, revenue: revenue, cloud: cloud.stats })
+    } catch (err) { console.error('Failed to fetch revenue data:', err) }
+  }
+
+  const fetchIngestionData = async () => {
+    try {
+      const [brainRes, statusRes] = await Promise.all([
+        fetch(`${API_URL}/api/admin/locality-brain-status`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_URL}/api/admin/status`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ])
+      const brain = await brainRes.json()
+      const status = await statusRes.json()
+      setIngestionData({ brain, status })
+    } catch (err) { console.error('Failed to fetch ingestion data:', err) }
+  }
+
+  const fetchCoverageData = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/locality-brain-status`, { headers: { 'Authorization': `Bearer ${token}` } })
+      const data = await res.json()
+      setCoverageData(data)
+    } catch (err) { console.error('Failed to fetch coverage data:', err) }
+  }
+
+  const fetchLearningData = async () => {
+    try {
+      const [learningRes, toolsRes] = await Promise.all([
+        fetch(`${API_URL}/api/admin/agentic/learning`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_URL}/api/admin/agentic/learning/tools`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ])
+      const learning = await learningRes.json()
+      const tools = await toolsRes.json()
+      setLearningData({ ...learning, tool_scores: tools.tool_scores || {} })
+    } catch (err) { console.error('Failed to fetch learning data:', err) }
+  }
+
   if (!isOpen) return null
 
   const tabs = [
-    { id: 'status', label: 'System Status', icon: Activity },
-    { id: 'accounts', label: 'User Accounts', icon: Shield },
-    { id: 'metrics', label: 'Metrics', icon: TrendingUp },
-    { id: 'pricing', label: 'Pricing Config', icon: BarChart3 },
+    { id: 'status', label: 'System', icon: Server },
+    { id: 'users', label: 'Users', icon: Users },
     { id: 'data', label: 'Data', icon: Database },
-    { id: 'processing', label: 'Processing', icon: Cpu },
+    { id: 'revenue', label: 'Revenue', icon: ArrowUpRight },
+    { id: 'pricing', label: 'Pricing', icon: DollarSign },
+    { id: 'ai', label: 'AI & Models', icon: Brain },
     { id: 'tests', label: 'Tests', icon: TestTube },
-    { id: 'users', label: 'User Memory', icon: Users },
-    { id: 'config', label: 'Config', icon: Settings },
   ]
 
   return (
-    <div className="absolute top-12 left-0 right-0 bottom-0 bg-slate-900 z-40 flex">
+    <div className="fixed inset-0 bg-slate-900 z-40 flex">
       <div className="w-full h-full flex flex-col bg-slate-800">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-700">
@@ -547,10 +597,10 @@ export default function AdminPanel({ isOpen, onClose }) {
               key={tab.id}
               onClick={() => {
                 setActiveTab(tab.id)
-                if (tab.id === 'processing') fetchProcessingStatus()
                 if (tab.id === 'users') fetchUserPreferences()
-                if (tab.id === 'accounts') fetchUserAccounts()
-                if (tab.id === 'metrics') fetchWeeklyMetrics()
+                if (tab.id === 'revenue' && !revenueData) fetchRevenueData()
+                if (tab.id === 'data' && !ingestionData) fetchIngestionData()
+                if (tab.id === 'ai' && !learningData) fetchLearningData()
               }}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 activeTab === tab.id
@@ -567,7 +617,7 @@ export default function AdminPanel({ isOpen, onClose }) {
         {/* Content */}
         <div className="flex-1 overflow-auto p-4">
           {/* User Accounts Tab */}
-          {activeTab === 'accounts' && (
+          {activeTab === 'users' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-white font-semibold">User Account Management</h3>
@@ -804,7 +854,7 @@ export default function AdminPanel({ isOpen, onClose }) {
           )}
 
           {/* Metrics Dashboard Tab */}
-          {activeTab === 'metrics' && (
+          {activeTab === 'status' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-white font-semibold">Founder Metrics Dashboard</h3>
@@ -1001,6 +1051,303 @@ export default function AdminPanel({ isOpen, onClose }) {
             <PricingManager />
           )}
 
+          {/* Revenue Tab */}
+          {activeTab === 'revenue' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <ArrowUpRight className="h-5 w-5 text-green-400" />
+                  Revenue Dashboard
+                </h3>
+                <button onClick={fetchRevenueData} className="px-3 py-1.5 bg-slate-700 rounded-lg text-slate-300 hover:bg-slate-600 flex items-center gap-2 text-sm">
+                  <RefreshCw className="h-4 w-4" /> Refresh
+                </button>
+              </div>
+              {revenueData ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gradient-to-br from-green-900/40 to-green-800/20 rounded-xl p-4 border border-green-700/50">
+                      <p className="text-xs text-green-400 uppercase tracking-wide">Promo Revenue (30d)</p>
+                      <p className="text-2xl font-bold text-white mt-1">₹{(revenueData.revenue?.revenue_estimate?.promo_inr || 0).toLocaleString()}</p>
+                      <p className="text-xs text-slate-400 mt-1">{revenueData.revenue?.total_units_charged || 0} units @ ₹2/unit</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 rounded-xl p-4 border border-blue-700/50">
+                      <p className="text-xs text-blue-400 uppercase tracking-wide">Regular Revenue (30d)</p>
+                      <p className="text-2xl font-bold text-white mt-1">₹{(revenueData.revenue?.revenue_estimate?.regular_inr || 0).toLocaleString()}</p>
+                      <p className="text-xs text-slate-400 mt-1">{revenueData.revenue?.total_units_charged || 0} units @ ₹10/unit</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-900/40 to-purple-800/20 rounded-xl p-4 border border-purple-700/50">
+                      <p className="text-xs text-purple-400 uppercase tracking-wide">Active Users (30d)</p>
+                      <p className="text-2xl font-bold text-white mt-1">{revenueData.revenue?.active_users || 0}</p>
+                      <p className="text-xs text-slate-400 mt-1">{revenueData.revenue?.avg_units_per_user || 0} avg units/user</p>
+                    </div>
+                  </div>
+                  {revenueData.cloud && (
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <h4 className="text-sm font-semibold text-white mb-3">Cloud LLM Costs (7d)</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div><p className="text-xs text-slate-400">Total Cost</p><p className="text-lg text-white">${(revenueData.cloud.total_cost_usd || 0).toFixed(4)}</p></div>
+                        <div><p className="text-xs text-slate-400">Total Calls</p><p className="text-lg text-white">{revenueData.cloud.total_calls || 0}</p></div>
+                        <div><p className="text-xs text-slate-400">Avg Cost/Call</p><p className="text-lg text-white">${(revenueData.cloud.avg_cost_per_call_usd || 0).toFixed(6)}</p></div>
+                        <div><p className="text-xs text-slate-400">Local Calls</p><p className="text-lg text-white">{revenueData.cloud.local_calls || 0}</p></div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                    <h4 className="text-sm font-semibold text-white mb-3">Usage Breakdown (7d vs 30d)</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-slate-400 mb-2">Last 7 Days</p>
+                        {revenueData.usage?.last_7_days?.total_actions ? Object.entries(revenueData.usage.last_7_days.total_actions).slice(0, 6).map(([action, count]) => (
+                          <div key={action} className="flex justify-between text-sm py-1 border-b border-slate-700/50">
+                            <span className="text-slate-300">{action.replace(/_/g, ' ')}</span>
+                            <span className="text-white font-medium">{count}</span>
+                          </div>
+                        )) : <p className="text-xs text-slate-500">No data available</p>}
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-2">Last 30 Days</p>
+                        {revenueData.usage?.last_30_days?.total_actions ? Object.entries(revenueData.usage.last_30_days.total_actions).slice(0, 6).map(([action, count]) => (
+                          <div key={action} className="flex justify-between text-sm py-1 border-b border-slate-700/50">
+                            <span className="text-slate-300">{action.replace(/_/g, ' ')}</span>
+                            <span className="text-white font-medium">{count}</span>
+                          </div>
+                        )) : <p className="text-xs text-slate-500">No data available</p>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Ingestion Tab */}
+          {activeTab === 'data' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Database className="h-5 w-5 text-blue-400" />
+                  Data Ingestion & Freshness
+                </h3>
+                <button onClick={fetchIngestionData} className="px-3 py-1.5 bg-slate-700 rounded-lg text-slate-300 hover:bg-slate-600 flex items-center gap-2 text-sm">
+                  <RefreshCw className="h-4 w-4" /> Refresh
+                </button>
+              </div>
+              {ingestionData ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <p className="text-xs text-slate-400 uppercase tracking-wide">Properties</p>
+                      <p className="text-2xl font-bold text-white mt-1">{ingestionData.status?.database?.properties?.toLocaleString() || 0}</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <p className="text-xs text-slate-400 uppercase tracking-wide">POIs</p>
+                      <p className="text-2xl font-bold text-white mt-1">{ingestionData.status?.database?.pois?.toLocaleString() || 0}</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <p className="text-xs text-slate-400 uppercase tracking-wide">Buildings</p>
+                      <p className="text-2xl font-bold text-white mt-1">{ingestionData.status?.database?.buildings?.toLocaleString() || 0}</p>
+                    </div>
+                  </div>
+                  {ingestionData.brain?.success && (
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <h4 className="text-sm font-semibold text-white mb-3">Locality Brain Status</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div><p className="text-xs text-slate-400">Total Localities</p><p className="text-lg text-white">{ingestionData.brain.status?.total_localities || 0}</p></div>
+                        <div><p className="text-xs text-slate-400">With POIs</p><p className="text-lg text-white">{ingestionData.brain.status?.with_pois || 0}</p></div>
+                        <div><p className="text-xs text-slate-400">With Transport</p><p className="text-lg text-white">{ingestionData.brain.status?.with_transport || 0}</p></div>
+                        <div><p className="text-xs text-slate-400">Last Updated</p><p className="text-lg text-white">{ingestionData.brain.status?.last_updated ? new Date(ingestionData.brain.status.last_updated).toLocaleDateString() : 'N/A'}</p></div>
+                      </div>
+                      {ingestionData.brain.status?.growth_phases && (
+                        <div className="mt-3">
+                          <p className="text-xs text-slate-400 mb-2">Growth Phase Distribution</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(ingestionData.brain.status.growth_phases).map(([phase, count]) => (
+                              <span key={phase} className="px-2 py-1 bg-slate-700 rounded text-xs text-slate-300">
+                                {phase}: {count}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {ingestionData.status?.sources && Object.keys(ingestionData.status.sources).length > 0 && (
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <h4 className="text-sm font-semibold text-white mb-3">Data Sources</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {Object.entries(ingestionData.status.sources).map(([source, count]) => (
+                          <div key={source} className="flex justify-between text-sm py-1 px-3 bg-slate-700/50 rounded">
+                            <span className="text-slate-300">{source}</span>
+                            <span className="text-white font-medium">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button onClick={() => fetch(`${API_URL}/api/admin/rebuild-locality-brain`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()).then(() => fetchIngestionData())}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm">
+                    <RefreshCw className="h-4 w-4" /> Rebuild Locality Brain
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Coverage Tab */}
+          {activeTab === 'data' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-orange-400" />
+                  Micro-Market Coverage
+                </h3>
+                <button onClick={fetchCoverageData} className="px-3 py-1.5 bg-slate-700 rounded-lg text-slate-300 hover:bg-slate-600 flex items-center gap-2 text-sm">
+                  <RefreshCw className="h-4 w-4" /> Refresh
+                </button>
+              </div>
+              {coverageData ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gradient-to-br from-green-900/40 to-green-800/20 rounded-xl p-4 border border-green-700/50">
+                      <p className="text-xs text-green-400 uppercase tracking-wide">Confident Coverage</p>
+                      <p className="text-2xl font-bold text-white mt-1">{coverageData.status?.with_pois || 0}</p>
+                      <p className="text-xs text-slate-400">Localities with POI data</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-yellow-900/40 to-yellow-800/20 rounded-xl p-4 border border-yellow-700/50">
+                      <p className="text-xs text-yellow-400 uppercase tracking-wide">Partial Coverage</p>
+                      <p className="text-2xl font-bold text-white mt-1">{Math.max(0, (coverageData.status?.total_localities || 0) - (coverageData.status?.with_pois || 0))}</p>
+                      <p className="text-xs text-slate-400">Localities without POI data</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 rounded-xl p-4 border border-blue-700/50">
+                      <p className="text-xs text-blue-400 uppercase tracking-wide">Total Localities</p>
+                      <p className="text-2xl font-bold text-white mt-1">{coverageData.status?.total_localities || 0}</p>
+                      <p className="text-xs text-slate-400">In locality brain</p>
+                    </div>
+                  </div>
+                  {coverageData.status?.growth_phases && (
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <h4 className="text-sm font-semibold text-white mb-3">Growth Phase Distribution</h4>
+                      <div className="space-y-2">
+                        {Object.entries(coverageData.status.growth_phases).map(([phase, count]) => {
+                          const total = coverageData.status?.total_localities || 1
+                          const pct = ((count / total) * 100).toFixed(1)
+                          return (
+                            <div key={phase} className="flex items-center gap-3">
+                              <span className="text-sm text-slate-300 w-24 capitalize">{phase || 'Unknown'}</span>
+                              <div className="flex-1 bg-slate-700 rounded-full h-2">
+                                <div className={`h-2 rounded-full ${phase === 'emerging' ? 'bg-yellow-500' : phase === 'growing' ? 'bg-blue-500' : phase === 'mature' ? 'bg-green-500' : 'bg-slate-500'}`}
+                                  style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-sm text-slate-400 w-16 text-right">{count} ({pct}%)</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                    <h4 className="text-sm font-semibold text-white mb-3">Coverage Health Summary</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span className="text-sm text-slate-300">High confidence: POIs + Transport + Properties</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <span className="text-sm text-slate-300">Medium confidence: POIs OR Transport only</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                        <span className="text-sm text-slate-300">Low confidence: Properties only</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span className="text-sm text-slate-300">No data: Empty locality</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Learning Tab */}
+          {activeTab === 'ai' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-pink-400" />
+                  Self-Learning Engine
+                </h3>
+                <div className="flex gap-2">
+                  <button onClick={() => fetchLearningData()} className="px-3 py-1.5 bg-slate-700 rounded-lg text-slate-300 hover:bg-slate-600 flex items-center gap-2 text-sm">
+                    <RefreshCw className="h-4 w-4" /> Refresh
+                  </button>
+                  <button onClick={() => { if (window.confirm('Reset all learning data?')) fetch(`${API_URL}/api/admin/agentic/learning/reset`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).then(() => fetchLearningData()) }}
+                    className="px-3 py-1.5 bg-red-900/50 rounded-lg text-red-300 hover:bg-red-800/50 flex items-center gap-2 text-sm">
+                    <Trash2 className="h-4 w-4" /> Reset
+                  </button>
+                </div>
+              </div>
+              {learningData ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <p className="text-xs text-slate-400 uppercase tracking-wide">Total Feedback</p>
+                      <p className="text-2xl font-bold text-white mt-1">{learningData.total_feedback || 0}</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <p className="text-xs text-slate-400 uppercase tracking-wide">Patterns Learned</p>
+                      <p className="text-2xl font-bold text-white mt-1">{learningData.patterns_learned || 0}</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <p className="text-xs text-slate-400 uppercase tracking-wide">Cache Hit Rate</p>
+                      <p className="text-2xl font-bold text-white mt-1">{learningData.cache_hit_rate ? `${(learningData.cache_hit_rate * 100).toFixed(0)}%` : 'N/A'}</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <p className="text-xs text-slate-400 uppercase tracking-wide">Avg Rating</p>
+                      <p className="text-2xl font-bold text-white mt-1">{learningData.avg_rating?.toFixed(1) || 'N/A'}</p>
+                    </div>
+                  </div>
+                  {learningData.tool_scores && Object.keys(learningData.tool_scores).length > 0 && (
+                    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                      <h4 className="text-sm font-semibold text-white mb-3">Tool Effectiveness</h4>
+                      <div className="space-y-2">
+                        {Object.entries(learningData.tool_scores).map(([tool, score]) => (
+                          <div key={tool} className="flex items-center gap-3">
+                            <span className="text-sm text-slate-300 w-32 truncate">{tool}</span>
+                            <div className="flex-1 bg-slate-700 rounded-full h-2">
+                              <div className={`h-2 rounded-full ${score > 0.7 ? 'bg-green-500' : score > 0.4 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                style={{ width: `${(score * 100)}%` }} />
+                            </div>
+                            <span className="text-sm text-slate-400 w-12 text-right">{(score * 100).toFixed(0)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* System Status Tab */}
           {activeTab === 'status' && (
             <div className="space-y-4">
@@ -1182,209 +1529,6 @@ export default function AdminPanel({ isOpen, onClose }) {
                 )}
                 </>
               ) : null}
-            </div>
-          )}
-
-          {/* Data Tab */}
-          {activeTab === 'data' && (
-            <div className="space-y-4">
-              <h3 className="text-white font-semibold">Data Overview</h3>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <DataCard title="Properties" count={systemStatus?.database?.properties || 0} icon={Database} />
-                <DataCard title="POIs" count={systemStatus?.database?.pois || 0} icon={Database} />
-                <DataCard title="Buildings" count={systemStatus?.database?.buildings || 0} icon={Database} />
-                <DataCard title="Places" count={systemStatus?.database?.places || 0} icon={Database} />
-                <DataCard title="Transport" count={systemStatus?.database?.transport || 0} icon={Database} />
-                <DataCard title="Vectors" count={systemStatus?.pinecone?.vectors || 0} icon={Cloud} />
-              </div>
-
-              <div className="bg-slate-700/50 rounded-lg p-4 mt-6">
-                <h4 className="text-white font-medium mb-3">Data Sources</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between text-slate-300">
-                    <span>99acres</span>
-                    <span>{systemStatus?.sources?.['99acres'] || 0}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span>Housing.com</span>
-                    <span>{systemStatus?.sources?.housing || 0}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span>MagicBricks</span>
-                    <span>{systemStatus?.sources?.magicbricks || 0}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-300">
-                    <span>NoBroker</span>
-                    <span>{systemStatus?.sources?.nobroker || 0}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Processing Tab */}
-          {activeTab === 'processing' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-white font-semibold">Processing & Indexing</h3>
-                <button
-                  onClick={fetchProcessingStatus}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh
-                </button>
-              </div>
-
-              {/* Vector Backend Toggle */}
-              <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-white font-medium">Vector Search Backend</h4>
-                    <p className="text-slate-400 text-sm mt-1">
-                      {vectorBackend === 'pinecone' 
-                        ? 'Using Pinecone (cloud) for vector search'
-                        : 'Using FAISS (local) for vector search'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={toggleVectorBackend}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${
-                      vectorBackend === 'pinecone'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-green-600 hover:bg-green-700 text-white'
-                    }`}
-                  >
-                    {vectorBackend === 'pinecone' ? (
-                      <>
-                        <Cloud className="w-4 h-4" />
-                        Pinecone
-                      </>
-                    ) : (
-                      <>
-                        <HardDrive className="w-4 h-4" />
-                        FAISS
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Locality Brain Section */}
-              <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/30 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                      <Brain className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="text-white font-medium">Locality Brain</h4>
-                      <p className="text-slate-400 text-xs">Precomputed locality intelligence</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={rebuildBrain}
-                    disabled={rebuildingBrain}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition disabled:opacity-50"
-                  >
-                    {rebuildingBrain ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Rebuilding...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="w-4 h-4" />
-                        Rebuild Brain
-                      </>
-                    )}
-                  </button>
-                </div>
-                
-                {brainStatus && (
-                  <div className="grid grid-cols-4 gap-3 mt-3">
-                    <div className="bg-slate-800/50 rounded p-2 text-center">
-                      <p className="text-2xl font-bold text-white">{brainStatus.total_localities || 0}</p>
-                      <p className="text-xs text-slate-400">Localities</p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded p-2 text-center">
-                      <p className="text-2xl font-bold text-green-400">{brainStatus.with_pois || 0}</p>
-                      <p className="text-xs text-slate-400">With POIs</p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded p-2 text-center">
-                      <p className="text-2xl font-bold text-blue-400">{brainStatus.with_transport || 0}</p>
-                      <p className="text-xs text-slate-400">With Transport</p>
-                    </div>
-                    <div className="bg-slate-800/50 rounded p-2 text-center">
-                      <p className="text-xs text-slate-300 truncate">{brainStatus.last_updated?.split('T')[0] || 'Never'}</p>
-                      <p className="text-xs text-slate-400">Last Updated</p>
-                    </div>
-                  </div>
-                )}
-                
-                {brainResult && (
-                  <div className={`mt-3 p-3 rounded-lg text-sm ${
-                    brainResult.success 
-                      ? 'bg-green-500/20 border border-green-500/30 text-green-400' 
-                      : 'bg-red-500/20 border border-red-500/30 text-red-400'
-                  }`}>
-                    {brainResult.message}
-                  </div>
-                )}
-              </div>
-
-              {/* Indexing Actions */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-700/50 rounded-lg p-4">
-                  <h4 className="text-white font-medium mb-2">Pinecone Indexing</h4>
-                  <p className="text-slate-400 text-xs mb-3">Index database to Pinecone cloud</p>
-                  <button
-                    onClick={() => triggerIndexing('pinecone')}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition"
-                  >
-                    <Play className="w-4 h-4" />
-                    Start Pinecone Index
-                  </button>
-                </div>
-
-                <div className="bg-slate-700/50 rounded-lg p-4">
-                  <h4 className="text-white font-medium mb-2">FAISS Export</h4>
-                  <p className="text-slate-400 text-xs mb-3">Export vectors to local FAISS</p>
-                  <button
-                    onClick={() => triggerIndexing('faiss')}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition"
-                  >
-                    <Play className="w-4 h-4" />
-                    Start FAISS Export
-                  </button>
-                </div>
-              </div>
-
-              {/* Processing Status */}
-              {processingStatus && (
-                <div className="bg-slate-700/50 rounded-lg p-4">
-                  <h4 className="text-white font-medium mb-3">Current Jobs</h4>
-                  {processingStatus.jobs?.length > 0 ? (
-                    <div className="space-y-2">
-                      {processingStatus.jobs.map((job, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm">
-                          <span className="text-slate-300">{job.name}</span>
-                          <span className={`px-2 py-0.5 rounded text-xs ${
-                            job.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
-                            job.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                            'bg-yellow-500/20 text-yellow-400'
-                          }`}>
-                            {job.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-slate-400 text-sm">No active jobs</p>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
@@ -1809,7 +1953,7 @@ export default function AdminPanel({ isOpen, onClose }) {
           )}
 
           {/* Config Tab */}
-          {activeTab === 'config' && (
+          {activeTab === 'ai' && (
             <div className="space-y-4">
               <h3 className="text-white font-semibold">Configuration</h3>
 
@@ -1847,7 +1991,7 @@ export default function AdminPanel({ isOpen, onClose }) {
                       type="text"
                       value={llmConfig.local_model}
                       onChange={(e) => setLlmConfig(prev => ({ ...prev, local_model: e.target.value }))}
-                      placeholder="qwen3:4b-instruct"
+                      placeholder="valora-ai-mini:latest"
                       className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-green-500"
                     />
                   </div>

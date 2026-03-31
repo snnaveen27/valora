@@ -2,23 +2,44 @@
  * OnboardingModal - New user preference collection modal
  * 
  * Features:
- * - Collects user preferences on first visit
- * - Primary interest selection (Investment, Rental, Commercial, Residential)
+ * - Identity selection (broker/developer/buyer) - Layer 1
+ * - Intent selection (buy/sell/both) - for Buyers
+ * - Workspace selection (individual/team) - Layer 2
  * - Preferred areas/localities
  * - Budget range selection
  * - Language preference (English, Hindi, Kannada, Tamil)
  * - Stores preferences in localStorage and sends to backend
+ * 
+ * 4-Layer Identity Model:
+ * 1. Identity Layer - WHO they are (broker/developer/buyer)
+ * 2. Intent Layer - WHAT they want (buy/sell/both)
+ * 3. Workspace Layer - HOW they operate (individual/team)
+ * 4. Workspace Role - WHO can do what (manager/member) - set based on workspace
+ * 5. Subscription Plan - WHAT they can access (free/pro/team)
  */
 
 import { useState, useEffect } from 'react'
-import { Home, Building2, TrendingUp, MapPin, Wallet, Languages, ChevronRight, Check, Sparkles } from 'lucide-react'
+import { Home, Building2, TrendingUp, MapPin, Wallet, Languages, ChevronRight, Check, Sparkles, Users, User, Tag, Search } from 'lucide-react'
 import { API_URL } from '../apiConfig'
 
-const INTEREST_OPTIONS = [
-  { id: 'investment', label: 'Investment', icon: TrendingUp, description: 'Find properties with high ROI potential' },
-  { id: 'rental', label: 'Rental', icon: Home, description: 'Discover rental properties in your area' },
-  { id: 'commercial', label: 'Commercial', icon: Building2, description: 'Explore commercial real estate opportunities' },
-  { id: 'residential', label: 'Residential', icon: MapPin, description: 'Find your dream home' }
+// Layer 1: Identity Options
+const IDENTITY_OPTIONS = [
+  { id: 'broker', label: 'Broker', icon: TrendingUp, description: 'Deals, clients, listings, workflows. Your core engine.' },
+  { id: 'developer', label: 'Developer', icon: Building2, description: 'Project planning, land acquisition, pricing strategy.' },
+  { id: 'buyer', label: 'Buyer', icon: Home, description: 'Home buyers, investors, NRI users. Personal decisions.' }
+]
+
+// Intent Options (Buyers can also sell)
+const INTENT_OPTIONS = [
+  { id: 'buy', label: 'Buy', icon: Search, description: 'Looking to purchase a property' },
+  { id: 'sell', label: 'Sell', icon: Tag, description: 'Want to list and sell my property' },
+  { id: 'both', label: 'Both', icon: TrendingUp, description: 'Buy and sell - complete transactions' }
+]
+
+// Layer 2: Workspace Options
+const WORKSPACE_OPTIONS = [
+  { id: 'individual', label: 'Individual', icon: User, description: 'Solo operator. Own workspace, own data, own limits.' },
+  { id: 'team', label: 'Team', icon: Users, description: 'Agency, developer org, or family. Shared workspace with team members.' }
 ]
 
 const BUDGET_OPTIONS = [
@@ -43,9 +64,13 @@ const BANGALORE_AREAS = [
 ]
 
 export default function OnboardingModal({ isOpen, onComplete }) {
-  const [step, setStep] = useState(1) // 1: Interest, 2: Areas, 3: Budget, 4: Language
+  // Steps: 1: Identity, 2: Intent (for Buyers), 3: Workspace, 4: Areas, 5: Budget, 6: Language
+  const [step, setStep] = useState(1)
   const [preferences, setPreferences] = useState({
-    primaryInterest: '',
+    identityRole: '', // Layer 1: broker/developer/buyer
+    intent: '', // buy/sell/both (for Buyers only)
+    workspaceType: '', // Layer 3: individual/team
+    workspaceRole: '', // Layer 4: manager/member (derived from workspace)
     preferredAreas: [],
     budgetRange: '',
     language: 'en'
@@ -68,8 +93,24 @@ export default function OnboardingModal({ isOpen, onComplete }) {
     }
   }, [areaInput, preferences.preferredAreas])
 
-  const handleInterestSelect = (interestId) => {
-    setPreferences(prev => ({ ...prev, primaryInterest: interestId }))
+  const handleIdentitySelect = (identityId) => {
+    setPreferences(prev => ({ ...prev, identityRole: identityId }))
+  }
+
+  const handleIntentSelect = (intentId) => {
+    setPreferences(prev => ({ ...prev, intent: intentId }))
+  }
+
+  const handleWorkspaceSelect = (workspaceId) => {
+    // Layer 3: workspace role is derived from workspace type
+    // Individual = manager (full access)
+    // Team = member initially (can be promoted to manager later)
+    const workspaceRole = workspaceId === 'team' ? 'member' : 'manager'
+    setPreferences(prev => ({ 
+      ...prev, 
+      workspaceType: workspaceId,
+      workspaceRole 
+    }))
   }
 
   const handleAreaAdd = (area) => {
@@ -99,12 +140,23 @@ export default function OnboardingModal({ isOpen, onComplete }) {
   }
 
   const handleNext = () => {
-    if (step === 1 && preferences.primaryInterest) {
-      setStep(2)
-    } else if (step === 2) {
+    // Steps: 1: Identity, 2: Intent, 3: Workspace, 4: Areas, 5: Budget, 6: Language
+    if (step === 1 && preferences.identityRole) {
+      // Skip intent step for developers - they're always selling
+      if (preferences.identityRole === 'developer') {
+        setPreferences(prev => ({ ...prev, intent: 'sell' }))
+        setStep(3)
+      } else {
+        setStep(2)
+      }
+    } else if (step === 2 && preferences.intent) {
       setStep(3)
-    } else if (step === 3 && preferences.budgetRange) {
+    } else if (step === 3 && preferences.workspaceType) {
       setStep(4)
+    } else if (step === 4) {
+      setStep(5)
+    } else if (step === 5 && preferences.budgetRange) {
+      setStep(6)
     }
   }
 
@@ -156,7 +208,10 @@ export default function OnboardingModal({ isOpen, onComplete }) {
   const handleSkip = () => {
     // Save default preferences
     const defaultPreferences = {
-      primaryInterest: 'investment',
+      identityRole: 'buyer',
+      intent: 'buy',
+      workspaceType: 'individual',
+      workspaceRole: 'manager',
       preferredAreas: [],
       budgetRange: 'mid',
       language: 'en'
@@ -185,10 +240,10 @@ export default function OnboardingModal({ isOpen, onComplete }) {
           
           {/* Progress indicator */}
           <div className="flex items-center justify-center gap-2 mt-4">
-            {[1, 2, 3, 4].map((s) => (
+            {[1, 2, 3, 4, 5, 6].map((s) => (
               <div 
                 key={s} 
-                className={`w-8 h-1.5 rounded-full transition-all ${
+                className={`w-5 h-1.5 rounded-full transition-all ${
                   s <= step ? 'bg-white' : 'bg-white/30'
                 }`}
               />
@@ -198,18 +253,19 @@ export default function OnboardingModal({ isOpen, onComplete }) {
 
         {/* Content */}
         <div className="p-6">
-          {/* Step 1: Primary Interest */}
+          {/* Step 1: Identity Role */}
           {step === 1 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white mb-4">What's your primary interest?</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {INTEREST_OPTIONS.map((option) => {
+              <h3 className="text-lg font-semibold text-white mb-2">How would you describe yourself?</h3>
+              <p className="text-sm text-primary-400 mb-4">This determines your AI assistant and dashboard features</p>
+              <div className="grid grid-cols-1 gap-3">
+                {IDENTITY_OPTIONS.map((option) => {
                   const Icon = option.icon
-                  const isSelected = preferences.primaryInterest === option.id
+                  const isSelected = preferences.identityRole === option.id
                   return (
                     <button
                       key={option.id}
-                      onClick={() => handleInterestSelect(option.id)}
+                      onClick={() => handleIdentitySelect(option.id)}
                       className={`p-4 rounded-xl border-2 transition-all text-left ${
                         isSelected 
                           ? 'border-primary-500 bg-primary-500/20' 
@@ -235,8 +291,84 @@ export default function OnboardingModal({ isOpen, onComplete }) {
             </div>
           )}
 
-          {/* Step 2: Preferred Areas */}
+          {/* Step 2: Intent (Buy/Sell/Both) */}
           {step === 2 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white mb-2">What do you want to do?</h3>
+              <p className="text-sm text-primary-400 mb-4">Choose your primary intent</p>
+              <div className="grid grid-cols-1 gap-3">
+                {INTENT_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  const isSelected = preferences.intent === option.id
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => handleIntentSelect(option.id)}
+                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                        isSelected 
+                          ? 'border-primary-500 bg-primary-500/20' 
+                          : 'border-primary-700/50 hover:border-primary-500/50 bg-dark-800/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${isSelected ? 'bg-primary-500' : 'bg-primary-700/30'}`}>
+                          <Icon className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-primary-300'}`} />
+                        </div>
+                        <div>
+                          <p className={`font-medium ${isSelected ? 'text-white' : 'text-primary-200'}`}>
+                            {option.label}
+                          </p>
+                          <p className="text-xs text-primary-400 mt-0.5">{option.description}</p>
+                        </div>
+                        {isSelected && <Check className="w-5 h-5 text-primary-400 ml-auto" />}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Workspace Type */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white mb-2">How do you operate?</h3>
+              <p className="text-sm text-primary-400 mb-4">Select your workspace type</p>
+              <div className="grid grid-cols-1 gap-3">
+                {WORKSPACE_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  const isSelected = preferences.workspaceType === option.id
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => handleWorkspaceSelect(option.id)}
+                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                        isSelected 
+                          ? 'border-primary-500 bg-primary-500/20' 
+                          : 'border-primary-700/50 hover:border-primary-500/50 bg-dark-800/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${isSelected ? 'bg-primary-500' : 'bg-primary-700/30'}`}>
+                          <Icon className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-primary-300'}`} />
+                        </div>
+                        <div>
+                          <p className={`font-medium ${isSelected ? 'text-white' : 'text-primary-200'}`}>
+                            {option.label}
+                          </p>
+                          <p className="text-xs text-primary-400 mt-0.5">{option.description}</p>
+                        </div>
+                        {isSelected && <Check className="w-5 h-5 text-primary-400 ml-auto" />}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Preferred Areas */}
+          {step === 4 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-white mb-2">Preferred areas in Bangalore</h3>
               <p className="text-sm text-primary-400 mb-4">Select up to 5 areas you're interested in</p>
@@ -310,8 +442,8 @@ export default function OnboardingModal({ isOpen, onComplete }) {
             </div>
           )}
 
-          {/* Step 3: Budget Range */}
-          {step === 3 && (
+          {/* Step 5: Budget Range */}
+          {step === 5 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-white mb-2">What's your budget range?</h3>
               <p className="text-sm text-primary-400 mb-4">This helps us show you relevant properties</p>
@@ -346,8 +478,8 @@ export default function OnboardingModal({ isOpen, onComplete }) {
             </div>
           )}
 
-          {/* Step 4: Language Preference */}
-          {step === 4 && (
+          {/* Step 6: Language Preference */}
+          {step === 6 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-white mb-2">Preferred language</h3>
               <p className="text-sm text-primary-400 mb-4">We'll try to respond in your preferred language</p>
@@ -409,12 +541,18 @@ export default function OnboardingModal({ isOpen, onComplete }) {
               </button>
             )}
             
-            {step < 4 ? (
+            {step < 6 ? (
               <button
                 onClick={handleNext}
-                disabled={step === 1 && !preferences.primaryInterest}
+                disabled={
+                  (step === 1 && !preferences.identityRole) ||
+                  (step === 2 && !preferences.intent) ||
+                  (step === 3 && !preferences.workspaceType)
+                }
                 className={`px-6 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
-                  (step === 1 && !preferences.primaryInterest)
+                  (step === 1 && !preferences.identityRole) ||
+                  (step === 2 && !preferences.intent) ||
+                  (step === 3 && !preferences.workspaceType)
                     ? 'bg-primary-700/30 text-primary-400 cursor-not-allowed'
                     : 'bg-primary-500 hover:bg-primary-400 text-white'
                 }`}

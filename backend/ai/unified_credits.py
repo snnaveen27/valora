@@ -1,10 +1,10 @@
 """
 Valora Unified Credits System
 Production-ready credit management with:
-- Simple 2-tier system: Free (50 credits) and Pro (500 credits)
+- 3-tier system: Free (50 credits), Pro (500 credits), Team (1000 credits)
 - Admin users get Pro tier automatically
 - Top-up credits that never expire
-- Monthly credit reset with rollover for Pro
+- Monthly credit reset with rollover for Pro and Team
 - Unified tracking for all API usage
 """
 
@@ -39,6 +39,7 @@ class UnifiedCreditsManager:
     TIERS:
     - Free: 50 credits/month
     - Pro: 500 credits/month + rollover
+    - Team: 1000 credits/month + rollover
     
     CREDIT COSTS:
     - Local LLM (Ollama): 2 credits
@@ -48,7 +49,7 @@ class UnifiedCreditsManager:
     SPECIAL:
     - Admin users automatically get Pro tier
     - Top-up credits never expire
-    - Pro tier gets rollover of unused monthly credits
+    - Pro and Team tiers get rollover of unused monthly credits
     """
     
     # Tier configuration
@@ -59,10 +60,16 @@ class UnifiedCreditsManager:
             'features': ['basic_search', 'area_overview', 'chat']
         },
         'pro': {
-            'monthly_credits': 500,
+            'monthly_credits': 1000,
             'rollover': True,
             'max_rollover': 500,
             'features': ['full_search', 'area_analysis', 'valuation', 'simulation', 'report_export']
+        },
+        'team': {
+            'monthly_credits': 3000,
+            'rollover': True,
+            'max_rollover': 1000,
+            'features': ['full_search', 'area_analysis', 'valuation', 'simulation', 'report_export', 'team_management', 'bulk_export']
         }
     }
     

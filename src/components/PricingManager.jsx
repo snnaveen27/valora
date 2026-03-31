@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { DollarSign, Save, RefreshCw, AlertCircle, CheckCircle, Edit2 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -113,6 +113,19 @@ const PricingManager = () => {
       action_costs: {
         ...config.action_costs,
         [action]: parseInt(value) || 0
+      }
+    });
+  };
+
+  const updateSubscriptionTier = (tier, key, value) => {
+    setConfig({
+      ...config,
+      subscription_tiers: {
+        ...config.subscription_tiers,
+        [tier]: {
+          ...config.subscription_tiers[tier],
+          [key]: parseInt(value) || 0
+        }
       }
     });
   };
@@ -272,6 +285,65 @@ const PricingManager = () => {
           </div>
         </div>
       </div>
+
+      {/* Subscription Plans */}
+      {config.subscription_tiers && Object.keys(config.subscription_tiers).length > 0 && (
+        <div className="bg-slate-700/50 rounded-lg border border-slate-600 p-4">
+          <h3 className="text-md font-semibold text-white mb-3">Subscription Plans</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(config.subscription_tiers).map(([tier, details]) => (
+              <div key={tier} className="bg-slate-800/50 rounded-lg p-4 border border-slate-600">
+                <h4 className="text-sm font-semibold text-white capitalize mb-3">{tier} Plan</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      Monthly Units
+                    </label>
+                    <input
+                      type="number"
+                      value={details.units ?? ''}
+                      onChange={(e) => updateSubscriptionTier(tier, 'units', e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="-1 for unlimited"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      {details.units === -1 ? 'Unlimited' : `${details.units || 0} units/month`}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      Promo Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={details.price_inr ?? ''}
+                      onChange={(e) => updateSubscriptionTier(tier, 'price_inr', e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      {details.price_inr === -1 ? 'Custom' : `₹${details.price_inr || 0}/mo`}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      Regular Price (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={details.regular_price ?? ''}
+                      onChange={(e) => updateSubscriptionTier(tier, 'regular_price', e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      {details.regular_price === -1 ? 'Custom' : `₹${details.regular_price || 0}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tier Monthly Limits */}
       <div className="bg-slate-700/50 rounded-lg border border-slate-600 p-4">

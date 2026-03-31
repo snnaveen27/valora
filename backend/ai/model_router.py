@@ -13,7 +13,7 @@ IMPORTANT: When user provides explicit model selection via dropdown,
 that selection is ALWAYS respected and complexity-based routing is BYPASSED.
 
 Cloud provider priority: OpenRouter -> Ollama Cloud (fallback)
-Default local: qwen3:4b-instruct
+Default local: valora-ai-mini:latest
 """
 
 import logging
@@ -54,6 +54,25 @@ class ModelCapability:
 
 
 _MODEL_CAPABILITIES: Dict[str, ModelCapability] = {}
+
+
+def _get_openrouter_api_key() -> str:
+    """Resolve OpenRouter API key from env first, then llm_config.json."""
+    env_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if env_key and env_key != "sk-or-v1-your-api-key-here":
+        return env_key
+
+    config_path = Path(__file__).parent.parent / "llm_config.json"
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+        config_key = str(config.get("openrouter_api_key", "") or "").strip()
+        if config_key and config_key != "sk-or-v1-your-api-key-here":
+            return config_key
+    except Exception as e:
+        logger.debug(f"[ModelRouter] Failed to load llm_config.json: {e}")
+
+    return ""
 
 
 def _infer_capability(model_name: str) -> ModelCapability:
@@ -207,8 +226,8 @@ def _get_model_score_bonus(model: str, intent: str) -> float:
 # ---------------------------------------------------------------------------
 def _openrouter_available() -> bool:
     """Check if OpenRouter API key is configured."""
-    key = os.environ.get("OPENROUTER_API_KEY", "")
-    return bool(key) and key != "sk-or-v1-your-api-key-here"
+    key = _get_openrouter_api_key()
+    return bool(key)
 
 
 # ---------------------------------------------------------------------------
@@ -427,7 +446,7 @@ def select_model(
         )
 
     # 4. Local
-    default_local = "qwen3:4b-instruct"
+    default_local = "valora-ai-mini:latest"
     if local_models:
         default_local = local_models[0].id
 

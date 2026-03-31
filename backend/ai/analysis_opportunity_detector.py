@@ -343,6 +343,12 @@ class AnalysisOpportunityDetector:
             location = context.get('location_name')
             lat = context.get('lat')
             lng = context.get('lng')
+
+        coords = self._extract_coordinates(query)
+        if coords:
+            lat, lng = coords
+            if not location:
+                location = f"Area at {lat:.5f}, {lng:.5f}"
         
         # Extract from query using known localities
         q_lower = query.lower()
@@ -363,6 +369,26 @@ class AnalysisOpportunityDetector:
             location = self._extract_place_from_patterns(query)
         
         return location, location2, lat, lng
+
+    def _extract_coordinates(self, query: str) -> Optional[Tuple[float, float]]:
+        """Extract explicit lat/lng pairs from a free-form query."""
+        patterns = [
+            r"\b(?:coordinates?|coords?)\s*(?:at|of|for)?\s*(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)\b",
+            r"\b(?:lat|latitude)\s*[:=]?\s*(-?\d{1,2}\.\d+)\s*[, ]+\s*(?:lng|lon|long|longitude)\s*[:=]?\s*(-?\d{1,3}\.\d+)\b",
+            r"(?<!\d)(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)(?!\d)",
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if not match:
+                continue
+            try:
+                lat = float(match.group(1))
+                lng = float(match.group(2))
+            except (TypeError, ValueError):
+                continue
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                return lat, lng
+        return None
     
     def _extract_place_from_patterns(self, query: str) -> Optional[str]:
         """Extract place name using pattern matching."""

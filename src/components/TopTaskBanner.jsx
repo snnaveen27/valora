@@ -96,14 +96,12 @@ const getPhaseDescription = (phase, task, t) => {
 }
 
 export default function TopTaskBanner({
-  query,
   streamingData,
   isVisible,
   onClose,
   tasks: externalTasks,
   progress: externalProgress,
-  taskProgress,
-  taskHistory
+  taskProgress
 }) {
   const { t } = useLanguage();
   const [tasks, setTasks] = useState([])

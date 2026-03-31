@@ -1,6 +1,6 @@
 /**
  * ChatInputBar - Valora AI
- * Default: qwen3:4b-instruct local. Cloud toggle enables intelligent model routing.
+ * Default: valora-ai-mini:latest local. Cloud toggle enables intelligent model routing.
  * The model router auto-selects the best model based on query complexity.
  * Includes language selector for multilingual support with UI translations.
  */
@@ -35,64 +35,26 @@ export default function ChatInputBar({
 }) {
   const inputRef = useRef(null)
   const fileInputRef = useRef(null)
-  const [availableModels, setAvailableModels] = useState([])
-  const [showModelDropdown, setShowModelDropdown] = useState(false)
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
-  const [loadingModels, setLoadingModels] = useState(false)
 
   // Focus input on mount
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  // Fetch available models on mount with retry
-  useEffect(() => {
-    const fetchModels = async (retryCount = 0) => {
-      setLoadingModels(true)
-      try {
-        const response = await fetch(`${API_URL}/api/admin/llm-models`)
-        if (response.ok) {
-          const data = await response.json()
-          setAvailableModels(data.local || [])
-          console.log('[ChatInputBar] Loaded models:', data.local?.length || 0, 'local models')
-        } else {
-          console.error('[ChatInputBar] Failed to fetch models:', response.status, response.statusText)
-          // Retry up to 3 times with exponential backoff
-          if (retryCount < 3) {
-            const delay = Math.pow(2, retryCount) * 1000 // 1s, 2s, 4s
-            console.log(`[ChatInputBar] Retrying in ${delay}ms...`)
-            setTimeout(() => fetchModels(retryCount + 1), delay)
-          }
-        }
-      } catch (error) {
-        console.warn('[ChatInputBar] Failed to fetch models:', error.message)
-        // Retry up to 3 times with exponential backoff
-        if (retryCount < 3) {
-          const delay = Math.pow(2, retryCount) * 1000 // 1s, 2s, 4s
-          console.log(`[ChatInputBar] Retrying in ${delay}ms...`)
-          setTimeout(() => fetchModels(retryCount + 1), delay)
-        }
-      } finally {
-        setLoadingModels(false)
-      }
-    }
-    fetchModels()
-  }, [])
+
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showModelDropdown && !event.target.closest('.model-dropdown-container')) {
-        setShowModelDropdown(false)
-      }
       if (showLanguageDropdown && !event.target.closest('.language-dropdown-container')) {
         setShowLanguageDropdown(false)
       }
     }
 
-    if (showModelDropdown || showLanguageDropdown) {
+    if (showLanguageDropdown) {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showModelDropdown, showLanguageDropdown])
+  }, [showLanguageDropdown])
 
   // Reset textarea height when value is cleared
   useEffect(() => {
@@ -123,15 +85,7 @@ export default function ChatInputBar({
     e.target.value = ''
   }
 
-  const handleModelSelect = (modelId) => {
-    onConfigChange?.({ ...llmConfig, local_model: modelId })
-    setShowModelDropdown(false)
-    // Save to localStorage for persistence
-    localStorage.setItem('valora_selected_model', modelId)
-  }
 
-  const currentModel = llmConfig.local_model || 'valora-ai-mini'
-  const currentModelDisplay = availableModels.find(m => m.id === currentModel)?.name || currentModel
   const currentLanguage = LANGUAGE_OPTIONS.find(l => l.id === selectedLanguage) || LANGUAGE_OPTIONS[0]
   
   // Get translated placeholder based on selected language
@@ -172,50 +126,6 @@ export default function ChatInputBar({
       {/* Compact status row: model selector + hints */}
       <div className="relative mb-1.5">
         <div className="flex items-center gap-2">
-          {/* Model selector dropdown - always visible, model selection is automated */}
-          <div className="relative model-dropdown-container">
-            <button
-              onClick={() => setShowModelDropdown(!showModelDropdown)}
-              disabled={loadingModels}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border transition-all bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
-              title="Model selection is automated based on query complexity"
-            >
-              <HardDrive className="w-3 h-3" />
-              <span className="max-w-[80px] truncate">
-                {loadingModels ? 'Loading...' : currentModelDisplay.split(':')[0]}
-              </span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {/* Dropdown */}
-            {showModelDropdown && (
-              <div className="absolute bottom-full left-0 mb-2 w-48 bg-dark-800 border border-primary-700/50 rounded-lg shadow-lg shadow-dark-900/50 z-50 max-h-48 overflow-y-auto">
-                <div className="p-2">
-                  <div className="text-[10px] text-primary-400/60 font-medium mb-2 px-2">Local Models</div>
-                  {availableModels.length === 0 ? (
-                    <div className="text-[10px] text-primary-400/40 px-2 py-1">No models found</div>
-                  ) : (
-                    availableModels.map((model) => (
-                      <button
-                        key={model.id}
-                        onClick={() => handleModelSelect(model.id)}
-                        className={`w-full text-left px-2 py-1.5 rounded text-[10px] transition-colors ${
-                          model.id === currentModel
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : 'text-primary-300 hover:bg-primary-700/30 hover:text-white'
-                        }`}
-                      >
-                        <div className="font-medium">{model.name}</div>
-                        {model.size && (
-                          <div className="text-primary-400/60">{model.size}</div>
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Language selector dropdown */}
           <div className="relative language-dropdown-container">

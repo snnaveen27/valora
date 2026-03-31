@@ -10,7 +10,7 @@ Both use the same pipeline:
   3. Ollama LLM synthesizes narrative from facts only
   4. Response includes dashboard, ui_actions, facts for frontend
 
-LLM: Local Ollama (qwen3:4b-instruct) default, Cloud (OpenRouter) for heavy reasoning.
+LLM: Local Ollama (valora-ai-mini:latest) default, Cloud (OpenRouter) for heavy reasoning.
 
 Production Enhancements (v2):
   - Semantic caching for paraphrased queries
@@ -30,6 +30,7 @@ Enhanced Conversation Features (v3):
 """
 
 import json
+import os
 import re
 import time
 import uuid
@@ -157,23 +158,34 @@ def _is_cloud_model(model_name: str) -> bool:
     return ":cloud" in nl or nl.endswith("-cloud")
 
 
-def _get_ollama_client_for_model(model_name: str):
+def _load_llm_config() -> Dict[str, Any]:
+    """Load LLM config from disk with safe defaults."""
+    config_path = Path(__file__).parent.parent / "llm_config.json"
+    defaults: Dict[str, Any] = {
+        "cloud_enabled": False,
+        "openrouter_api_key": "",
+        "openrouter_model": "deepseek/deepseek-chat",
+        "max_context": 8192,
+        "local_model": "valora-ai-mini:latest",
+    }
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+        if isinstance(loaded, dict):
+            defaults.update(loaded)
+    except Exception as e:
+        logger.warning(f"[chat_routes] Failed to load llm_config.json: {e}")
+    return defaults
+
+
+def _get_ollama_client_for_model(model_name: str, max_context_override: Optional[int] = None):
     """Get an Ollama client configured for a specific model.
     Cloud models (e.g. kimi-k2.5:cloud) are served by Ollama transparently.
     """
     from ai.ollama_client import OllamaClient
-    import json
-    from pathlib import Path
     
-    # Load config to get max_context
-    config_path = Path(__file__).parent.parent / "llm_config.json"
-    max_context = 8192  # default
-    try:
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-            max_context = config.get('max_context', 8192)
-    except Exception as e:
-        print(f"[chat_routes] Failed to load max_context from config: {e}")
+    llm_config = _load_llm_config()
+    max_context = max_context_override or llm_config.get("max_context", 8192)
     
     is_cloud = _is_cloud_model(model_name)
     return OllamaClient(
@@ -183,10 +195,67 @@ def _get_ollama_client_for_model(model_name: str):
     )
 
 
+def _get_openrouter_api_key() -> str:
+    """Resolve OpenRouter API key from env first, then llm_config.json."""
+    env_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if env_key and env_key != "sk-or-v1-your-api-key-here":
+        return env_key
+    return str(_load_llm_config().get("openrouter_api_key", "") or "").strip()
+
+
+def _has_openrouter_config() -> bool:
+    api_key = _get_openrouter_api_key()
+    return bool(api_key) and api_key != "sk-or-v1-your-api-key-here"
+
+
+def _normalize_percent_value(value: Any) -> Optional[float]:
+    """Normalize percent-like values such as 0.035, 3.5, or '3.5%' to 3.5."""
+    if value is None:
+        return None
+    try:
+        if isinstance(value, str):
+            value = value.strip().replace("%", "")
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    return numeric * 100 if 0 < numeric <= 1 else numeric
+
+
+def _select_local_fallback_model(models: List[str], failed_model: str) -> Optional[str]:
+    """Pick an alternative local model, preferring smaller variants."""
+    candidates = [m for m in models if not _is_cloud_model(m) and m != failed_model]
+    if not candidates:
+        return None
+
+    def _priority(name: str) -> tuple[int, int, str]:
+        nl = name.lower()
+        return (
+            0 if "mini" in nl else 1,
+            0 if "q4" in nl or "q3" in nl else 1,
+            nl,
+        )
+
+    candidates.sort(key=_priority)
+    return candidates[0]
+
+
+def _is_memory_error(error: Exception) -> bool:
+    text = str(error).lower()
+    return "more system memory" in text or "system ram full" in text or "insufficient memory" in text
+
+
 # Cached available models (refreshed every 60s)
 _cached_models: List[str] = []
 _models_fetched_at: float = 0.0
 _MODELS_CACHE_TTL = 60.0  # seconds
+
+
+def _create_http_client_session(timeout: Optional[aiohttp.ClientTimeout] = None) -> aiohttp.ClientSession:
+    """Create an aiohttp session that is safe on Windows with aiodns installed."""
+    connector = None
+    if os.name == "nt":
+        connector = aiohttp.TCPConnector(resolver=aiohttp.ThreadedResolver())
+    return aiohttp.ClientSession(timeout=timeout, connector=connector)
 
 
 async def _fetch_available_models() -> List[str]:
@@ -196,7 +265,7 @@ async def _fetch_available_models() -> List[str]:
     if _cached_models and (now - _models_fetched_at) < _MODELS_CACHE_TTL:
         return _cached_models
     try:
-        async with aiohttp.ClientSession() as session:
+        async with _create_http_client_session(aiohttp.ClientTimeout(total=5)) as session:
             async with session.get(
                 "http://localhost:11434/api/tags",
                 timeout=aiohttp.ClientTimeout(total=5)
@@ -209,7 +278,7 @@ async def _fetch_available_models() -> List[str]:
     except Exception as e:
         logger.warning(f"[ModelRouter] Failed to fetch Ollama models: {e}")
         if not _cached_models:
-            _cached_models = ["qwen3:4b-instruct"]  # fallback
+            _cached_models = ["valora-ai-mini:latest"]  # fallback
     return _cached_models
 
 
@@ -221,8 +290,7 @@ async def _stream_openrouter(messages: list, model: str, temperature: float, max
     
     Production: Uses connection pooling for better performance.
     """
-    import os
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    api_key = _get_openrouter_api_key()
     if not api_key or api_key == "sk-or-v1-your-api-key-here":
         raise Exception("OpenRouter API key not configured")
 
@@ -245,7 +313,7 @@ async def _stream_openrouter(messages: list, model: str, temperature: float, max
         if PRODUCTION_PIPELINE_AVAILABLE:
             session = await get_http_session()
         else:
-            session = aiohttp.ClientSession()
+            session = _create_http_client_session()
         
         async with session.post(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -333,7 +401,7 @@ def _get_rate_limiter():
     return get_rate_limiter()
 
 
-def _check_credits(user_id: str, model: str = "qwen3:4b-instruct"):
+def _check_credits(user_id: str, model: str = "valora-ai-mini:latest"):
     """
     Check if user has credits for a model inference.
     
@@ -355,7 +423,7 @@ def _check_credits(user_id: str, model: str = "qwen3:4b-instruct"):
 
 def _deduct_credits(
     user_id: str,
-    model: str = "qwen3:4b-instruct",
+    model: str = "valora-ai-mini:latest",
     intent: str = None,
     inference_id: str = None
 ) -> dict:
@@ -1374,31 +1442,65 @@ def _strip_thinking_tags(text: str) -> tuple:
 
 
 def _generate_fallback_response(intent, facts) -> str:
-    """Generate a basic response from grounded facts when LLM fails."""
-    from ai.gis_agents import Intent
-    name = facts.location_name or "this area"
+    """Generate a rich markdown response from grounded facts when LLMs fail or OOM."""
+    name = getattr(facts, "location_name", None) or "this area"
+    lat = getattr(facts, "lat", None)
+    lng = getattr(facts, "lng", None)
+    elevation_m = getattr(facts, "elevation_m", None)
+    avg_price_per_sqft = getattr(facts, "avg_price_per_sqft", None)
+    active_listings = getattr(facts, "active_listings", None)
+    rental_yield = _normalize_percent_value(getattr(facts, "rental_yield", None))
+    poi_count = getattr(facts, "poi_count", None)
+    transport_count = getattr(facts, "transport_count", None)
+    walkability_score = getattr(facts, "walkability_score", None)
+    flood_risk = getattr(facts, "flood_risk", None)
+    risk_level = getattr(facts, "risk_level", None)
+    
     parts = []
-    if intent == Intent.NAVIGATE:
-        if facts.lat and facts.lng:
-            parts.append(f"Navigating to **{name}** ({facts.lat:.4f}, {facts.lng:.4f}).")
-    elif intent == Intent.PROPERTY_SEARCH:
-        parts.append(f"**Property Search near {name}**")
-        if facts.active_listings:
-            parts.append(f"Found {facts.active_listings} active listings.")
-        if facts.avg_price_per_sqft:
-            parts.append(f"Average price: ₹{facts.avg_price_per_sqft:,.0f}/sqft.")
-    elif intent == Intent.ANALYZE_AREA:
-        parts.append(f"**Area Analysis: {name}**")
-        if facts.poi_count is not None:
-            parts.append(f"POIs: {facts.poi_count}, Transport: {facts.transport_count or 0}")
-        if facts.walkability_score is not None:
-            parts.append(f"Walkability: {facts.walkability_score}/100")
-    else:
-        parts.append(f"Analysis for **{name}**.")
-        if facts.avg_price_per_sqft:
-            parts.append(f"Avg price: ₹{facts.avg_price_per_sqft:,.0f}/sqft.")
+    # Add an attention-grabbing warning about offline mode
+    parts.append(f"> ⚠️ **System Notice**: Due to local memory constraints, running in **Offline Data Mode**.\n")
+    
+    parts.append(f"### 📍 Data Report for **{name}**")
+    
+    # 1. Location Details
+    if lat is not None and lng is not None:
+        parts.append(f"- **Coordinates**: {lat:.5f}, {lng:.5f}")
+    if elevation_m is not None:
+        parts.append(f"- **Elevation**: {elevation_m}m")
+    
+    # 2. Market Pricing
+    has_market = avg_price_per_sqft is not None or active_listings is not None or rental_yield is not None
+    if has_market:
+        parts.append("\n**📈 Market Overview**")
+        if active_listings is not None:
+            parts.append(f"- **Active Listings**: {active_listings}")
+        if avg_price_per_sqft is not None:
+            parts.append(f"- **Average Price**: ₹{avg_price_per_sqft:,.0f} / sqft")
+        if rental_yield is not None:
+            parts.append(f"- **Est. Rental Yield**: {rental_yield:.1f}%")
+        
+    # 3. Infrastructure & POIs
+    if poi_count is not None or walkability_score is not None:
+        parts.append("\n**🏙️ Infrastructure & Connectivity**")
+        if poi_count is not None:
+            parts.append(f"- **Points of Interest**: {poi_count}")
+        if transport_count is not None:
+            parts.append(f"- **Transit Hubs**: {transport_count}")
+        if walkability_score is not None:
+            parts.append(f"- **Walkability**: {walkability_score}/100")
+            
+    # 4. Environment & Risk
+    if flood_risk is not None or risk_level is not None:
+        parts.append("\n**🛡️ Risk Assessment**")
+        if flood_risk:
+            parts.append(f"- **Flood Risk**: {flood_risk.capitalize()}")
+        if risk_level:
+            parts.append(f"- **Overall Risk Level**: {risk_level.capitalize()}")
+            
+    if not parts or len(parts) == 2: # basic notice & title only
+        return f"> ⚠️ **System Notice**: Offline Data Mode\n\nNo detailed spatial facts found for **{name}** at this time."
 
-    return "\n".join(parts) if parts else f"Analysis complete for {name}."
+    return "\n".join(parts)
 
 
 def _generate_tiered_options_response(
@@ -1482,6 +1584,7 @@ def _generate_tiered_options_response(
             "intent": "analysis_options",
             "dashboard": None,
             "ui_actions": [{
+                "action": "tiered_options",
                 "type": "tiered_options",
                 "locality": locality,
                 "location2": opportunity.location2,
@@ -1570,7 +1673,7 @@ async def chat(request: ChatRequest):
     # Credits check (use default local model for initial check - actual deduction uses selected model)
     # Skip credit check for free analysis
     if not is_free_analysis:
-        allowed, rate_result = _check_credits(user_id, "qwen3:4b-instruct")
+        allowed, rate_result = _check_credits(user_id, "valora-ai-mini:latest")
         if not allowed:
             return {
                 "success": False,
@@ -1639,6 +1742,9 @@ async def chat(request: ChatRequest):
     chain_of_thought = None
     llm_cfg = context.get("llm_config", {})
     user_model = llm_cfg.get("local_model")
+    cloud_enabled = llm_cfg.get("cloud_enabled", False)
+    all_models = await _fetch_available_models()
+    available_models = [m for m in all_models if not _is_cloud_model(m)] or ["valora-ai-mini:latest"]
     try:
         if not _ollama_breaker.can_execute():
             raise CircuitBreakerOpen("Ollama circuit is OPEN — skipping LLM call")
@@ -1652,7 +1758,47 @@ async def chat(request: ChatRequest):
     except Exception as e:
         _ollama_breaker.record_failure()
         logger.error(f"LLM error: {e}")
-        ai_message = _generate_fallback_response(intent, facts)
+        if user_model and _is_memory_error(e):
+            try:
+                logger.info(f"[Fallback] Retrying local model {user_model} with reduced context")
+                fb_client = _get_ollama_client_for_model(user_model, max_context_override=2048)
+                raw = await fb_client.chat(messages=messages, temperature=0.5, max_tokens=min(1024, 4096))
+                ai_message, chain_of_thought = _strip_thinking_tags(raw or "")
+                _ollama_breaker.record_success()
+            except Exception as fb_err:
+                logger.error(f"Reduced-context local retry failed: {fb_err}")
+        try:
+            local_fb_model = _select_local_fallback_model(available_models, user_model) if user_model else None
+            if not ai_message.strip() and local_fb_model:
+                logger.info(f"[Fallback] Local Ollama {user_model} failed → trying local model {local_fb_model}")
+                fb_client = _get_ollama_client_for_model(local_fb_model)
+                raw = await fb_client.chat(messages=messages, temperature=0.5, max_tokens=4096)
+                ai_message, chain_of_thought = _strip_thinking_tags(raw or "")
+                _ollama_breaker.record_success()
+        except Exception as fb_err:
+            logger.error(f"Local Ollama fallback also failed: {fb_err}")
+        if not ai_message.strip() and cloud_enabled and _has_openrouter_config():
+            try:
+                fb_model = llm_cfg.get("openrouter_model") or "deepseek/deepseek-chat"
+                logger.info(f"[Fallback] Local Ollama {user_model or 'default'} failed → trying OpenRouter {fb_model}")
+                raw = ""
+                async for chunk in _stream_openrouter(messages, fb_model, 0.5, 4096):
+                    raw += chunk
+                ai_message, chain_of_thought = _strip_thinking_tags(raw or "")
+            except Exception as fb_err:
+                logger.error(f"OpenRouter fallback also failed: {fb_err}")
+        if not ai_message.strip() and cloud_enabled:
+            try:
+                fb_model = next((m for m in all_models if _is_cloud_model(m)), None)
+                if fb_model:
+                    logger.info(f"[Fallback] Local Ollama {user_model or 'default'} failed → trying cloud model {fb_model}")
+                    fb_client = _get_ollama_client_for_model(fb_model)
+                    raw = await fb_client.chat(messages=messages, temperature=0.5, max_tokens=4096)
+                    ai_message, chain_of_thought = _strip_thinking_tags(raw or "")
+            except Exception as fb_err:
+                logger.error(f"Ollama cloud fallback also failed: {fb_err}")
+        if not ai_message.strip():
+            ai_message = _generate_fallback_response(intent, facts)
 
     if not ai_message.strip():
         ai_message = _generate_fallback_response(intent, facts)
@@ -1666,7 +1812,7 @@ async def chat(request: ChatRequest):
     # Deduct credits based on model used (2 for local, 5 for cloud)
     # Skip for free analysis
     if not is_free_analysis:
-        model_used = user_model or "qwen3:4b-instruct"
+        model_used = user_model or "valora-ai-mini:latest"
         _deduct_credits(user_id, model_used, intent.value)
 
     response = {
@@ -1756,7 +1902,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
     # Credits check (before starting stream) - use default local model for initial check
     # Skip for free analysis
     if not is_free_analysis:
-        allowed, rate_result = _check_credits(user_id, "qwen3:4b-instruct")
+        allowed, rate_result = _check_credits(user_id, "valora-ai-mini:latest")
         if not allowed:
             async def rate_limited_stream():
                 data = {
@@ -2204,7 +2350,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         else:
             available_models = [m for m in all_models if not _is_cloud_model(m)]
             if not available_models:
-                available_models = ["qwen3:4b-instruct"]
+                available_models = ["valora-ai-mini:latest"]
 
         history = _get_conversation_history(thread_id)
 
@@ -2316,7 +2462,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                 stream = client.chat_stream(messages=messages, temperature=model_sel.temperature, max_tokens=model_sel.max_tokens)
             else:
                 # Local Ollama — use /api/chat with proper message roles
-                client = _get_ollama_client()
+                client = _get_ollama_client_for_model(model_sel.model)
                 stream = client.chat_stream(messages=messages, temperature=model_sel.temperature, max_tokens=model_sel.max_tokens)
 
             async for chunk in stream:
@@ -2405,6 +2551,59 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                         llm_success = True
                 except Exception as fb_err:
                     logger.error(f"Ollama cloud fallback also failed: {fb_err}")
+            elif model_sel.provider == "ollama":
+                if _is_memory_error(e):
+                    try:
+                        logger.info(f"[Fallback] Retrying local model {model_sel.model} with reduced context")
+                        yield _sse({"type": "status", "content": f"Retrying {model_sel.model} with reduced context...", "thinking_time": time.time() - start_time})
+                        fb_client = _get_ollama_client_for_model(model_sel.model, max_context_override=2048)
+                        async for chunk in fb_client.chat_stream(messages=messages, temperature=model_sel.temperature, max_tokens=min(model_sel.max_tokens, 1024)):
+                            content_buffer += chunk
+                            yield _sse({"type": "content", "content": chunk, "thinking_time": time.time() - start_time})
+                        llm_success = True
+                    except Exception as fb_err:
+                        logger.error(f"Reduced-context local retry failed: {fb_err}")
+                try:
+                    local_fb_model = _select_local_fallback_model(available_models, model_sel.model)
+                    if not content_buffer.strip() and local_fb_model:
+                        logger.info(f"[Fallback] Local Ollama {model_sel.model} failed → trying local model {local_fb_model}")
+                        yield _sse({"type": "status", "content": f"Trying smaller local model {local_fb_model}...", "thinking_time": time.time() - start_time})
+                        fb_client = _get_ollama_client_for_model(local_fb_model)
+                        async for chunk in fb_client.chat_stream(messages=messages, temperature=model_sel.temperature, max_tokens=model_sel.max_tokens):
+                            content_buffer += chunk
+                            yield _sse({"type": "content", "content": chunk, "thinking_time": time.time() - start_time})
+                        llm_success = True
+                except Exception as fb_err:
+                    logger.error(f"Local Ollama fallback also failed: {fb_err}")
+
+                if not content_buffer.strip() and cloud_enabled and _has_openrouter_config():
+                    try:
+                        fb_model = llm_cfg.get("openrouter_model") or "deepseek/deepseek-chat"
+                        logger.info(f"[Fallback] Local Ollama {model_sel.model} failed → trying OpenRouter {fb_model}")
+                        if _is_memory_error(e):
+                            yield _sse({"type": "status", "content": f"Selected local model needs more RAM. Falling back to cloud {fb_model}...", "thinking_time": time.time() - start_time})
+                        else:
+                            yield _sse({"type": "status", "content": f"Local model failed. Falling back to cloud {fb_model}...", "thinking_time": time.time() - start_time})
+                        async for chunk in _stream_openrouter(messages, fb_model, model_sel.temperature, model_sel.max_tokens):
+                            content_buffer += chunk
+                            yield _sse({"type": "content", "content": chunk, "thinking_time": time.time() - start_time})
+                        llm_success = True
+                    except Exception as fb_err:
+                        logger.error(f"OpenRouter fallback also failed: {fb_err}")
+
+                if not content_buffer.strip() and cloud_enabled:
+                    try:
+                        fb_model = next((m for m in all_models if _is_cloud_model(m)), None)
+                        if fb_model:
+                            logger.info(f"[Fallback] Local Ollama {model_sel.model} failed → trying cloud model {fb_model}")
+                            yield _sse({"type": "status", "content": f"Local model unavailable. Falling back to cloud {fb_model}...", "thinking_time": time.time() - start_time})
+                            fb_client = _get_ollama_client_for_model(fb_model)
+                            async for chunk in fb_client.chat_stream(messages=messages, temperature=model_sel.temperature, max_tokens=model_sel.max_tokens):
+                                content_buffer += chunk
+                                yield _sse({"type": "content", "content": chunk, "thinking_time": time.time() - start_time})
+                            llm_success = True
+                    except Exception as fb_err:
+                        logger.error(f"Ollama cloud fallback also failed: {fb_err}")
 
             if not content_buffer.strip():
                 fallback = _generate_fallback_response(intent, facts)

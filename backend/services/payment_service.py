@@ -77,8 +77,8 @@ TOPUP_PACKS = {
         "base_price_inr": 699,
         "promo_price_inr": 139,
     },
-    "bulk": {
-        "name": "Bulk Pack",
+    "power": {
+        "name": "Power Pack",
         "units": 1000,
         "base_price_inr": 1999,
         "promo_price_inr": 399,

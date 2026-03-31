@@ -187,10 +187,12 @@ Deck goal: show a Bengaluru-first execution wedge, credible monetization, and 24
 
 ## Appendix Notes (For Q&A)
 
+*Note: Source citations in this appendix are pending verification against primary data sources.*
+
 - All external market and leasing claims in live presentations must include dated citations.
-- Citation placeholders to replace before investor meetings:
-  1. `[SOURCE: India office leasing trend, publication, date, accessed date]`
-  2. `[SOURCE: Bengaluru housing transaction or demand report, publication, date, accessed date]`
-  3. `[SOURCE: India real-estate market size projection, publication, date, accessed date]`
+- Citations to finalize before investor meetings:
+  1. India office leasing trend (source pending)
+  2. Bengaluru housing transaction or demand report (source pending)
+  3. India real-estate market size projection (source pending)
 - Keep one source-of-truth for pricing and units in `docs/BUSINESS.md` and app pricing config.
 - Continue disclosing production-ready vs hardening-in-progress features transparently.

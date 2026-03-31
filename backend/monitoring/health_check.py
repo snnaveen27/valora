@@ -9,6 +9,8 @@ import asyncio
 from typing import Dict, Any
 from datetime import datetime
 from pathlib import Path
+from config import config
+from monitoring.runtime_validation import validate_runtime
 
 # Import circuit breakers
 try:
@@ -212,6 +214,11 @@ async def health_check() -> Dict[str, Any]:
         overall_status = "unknown"
     
     elapsed = (datetime.now() - start_time).total_seconds() * 1000
+    runtime_validation = validate_runtime(config.MODELS_DIR)
+    if runtime_validation["status"] == "unhealthy":
+        overall_status = "unhealthy"
+    elif runtime_validation["status"] == "degraded" and overall_status == "healthy":
+        overall_status = "degraded"
     
     return {
         "status": overall_status,
@@ -223,6 +230,7 @@ async def health_check() -> Dict[str, Any]:
             "cache": cache_status,
             "circuit_breakers": check_circuit_breakers()
         },
+        "runtime_validation": runtime_validation,
         "version": "2.0.0"
     }
 
@@ -234,6 +242,7 @@ async def ready_check() -> bool:
     """
     try:
         db_check = await check_database()
-        return db_check.get("status") == "healthy"
+        runtime_validation = validate_runtime(config.MODELS_DIR)
+        return db_check.get("status") == "healthy" and runtime_validation.get("status") != "unhealthy"
     except:
         return False

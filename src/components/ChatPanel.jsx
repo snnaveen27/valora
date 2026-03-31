@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { Send, Bot, User, MapPin, Navigation, Settings, Cloud, HardDrive, ChevronDown, ChevronRight, Brain, Loader2, Sparkles, Search, Building2, TrendingUp, Compass, Zap, MessageCircle, Target, BarChart3, Image } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -432,7 +432,7 @@ Just ask naturally — I understand casual conversation too!
   const [attachedImage, setAttachedImage] = useState(null)
   const [llmConfig, setLlmConfig] = useState({
     provider: 'local', // 'local' or 'openrouter'
-    local_model: 'qwen3:4b-instruct',  // Qwen3 4B Fast - default local model
+    local_model: 'valora-ai-mini:latest',  // Qwen3 4B Fast - default local model
     openrouter_model: 'meta-llama/llama-3.3-70b-instruct:free'
   })
   const [availableModels, setAvailableModels] = useState({ openrouter: [], local: [], loading: false })
@@ -797,7 +797,7 @@ Just ask naturally — I understand casual conversation too!
           setLlmConfig(prev => ({
             ...prev,
             provider: data.provider || 'local',
-            local_model: data.local_model || 'qwen3:4b-instruct',
+            local_model: data.local_model || 'valora-ai-mini:latest',
             openrouter_model: data.openrouter_model || 'meta-llama/llama-3.3-70b-instruct:free'
           }))
         }
@@ -1730,7 +1730,7 @@ Just ask naturally — I understand casual conversation too!
               <Settings className="w-3 h-3" />
               <span className="text-[10px]">
                 {llmConfig.provider === 'local' ? (
-                  llmConfig.local_model || 'qwen3:4b-instruct'
+                  llmConfig.local_model || 'valora-ai-mini:latest'
                 ) : (
                   llmConfig.openrouter_model?.split('/').pop().split(':')[0] || 'llama-3.3-70b'
                 )}
@@ -1781,7 +1781,7 @@ Just ask naturally — I understand casual conversation too!
                       ))
                     ) : (
                       <>
-                        <option value="qwen3:4b-instruct">Qwen3 4B (Default)</option>
+                        <option value="valora-ai-mini:latest">Qwen3 4B (Default)</option>
                       </>
                     )}
                   </select>

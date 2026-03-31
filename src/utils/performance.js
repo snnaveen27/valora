@@ -3,7 +3,7 @@
  * Lazy loading, code splitting, and optimization strategies
  */
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState, useEffect, memo } from 'react';
 
 // Lazy load heavy components
 export const Cesium3DMap = lazy(() => import('../spatial/Cesium3DMap'));
@@ -18,7 +18,6 @@ export const LoadingFallback = () => (
 );
 
 // Memoized component wrapper
-import { memo } from 'react';
 
 export const MemoizedChatMessage = memo(({ message }) => {
   return (

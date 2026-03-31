@@ -471,7 +471,9 @@ class BuildingAnalyzer:
         if neighbors:
             height_tolerance = 3.0  # meters
             for n in neighbors:
-                n_height = n.get('height') or (n.get('levels', 1) * self.FLOOR_HEIGHT_M)
+                levels = n.get('levels')
+                fallback_height = (float(levels) * self.FLOOR_HEIGHT_M) if levels not in (None, "") else 0.0
+                n_height = float(n.get('height') or fallback_height)
                 if abs(n_height - analysis.height_m) <= height_tolerance:
                     n_lat = n.get('latitude')
                     n_lng = n.get('longitude')

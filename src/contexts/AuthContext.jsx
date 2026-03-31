@@ -1,5 +1,15 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../apiConfig';
+import { 
+  IDENTITY_ROLES, 
+  WORKSPACE_TYPES, 
+  WORKSPACE_ROLES, 
+  SUBSCRIPTION_PLANS, 
+  getUserPermissions,
+  getAIPersona,
+  PLAN_FEATURES,
+  AI_PERSONAS
+} from '../config/roles';
 
 const AuthContext = createContext(null);
 
@@ -82,7 +92,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signup = async (email, password, name, company = '', phone = '', job_role = '') => {
+  const signup = async (email, password, name, company = '', phone = '', job_role = '', workspace_type = 'individual', workspace_role = 'manager') => {
     setError(null);
     setLoading(true);
     
@@ -92,7 +102,7 @@ export function AuthProvider({ children }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password, name, company, phone, job_role }),
+        body: JSON.stringify({ email, password, name, company, phone, job_role, workspace_type, workspace_role }),
       });
       
       const data = await response.json();
@@ -197,11 +207,16 @@ export function AuthProvider({ children }) {
     return null;
   };
 
-  // Check if user has feature access based on tier
+  // Check if user has feature access based on RBAC permissions
   const hasFeature = (feature) => {
     if (!user) return false;
-    const tierFeatures = user.tier_limits?.features || [];
-    return tierFeatures.includes(feature) || tierFeatures.includes('all_features');
+    // Use backend tier_limits as fallback, otherwise use RBAC permissions
+    if (user.tier_limits?.features) {
+      const tierFeatures = user.tier_limits.features || [];
+      return tierFeatures.includes(feature) || tierFeatures.includes('all_features');
+    }
+    // Use RBAC permissions from config
+    return planFeatures[feature] === true || planFeatures[feature] === undefined;
   };
 
   // Check query limit
@@ -212,6 +227,15 @@ export function AuthProvider({ children }) {
     return user.queries_today < limit;
   };
 
+  // RBAC derived values
+  const identityRole = user?.job_role || IDENTITY_ROLES.BROKER
+  const workspaceType = user?.workspaceType || user?.workspace_type || WORKSPACE_TYPES.INDIVIDUAL
+  const workspaceRole = user?.workspaceRole || user?.workspace_role || WORKSPACE_ROLES.MANAGER
+  const plan = user?.tier || user?.plan || SUBSCRIPTION_PLANS.FREE
+  const aiPersona = getAIPersona(identityRole)
+  const permissions = getUserPermissions(workspaceType, workspaceRole, plan)
+  const planFeatures = PLAN_FEATURES[plan] || PLAN_FEATURES[SUBSCRIPTION_PLANS.FREE]
+
   const value = {
     user,
     token,
@@ -219,6 +243,15 @@ export function AuthProvider({ children }) {
     error,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
+    // RBAC layers
+    identityRole,
+    workspaceType,
+    workspaceRole,
+    plan,
+    aiPersona,
+    permissions,
+    isManager: workspaceRole === WORKSPACE_ROLES.MANAGER,
+    isTeam: workspaceType === WORKSPACE_TYPES.TEAM,
     login,
     signup,
     logout,

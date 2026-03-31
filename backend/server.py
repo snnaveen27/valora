@@ -29,6 +29,7 @@ setup_logging(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("valora.server")
 
 from analyzers.area_analyzer import AreaAnalyzer
+from monitoring.runtime_validation import enforce_runtime_requirements, validate_runtime
 from spatial.local_geocoder import get_local_geocoder
 from config import config
 from scrapers import multi_source_scraper
@@ -40,6 +41,14 @@ load_dotenv()
 osm_data_dir = config.OSM_DATA_DIR
 terrain_dir = config.TERRAIN_DIR
 properties_dir = config.POSTED_PROPERTIES_DIR
+runtime_validation: Dict[str, Any] = {
+    "status": "unknown",
+    "strict_startup": False,
+    "dependencies": [],
+    "valuation_artifacts": {"status": "unknown", "message": "Startup validation not run yet"},
+    "errors": [],
+    "warnings": [],
+}
 
 # Area analyzer and geocoder use database as primary, files as fallback
 try:
@@ -244,6 +253,36 @@ from routes.test_suite_routes import router as test_suite_router
 app.include_router(test_suite_router)
 print("[OK] Test Suite routes initialized (Quality & Debug)")
 
+# Include Listings routes (User Property Listings)
+from routes.listings_routes import router as listings_router
+app.include_router(listings_router)
+print("[OK] Listings routes initialized")
+
+# Include Seller Intelligence routes
+from routes.seller_routes import router as seller_router
+app.include_router(seller_router)
+print("[OK] Seller Intelligence routes initialized")
+
+# Include Broker Matching routes
+from routes.brokers_routes import router as brokers_router
+app.include_router(brokers_router)
+print("[OK] Broker Matching routes initialized")
+
+# Include Broker Dashboard routes
+from routes.broker_dashboard_routes import router as broker_dashboard_router
+app.include_router(broker_dashboard_router)
+print("[OK] Broker Dashboard routes initialized")
+
+# Include Developer Dashboard routes
+from routes.developer_dashboard_routes import router as developer_dashboard_router
+app.include_router(developer_dashboard_router)
+print("[OK] Developer Dashboard routes initialized")
+
+# Include Buyer Dashboard routes
+from routes.buyer_dashboard_routes import router as buyer_dashboard_router
+app.include_router(buyer_dashboard_router)
+print("[OK] Buyer Dashboard routes initialized")
+
 # CORS for frontend
 _default_origins = [
     "http://localhost:3000",
@@ -306,6 +345,11 @@ async def request_timing_middleware(request: Request, call_next):
 @app.on_event("startup")
 async def startup_event():
     """Load startup resources and scheduler."""
+    global runtime_validation
+    runtime_validation = enforce_runtime_requirements(config.MODELS_DIR)
+    if runtime_validation["warnings"]:
+        for warning in runtime_validation["warnings"]:
+            print(f"[WARNING] Production readiness: {warning}")
     load_tileset_index()
     try:
         from services.scheduler_service import get_digital_scheduler
@@ -532,6 +576,8 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check including Nominatim and database status"""
+    global runtime_validation
+    runtime_validation = validate_runtime(config.MODELS_DIR)
     nominatim_ok = False
     try:
         async with httpx.AsyncClient(timeout=1.0) as client:
@@ -550,11 +596,12 @@ async def health():
         db_stats = {"error": str(e)}
     
     return {
-        "status": "ok",
+        "status": "ok" if runtime_validation["status"] != "unhealthy" else "degraded",
         "backend": "ok",
         "nominatim": "ok" if nominatim_ok else "unavailable",
         "nominatim_url": NOMINATIM_URL,
         "database": db_stats,
+        "runtime_validation": runtime_validation,
         "services": {
             "rag": RAG_AVAILABLE,
             "spatial": SPATIAL_AVAILABLE,
@@ -3523,12 +3570,15 @@ async def system_health():
     Comprehensive system health check for production monitoring.
     """
     import psutil
+    global runtime_validation
+    runtime_validation = validate_runtime(config.MODELS_DIR)
     
     health = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "services": {},
         "resources": {},
+        "runtime_validation": runtime_validation,
     }
     
     # Check core services
@@ -3560,6 +3610,10 @@ async def system_health():
     # Overall status
     critical_services = ["rag", "database"]
     if not all(health["services"].get(s, False) for s in critical_services):
+        health["status"] = "degraded"
+    if runtime_validation["status"] == "unhealthy":
+        health["status"] = "unhealthy"
+    elif runtime_validation["status"] == "degraded" and health["status"] == "healthy":
         health["status"] = "degraded"
     
     return health
@@ -3830,10 +3884,11 @@ UNIT_COSTS = {
     'report_export': 20, # PDF/report generation
 }
 
-# Monthly unit allowances by tier - Only FREE and PRO
+# Monthly unit allowances by tier
 TIER_MONTHLY_UNITS = {
     'free': 50,
     'pro': 1000,
+    'team': 3000,
     'admin': -1,       # Unlimited
 }
 
@@ -3841,7 +3896,7 @@ TIER_MONTHLY_UNITS = {
 TOPUP_PACKS = {
     'starter': {'units': 100, 'base_price': 299, 'promo_price': 59},
     'standard': {'units': 300, 'base_price': 699, 'promo_price': 139},
-    'bulk': {'units': 1000, 'base_price': 1999, 'promo_price': 399},
+    'power': {'units': 1000, 'base_price': 1999, 'promo_price': 399},
 }
 
 # Launch promo active until March 31, 2026

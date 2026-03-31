@@ -4,20 +4,20 @@
  * Tab priority: Decision Verdict → Market → Spatial → Risk → ROI → Comps → Strategy → Data → Pitch
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import SmartTab from './SmartTab';
 import AgentControlPanel from './AgentControlPanel';
+import DashboardRouter from './DashboardRouter';
 import { API_URL } from '../apiConfig';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLocation } from '../contexts/LocationContext';
 import {
   TrendingUp, MapPin, AlertTriangle, Percent, Building,
-  Compass, Database, Presentation, Lock, Sparkles,
-  Download, Share2, FileText, Loader2, Building2, Wallet,
-  Eye, Sun, Trophy, CheckCircle, Star, Bot, Users, MessageSquare, Activity
+  Compass, Database, Presentation, Eye, Bot, Users, Building2
 } from 'lucide-react';
 
 import CommunityPulseWorkspace from './community/CommunityPulseWorkspace';
+import { IDENTITY_ROLES } from '../config/roles';
 
 // Function to generate translated tab metadata
 const getTranslatedTabMetadata = (t) => {
@@ -200,7 +200,8 @@ export default function SmartTabsContainer({
   onTabChange,
   setAgentData,
   authToken = null,
-  authUser = null
+  authUser = null,
+  userRole = null
 }) {
   const { t } = useLanguage();
   const { location: contextLocation, coordinates: contextCoords } = useLocation();
@@ -383,20 +384,47 @@ export default function SmartTabsContainer({
 
   const generateTabs = () => {
     const tierConfig = TIER_CONFIG[userTier] || TIER_CONFIG['free'];
-    const tabOrder = [
-      'free_analysis',
-      'decision_verdict',
-      'market_snapshot',
-      'spatial_intelligence',
-      'risk_analysis',
-      'roi_projection',
-      'comparables',
-      'strategy',
-      'data_transparency',
-      'client_pitch',
-      'agent_control',
-      'community_pulse'
+    
+    // Role-based tab visibility
+    const TAB_VISIBILITY = {
+      [IDENTITY_ROLES.BROKER]: [
+        'free_analysis', 'decision_verdict', 'market_snapshot', 'spatial_intelligence',
+        'risk_analysis', 'roi_projection', 'comparables', 'strategy',
+        'data_transparency', 'client_pitch', 'broker_dashboard', 'agent_control', 'community_pulse'
+      ],
+      [IDENTITY_ROLES.DEVELOPER]: [
+        'free_analysis', 'decision_verdict', 'market_snapshot', 'spatial_intelligence',
+        'risk_analysis', 'roi_projection', 'comparables', 'strategy',
+        'data_transparency', 'broker_dashboard', 'agent_control', 'community_pulse'
+      ],
+      [IDENTITY_ROLES.BUYER]: [
+        'free_analysis', 'decision_verdict', 'market_snapshot', 'spatial_intelligence',
+        'risk_analysis', 'roi_projection', 'comparables', 'strategy',
+        'data_transparency', 'broker_dashboard', 'agent_control', 'community_pulse'
+      ],
+      [IDENTITY_ROLES.ADMIN]: [
+        'free_analysis', 'decision_verdict', 'market_snapshot', 'spatial_intelligence',
+        'risk_analysis', 'roi_projection', 'comparables', 'strategy',
+        'data_transparency', 'client_pitch', 'broker_dashboard', 'agent_control', 'community_pulse'
+      ],
+      [IDENTITY_ROLES.VALORA_TEAM]: [
+        'free_analysis', 'decision_verdict', 'market_snapshot', 'spatial_intelligence',
+        'risk_analysis', 'roi_projection', 'comparables', 'strategy',
+        'data_transparency', 'client_pitch', 'broker_dashboard', 'agent_control', 'community_pulse'
+      ],
+    };
+    
+    const DEFAULT_TABS = TAB_VISIBILITY[IDENTITY_ROLES.BUYER];
+    const role = userRole || IDENTITY_ROLES.BUYER;
+    const visibleTabs = TAB_VISIBILITY[role] || DEFAULT_TABS;
+    
+    // Filter tabOrder to only show tabs visible for this role
+    const fullTabOrder = [
+      'free_analysis', 'decision_verdict', 'market_snapshot', 'spatial_intelligence',
+      'risk_analysis', 'roi_projection', 'comparables', 'strategy',
+      'data_transparency', 'client_pitch', 'broker_dashboard', 'agent_control', 'community_pulse'
     ];
+    const tabOrder = fullTabOrder.filter(tab => visibleTabs.includes(tab));
 
     // Generate content for each tab based on agentData
     const tabsWithContent = tabOrder.map(tabId => ({
@@ -777,6 +805,14 @@ export default function SmartTabsContainer({
           lng: effectiveLng
         };
 
+      case 'broker_dashboard':
+        return {
+          mode: 'broker_dashboard',
+          locality: effectiveLocality,
+          lat: effectiveLat,
+          lng: effectiveLng
+        };
+
       default:
         return {};
     }
@@ -849,6 +885,10 @@ export default function SmartTabsContainer({
             userTier={userTier}
             authToken={authToken}
             authUser={authUser}
+          />
+        ) : activeTabData?.id === 'broker_dashboard' ? (
+          <DashboardRouter
+            locality={effectiveLocality}
           />
         ) : (
           activeTabData && (

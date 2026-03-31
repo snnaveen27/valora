@@ -4,7 +4,7 @@
  * Pro tier feature - key conversion driver
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   AlertTriangle, Shield, Droplets, Scale, TrendingDown,
   Building, Clock, Lock, ChevronRight, Info, CheckCircle,
