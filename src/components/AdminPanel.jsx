@@ -5,7 +5,7 @@ import {
   BarChart3, TestTube, FileText, Loader2, Save, Brain,
   Users, MapPin, Clock, Download, Trash2, Eye, UserPlus, Edit, Crown,
   TrendingUp, Target, Gauge, PlayCircle,
-  ArrowUpRight, DollarSign
+  ArrowUpRight, DollarSign, Coins, PlusCircle
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import PricingManager from './PricingManager'
@@ -49,6 +49,18 @@ export default function AdminPanel({ isOpen, onClose }) {
   const [showCreateUser, setShowCreateUser] = useState(false)
   const [newUser, setNewUser] = useState({ email: '', password: '', name: '', tier: 'free', role: 'user' })
   const [formErrors, setFormErrors] = useState({})
+  const [showGrantCredits, setShowGrantCredits] = useState(false)
+  const [grantUserId, setGrantUserId] = useState(null)
+  const [grantUserName, setGrantUserName] = useState('')
+  const [grantAmount, setGrantAmount] = useState(100)
+  const [grantLoading, setGrantLoading] = useState(false)
+  const [grantMessage, setGrantMessage] = useState(null)
+  const [showGrantCredits, setShowGrantCredits] = useState(false)
+  const [grantUserId, setGrantUserId] = useState(null)
+  const [grantUserName, setGrantUserName] = useState('')
+  const [grantAmount, setGrantAmount] = useState(100)
+  const [grantLoading, setGrantLoading] = useState(false)
+  const [grantMessage, setGrantMessage] = useState(null)
 
   // Weekly Metrics Dashboard State
   const [weeklyMetrics, setWeeklyMetrics] = useState(null)
@@ -259,6 +271,28 @@ export default function AdminPanel({ isOpen, onClose }) {
       alert('Network error while deleting user')
     }
   }, [token, fetchUserAccounts])
+
+  const grantCreditsToUser = async () => {
+    if (!grantUserId || grantAmount <= 0) return
+    setGrantLoading(true)
+    setGrantMessage(null)
+    try {
+      const response = await fetch(`${API_URL}/api/admin/credits/add?user_id=${grantUserId}&credits=${grantAmount}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      if (data.success) {
+        setGrantMessage({ type: 'success', text: `Added ${data.credits_added} credits to ${grantUserName}. New balance: ${data.new_balance}` })
+        setGrantAmount(100)
+      } else {
+        setGrantMessage({ type: 'error', text: data.message || 'Failed to add credits' })
+      }
+    } catch (err) {
+      setGrantMessage({ type: 'error', text: `Error: ${err.message}` })
+    }
+    setGrantLoading(false)
+  }
 
   const fetchBrainStatus = useCallback(async () => {
     if (!token) return
@@ -822,6 +856,20 @@ export default function AdminPanel({ isOpen, onClose }) {
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <button
+                                onClick={() => { setGrantUserId(u.id); setGrantUserName(u.name); setShowGrantCredits(true); setGrantMessage(null); setGrantAmount(100) }}
+                                className="p-1.5 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 rounded transition"
+                                title="Grant Credits"
+                              >
+                                <Coins className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setEditingUser(editingUser === u.id ? null : u.id)}
+                                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-600 rounded transition"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
                                 onClick={() => setEditingUser(editingUser === u.id ? null : u.id)}
                                 className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-600 rounded transition"
                                 title="Edit"
@@ -848,6 +896,74 @@ export default function AdminPanel({ isOpen, onClose }) {
                 <div className="text-center py-10 text-slate-400">
                   <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
                   <p>No users found. Click "Add User" to create one.</p>
+                </div>
+              )}
+
+              {/* Grant Credits Modal */}
+              {showGrantCredits && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowGrantCredits(false)}>
+                  <div className="bg-slate-800 rounded-xl border border-slate-600 p-6 w-96 max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+                    <h4 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
+                      <Coins className="w-5 h-5 text-amber-400" />
+                      Grant Credits to {grantUserName}
+                    </h4>
+                    
+                    {grantMessage && (
+                      <div className={`mb-4 p-3 rounded-lg text-sm ${
+                        grantMessage.type === 'success' 
+                          ? 'bg-green-500/20 border border-green-500/30 text-green-400' 
+                          : 'bg-red-500/20 border border-red-500/30 text-red-400'
+                      }`}>
+                        {grantMessage.text}
+                      </div>
+                    )}
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-2">Credits to add</label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[50, 100, 500, 1000].map((amt) => (
+                            <button
+                              key={amt}
+                              onClick={() => setGrantAmount(amt)}
+                              className={`py-2 rounded-lg text-sm font-medium transition ${
+                                grantAmount === amt
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              }`}
+                            >
+                              {amt}
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="number"
+                          value={grantAmount}
+                          onChange={(e) => setGrantAmount(parseInt(e.target.value) || 0)}
+                          className="w-full mt-3 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                          placeholder="Custom amount"
+                          min="1"
+                        />
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={grantCreditsToUser}
+                          disabled={grantLoading || grantAmount <= 0}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:text-slate-400 text-white rounded-lg font-medium text-sm transition"
+                        >
+                          {grantLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                          {grantLoading ? 'Adding...' : 'Add Credits'}
+                        </button>
+                        <button
+                          onClick={() => setShowGrantCredits(false)}
+                          className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
