@@ -179,7 +179,7 @@ class UnifiedTestExecutor:
         try:
             # Read LLM config to get the model name
             llm_config_path = Path(__file__).parent.parent / "llm_config.json"
-            model = "qwen3:4b-instruct"
+            model = "valora-ai-mini:latest"
             if llm_config_path.exists():
                 with open(llm_config_path) as f:
                     cfg = json.load(f)

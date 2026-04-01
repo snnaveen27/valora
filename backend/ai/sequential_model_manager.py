@@ -42,30 +42,20 @@ class SequentialModelManager:
     """
     
     MODELS = {
-        'qwen3:4b-instruct': ModelInfo(
-            name='qwen3:4b-instruct',
-            vram_required_gb=3.5,
+        'valora-ai-mini:latest': ModelInfo(
+            name='valora-ai-mini:latest',
+            vram_required_gb=5.6,
             purpose='general_execution'
         ),
-        'qwen3:8b': ModelInfo(
-            name='qwen3:8b',
-            vram_required_gb=5.5,
-            purpose='general_execution'
+        'valora-ai-pro:latest': ModelInfo(
+            name='valora-ai-pro:latest',
+            vram_required_gb=9.5,
+            purpose='heavy_reasoning'
         ),
-        'phi-4': ModelInfo(
-            name='phi-4',
-            vram_required_gb=4.8,
-            purpose='specialist_planner'
-        ),
-        'valora-ai-mini': ModelInfo(
-            name='valora-ai-mini',
-            vram_required_gb=4.0,
-            purpose='general_execution'
-        )
     }
     
     # Local models (2 credits per inference)
-    LOCAL_MODELS = ['qwen3:4b-instruct', 'qwen3:8b', 'phi-4', 'valora-ai-mini', 'qwen', 'phi']
+    LOCAL_MODELS = ['valora-ai-mini:latest', 'valora-ai-pro:latest']
     
     def __init__(
         self, 
@@ -171,11 +161,11 @@ class SequentialModelManager:
     def _normalize_model_name(self, name: str) -> str:
         """Normalize model name to canonical form."""
         aliases = {
-            'qwen3': 'qwen3:4b-instruct',
-            'qwen': 'qwen3:4b-instruct',
-            'phi4': 'phi-4',
-            'phi': 'phi-4',
-            'valora': 'valora-ai-mini',
+            'valora-ai-mini': 'valora-ai-mini:latest',
+            'valora-mini': 'valora-ai-mini:latest',
+            'valora-pro': 'valora-ai-pro:latest',
+            'valora-ai-pro': 'valora-ai-pro:latest',
+            'valora': 'valora-ai-mini:latest',
         }
         return aliases.get(name.lower(), name)
     
@@ -280,7 +270,7 @@ class TaskBatcher:
     Minimizes model switches during execution.
     """
     
-    def __init__(self, default_model: str = 'qwen3:4b-instruct'):
+    def __init__(self, default_model: str = 'valora-ai-mini:latest'):
         self.default_model = default_model
     
     def batch_by_model(self, tasks: List[Any]) -> List[Dict[str, Any]]:

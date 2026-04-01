@@ -58,71 +58,53 @@ from ai.enhanced_learning import (
 try:
     from ai.analysis_opportunity_detector import (
         get_analysis_opportunity_detector,
-        AnalysisOpportunityDetector,
         ANALYSIS_TIERS,
         COMPARISON_TIERS,
         get_behavior_tracker,
-        UserBehaviorTracker,
     )
     ANALYSIS_OPPORTUNITY_AVAILABLE = True
 except ImportError:
     ANALYSIS_OPPORTUNITY_AVAILABLE = False
     get_analysis_opportunity_detector = None
-    AnalysisOpportunityDetector = None
     ANALYSIS_TIERS = {}
     COMPARISON_TIERS = {}
     get_behavior_tracker = None
-    UserBehaviorTracker = None
 
 # Conversation Memory for context tracking
 try:
     from ai.conversation_memory import (
         get_conversation_memory,
-        get_memory_manager,
-        ConversationMemory,
-        ConversationMemoryManager,
     )
     CONVERSATION_MEMORY_AVAILABLE = True
 except ImportError:
     CONVERSATION_MEMORY_AVAILABLE = False
     get_conversation_memory = None
-    get_memory_manager = None
-    ConversationMemory = None
-    ConversationMemoryManager = None
 
 # A/B Testing for prompts
 try:
     from ai.prompt_ab_testing import (
-        get_ab_testing_manager,
         get_prompt_variant,
         determine_user_segment,
-        UserSegment,
     )
     AB_TESTING_AVAILABLE = True
 except ImportError:
     AB_TESTING_AVAILABLE = False
-    get_ab_testing_manager = None
     get_prompt_variant = None
     determine_user_segment = None
-    UserSegment = None
 
 # Multilingual support
 try:
     from ai.multilingual_intent import (
-        get_multilingual_detector,
         detect_language,
         detect_intent_multilingual,
         normalize_query,
-        SupportedLanguage,
     )
     MULTILINGUAL_AVAILABLE = True
 except ImportError:
     MULTILINGUAL_AVAILABLE = False
-    get_multilingual_detector = None
     detect_language = None
     detect_intent_multilingual = None
     normalize_query = None
-    SupportedLanguage = None
 
 # Production pipeline enhancements
 try:
@@ -131,9 +113,6 @@ try:
         TraceContext,
         get_semantic_cache,
         get_http_session,
-        ConnectionPool,
-        IntentClassifierWithConfidence,
-        RequestTrace,
     )
     PRODUCTION_PIPELINE_AVAILABLE = True
 except ImportError:
@@ -180,7 +159,7 @@ def _load_llm_config() -> Dict[str, Any]:
 
 def _get_ollama_client_for_model(model_name: str, max_context_override: Optional[int] = None):
     """Get an Ollama client configured for a specific model.
-    Cloud models (e.g. kimi-k2.5:cloud) are served by Ollama transparently.
+    Cloud models (e.g. qwen3.5:397b-cloud) are served by Ollama transparently.
     """
     from ai.ollama_client import OllamaClient
     
@@ -501,8 +480,8 @@ def _get_conversation_history(thread_id: Optional[str]) -> List[Dict[str, str]]:
         return []
 
 
-def _store_conversation_turn(thread_id: Optional[str], user_msg: str, assistant_msg: str, intent: str = None):
-    if not thread_id:
+def _store_conversation_turn(thread_id: Optional[str], user_msg: str, assistant_msg: str, intent: str = None, test_mode: bool = False):
+    if not thread_id or test_mode:
         return
     try:
         conn = _get_memory_conn()
@@ -610,72 +589,6 @@ def _try_zone_fast_path(user_query: str, context: Dict) -> Optional[Dict]:
         "cached": False,
         "fast_response": True,
     }
-
-
-# ---------------------------------------------------------------------------
-# Greeting fast-path — instant responses, no LLM needed
-# ---------------------------------------------------------------------------
-_GREETING_PATTERNS = {
-    "hi", "hello", "hey", "hii", "hiii", "yo", "sup",
-    "good morning", "good afternoon", "good evening",
-    "how are you", "how r u", "what's up", "whats up",
-    "are you there", "anyone there",
-    "namaste", "namaskar",
-}
-
-_GREETING_RESPONSES = [
-    "Hello! I'm Valora AI, your Bangalore real estate intelligence assistant. Ask me anything about properties, areas, prices, or navigate the 3D map!",
-    "Hi there! I can help you analyze any area in Bangalore, search properties, compare locations, and much more. What would you like to know?",
-    "Hey! Ready to explore Bangalore's real estate? Try asking me to analyze an area, find properties, or compare neighborhoods.",
-]
-
-_HELP_PATTERNS = {"help", "what can you do", "how to use", "features", "commands"}
-
-_HELP_RESPONSE = """I'm **Valora AI** — your Bangalore real estate intelligence platform. Here's what I can do:
-
-- **Navigate**: "Show me Koramangala" or "Go to Whitefield"
-- **Search properties**: "Find 2BHK apartments near Indiranagar under 80L"
-- **Analyze areas**: "Tell me about HSR Layout" or "Analyze Jayanagar"
-- **Compare**: "Compare Whitefield vs Electronic City"
-- **Investment**: "Is Sarjapur Road good for investment?"
-- **Simulate**: "What if a metro station opens in Yelahanka?"
-- **Building analysis**: Click any building on the map and ask about it
-
-All insights are grounded in real data — I never make up numbers."""
-
-
-def _try_greeting_fast_path(user_query: str) -> Optional[Dict]:
-    """Return instant response for greetings/help without hitting LLM."""
-    ql = user_query.lower().strip().rstrip("!?.)")
-    
-    if ql in _GREETING_PATTERNS or any(ql.startswith(g) for g in _GREETING_PATTERNS):
-        import random
-        return {
-            "success": True,
-            "message": random.choice(_GREETING_RESPONSES),
-            "intent": "greeting",
-            "dashboard": None,
-            "ui_actions": [],
-            "facts": {},
-            "facts_summary": {},
-            "cached": False,
-            "fast_response": True,
-        }
-    
-    if ql in _HELP_PATTERNS or any(h in ql for h in _HELP_PATTERNS):
-        return {
-            "success": True,
-            "message": _HELP_RESPONSE,
-            "intent": "help",
-            "dashboard": None,
-            "ui_actions": [],
-            "facts": {},
-            "facts_summary": {},
-            "cached": False,
-            "fast_response": True,
-        }
-    
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -796,99 +709,6 @@ def get_disclosure_manager() -> ProgressiveDisclosureManager:
     return _disclosure_manager
 
 
-def _get_user_context(user_id: str, thread_id: str) -> Dict[str, Any]:
-    """
-    Get comprehensive user context from conversation memory.
-    
-    Combines:
-    - Conversation memory (locations discussed, preferences)
-    - Behavior tracking (investment focus, patterns)
-    - Progressive disclosure state
-    """
-    context = {
-        'user_id': user_id,
-        'thread_id': thread_id,
-    }
-    
-    # Get conversation memory context
-    if CONVERSATION_MEMORY_AVAILABLE:
-        try:
-            memory = get_conversation_memory(user_id)
-            context['conversation_context'] = memory.get_context_for_query()
-            context['last_location'] = memory.session_data.last_location
-            context['last_location_coords'] = memory.session_data.last_location_coords
-        except Exception as e:
-            logger.debug(f"Could not get conversation memory: {e}")
-    
-    # Get behavior profile
-    if ANALYSIS_OPPORTUNITY_AVAILABLE and get_behavior_tracker:
-        try:
-            tracker = get_behavior_tracker()
-            context['behavior_profile'] = tracker.get_profile_summary(user_id)
-        except Exception as e:
-            logger.debug(f"Could not get behavior profile: {e}")
-    
-    # Get disclosure state
-    try:
-        disclosure = get_disclosure_manager()
-        context['disclosure_state'] = disclosure.get_disclosure_state(user_id)
-    except Exception as e:
-        logger.debug(f"Could not get disclosure state: {e}")
-    
-    return context
-
-
-def _update_user_context(
-    user_id: str,
-    query: str,
-    intent: str,
-    location: str = None,
-    location_coords: Dict = None,
-    analysis_type: str = None
-):
-    """Update user context after processing a query."""
-    
-    # Update conversation memory
-    if CONVERSATION_MEMORY_AVAILABLE:
-        try:
-            memory = get_conversation_memory(user_id)
-            memory.update_context(
-                query=query,
-                intent=intent,
-                location=location,
-                location_coords=location_coords,
-                analysis_type=analysis_type
-            )
-        except Exception as e:
-            logger.debug(f"Could not update conversation memory: {e}")
-    
-    # Update behavior tracking
-    if ANALYSIS_OPPORTUNITY_AVAILABLE and get_behavior_tracker:
-        try:
-            tracker = get_behavior_tracker()
-            tracker.update_profile(
-                user_id=user_id,
-                intent=intent,
-                location=location,
-                analysis_type=analysis_type
-            )
-        except Exception as e:
-            logger.debug(f"Could not update behavior profile: {e}")
-    
-    # Update progressive disclosure
-    try:
-        disclosure = get_disclosure_manager()
-        disclosure.update_engagement(
-            user_id=user_id,
-            query=query,
-            intent=intent,
-            used_free_tier=analysis_type == 'quick_overview',
-            used_paid_tier=analysis_type in ['area_analysis', 'investment_report']
-        )
-    except Exception as e:
-        logger.debug(f"Could not update disclosure state: {e}")
-
-
 # ---------------------------------------------------------------------------
 # Shared pipeline: classify → gather facts → build prompt → call LLM
 # ---------------------------------------------------------------------------
@@ -959,7 +779,7 @@ def _classify_intent(user_query: str, context: Dict) -> Tuple:
     return intent, context
 
 
-def _handle_special_intents(intent, user_query: str, facts, user_id: str, thread_id: str, request) -> Optional[Dict]:
+def _handle_special_intents(intent, user_query: str, facts, user_id: str, thread_id: str, request, test_mode: bool = False) -> Optional[Dict]:
     """Handle special intents that don't require LLM processing.
     
     Returns a response dict if the intent is handled, None otherwise.
@@ -1076,7 +896,7 @@ def _handle_special_intents(intent, user_query: str, facts, user_id: str, thread
                     },
                     "cached": False,
                 }
-                _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent="analysis_options")
+                _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent="analysis_options", test_mode=test_mode)
                 return response
         
         # Fallback to original behavior if tiered options not available
@@ -1102,7 +922,7 @@ def _handle_special_intents(intent, user_query: str, facts, user_id: str, thread
             },
             "cached": False,
         }
-        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value)
+        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value, test_mode=test_mode)
         return response
     
     if intent == Intent.CREDITS:
@@ -1130,7 +950,7 @@ def _handle_special_intents(intent, user_query: str, facts, user_id: str, thread
             "facts_summary": {},
             "cached": False,
         }
-        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value)
+        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value, test_mode=test_mode)
         return response
     
     if intent == Intent.DOWNLOAD:
@@ -1154,7 +974,7 @@ def _handle_special_intents(intent, user_query: str, facts, user_id: str, thread
             "facts_summary": {"location": locality},
             "cached": False,
         }
-        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value)
+        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value, test_mode=test_mode)
         return response
     
     if intent == Intent.MAP_CONTROL:
@@ -1199,7 +1019,7 @@ def _handle_special_intents(intent, user_query: str, facts, user_id: str, thread
             "facts_summary": {"location": target or (facts.location_name if facts else None)},
             "cached": False,
         }
-        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value)
+        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value, test_mode=test_mode)
         return response
     
     if intent == Intent.UI_ACTION:
@@ -1232,7 +1052,7 @@ def _handle_special_intents(intent, user_query: str, facts, user_id: str, thread
             "facts_summary": {},
             "cached": False,
         }
-        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value)
+        _store_conversation_turn(thread_id, request.messages[-1].content, response["message"], intent=intent.value, test_mode=test_mode)
         return response
     
     return None
@@ -1656,16 +1476,11 @@ async def chat(request: ChatRequest):
     context = request.context or {}
     thread_id = context.get("thread_id")
     user_id = context.get("user_id", "anonymous")
+    test_mode = context.get("test_mode", False)
     
     # Add language preference to context
     if request.language:
         context['response_language'] = request.language
-
-    # Greeting fast-path (no LLM, no credits needed)
-    greeting_resp = _try_greeting_fast_path(user_query)
-    if greeting_resp:
-        _store_conversation_turn(thread_id, user_query, greeting_resp["message"], intent="greeting")
-        return greeting_resp
 
     # Check if this is a free analysis (no credit deduction)
     is_free_analysis = context.get("is_free_analysis", False)
@@ -1707,27 +1522,17 @@ async def chat(request: ChatRequest):
     cached_resp = _chat_cache.get(user_query, namespace=cache_key_extra)
     if cached_resp is not None:
         logger.info(f"[Cache] HIT for '{user_query[:50]}' intent={intent.value}")
-        _store_conversation_turn(thread_id, request.messages[-1].content, cached_resp["message"], intent=intent.value)
+        _store_conversation_turn(thread_id, request.messages[-1].content, cached_resp["message"], intent=intent.value, test_mode=test_mode)
         cached_resp["cached"] = True
         return cached_resp
 
     # 2. Gather grounded facts
-    t0 = time.time()
     facts, intent, ui_actions, digital_twin_state, reasoning_trace = _gather_facts(user_query, context, intent)
-    logger.info(f"[Chat] UI actions for query '{user_query[:50]}...': {ui_actions}")
-    if ui_actions:
-        logger.info(f"[Chat] UI actions detail: {[a.get('action') for a in ui_actions]}")
-    fact_time = time.time() - t0
 
-    # 2b. Handle special intents (REPORT, CREDITS, DOWNLOAD, MAP_CONTROL, UI_ACTION)
-    special_response = _handle_special_intents(intent, user_query, facts, user_id, thread_id, request)
-    if special_response:
-        return special_response
-    
     # 2c. Check for analysis opportunity and generate tiered options
     tiered_response = _generate_tiered_options_response(user_query, facts, user_id, intent, context)
     if tiered_response:
-        _store_conversation_turn(thread_id, request.messages[-1].content, tiered_response["message"], intent="analysis_options")
+        _store_conversation_turn(thread_id, request.messages[-1].content, tiered_response["message"], intent="analysis_options", test_mode=test_mode)
         return tiered_response
 
     # 3. Build dashboard
@@ -1807,7 +1612,7 @@ async def chat(request: ChatRequest):
     verification = _verify_llm_output(ai_message, facts)
 
     # Store conversation turn
-    _store_conversation_turn(thread_id, request.messages[-1].content, ai_message, intent=intent.value)
+    _store_conversation_turn(thread_id, request.messages[-1].content, ai_message, intent=intent.value, test_mode=test_mode)
 
     # Deduct credits based on model used (2 for local, 5 for cloud)
     # Skip for free analysis
@@ -1871,6 +1676,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
     user_query = request.messages[-1].content if request.messages else ""
     context = request.context or {}
     user_id = context.get("user_id", "anonymous")
+    test_mode = context.get("test_mode", False)
     
     # Add language preference to context
     if request.language:
@@ -1949,14 +1755,6 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         # Connected signal
         yield _sse({"type": "status", "content": "Connected", "thinking_time": 0})
 
-        # Greeting fast-path (no LLM needed)
-        greeting_resp = _try_greeting_fast_path(user_query)
-        if greeting_resp:
-            _store_conversation_turn(thread_id, user_query, greeting_resp["message"], intent="greeting")
-            yield _sse({"type": "content", "content": greeting_resp["message"], "thinking_time": time.time() - start_time})
-            yield _sse({"type": "done", "thinking_time": time.time() - start_time})
-            return
-
         # Zone fast-path
         zone_resp = _try_zone_fast_path(user_query, context)
         if zone_resp:
@@ -1995,7 +1793,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
                     logger.info(f"[SemanticCache] HIT for '{effective_query[:50]}' intent={intent.value}")
                     if trace:
                         trace.cache_hit = True
-                    _store_conversation_turn(thread_id, user_query, semantic_cache_hit.get("message", ""), intent=intent.value)
+                    _store_conversation_turn(thread_id, user_query, semantic_cache_hit.get("message", ""), intent=intent.value, test_mode=test_mode)
                     yield _sse({"type": "intent_detected", "intent": intent.value, "confidence": 0.92, "task_graph": None, "semantic_cache": True})
                     yield _sse({"type": "content", "content": semantic_cache_hit.get("message", ""), "thinking_time": time.time() - start_time})
                     if semantic_cache_hit.get("dashboard"):
@@ -2020,7 +1818,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             logger.info(f"[Cache] STREAM HIT for '{effective_query[:50]}' intent={intent.value}")
             if trace:
                 trace.cache_hit = True
-            _store_conversation_turn(thread_id, user_query, cached_resp["message"], intent=intent.value)
+            _store_conversation_turn(thread_id, user_query, cached_resp["message"], intent=intent.value, test_mode=test_mode)
             yield _sse({"type": "intent_detected", "intent": intent.value, "confidence": 0.85, "task_graph": None})
             yield _sse({"type": "content", "content": cached_resp["message"], "thinking_time": time.time() - start_time})
             if cached_resp.get("dashboard"):
@@ -2149,25 +1947,26 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             logger.error(f"[{request_id}] Facts gathering error: {e}")
             
             # Enhanced Learning: Record failure event for facts gathering errors
-            try:
-                engine = get_enhanced_learning_engine()
-                error_latency_ms = int((time.time() - t_facts) * 1000)
-                engine.record_learning_event(LearningEvent(
-                    event_type="failure",
-                    query=effective_query,
-                    intent=intent.value if intent else "unknown",
-                    tools_used=[],
-                    outcome={"error": str(e), "stage": "fact_gathering"},
-                    user_rating=None,
-                    latency_ms=error_latency_ms,
-                    timestamp=time.time(),
-                    user_id=user_id,
-                    session_id=thread_id,
-                    error_type="fact_gathering_error"
-                ))
-                logger.info(f"[{request_id}] Recorded facts gathering error learning event")
-            except Exception as le:
-                logger.debug(f"[{request_id}] Learning event recording failed: {le}")
+            if not test_mode:
+                try:
+                    engine = get_enhanced_learning_engine()
+                    error_latency_ms = int((time.time() - t_facts) * 1000)
+                    engine.record_learning_event(LearningEvent(
+                        event_type="failure",
+                        query=effective_query,
+                        intent=intent.value if intent else "unknown",
+                        tools_used=[],
+                        outcome={"error": str(e), "stage": "fact_gathering"},
+                        user_rating=None,
+                        latency_ms=error_latency_ms,
+                        timestamp=time.time(),
+                        user_id=user_id,
+                        session_id=thread_id,
+                        error_type="fact_gathering_error"
+                    ))
+                    logger.info(f"[{request_id}] Recorded facts gathering error learning event")
+                except Exception as le:
+                    logger.debug(f"[{request_id}] Learning event recording failed: {le}")
             
             yield _sse({"type": "error", "content": f"Facts gathering failed: {e}"})
             yield _sse({"type": "done", "thinking_time": time.time() - start_time})
@@ -2175,7 +1974,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         metrics["facts_ms"] = int((time.time() - t_facts) * 1000)
 
         # Handle special intents in streaming path (parity with non-stream endpoint)
-        special_response = _handle_special_intents(intent, effective_query, facts, user_id, thread_id, request)
+        special_response = _handle_special_intents(intent, effective_query, facts, user_id, thread_id, request, test_mode=test_mode)
         if special_response:
             special_ui_actions = special_response.get("ui_actions", []) or []
             if special_ui_actions:
@@ -2230,7 +2029,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         # Keep tiered options behavior aligned between stream and non-stream routes.
         tiered_response = _generate_tiered_options_response(effective_query, facts, user_id, intent, context)
         if tiered_response:
-            _store_conversation_turn(thread_id, request.messages[-1].content, tiered_response["message"], intent="analysis_options")
+            _store_conversation_turn(thread_id, request.messages[-1].content, tiered_response["message"], intent="analysis_options", test_mode=test_mode)
             tiered_ui_actions = tiered_response.get("ui_actions", []) or []
             if tiered_ui_actions:
                 yield _sse({
@@ -2515,25 +2314,26 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             logger.error(f"LLM streaming error ({model_sel.provider}/{model_sel.model}): {e}")
 
             # Enhanced Learning: Record failure event for LLM errors
-            try:
-                engine = get_enhanced_learning_engine()
-                error_latency_ms = int((time.time() - llm_start) * 1000)
-                engine.record_learning_event(LearningEvent(
-                    event_type="failure",
-                    query=effective_query,
-                    intent=intent.value,
-                    tools_used=[],
-                    outcome={"error": str(e), "provider": model_sel.provider, "model": model_sel.model},
-                    user_rating=None,
-                    latency_ms=error_latency_ms,
-                    timestamp=time.time(),
-                    user_id=user_id,
-                    session_id=thread_id,
-                    error_type="llm_error"
-                ))
-                logger.info(f"[{request_id}] Recorded LLM error learning event: {str(e)[:100]}")
-            except Exception as le:
-                logger.debug(f"[{request_id}] Learning event recording failed: {le}")
+            if not test_mode:
+                try:
+                    engine = get_enhanced_learning_engine()
+                    error_latency_ms = int((time.time() - llm_start) * 1000)
+                    engine.record_learning_event(LearningEvent(
+                        event_type="failure",
+                        query=effective_query,
+                        intent=intent.value,
+                        tools_used=[],
+                        outcome={"error": str(e), "provider": model_sel.provider, "model": model_sel.model},
+                        user_rating=None,
+                        latency_ms=error_latency_ms,
+                        timestamp=time.time(),
+                        user_id=user_id,
+                        session_id=thread_id,
+                        error_type="llm_error"
+                    ))
+                    logger.info(f"[{request_id}] Recorded LLM error learning event: {str(e)[:100]}")
+                except Exception as le:
+                    logger.debug(f"[{request_id}] Learning event recording failed: {le}")
 
             # Fallback: if OpenRouter failed, try Ollama cloud; if that fails, use local
             if model_sel.provider == "openrouter" and model_sel.is_cloud:
@@ -2633,43 +2433,44 @@ async def chat_stream(request: ChatRequest, http_request: Request):
         # Enhanced Learning: Record learning event for this query
         total_latency_ms = int((time.time() - start_time) * 1000)
         tools_used = list(set([t["label"] for t in tasks if t["status"] == "complete"]))
-        try:
-            engine = get_enhanced_learning_engine()
-            if llm_success and content_buffer.strip():
-                # Record success event
-                engine.record_learning_event(LearningEvent(
-                    event_type="success",
-                    query=effective_query,
-                    intent=intent.value,
-                    tools_used=tools_used,
-                    outcome={"message": content_buffer[:500]},
-                    user_rating=None,
-                    latency_ms=total_latency_ms,
-                    timestamp=time.time(),
-                    user_id=user_id,
-                    session_id=thread_id,
-                    confidence=0.85
-                ))
-                logger.info(f"[{request_id}] Recorded success learning event: intent={intent.value}, "
-                           f"tools={len(tools_used)}, latency={total_latency_ms}ms")
-            else:
-                # Record failure event
-                engine.record_learning_event(LearningEvent(
-                    event_type="failure",
-                    query=effective_query,
-                    intent=intent.value,
-                    tools_used=tools_used,
-                    outcome={"error": "LLM generation failed or empty response"},
-                    user_rating=None,
-                    latency_ms=total_latency_ms,
-                    timestamp=time.time(),
-                    user_id=user_id,
-                    session_id=thread_id,
-                    error_type="llm_failure" if not llm_success else "empty_response"
-                ))
-                logger.info(f"[{request_id}] Recorded failure learning event: intent={intent.value}")
-        except Exception as e:
-            logger.debug(f"[{request_id}] Learning event recording failed: {e}")
+        if not test_mode:
+            try:
+                engine = get_enhanced_learning_engine()
+                if llm_success and content_buffer.strip():
+                    # Record success event
+                    engine.record_learning_event(LearningEvent(
+                        event_type="success",
+                        query=effective_query,
+                        intent=intent.value,
+                        tools_used=tools_used,
+                        outcome={"message": content_buffer[:500]},
+                        user_rating=None,
+                        latency_ms=total_latency_ms,
+                        timestamp=time.time(),
+                        user_id=user_id,
+                        session_id=thread_id,
+                        confidence=0.85
+                    ))
+                    logger.info(f"[{request_id}] Recorded success learning event: intent={intent.value}, "
+                               f"tools={len(tools_used)}, latency={total_latency_ms}ms")
+                else:
+                    # Record failure event
+                    engine.record_learning_event(LearningEvent(
+                        event_type="failure",
+                        query=effective_query,
+                        intent=intent.value,
+                        tools_used=tools_used,
+                        outcome={"error": "LLM generation failed or empty response"},
+                        user_rating=None,
+                        latency_ms=total_latency_ms,
+                        timestamp=time.time(),
+                        user_id=user_id,
+                        session_id=thread_id,
+                        error_type="llm_failure" if not llm_success else "empty_response"
+                    ))
+                    logger.info(f"[{request_id}] Recorded failure learning event: intent={intent.value}")
+            except Exception as e:
+                logger.debug(f"[{request_id}] Learning event recording failed: {e}")
 
         # Mark final generation task as complete
         if tasks and tasks[-1]["status"] != "complete":
@@ -2684,7 +2485,7 @@ async def chat_stream(request: ChatRequest, http_request: Request):
             })
 
         # Store conversation turn
-        _store_conversation_turn(thread_id, request.messages[-1].content if request.messages else "", content_buffer, intent=intent.value)
+        _store_conversation_turn(thread_id, request.messages[-1].content if request.messages else "", content_buffer, intent=intent.value, test_mode=test_mode)
 
         # Deduct credits based on model used (2 for local, 5 for cloud)
         # Skip for free analysis

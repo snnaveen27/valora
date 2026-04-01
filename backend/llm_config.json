@@ -4,7 +4,7 @@
   "cloud_enabled": true,
   "openrouter_model": "deepseek/deepseek-chat",
   "local_url": "http://127.0.0.1:11434/v1/chat/completions",
-  "local_model": "valora-ai-pro",
+  "local_model": "valora-ai-pro:latest",
   "max_context": 8192,
   "openrouter_api_key": "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"
 }

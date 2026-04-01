@@ -18,7 +18,7 @@ class OllamaClient:
     """
     
     def __init__(self, 
-                 model: str = "qwen3:4b-instruct",
+                 model: str = "valora-ai-mini:latest",
                  base_url: str = "http://localhost:11434",
                  timeout: int = 120,
                  max_context: int = 8192):
@@ -435,13 +435,13 @@ def get_ollama_client(model: str = None) -> OllamaClient:
                 if config_path.exists():
                     with open(config_path, 'r') as f:
                         config = json.load(f)
-                        model = config.get("local_model", "qwen3:4b-instruct")
+                        model = config.get("local_model", "valora-ai-mini:latest")
                         max_context = config.get("max_context", 8192)
                 else:
-                    model = "qwen3:4b-instruct"
+                    model = "valora-ai-mini:latest"
                     max_context = 8192
             except Exception:
-                model = "qwen3:4b-instruct"
+                model = "valora-ai-mini:latest"
                 max_context = 8192
         else:
             max_context = 8192  # default if model is specified

@@ -2403,7 +2403,7 @@ class FreeAnalysisRequest(BaseModel):
 async def analyze_free_property(request: FreeAnalysisRequest):
     """
     Analyze a free property without deducting credits.
-    Uses local model only (qwen3:4b-instruct).
+    Uses local model only (valora-ai-mini:latest).
     Limit: 3 per day per user.
     If track_only=True, just tracks usage without running analysis.
     """
@@ -2488,7 +2488,7 @@ Format as JSON:
         
         # Use local model
         response = ollama.chat(
-            model="qwen3:4b-instruct",
+            model="valora-ai-mini:latest",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=200
         )

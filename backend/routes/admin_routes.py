@@ -83,7 +83,7 @@ class LLMConfigRequest(BaseModel):
     openrouter_api_key: Optional[str] = ""
     openrouter_model: Optional[str] = "deepseek/deepseek-chat"
     local_url: Optional[str] = "http://127.0.0.1:11434/v1/chat/completions"
-    local_model: Optional[str] = "qwen3:4b-instruct"
+    local_model: Optional[str] = "valora-ai-mini:latest"
     max_context: Optional[int] = 8192  # 0 means unlimited
 
 
@@ -489,7 +489,7 @@ def get_vector_backend_preference() -> str:
 LLM_CONFIG_FILE = Path(__file__).parent.parent / 'llm_config.json'
 
 def _load_llm_config() -> dict:
-    """Load LLM config from file - supports local mode with qwen3:4b-instruct."""
+    """Load LLM config from file - supports local mode with valora-ai-mini:latest."""
     import os
     defaults = {
         'provider': 'local',  # 'local' or 'cloud'
@@ -500,7 +500,7 @@ def _load_llm_config() -> dict:
         'openrouter_model_reasoning': os.getenv('OPENROUTER_MODEL_REASONING', 'deepseek/deepseek-reasoner'),
         'openrouter_model_vision': os.getenv('OPENROUTER_MODEL_VISION', 'qwen/qwen2.5-vl-72b-instruct'),
         'local_url': os.getenv('LOCAL_LLM_URL', 'http://127.0.0.1:11434/v1/chat/completions'),
-        'local_model': os.getenv('LOCAL_LLM_MODEL', 'qwen3:4b-instruct'),
+        'local_model': os.getenv('LOCAL_LLM_MODEL', 'valora-ai-mini:latest'),
         'max_context': 8192  # Default context window size, 0 means unlimited
     }
     if LLM_CONFIG_FILE.exists():
@@ -2140,7 +2140,7 @@ async def get_tool_effectiveness(user: User = Depends(require_admin)):
     from ai.tools_registry import get_tool_registry
     registry = get_tool_registry()
     tool_names = [t.name for t in registry.list_tools()]
-    scores = {name: engine.get_tool_effectiveness(name) for name in tool_names}
+    scores = {name: engine.get_tool_effectiveness(name).get("score", 0.5) for name in tool_names}
     return {"success": True, "tool_scores": scores}
 
 

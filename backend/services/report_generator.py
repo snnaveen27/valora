@@ -727,55 +727,55 @@ class ReportGenerator:
         # Using Ollama cloud models (suffix :cloud) for premium quality
         TAB_MODEL_CONFIG = {
             "decision_verdict": {
-                "model": "kimi-k2.5:cloud",  # Best for investment reasoning
+                "model": "qwen3.5:397b-cloud",  # Best for investment reasoning
                 "max_tokens": 2000,
                 "temperature": 0.3,  # Lower for more deterministic reasoning
                 "description": "Investment verdict with reasoning"
             },
             "market_snapshot": {
-                "model": "deepseek-v3.2:cloud",  # Good for data analysis
+                "model": "qwen3.5:397b-cloud",  # Good for data analysis
                 "max_tokens": 1800,
                 "temperature": 0.4,
                 "description": "Market analysis"
             },
             "spatial_intelligence": {
-                "model": "deepseek-v3.2:cloud",  # Good for factual data
+                "model": "qwen3.5:397b-cloud",  # Good for factual data
                 "max_tokens": 1500,
                 "temperature": 0.3,
                 "description": "Spatial analysis"
             },
             "risk_analysis": {
-                "model": "kimi-k2.5:cloud",  # Best for legal/risk assessment
+                "model": "qwen3.5:397b-cloud",  # Best for legal/risk assessment
                 "max_tokens": 2000,
                 "temperature": 0.2,  # Very low for accurate legal content
                 "description": "Risk assessment"
             },
             "roi_projection": {
-                "model": "kimi-k2.5:cloud",  # Best for financial calculations
+                "model": "qwen3.5:397b-cloud",  # Best for financial calculations
                 "max_tokens": 1800,
                 "temperature": 0.3,
                 "description": "ROI projections"
             },
             "comparables": {
-                "model": "deepseek-v3.2:cloud",  # Good for data comparison
+                "model": "qwen3.5:397b-cloud",  # Good for data comparison
                 "max_tokens": 1500,
                 "temperature": 0.4,
                 "description": "Property comparables"
             },
             "strategy": {
-                "model": "kimi-k2.5:cloud",  # Best for actionable recommendations
+                "model": "qwen3.5:397b-cloud",  # Best for actionable recommendations
                 "max_tokens": 3000,  # Increased from 2000 to prevent truncation for 10 subsections
                 "temperature": 0.3,
                 "description": "Investment strategy"
             },
             "data_transparency": {
-                "model": "deepseek-v3.2:cloud",  # Good for structured data
+                "model": "qwen3.5:397b-cloud",  # Good for structured data
                 "max_tokens": 1200,
                 "temperature": 0.2,
                 "description": "Data transparency"
             },
             "client_pitch": {
-                "model": "deepseek-v3.2:cloud",  # Good for creative but professional
+                "model": "qwen3.5:397b-cloud",  # Good for creative but professional
                 "max_tokens": 1500,
                 "temperature": 0.5,  # Higher for creative writing
                 "description": "Client pitch"
@@ -783,7 +783,7 @@ class ReportGenerator:
         }
         
         config = TAB_MODEL_CONFIG.get(tab_id, {
-            "model": "deepseek-v3.2:cloud",
+            "model": "qwen3.5:397b-cloud",
             "max_tokens": 1500,
             "temperature": 0.4,
             "description": tab_id
@@ -798,7 +798,7 @@ class ReportGenerator:
         # Define model fallback chain for premium quality
         model_fallback_chain = [
             config["model"],           # Primary model from config
-            "deepseek-v3.2:cloud",     # Secondary fallback
+            "qwen3.5:397b-cloud",     # Secondary fallback
             "glm-5:cloud"              # Tertiary fallback
         ]
         

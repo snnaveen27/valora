@@ -130,38 +130,11 @@ class EnhancedUnifiedBrain:
         start_cpu = psutil.cpu_percent(interval=None)
         start_mem = psutil.virtual_memory().percent
         
-        # FAST PATH: Greetings
-        greeting_response = self._check_greeting_fast_path(query)
-        if greeting_response:
-            yield {
-                "type": "intent_classification_start",
-                "query": query,
-                "timestamp": start_time.isoformat()
-            }
-            yield {
-                "type": "intent_detected",
-                "intent": "greeting",
-                "confidence": 0.99,
-                "slots": {},
-                "method": "fast_path"
-            }
-            yield {"type": "content", "content": greeting_response}
-            execution_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            yield {
-                "type": "done",
-                "result": {
-                    "intent": "greeting",
-                    "confidence": 0.99,
-                    "narrative": greeting_response,
-                    "map_actions": [],
-                    "execution_time_ms": execution_time,
-                    "used_cloud_llm": False,
-                    "used_learned_pattern": False,
-                    "used_agentic_loop": False,
-                    "used_task_orchestrator": False
-                }
-            }
-            return
+        yield {
+            "type": "intent_classification_start",
+            "query": query,
+            "timestamp": start_time.isoformat()
+        }
         
         # Check cache
         cache_key = self._get_cache_key(query, context)
@@ -452,16 +425,6 @@ class EnhancedUnifiedBrain:
                 if isinstance(result, dict) and result.get("task_type") == "map_action":
                     map_actions.append(result.get("parameters", {}))
         return map_actions
-    
-    def _check_greeting_fast_path(self, query: str) -> Optional[str]:
-        """Check for simple greetings and return immediate response"""
-        greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
-        query_lower = query.lower().strip()
-        
-        if query_lower in greetings or any(query_lower == g for g in greetings):
-            return "Hello! I'm Valora, your real estate intelligence assistant. How can I help you today?"
-        
-        return None
     
     def _get_cache_key(self, query: str, context: Optional[Dict]) -> str:
         """Generate cache key from query and context"""

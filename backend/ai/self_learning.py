@@ -356,12 +356,26 @@ class SelfLearningEngine:
                 "ORDER BY use_count DESC LIMIT 10"
             ).fetchall()
 
+            # Cache hit rate from pipeline metrics if available
+            cache_hit_rate = None
+            try:
+                from ai.pipeline_metrics import get_pipeline_metrics
+                pm = get_pipeline_metrics()
+                raw_rate = pm.get_cache_hit_rate(hours=24)
+                cache_hit_rate = round(raw_rate / 100, 4) if raw_rate else 0.0
+            except Exception:
+                pass
+
             return {
                 "tools_tracked": tool_count,
                 "total_tool_outcomes": total_outcomes,
                 "learned_sequences": seq_count,
+                "patterns_learned": seq_count,
                 "feedback_entries": feedback_count,
+                "total_feedback": feedback_count,
                 "avg_user_rating": round(avg_rating, 2) if avg_rating else None,
+                "avg_rating": round(avg_rating, 2) if avg_rating else None,
+                "cache_hit_rate": cache_hit_rate,
                 "tool_effectiveness": [
                     {"tool": t, "uses": u, "usefulness": round(us or 0, 2), "avg_latency_ms": int(lat or 0)}
                     for t, u, us, lat in top_tools

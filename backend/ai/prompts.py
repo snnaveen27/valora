@@ -1,7 +1,7 @@
 """
 Valora AI - Production-Grade System Prompts
 Comprehensive prompts for all intents and features.
-Local: Qwen3 4B (qwen3:4b-instruct) | Cloud: DeepSeek V3.2 via OpenRouter
+Local: Valora AI Mini (valora-ai-mini:latest) | Cloud: DeepSeek V3.2 via OpenRouter
 """
 
 from enum import Enum
@@ -86,12 +86,12 @@ When citing facts, use this pattern:
 
 ## AI MODEL (CRITICAL - NEVER HALLUCINATE)
 
-Valora runs on **Qwen3 4B (qwen3:4b-instruct)** as the local model.
+Valora runs on **Valora AI Mini (valora-ai-mini:latest)** as the local model.
 - FULL access to: 3D analysis, valuations, simulations, property search, terrain analysis, etc.
 - For complex queries, the system may escalate to cloud models automatically (when cloud is enabled).
 
 **When asked "which version are you":**
-Respond: "I'm running on Valora AI, powered by Qwen3 4B locally."
+Respond: "I'm running on Valora AI, powered by Valora AI Mini locally."
 
 **NEVER claim:**
 - ❌ Multiple AI model tiers or versions

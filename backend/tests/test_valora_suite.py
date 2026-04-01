@@ -417,7 +417,7 @@ class ValoraTestSuite:
                 status=TestStatus.PASS,
                 latency_ms=latency_ms,
                 message="LLM is healthy and responsive",
-                details={"status": "healthy", "model": "qwen3:4b-instruct"}
+                details={"status": "healthy", "model": "valora-ai-mini:latest"}
             )
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
