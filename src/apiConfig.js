@@ -6,21 +6,22 @@
 const getApiUrl = () => {
   // In development (Vite), use relative path to leverage Vite proxy
   if (import.meta.env.DEV) {
-    return import.meta.env.VITE_API_URL || '';
+    return (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
   }
   // Check if explicit URL is provided in environment
   if (import.meta.env.VITE_API_URL) {
+    const configuredApiUrl = import.meta.env.VITE_API_URL.replace(/\/$/, '');
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
-      const isEnvLocal = /localhost|127\.0\.0\.1/.test(import.meta.env.VITE_API_URL);
+      const isEnvLocal = /localhost|127\.0\.0\.1/.test(configuredApiUrl);
       if (!isLocalHost && isEnvLocal) {
         // Ignore local API URL when running on a non-local host
       } else {
-        return import.meta.env.VITE_API_URL;
+        return configuredApiUrl;
       }
     } else {
-      return import.meta.env.VITE_API_URL;
+      return configuredApiUrl;
     }
   }
 
@@ -35,9 +36,9 @@ const getApiUrl = () => {
     }
   }
 
-  // Default production path (proxied via Nginx)
-  // Note: Don't include /api here - fetch calls already add /api/ prefix
-  return '/valora';
+  // Default production API to same-origin root.
+  // The frontend bundle may live under /valora/, but backend routes are served at /api/*.
+  return '';
 };
 
 export const API_URL = getApiUrl();
